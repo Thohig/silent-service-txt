@@ -10,6 +10,7 @@ from sim.ice import NOISE_SOLID_DB, IceField, IceSource
 from sim.knowledge import ContactTrack
 from sim.reports import Quality
 from sim.scenario import build_scenario
+from sim.stations import SonarRoom
 
 
 def test_noise_is_quiet_under_solid_ice_and_loud_where_it_moves():
@@ -46,6 +47,7 @@ def test_benign_needs_good_quality():
 
 def _run(seed, seconds=2 * 3600):
     g = Game(build_scenario("arktis", random.Random(seed)), seed=seed)
+    g.world.mission.pop("fire_at", None)              # bara isen i dessa tester
     reports = []
     g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
     g.command("djup 100")
@@ -70,9 +72,14 @@ def test_ice_contacts_are_classified_as_ice_over_seeds():
         texts = [r.text for r in reports]
         assert not any("IS1" in t or "ICE" in t for t in texts)     # sanningens id:n läcker inte
         assert any(r.type == "sonar.ice" for r in reports)
-        if g.knowledge.tracks:
+        # sanningen avgör vilka beteckningar som var isljud (bara testet tittar)
+        sensor = g.station(SonarRoom).sensor
+        ice_desigs = {t.designation for vid, t in sensor._tracks.items()
+                      if vid.startswith("IS") and t.designation}
+        ice_tracks = [g.knowledge.tracks[d] for d in ice_desigs if d in g.knowledge.tracks]
+        if ice_tracks:
             detected += 1
-            if any(t.benign for t in g.knowledge.tracks.values()):
+            if any(t.benign for t in ice_tracks):
                 classified += 1
     assert detected >= 3                               # ibland, inte alltid
     # svaga källor tystnar ibland innan sonaren hunnit avgöra vad de var

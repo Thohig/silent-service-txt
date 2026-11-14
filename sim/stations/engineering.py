@@ -5,9 +5,10 @@ from dataclasses import dataclass
 
 from .. import acoustics, phrases
 from ..crew import Role
-from ..fmt import kn, nm
+from ..fmt import fmt_course, kn, nm
 from ..orders import CommandSpec, Order
-from ..ownship import COMPONENT_LABEL, TEST_DEPTH, TRIM_RESERVE_T
+from ..ice import masts_clear
+from ..ownship import COMPONENT_LABEL, PERISCOPE_DEPTH, TEST_DEPTH, TRIM_RESERVE_T
 from .base import Proposal, Station
 
 
@@ -33,6 +34,11 @@ class EngineReport(Order):
     pass
 
 
+@dataclass(frozen=True)
+class Ventilate(Order):
+    pass
+
+
 REACTOR_LABEL = {"online": "i drift", "scram": "snabbstoppad", "off": "avställd",
                  "starting": "under uppstart"}
 
@@ -47,12 +53,21 @@ def _status(d: dict) -> str:
     parts.append(f"skrov {d['hull']:.0%}")
     if d["flooding"] > 0.5:
         parts.append(f"{d['flooding']:.0f} ton vatten ombord")
+    if d.get("fire"):
+        parts.append("brand i turbinrummet")
+    if d.get("smoke", 0) > 0.05:
+        parts.append(f"rök {_smoke_word(d['smoke'])}")
     if d["co2"] > 0.8:
         parts.append(f"koldioxid {nm(d['co2'])} %")
     damaged = [f"{COMPONENT_LABEL[c]} {h:.0%}" for c, h in d["health"].items() if h < 1.0]
     if damaged:
         parts.append("skadat: " + ", ".join(damaged))
     return "Maskinrapport: " + ", ".join(parts) + "."
+
+
+def _smoke_word(v: float) -> str:
+    return ("lätt" if v < 0.3 else "besvärande" if v < 0.5 else "tät" if v < 0.7
+            else "mycket tät" if v < 0.85 else "livsfarlig")
 
 
 def _damage(d: dict) -> str:
@@ -104,6 +119,24 @@ PHRASES = {
     "shock": lambda d: ("Smällar nära, inga skador. Små laddningar." if d.get("practice")
                         else "Kraftig tryckvåg! Inga skador." if d["strength"] == "kraftig"
                         else "Detonation på avstånd. Inga skador."),
+    "fire": lambda d: f"BRAND! Brand i {d['compartment']}! Avdelningen utrymd och stängd. "
+    "Turbinen är stoppad, vi går på elmotor. Rökdykare på väg in.",
+    "fire.out": lambda d: "Branden i turbinrummet är släckt, kapten. Men det glöder i isoleringen "
+    "och röken sprider sig. Vi måste ventilera, och det kräver öppen luft.",
+    "smoke": lambda d: f"Kapten, maskin. Röken är {_smoke_word(d['level'])} nu."
+    + (" Folk har svårt att andas." if d["level"] >= 0.7 else "")
+    + (" Vi har inte länge kvar!" if d["level"] >= 0.85 else ""),
+    "vent.stopped": lambda d: "Ventilationen avbruten, masten är under vatten eller is.",
+    "vent.done": lambda d: "Luften är ren igen, kapten. Ventilationen stängd.",
+    "eng.vent.start": lambda d: "Ventilerar genom masten. Det tar en stund."
+    if not d.get("surface") else "Luckorna öppna, ventilerar.",
+    "eng.suggest.vent": lambda d: f"Kapten, maskin. Röken är {_smoke_word(d['smoke'])} och vi har "
+    "öppen luft ovanför. Föreslår att vi ventilerar.",
+    "eng.suggest.vent_vak": lambda d: f"Kapten, maskin. Röken är {_smoke_word(d['smoke'])} och vi måste "
+    f"ventilera. Navigatören har öppning {d['no']} i bäring {fmt_course(d['bearing'])}, cirka "
+    f"{d['range']} meter. Föreslår att vi går dit.",
+    "eng.smoke_no_opening": lambda d: f"Kapten, maskin. Röken är {_smoke_word(d['smoke'])} och vi "
+    "måste ventilera, men vi har ingen öppning i isen. Vi måste hitta öppet vatten.",
     "eng.suggest.cavitation": lambda d: f"Kapten, maskin. Vi kaviterar, vi hörs långt. "
     f"Föreslår fart {kn(d['speed'])} knop.",
     "eng.suggest.restart": lambda d: "Kapten, maskin. Föreslår omstart av reaktorn.",
@@ -128,6 +161,7 @@ class EngineeringStation(Station):
                     lambda m: EmergencyBlow(), "nödblåsning"),
         CommandSpec(r"maskin|maskinrapport|skador|skaderapport|status",
                     lambda m: EngineReport(), "maskin"),
+        CommandSpec(r"ventilera|vädra|vadra|ventilation", lambda m: Ventilate(), "ventilera"),
     ]
 
     def __init__(self, game):
@@ -141,6 +175,18 @@ class EngineeringStation(Station):
     def on_order(self, order: Order) -> None:
         own = self.own
         match order:
+            case SetPropulsion(mode="turbine") if own.sys.fire:
+                self.say("eng.refused", {"reason": "det brinner i turbinrummet"})
+            case Ventilate():
+                st = own.state
+                if own.sys.smoke <= 0.0:
+                    self.say("eng.refused", {"reason": "luften är ren, ingen ventilation behövs"})
+                elif st.depth > PERISCOPE_DEPTH:
+                    self.say("eng.refused", {"reason": "vi måste upp på periskopdjup för att ventilera"})
+                elif not own.start_ventilation(masts_clear(self.game.world)):
+                    self.say("eng.refused", {"reason": "det är is ovanför, masten kommer inte upp"})
+                else:
+                    self.say("eng.vent.start", {"surface": own.surfaced}, kind="ack")
             case SetPropulsion(mode=mode):
                 if not own.set_propulsion(mode):
                     self.say("eng.refused", {"reason": "reaktorn är inte i drift, turbinen kan inte köras"})
@@ -168,7 +214,7 @@ class EngineeringStation(Station):
                     "reactor": s.reactor, "propulsion": s.propulsion,
                     "max_speed": own.max_speed(), "battery": s.battery,
                     "steam_leak": s.steam_leak, "hull": s.hull, "flooding": s.flooding,
-                    "co2": s.co2, "health": dict(s.health)})
+                    "co2": s.co2, "health": dict(s.health), "fire": s.fire, "smoke": s.smoke})
 
     def idle_proposals(self) -> list[Proposal]:
         s, st = self.own.sys, self.own.state
@@ -186,6 +232,30 @@ class EngineeringStation(Station):
             out.append(Proposal(2, "idle_creep", "eng.suggest.creep", "smygmotor"))
         return out
 
+    def _smoke_advice(self) -> None:
+        own, s = self.own, self.own.sys
+        if s.smoke < 0.15 or s.fire or s.ventilating:
+            return
+        alarm = s.smoke >= 0.7
+        if own.state.depth <= PERISCOPE_DEPTH and masts_clear(self.game.world):
+            self.suggest("vent", "eng.suggest.vent", {"smoke": s.smoke}, order="ventilera",
+                         cooldown=120, alarm=alarm)
+            return
+        from .navigation import NavigationStation
+        try:
+            nav = self.game.station(NavigationStation)
+        except KeyError:
+            return
+        if nav.vak is not None:
+            return
+        o = nav.best_opening() if nav.under_ice() else None
+        if o is not None:
+            self.suggest("vent_vak", "eng.suggest.vent_vak", {"smoke": s.smoke, **nav.opening_data(o)},
+                         order="vak", cooldown=600, alarm=alarm, quality=o.quality(self.now))
+        elif nav.under_ice():
+            self.suggest("smoke_search", "eng.smoke_no_opening", {"smoke": s.smoke},
+                         order="fart 5, djup 60", cooldown=900, alarm=alarm)
+
     def update(self) -> None:
         own, s = self.own, self.own.sys
         while s.alerts:
@@ -194,9 +264,14 @@ class EngineeringStation(Station):
                 if self.now - self._last_shock < 15:
                     continue
                 self._last_shock = self.now
-            alarm = type in ("reactor.scram", "damage", "surfaced", "ice.collision", "ice.bump") or \
+            alarm = type in ("reactor.scram", "damage", "surfaced", "ice.collision", "ice.bump",
+                             "fire") or (type == "smoke" and data["level"] >= 0.7) or \
                 (type == "battery" and data["level"] <= 0.1)
             self.say(type, data, kind="info", alarm=alarm)
+
+        for m in self.game.crew.values():           # röken påverkar alla ombord
+            m.traits["smoke"] = s.smoke
+        self._smoke_advice()
 
         st = own.state
         if st.speed > acoustics.cavitation_speed(st.depth) + 0.2:

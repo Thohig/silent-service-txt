@@ -73,6 +73,9 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   ≤ 2 kn på 40 s. Isdrift 0,25 kn mot 200°. Isbrus 50 dB (fast is) till 72 dB.
 - Arktis: generatorn 142 dB, US-ubåt 125 + 1,5·fart med DT 0 och egenbrus 48 + fart.
   Mål: ytläge inom 1,5 nm från Nord-7. Ja-boten når målet i ~11 av 12 frön.
+- Brand (arktis, 40–110 min): rök 0,0009/s medan det brinner (7–13 min), sedan
+  +0,2/h tills ventilation (−0,02/min på periskopdjup, −0,05/min i ytläge). Rök 1,0 = förlorad.
+  Röken sänker `effective_skill()` med upp till 50 %.
 
 ## Arbetssätt
 - Bygg i steg och **committa efter varje steg** (användaren vill det). Vid större

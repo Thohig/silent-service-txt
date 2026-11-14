@@ -182,6 +182,8 @@ def arctic_scenario(rng: random.Random) -> Scenario:
         RadioMessage("FRÅN HUVUDSTABEN. INGEN ÄNDRING. RAPPORTERA NÄR NI NÅTT NORD-7.",
                      {"nuclear_authorized": False}),
     ]
+    # brand i turbinrummet någon gång under första timmarna
+    world.mission["fire_at"] = rng.randint(40 * 60, 110 * 60)
     crew = _crew()
     windows = [(c - start_clock) for c in (3 * 3600, 4 * 3600 + 1800, 6 * 3600)]
     return Scenario(world, crew, order, start_clock,

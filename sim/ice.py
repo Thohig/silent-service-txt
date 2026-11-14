@@ -197,11 +197,16 @@ class IceField:
                     self.draft[(ci + di) % n, (cj + dj) % n] = 0.89 * thickness
 
     def break_through(self, points: list[tuple[float, float]]) -> None:
-        """Ubåten har brutit igenom: isen ovanför blir krossad, öppen ränna."""
+        """Ubåten har brutit igenom: isen ovanför och runt om spricker upp, en öppen ränna."""
+        n = self.n
         for x, y in points:
-            c = self._cell(x, y)
-            self.thickness[c] = 0.0
-            self.draft[c] = 0.0
+            ci, cj = self._cell(x, y)
+            for di in (-1, 0, 1):
+                for dj in (-1, 0, 1):
+                    c = ((ci + di) % n, (cj + dj) % n)
+                    if self.thickness[c] <= BREAK_MAX_M:
+                        self.thickness[c] = 0.0
+                        self.draft[c] = 0.0
 
 
 # --- ubåtens kontakt med isen ----------------------------------------------------

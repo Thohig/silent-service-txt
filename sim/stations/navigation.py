@@ -667,6 +667,7 @@ class NavigationStation(Station):
         if self.goal == "station" and s.speed < 0.3 and s.ordered_speed == 0 and self.vak is None \
                 and not self.under_ice() and self.icemap.soundings and self.fix_done_t is None \
                 and self.uncertainty() < ICE_FIX_SIGMA_NM and not self._radio_waiting() \
+                and self.own.sys.smoke < 0.15 and not self.own.sys.ventilating \
                 and not self.near_station() and not self.game.queue.has_kind("suggest"):
             self.suggest("station_continue", "nav.suggest.station_continue",
                          {"name": STATION_NAME, "depth": SAFE_ICE_DEPTH},

@@ -46,7 +46,9 @@ class CrewMember:
         return f"{ROLE_LABEL[self.role]} ({self.name})"
 
     def effective_skill(self) -> float:
-        return min(max(self.skill, 0.0), 1.0)
+        # rök ombord: huvudvärk, rinnande ögon, sämre omdöme
+        smoke = self.traits.get("smoke", 0.0)
+        return min(max(self.skill * (1.0 - 0.5 * smoke), 0.0), 1.0)
 
     # --- härledda egenskaper ---------------------------------------------
     def bearing_sigma(self) -> float:
