@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from .. import phrases
 from ..crew import Role
 from ..entities import Emission
+from ..events import PositionReported
 from ..fmt import fmt_course
 from ..icemap import thickness_words
 from ..ice import masts_clear
@@ -21,6 +22,7 @@ from .navigation import NavigationStation
 RECEIVE_S = 60
 TRANSMIT_S = 30
 PREWARN_S = 600
+RADIO_VAK_MAX_M = 2500        # öppningar längre bort hinner vi inte till
 
 
 @dataclass(frozen=True)
@@ -123,9 +125,12 @@ class RadioStation(Station):
         if nav is None or not nav.under_ice():
             return False, {}
         o = nav.best_opening()
-        return True, (nav.opening_data(o) if o is not None else {})
+        d = nav.opening_data(o) if o is not None else {}
+        if d and d["range"] > RADIO_VAK_MAX_M:
+            d = {}                      # för långt bort för att hinna dit
+        return True, d
 
-    def _window_pending(self) -> int | None:
+    def window_pending(self) -> int | None:
         """Ett sambandstillfälle som snart börjar eller pågår och inte är avklarat."""
         for i, w0 in enumerate(self.windows):
             if i not in self._handled and w0 - PREWARN_S <= self.now < w0 + self.window_len:
@@ -152,7 +157,7 @@ class RadioStation(Station):
 
     def update(self) -> None:
         st = self.own.state
-        i = self._window_pending()
+        i = self.window_pending()
         nav = self._nav()
         if i is not None and nav is not None and nav.opening_now() is not None \
                 and not self.game.queue.has_kind("suggest") \
@@ -214,6 +219,9 @@ class RadioStation(Station):
             self._next_msg += 1
             self.delivered.append(msg.text)
             self.game.world.mission.update(msg.flags)
+            if msg.waypoint is not None:
+                name, x, y, sigma, t_pos = msg.waypoint
+                self.game.bus.publish(PositionReported(self.now, name, x, y, sigma, t_pos))
             self.say("radio.message", {"text": msg.text}, kind="info", alarm=True)
             any_msg = True
         if not any_msg:

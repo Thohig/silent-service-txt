@@ -70,7 +70,9 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
 - Packis (`ice.py`): rutor 0,05 nm, flerårsis 2–4,5 m, kölar 8–25 m (6 % 30–45 m),
   170 råkar, 28 polynyor ⇒ ~4–5 % öppet vatten, en öppning ungefär var 30:e minut
   i 5 kn. Tornets topp 13 m och skrovets 8 m över kölen. Tunn is ≤ 1 m bryts i
-  ≤ 2 kn på 40 s. Isdrift 0,25 kn mot 200°.
+  ≤ 2 kn på 40 s. Isdrift 0,25 kn mot 200°. Isbrus 50 dB (fast is) till 72 dB.
+- Arktis: generatorn 142 dB, US-ubåt 125 + 1,5·fart med DT 0 och egenbrus 48 + fart.
+  Mål: ytläge inom 1,5 nm från Nord-7. Ja-boten når målet i ~11 av 12 frön.
 
 ## Arbetssätt
 - Bygg i steg och **committa efter varje steg** (användaren vill det). Vid större

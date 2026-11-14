@@ -35,6 +35,8 @@ _CLASS_STAGES = {
                  "handelsfartyg, diesel, en axel"],
     "submarine": ["okänd kontakt", "möjlig undervattenskontakt", "trolig ubåt",
                   "ubåt, atomdriven"],
+    "station": ["okänd kontakt", "maskinbuller, stillaliggande", "dieselgenerator, trolig drivstation",
+                "dieselgenerator, drivstation på isen"],
     "ice": ["okänd kontakt", "bredbandigt brus, ingen tydlig maskin", "trolig isskruvning",
             "isljud, ingen maskin"],
 }

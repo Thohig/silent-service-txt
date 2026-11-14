@@ -110,6 +110,17 @@ class OpeningNotFound(Event):
 
 
 @dataclass(frozen=True)
+class PositionReported(Event):
+    """En position på något vi söker (t.ex. drivstationen), i beräknade koordinater."""
+    name: str
+    x: float
+    y: float
+    sigma: float            # nm vid tidpunkten t_pos
+    t_pos: int
+    source: str = "radio"   # radio, periskop
+
+
+@dataclass(frozen=True)
 class GameEnded(Event):
     outcome: str
     summary: dict

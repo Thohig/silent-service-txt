@@ -184,6 +184,18 @@ class IceField:
     def open_fraction(self) -> float:
         return float(np.mean(self.thickness < OPEN_M))
 
+    def carve_polynya(self, x: float, y: float, radius_nm: float, thickness: float = 0.0) -> None:
+        """Gör en rund vak (sanningskoordinater, nu)."""
+        r = radius_nm / CELL_NM
+        ci, cj = self._cell(x, y)
+        rr = int(math.ceil(r))
+        n = self.n
+        for di in range(-rr, rr + 1):
+            for dj in range(-rr, rr + 1):
+                if di * di + dj * dj <= r * r:
+                    self.thickness[(ci + di) % n, (cj + dj) % n] = thickness
+                    self.draft[(ci + di) % n, (cj + dj) % n] = 0.89 * thickness
+
     def break_through(self, points: list[tuple[float, float]]) -> None:
         """Ubåten har brutit igenom: isen ovanför blir krossad, öppen ränna."""
         for x, y in points:
@@ -298,11 +310,12 @@ def masts_clear(world: World) -> bool:
 # --- isljud ------------------------------------------------------------------------
 class IceSource(Vessel):
     """En ihållande ljudkälla: isen skruvar sig. Driver med isen, tystnar efter en tid."""
+    drifts_with_ice = True
 
     def __init__(self, id: str, x: float, y: float, level: float, end_t: int,
                  drift_set: float, drift_kn: float):
         super().__init__(id=id, kind="ice", state=ShipState(x=x, y=y, course=drift_set,
-                                                            speed=drift_kn, depth=2.0),
+                                                            speed=0.0, depth=2.0),
                          side="neutral")
         self.level = level
         self.end_t = end_t

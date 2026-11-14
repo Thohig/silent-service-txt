@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .events import (BearingObserved, ClassificationChanged, ContactDetected,
-                     ContactLost, EventBus, IceSounded, OpeningNotFound)
+                     ContactLost, EventBus, IceSounded, OpeningNotFound, PositionReported)
 from .icemap import IceMap
 from .reports import Quality
 from .tma import BearingObs, Solution, solve
@@ -28,9 +28,10 @@ class ContactTrack:
 
     @property
     def benign(self) -> bool:
-        """Säkert klassad som isljud: inget fartyg, inget hot."""
+        """Säkert klassad som isljud eller drivstationen: inget fartyg, inget hot."""
         c = self.classification
-        return self.class_quality >= Quality.GOD and ("isljud" in c or "isskruvning" in c)
+        return self.class_quality >= Quality.GOD and \
+            ("isljud" in c or "isskruvning" in c or "drivstation" in c)
 
     @property
     def threat(self) -> bool:
@@ -42,10 +43,28 @@ class ContactTrack:
         return self.observations[-1].bearing if self.observations else None
 
 
+WAYPOINT_DRIFT_KN = 0.3          # isdrift åt okänt håll: så växer osäkerheten
+
+
+@dataclass
+class Waypoint:
+    """Ett mål vi känner läget på, t.ex. drivstationen (beräknade koordinater)."""
+    name: str
+    x: float
+    y: float
+    sigma0: float
+    t: int
+    source: str = "radio"
+
+    def sigma(self, now: int) -> float:
+        return self.sigma0 + WAYPOINT_DRIFT_KN * max(0, now - self.t) / 3600.0
+
+
 @dataclass
 class Knowledge:
     tracks: dict[str, ContactTrack] = field(default_factory=dict)
     ice: IceMap = field(default_factory=IceMap)
+    waypoints: dict[str, Waypoint] = field(default_factory=dict)
 
     def attach(self, bus: EventBus) -> None:
         bus.subscribe(ContactDetected, self._on_detected)
@@ -54,6 +73,7 @@ class Knowledge:
         bus.subscribe(ContactLost, lambda e: self.on_lost(e.designation))
         bus.subscribe(IceSounded, lambda e: self.ice.on_sounding(e.obs))
         bus.subscribe(OpeningNotFound, self._on_opening_not_found)
+        bus.subscribe(PositionReported, self._on_position)
 
     # --- händelser ------------------------------------------------------------
     def _on_detected(self, e: ContactDetected) -> None:
@@ -65,6 +85,18 @@ class Knowledge:
     def _on_classified(self, e: ClassificationChanged) -> None:
         if tr := self.tracks.get(e.designation):
             tr.classification, tr.class_quality = e.classification, e.quality
+
+    def _on_position(self, e: PositionReported) -> None:
+        old = self.waypoints.get(e.name)
+        new = Waypoint(e.name, e.x, e.y, e.sigma, e.t_pos, e.source)
+        if old is None or new.sigma(e.t) <= old.sigma(e.t):
+            self.waypoints[e.name] = new
+
+    def station_track(self) -> ContactTrack | None:
+        """Den kontakt sonaren klassat som drivstationen, om någon."""
+        cands = [t for t in self.tracks.values() if "drivstation" in t.classification]
+        return max(cands, key=lambda t: t.observations[-1].t if t.observations else -1,
+                   default=None)
 
     def _on_opening_not_found(self, e: OpeningNotFound) -> None:
         for o in self.ice.openings:

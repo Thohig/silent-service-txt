@@ -19,9 +19,10 @@ from dataclasses import dataclass
 from .. import phrases
 from ..crew import ROLE_LABEL, Role
 from ..entities import Emission
-from ..events import BearingObserved, ContactDetected
+from ..arctic import STATION_LIGHT_NM
+from ..events import BearingObserved, ContactDetected, PositionReported
 from ..fmt import fmt_course, kn, nm
-from ..geo import angle_diff, norm360
+from ..geo import angle_diff, norm360, velocity
 from ..ice import masts_clear
 from ..orders import AskSuggestion, CommandSpec, Order
 from ..ownship import PERISCOPE_DEPTH
@@ -61,6 +62,11 @@ PHRASES = {
     "off.periscope.contact": lambda d: "Periskop: " + _contact(d),
     "off.periscope.none": lambda d: f"Periskop: inget i sikte. "
     f"{'Dagsljus' if d['day'] else 'Mörkt'}, sikt cirka {nm(d['visibility'])} sjömil. Periskop ner.",
+    "off.periscope.station": lambda d: f"Periskop: ljus på isen i bäring {fmt_course(d['bearing'])}, "
+    f"avstånd cirka {nm(d['range'])} sjömil. Baracker och radiomaster. Det måste vara Nord-7! "
+    "Inga rörelser, inget ljus i fönstren.",
+    "off.suggest.surface_station": lambda d: "Kapten, vakthavande. Vi har öppet vatten ovanför och "
+    f"Nord-7 på {nm(d['range'])} sjömil, nära nog att gå över isen. Föreslår ytläge.",
     "off.radar.start": lambda d: "Radar sänder. Ett svep.",
     "off.radar.contact": lambda d: f"Radar: {d['designation']} i bäring {fmt_course(d['bearing'])}, "
     f"avstånd {nm(d['range'])} sjömil.",
@@ -183,6 +189,27 @@ class OfficerStation(Station):
             return [Proposal(5, "idle_look", "off.suggest.look", "periskop", cooldown=900)]
         return []
 
+    def _sight_station(self, v) -> None:
+        """Stationens ljus i periskopet: bäring och avstånd, och läget till navigatören."""
+        world, rng = self.game.world, self.game.rng
+        r = world.true_range(v)
+        bearing = norm360(world.true_bearing(v) + rng.gauss(0, 1.0))
+        r_meas = max(0.05, r + rng.gauss(0, 0.1 * r + 0.03))
+        ex, ey = self.game.own_position_estimate()
+        dx, dy = velocity(bearing, r_meas * 3600)          # en timme i r_meas knop = r_meas nm
+        self.game.bus.publish(PositionReported(self.now, "Nord-7", ex + dx, ey + dy,
+                                               0.1 * r_meas + 0.05, self.now, "periskop"))
+        self.say("off.periscope.station", {"bearing": bearing, "range": r_meas}, kind="contact",
+                 quality=Quality.GOD, alarm=True)
+        from .navigation import NavigationStation
+        try:
+            room = self.game.station(NavigationStation).surface_ok()
+        except KeyError:
+            room = True
+        if r_meas < 1.4 and self.own.state.depth > 1.0 and room:
+            self.suggest("surface_station", "off.suggest.surface_station", {"range": r_meas},
+                         order="ytläge", cooldown=300)
+
     def _observe(self, v, bearing_sigma: float, range_sigma: float, source: str,
                  label: str) -> dict:
         world, rng = self.game.world, self.game.rng
@@ -212,7 +239,11 @@ class OfficerStation(Station):
                 return
             vis = world.env.visibility_nm(self.now)
             seen = [v for v in self._surface_ships() if world.true_range(v) <= vis]
-            if not seen:
+            stations = [v for v in world.contacts
+                        if v.kind == "station" and world.true_range(v) <= STATION_LIGHT_NM]
+            for v in stations:
+                self._sight_station(v)
+            if not seen and not stations:
                 self.say("off.periscope.none", {"day": world.env.is_day(self.now), "visibility": vis})
             for v in seen:
                 r = world.true_range(v)

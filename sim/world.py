@@ -72,6 +72,11 @@ class World:
         for v in [self.own, *self.contacts]:
             if v.sunk or isinstance(v, Torpedo):
                 continue
+            if v.drifts_with_ice and ice is not None:
+                ivx, ivy = ice.drift_velocity()
+                v.state.x += ivx * dt
+                v.state.y += ivy * dt
+                continue
             v.state.step(dt)
             if v is self.own and ice is not None and v.state.depth <= 1.0:
                 # i ytläge i en vak eller råk: ubåten ligger fast i isen och driver med den
@@ -104,9 +109,15 @@ class World:
             if self.time - self.mission["all_sunk_t"] >= SINK_ENDING_DELAY:
                 self.end("sank")
             return
+        goal = self.mission.get("goal")
+        if goal and self.own.surfaced:
+            target = next((v for v in self.contacts if v.id == goal["id"]), None)
+            if target is not None and self.true_range(target) <= goal["radius_nm"]:
+                self.end(goal["outcome"])
+                return
         if self.own.surfaced:
             for ai in self.ais:
-                if ai.vessel.sunk:
+                if ai.vessel.sunk or not getattr(ai, "can_force", True):
                     continue
                 if ai.aware() or self.true_range(ai.vessel) < 6.0:
                     self.end("forced")

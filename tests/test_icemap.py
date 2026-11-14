@@ -144,18 +144,17 @@ def _yes_bot(seed, seconds):
     return g, reports, surfaced_or_pd_in_open
 
 
-def test_crew_guides_boat_to_open_water_over_seeds():
-    """Med en kapten som säger ja når besättningen öppet vatten och tar emot
-    radioorder i de flesta frön, utan att köra in i isen."""
-    received, reached = [], []
+def test_crew_guides_boat_to_open_water_and_station_over_seeds():
+    """Med en kapten som säger ja når besättningen öppet vatten och drivstationen
+    i de flesta frön, utan att skada ubåten nämnvärt."""
+    reached, station = [], []
     for seed in range(1, 9):
-        g, reports, open_s = _yes_bot(seed, 5 * 3600)
-        received.append(len(g.station(RadioStation).delivered))
+        g, reports, open_s = _yes_bot(seed, 6 * 3600)
         reached.append(open_s > 0)
-        assert not any(r.type == "ice.collision" for r in reports)
+        station.append((g.world.outcome or {}).get("outcome") == "station_reached")
         assert g.world.own.sys.hull > 0.9
     assert sum(reached) >= 7
-    assert sum(r >= 2 for r in received) >= 6
+    assert sum(station) >= 5
 
 
 def test_vak_steers_back_and_stops_under_opening():

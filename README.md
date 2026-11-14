@@ -43,7 +43,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Tid | `tid 1` `tid 2` `tid 5` `tid 10` (faller till 1× vid larm) |
 | Sonar | `aktiv sonar` (ger avstånd men avslöjar oss) |
 | Plott | `läge S-1` · `plot S-1` |
-| Navigation | `position` · `fix` (periskopdjup) · `ekolod` · `isekolod` · `vak` (gå till och stoppa under en loggad öppning i isen) |
+| Navigation | `position` · `fix` (periskopdjup) · `ekolod` · `isekolod` · `vak` (gå till och stoppa under en loggad öppning i isen) · `drivstationen` (styr mot Nord-7) |
 | Maskin | `smygmotor` · `turbin` · `stäng reaktorn` · `starta reaktorn` · `nödblåsning` · `maskin` |
 | Vakthavande | `periskop` · `radar` (periskopdjup; radarvarnaren är automatisk) |
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
@@ -68,6 +68,8 @@ en del säger de vilken, och resten verkställs ändå.
 | Periskop, radar, radarvarnare | Avstånd och kurs på periskopdjup, med risk att synas. |
 | Navigering | Besticket driver med ström och loggfel; fix kräver periskopet. |
 | Radio | Sambandstillfällen på antenndjup (tider beror på scenariot). Sändning pejlas. |
+| Arktis: Nord-7 | Drivstationen driver med isen. Huvudstaben ger en ungefärlig position; generatorn hörs på några sjömil och ljuset syns i periskopet. Målet är ytläge inom 1,5 sjömil. En amerikansk atomubåt hör oss före vi hör den och skuggar oss, men skjuter inte. |
+| Isljud (arktis) | Bakgrundsbruset beror på isen. Skruvis knakar och kan först tas för en kontakt. |
 | Packis (arktis) | Masterna kräver öppet vatten. Isekolodet lodar isen ovanför och navigatören loggar öppningar; deras läge blir osäkrare när isen driver. Kölar når 45 m: gå djupt i fart. Tunn is (≤ 1 m) kan brytas igenom i låg fart om råken är minst 120 m. Arktiskt hav saknar språngskikt; djupt gående hör och hörs längre. |
 | Torpeder | 53-61 (rak, snabb), SET-53 (målsökande), T-5 (kärnladdning, spärrad utan order). |
 | Torpeder i vattnet | Sonar följer egna torpeder. Torpedrummet rapporterar normal gång, sväng (målsökning), tappad torped, detonation och miss. `torpeder` ger gångtid, tid till beräknad träff, räckvidd kvar och senaste bäring. |
@@ -100,6 +102,7 @@ sim/                 ren Python, ingen Textual
   ice.py             SANNING: packis, kölar, råkar, drift, kontakt med isen
   icemap.py          KUNSKAP: iskartan ur isekolodets lodningar
   scenario.py        scenarier och scenarioregistret
+  arctic.py          SANNING: drivstationen och den amerikanska ubåtens AI
   entities.py        fartyg, transienter, emissioner
   ownship.py         egen ubåt: reaktor, batteri, skrov, skador
   enemy.py           jagarens sensorer och beteende

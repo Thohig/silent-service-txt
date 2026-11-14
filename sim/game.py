@@ -23,8 +23,8 @@ from typing import Any, TypeVar
 
 from . import phrases
 from .crew import CrewMember, Role
-from .events import (EventBus, GameEnded, OrderIssued, ReportDelivered, Tick,
-                     TimeScaleChanged)
+from .events import (EventBus, GameEnded, OrderIssued, PositionReported, ReportDelivered,
+                     Tick, TimeScaleChanged)
 from .fmt import clock
 from .knowledge import Knowledge
 from .logbook import Logbook
@@ -82,6 +82,7 @@ OUTCOME_TEXT = {
               "men besättningen lever.",
     "sank": "Den amerikanska jagaren är sänkt. Vad som händer nu avgörs inte längre i Kvadrat 7.",
     "patrol_end": "Patrullen är slut. K-114 lämnar Kvadrat 7.",
+    "station_reached": "K-114 har nått målet.",
     "quit": "Kaptenen har avbrutit patrullen. K-114 lämnar Kvadrat 7 i förtid.",
 }
 
@@ -125,6 +126,8 @@ class Game:
         for st in self.stations:
             st.attach(self.bus)
         self.registry = build_registry(station_classes)
+        for name, x, y, sigma, t in scenario.known_positions:
+            self.bus.publish(PositionReported(0, name, x, y, sigma, t, "order"))
 
     # ------------------------------------------------------------------ åtkomst
     @property
