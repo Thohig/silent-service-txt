@@ -20,10 +20,12 @@ from sim.fmt import fmt_course, kn
 from sim.scenario import SCENARIOS, build_scenario
 from sim.truthlog import TruthLog
 
+from .chart import ChartScreen
 from .teletype import Teletype
 from .widgets import ReportLog, StatusBar
 
 MAX_TICKS_PER_FRAME = 20
+CHART_WORDS = {"sjökort", "sjokort", "kort", "karta"}
 FRAME_S = 0.05
 
 
@@ -40,7 +42,8 @@ class SubApp(App):
     #order  { border: tall #2f4a36; background: #0f1611; }
     #order:focus { border: tall #5f8a66; }
     """
-    BINDINGS = [Binding("ctrl+q", "quit", "Avsluta", priority=True)]
+    BINDINGS = [Binding("ctrl+q", "quit", "Avsluta", priority=True),
+                Binding("f2", "chart", "Sjökort", priority=True)]
 
     def __init__(self, seed: int | None = None, log_dir: Path | str = "logs",
                  scenario: str | None = None):
@@ -121,6 +124,9 @@ class SubApp(App):
             return
         if not text:
             return
+        if text.lower() in CHART_WORDS:
+            self.action_chart()
+            return
         self.query_one(ReportLog).add_captain(self.game.clock_str(), text)
         self.game.command(text)
 
@@ -133,9 +139,20 @@ class SubApp(App):
                        f"Du har befälet. Ubåten går kurs {fmt_course(st.course)}, "
                        f"fart {kn(st.speed)} knop, djup {st.depth:.0f} meter.")
         log.add_system(self.game.clock_str(), "Skriv hjälp för en lista över order. Besättningens förslag godkänns med ja, avslås med nej.")
+        log.add_system(self.game.clock_str(), "F2 visar navigatörens sjökort.")
         self.running = True
         self._last = time.monotonic()
         self.set_interval(FRAME_S, self._pump)
+
+    # ------------------------------------------------------------------ sjökort
+    def action_chart(self) -> None:
+        """F2: visa eller stäng sjökortet. Spelet går vidare under tiden."""
+        if not self.running or self.game is None:
+            return
+        if isinstance(self.screen, ChartScreen):
+            self.pop_screen()
+        else:
+            self.push_screen(ChartScreen())
 
     # ------------------------------------------------------------------ realtid
     def _pump(self) -> None:
@@ -162,6 +179,8 @@ class SubApp(App):
     # ------------------------------------------------------------------ händelser
     def _on_report(self, e: ReportDelivered) -> None:
         self.query_one(ReportLog).add_report(self.game.clock_str(), e.report)
+        if isinstance(self.screen, ChartScreen):
+            self.screen.add_report(self.game.clock_str(), e.report)
 
     def _on_time_scale(self, e: TimeScaleChanged) -> None:
         log = self.query_one(ReportLog)
@@ -172,6 +191,8 @@ class SubApp(App):
         self.query_one(StatusBar).show(self.game.status())
 
     def _on_game_ended(self, e: GameEnded) -> None:
+        if isinstance(self.screen, ChartScreen):
+            self.pop_screen()               # slutrapporten visas i loggen
         self.query_one(ReportLog).add_ending(e.summary)
         inp = self.query_one("#order", Input)
         inp.placeholder = "Spelet är slut – ctrl+q avslutar"

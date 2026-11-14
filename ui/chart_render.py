@@ -170,7 +170,8 @@ def render_chart(view: ChartView, cx: float, cy: float, scale: float,
                     c, r = cv.cell(*pts[0])
                     cv.put(c, r, "·", st, it.layer)
             case Ring():
-                cv.ring(it.x, it.y, it.radius, item_style(it.style, it.quality), it.layer)
+                cv.ring(it.x, it.y, it.radius, item_style(it.style, it.quality, faded=True),
+                        it.layer)
             case Ray():
                 b = math.radians(it.bearing)
                 x1, y1 = it.x + it.length * math.sin(b), it.y + it.length * math.cos(b)

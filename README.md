@@ -48,6 +48,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Vakthavande | `periskop` · `radar` (periskopdjup; radarvarnaren är automatisk) |
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
+| Sjökort | `F2` eller `sjökort` visar navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, `c` centrerar, `Esc` tillbaka |
 | Övrigt | `hjälp` · `avsluta` (avbryter patrullen med slutrapport) · `ctrl+q` stänger programmet |
 
 Flera order kan ges på en rad, åtskilda med komma, semikolon eller "och":
@@ -80,6 +81,14 @@ Jagaren pingar, söker kring sin bild av var vi är och fäller
 signalsjunkbomber för att tvinga upp oss. Om vi skjuter blir sjunkbomberna
 skarpa.
 
+Sjökortet (`F2`) visar bara det besättningen vet: navigatörens beräknade
+position med osäkerhetsring, besticket och fixarna, plottlagets lösningar
+(läge, fartvektor, avståndsosäkerhet) och bäringar utan lösning, isekolodets
+lodningar och öppningar, huvudstabens positioner och egna torpeder. Allt ritas
+där besättningen tror att det är, så kortet blir lika fel som besticket tills
+nästa fix. Spelet går vidare medan kortet visas, och de senaste rapporterna
+syns längst ner.
+
 Spelet slutar om ubåten förloras, tvingas till ytan, sänker jagaren,
 när patrullen är slut kl 08:00 eller när kaptenen skriver `avsluta`. Då visas
 en kort rapport: tid i befäl, order, kontakter, torpeder, sjunkbomber,
@@ -109,6 +118,7 @@ sim/                 ren Python, ingen Textual
   enemy.py           jagarens sensorer och beteende
   weapons.py         torpeder, sjunkbomber, skenmål
   firecontrol.py     skjutlösning (ren matematik på kunskap)
+  chart.py           sjökortets ritelement; stationerna bidrar via chart_items()
   stations/          ett system ombord per modul
     base.py          Station: COMMANDS, on_order, update, say, suggest
     navigation.py    kurs, fart, djup, bestick, fix, ekolod, isekolod, vak
@@ -119,6 +129,8 @@ sim/                 ren Python, ingen Textual
     plot.py          plottlaget
     torpedo_room.py  torpedrum och eldledning
 ui/                  Textual
+  chart.py           sjökortet i helskärm (F2)
+  chart_render.py    rastrering av sjökortet till tecken
 ```
 
 ### Lägga till ett system
@@ -132,6 +144,8 @@ ui/                  Textual
    med `self.suggest(nyckel, typ, data, order="…")`.
 5. Vill stationen ta initiativ när kaptenen är tyst: returnera `Proposal`
    från `idle_proposals()` (prioritet 1 = viktigast). Vakthavande väljer.
+5. Ska systemet synas på sjökortet: returnera element (`sim/chart.py`) från
+   `chart_items()`, i beräknade koordinater och bara ur kunskap.
 5. Lägg klassen i `DEFAULT_STATIONS`. Game behöver inte ändras.
 
 Stationer pratar med varandra via händelsebussen. Kunskapslagret

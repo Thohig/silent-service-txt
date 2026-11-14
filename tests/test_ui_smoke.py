@@ -39,3 +39,42 @@ def test_game_begins_with_scenario_picker(tmp_path):
 
     asyncio.run(run())
     assert list(tmp_path.glob("truth-*.log"))
+
+
+def test_f2_shows_the_chart_while_the_game_runs(tmp_path):
+    from ui.chart import ChartScreen
+
+    async def run():
+        app = SubApp(seed=2, log_dir=tmp_path, scenario="arktis")
+        async with app.run_test(size=(110, 40)) as pilot:
+            await pilot.press("f2")           # inget kort innan befälet är taget
+            assert not isinstance(app.screen, ChartScreen)
+            await pilot.press("enter", "enter")
+            for _ in range(900):
+                app.game.tick()
+            await pilot.press("f2")
+            assert isinstance(app.screen, ChartScreen)
+            await pilot.pause(0.3)
+            t0 = app.game.now
+            await pilot.pause(1.5)
+            assert app.game.now > t0          # realtid går vidare
+            body = str(app.screen.query_one("#chart-body").render())
+            assert "@" in body
+            zoom = app.screen.zoom
+            await pilot.press("plus")
+            assert app.screen.zoom == zoom - 1
+            await pilot.press("left")
+            assert not app.screen.follow
+            await pilot.press("c")
+            assert app.screen.follow
+            app.save_screenshot(str(tmp_path / "sjokort.svg"))
+            await pilot.press("escape")
+            assert not isinstance(app.screen, ChartScreen)
+            await pilot.press(*"sjökort", "enter")
+            assert isinstance(app.screen, ChartScreen)
+            await pilot.press("f2")
+            assert not isinstance(app.screen, ChartScreen)
+            await pilot.press(*"kurs 090", "enter")   # ordern går fram igen
+            assert app.game.world.own.state.ordered_course == 90
+
+    asyncio.run(run())
