@@ -29,7 +29,8 @@ tar vakthavande initiativ och låter den station som har det viktigaste
 förslaget säga det: omstart av reaktorn, gå under skiktet, smygmotor, nytt
 ben för plottet, påminnelse om sambandstillfälle, lägre fart för att lyssna,
 fix, ladda tom tub, periskopsvep eller nytt sökben. Samma order föreslås
-inte igen inom tjugo minuter.
+inte igen inom tjugo minuter. Svarar kaptenen inte på ett förslag glesas upprepningarna
+ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 
 | Område | Order |
 |---|---|

@@ -26,6 +26,11 @@ from ..reports import Quality
 if TYPE_CHECKING:
     from ..game import Game
 
+# Obesvarade förslag glesas ut: får kaptenen samma förslag (nyckel) igen utan
+# att ha sagt något sedan förra gången, fördubblas väntetiden för varje gång.
+BACKOFF_BASE_S = 420
+BACKOFF_MAX_S = 3600
+
 
 @dataclass(frozen=True)
 class Proposal:
@@ -50,6 +55,7 @@ class Station:
     def __init__(self, game: Game):
         self.game = game
         self._suggested: dict[str, int] = {}
+        self._unanswered: dict[str, int] = {}
 
     # --- koppling -----------------------------------------------------------
     def attach(self, bus: EventBus) -> None:
@@ -87,12 +93,22 @@ class Station:
         Samma förslag (key) upprepas inte inom cooldown sekunder. Ett förslag
         om något kaptenen redan har beordrat ges inte alls (se
         Game.suggestion_redundant) och förbrukar då ingen cooldown.
+
+        Har kaptenen inte sagt något sedan förslaget senast gavs glesas det ut:
+        väntetiden fördubblas för varje obesvarad upprepning (larm undantagna).
         """
         if order and self.game.suggestion_redundant(order, self.now):
             return False
-        if self.now - self._suggested.get(key, -10**9) < cooldown:
+        last = self._suggested.get(key)
+        n = 0
+        if last is not None and not alarm and self.game.last_command_t <= last:
+            n = self._unanswered.get(key, 0) + 1
+        wait = cooldown if n == 0 else \
+            min(max(cooldown, BACKOFF_BASE_S) * 2 ** n, BACKOFF_MAX_S)
+        if last is not None and self.now - last < wait:
             return False
         self._suggested[key] = self.now
+        self._unanswered[key] = n
         d = dict(data or {})
         if order:
             d["order"] = order

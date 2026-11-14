@@ -93,3 +93,42 @@ def test_cavitation_suggestion_not_repeated_once_ordered():
     _run(g, 120)
     later = [r for r in _suggestions(reports) if r.type == "eng.suggest.cavitation"][n:]
     assert all(r.data["order"] != ordered for r in later)
+
+
+def _repeat(g, key, order, alarm=False, until=4000):
+    """Försök ge samma förslag varje sekund; returnera när det faktiskt gavs."""
+    eng = g.station(EngineeringStation)
+    times = []
+    for _ in range(until):
+        if eng.suggest(key, "eng.suggest.restart", order=order, cooldown=300, alarm=alarm):
+            times.append(g.now)
+        g.tick()
+    return times
+
+
+def test_unanswered_suggestion_backs_off():
+    g, _ = _game()
+    for st in g.stations:
+        st.idle_proposals = lambda: []
+    times = _repeat(g, "r", "starta reaktorn")
+    gaps = [b - a for a, b in zip(times, times[1:])]
+    assert gaps[0] >= 840 and gaps[1] >= 1680
+    assert all(b >= a for a, b in zip(gaps, gaps[1:]))
+
+
+def test_answered_suggestion_keeps_normal_cooldown():
+    g, _ = _game()
+    eng = g.station(EngineeringStation)
+    assert eng.suggest("r", "eng.suggest.restart", order="starta reaktorn", cooldown=300)
+    for _ in range(3):
+        _run(g, 100)
+        g.command("nej")                 # kaptenen svarar
+        _run(g, 201)
+        assert eng.suggest("r", "eng.suggest.restart", order="starta reaktorn", cooldown=300)
+
+
+def test_alarm_suggestion_does_not_back_off():
+    g, _ = _game()
+    times = _repeat(g, "b", "nödblåsning", alarm=True, until=1300)
+    gaps = [b - a for a, b in zip(times, times[1:])]
+    assert gaps and all(gap == 300 for gap in gaps)
