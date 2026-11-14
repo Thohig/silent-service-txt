@@ -9,7 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .events import (BearingObserved, ClassificationChanged, ContactDetected,
-                     ContactLost, EventBus, IceSounded, OpeningNotFound, PositionReported)
+                     ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound,
+                     PositionReported)
 from .icemap import IceMap
 from .seabed import Seabed
 from .reports import Quality
@@ -55,6 +56,7 @@ class ContactTrack:
         return self.observations[-1].bearing if self.observations else None
 
 
+HUNTED_WINDOW_S = 300          # så länge efter senaste tecknet räknar vi med att de har oss
 WAYPOINT_DRIFT_KN = 0.3          # isdrift åt okänt håll: så växer osäkerheten
 
 
@@ -78,6 +80,7 @@ class Knowledge:
     ice: IceMap = field(default_factory=IceMap)
     waypoints: dict[str, Waypoint] = field(default_factory=dict)
     bathymetry: Seabed | None = None     # det gamla sjökortets djupkurvor (inte sanningen)
+    hunt_t: int = -10**9                 # senast sonar hörde att fienden har oss
 
     def attach(self, bus: EventBus) -> None:
         bus.subscribe(ContactDetected, self._on_detected)
@@ -87,8 +90,12 @@ class Knowledge:
         bus.subscribe(IceSounded, lambda e: self.ice.on_sounding(e.obs))
         bus.subscribe(OpeningNotFound, self._on_opening_not_found)
         bus.subscribe(PositionReported, self._on_position)
+        bus.subscribe(HuntSigns, self._on_hunt)
 
     # --- händelser ------------------------------------------------------------
+    def _on_hunt(self, e: HuntSigns) -> None:
+        self.hunt_t = e.t
+
     def _on_detected(self, e: ContactDetected) -> None:
         known = e.designation in self.tracks
         tr = self.on_detection(e.designation, e.t)
@@ -135,6 +142,10 @@ class Knowledge:
         return tr
 
     # --- frågor ---------------------------------------------------------------
+    def hunted(self, now: int, window: int = HUNTED_WINDOW_S) -> bool:
+        """Har fienden troligen kontakt med oss (tecken hörda nyligen)?"""
+        return now - self.hunt_t <= window
+
     def threat_held(self) -> bool:
         return any(t.threat for t in self.tracks.values())
 

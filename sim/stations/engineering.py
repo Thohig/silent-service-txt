@@ -169,10 +169,16 @@ PHRASES = {
     "eng.suggest.restart": lambda d: "Kapten, maskin. Föreslår omstart av reaktorn.",
     "eng.suggest.blow": lambda d: f"Kapten, maskin! Vi tar in vatten och sjunker, "
     f"{d['flooding']:.0f} ton ombord. Föreslår nödblåsning!",
+    "eng.suggest.sprint": lambda d: "Kapten, maskin. De har oss redan på aktiv sonar, smygandet "
+    f"hjälper inte nu. Föreslår turbin och fart {kn(d['speed'])} på {d['depth']:.0f} meter, "
+    "där kaviterar vi inte. Djupt och fort bort.",
     "eng.suggest.creep": lambda d: "Kapten, maskin. Med kontakt i närheten föreslår jag "
     "smygmotor, det sänker vårt ljud kraftigt.",
 }
 phrases.register(PHRASES)
+
+SPRINT_DEPTH = 220          # upptäckta: så djupt vi vill springa (under skiktet, över provdjup)
+SPRINT_MIN_DEPTH = 100
 
 
 class EngineeringStation(Station):
@@ -331,9 +337,41 @@ class EngineeringStation(Station):
                                 {"speed": safe}, cooldown=600))
         if s.reactor in ("scram", "off") and s.battery < 0.5:
             out.append(Proposal(1, "idle_restart", "eng.suggest.restart", "starta reaktorn"))
-        if s.propulsion == "turbine" and not s.on_bottom and self.game.knowledge.threat_held():
+        hunted = self.game.knowledge.hunted(self.now)
+        if hunted and (p := self._sprint()) is not None:
+            order, data = p
+            out.append(Proposal(2, "idle_sprint", "eng.suggest.sprint", order, data, cooldown=600))
+        elif not hunted and s.propulsion == "turbine" and not s.on_bottom and \
+                self.game.knowledge.threat_held():
             out.append(Proposal(2, "idle_creep", "eng.suggest.creep", "smygmotor"))
         return out
+
+    def _sprint(self) -> tuple[str, dict] | None:
+        """Upptäckta: djupt och så fort det går utan kavitation. None om vi redan gör det."""
+        own, s, st = self.own, self.own.sys, self.own.state
+        if s.on_bottom or s.settle or not own.power:
+            return None
+        from .navigation import NavigationStation
+        depth = SPRINT_DEPTH
+        try:
+            lim = self.game.station(NavigationStation).depth_limit()
+        except KeyError:
+            lim = None
+        if lim is not None:
+            depth = min(depth, lim)
+        if depth < SPRINT_MIN_DEPTH:
+            return None
+        speed = int(acoustics.cavitation_speed(depth)) - 1
+        if speed <= 6:
+            return None
+        if s.propulsion == "turbine" and st.ordered_speed >= speed - 1 and \
+                abs(st.ordered_depth - depth) <= 40:
+            return None
+        parts = [] if abs(st.ordered_depth - depth) <= 40 else [f"djup {depth:.0f}"]
+        if s.propulsion != "turbine":
+            parts.append("turbin")
+        parts.append(f"fart {speed}")
+        return ", ".join(parts), {"speed": speed, "depth": depth}
 
     def _smoke_advice(self) -> None:
         own, s = self.own, self.own.sys
@@ -388,6 +426,10 @@ class EngineeringStation(Station):
         if s.flooding > TRIM_RESERVE_T and st.depth > 20 and not s.blowing and s.hp_air > 0:
             self.suggest("blow", "eng.suggest.blow", {"flooding": s.flooding},
                          order="nödblåsning", cooldown=120, alarm=True)
-        if s.propulsion == "turbine" and not s.on_bottom and self.game.knowledge.tracks and \
-                self.game.knowledge.threat_held():
+        hunted = self.game.knowledge.hunted(self.now)
+        if hunted and (p := self._sprint()) is not None:
+            order, data = p
+            self.suggest("sprint", "eng.suggest.sprint", data, order=order, cooldown=600)
+        elif not hunted and s.propulsion == "turbine" and not s.on_bottom and \
+                self.game.knowledge.tracks and self.game.knowledge.threat_held():
             self.suggest("creep", "eng.suggest.creep", order="smygmotor", cooldown=3600)

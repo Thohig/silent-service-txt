@@ -59,6 +59,12 @@ class ContactDetected(Event):
 
 
 @dataclass(frozen=True)
+class HuntSigns(Event):
+    """Sonar tolkar ljuden som att fienden har kontakt med oss (snabb pingtakt, sjunkbomber)."""
+    reason: str
+
+
+@dataclass(frozen=True)
 class BearingObserved(Event):
     obs: BearingObs
 

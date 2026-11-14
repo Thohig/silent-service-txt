@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from .. import acoustics, phrases
 from ..crew import Role
 from ..entities import Transient
-from ..events import (BearingObserved, ClassificationChanged, ContactDetected,
+from ..events import (BearingObserved, ClassificationChanged, ContactDetected, HuntSigns,
                       ContactLost, OwnSoundMade, OwnTorpedoHeard, SoundHeard)
 from ..fmt import fmt_course, nm
 from ..geo import angle_diff, circular_mean, norm360
@@ -246,7 +246,7 @@ class SonarRoom(Station):
                     self.say("sonar.lost", {"designation": ev.designation,
                                             "last_bearing": tr.last_bearing if tr else None},
                              kind="contact")
-                    if self.own.state.speed > 6:
+                    if self.own.state.speed > 6 and not self.game.knowledge.hunted(self.now):
                         self.suggest("slow", "sonar.suggest.slow",
                                      {"speed": self.own.state.speed}, order="fart 4", cooldown=600)
                 case BearingObs():
@@ -328,6 +328,8 @@ class SonarRoom(Station):
                 elif interval >= 20 and p["fast"]:
                     p["fast"] = False
                     self.say("sonar.ping.slow", d, kind="contact")
+            if p["fast"]:
+                bus.publish(HuntSigns(self.now, "ping"))
             if ev.se > 75 and self.now - p["close_t"] > 300:
                 p["close_t"] = self.now
                 self.say("sonar.ping.close", d, kind="contact")
@@ -335,6 +337,7 @@ class SonarRoom(Station):
         elif ev.kind == "splash":
             if self._dedupe("splash", 20):
                 self.say("sonar.splash", {**d, "near": ev.se > 45}, kind="contact", alarm=True)
+                bus.publish(HuntSigns(self.now, "splash"))
                 self._evasive_depth(cooldown=60)
         elif ev.kind == "explosion":
             if ev.se > 160:
@@ -377,6 +380,8 @@ class SonarRoom(Station):
             d = env.layer_depth + 60
         elif st.ordered_depth < 200:
             d = min(st.ordered_depth + 80, 280)
+        elif st.ordered_speed > acoustics.cavitation_speed(st.ordered_depth - 80):
+            d = min(st.ordered_depth + 60, 280)     # grundare skulle vi kavitera i den här farten
         else:
             d = st.ordered_depth - 80
         lim = self._depth_limit()

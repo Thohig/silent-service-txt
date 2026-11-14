@@ -24,6 +24,7 @@ from .ownship import OwnShip
 from .weapons import Torpedo, step_weapons
 
 SINK_ENDING_DELAY = 45      # sekunder brytningsljud innan spelet slutar
+HUNT_NEAR_NM = 1.0          # ett datum så nära oss räknas som att jägaren har oss
 MASK_BEAM_DEG = 4.0         # ett neutralt fartygs brus döljer andra ljud inom så här många grader
 
 
@@ -137,6 +138,11 @@ class World:
             if target is not None and self.true_range(target) <= goal["radius_nm"]:
                 self.end(goal["outcome"])
                 return
+        esc = self.mission.get("escape")
+        if esc and not self.own.surfaced and self._outside_area(esc["margin_nm"]) \
+                and not any(self._hunting_us(ai) for ai in self.ais):
+            self.end(esc["outcome"])
+            return
         if self.own.surfaced:
             for ai in self.ais:
                 if ai.vessel.sunk or not getattr(ai, "can_force", True):
@@ -148,6 +154,22 @@ class World:
             self.end("patrol_end")
 
     # --- sanningshjälp (sensorer, vapen, sanningslogg) ----------------------
+    def _hunting_us(self, ai: Any) -> bool:
+        """En jägare som är medveten och vars datum ligger nära oss (inte ett skenmål)."""
+        if ai.vessel.sunk or not getattr(ai, "aware", lambda: False)():
+            return False
+        d = getattr(ai, "datum", None)
+        if d is None:
+            return True
+        px, py = d.predict(self.time)
+        o = self.own.state
+        return distance(o.x, o.y, px, py) <= max(HUNT_NEAR_NM, 3 * d.sigma)
+
+    def _outside_area(self, margin: float) -> bool:
+        o = self.own.state
+        return not (-margin <= o.x <= self.size_nm + margin
+                    and -margin <= o.y <= self.size_nm + margin)
+
     def true_range(self, v: Vessel) -> float:
         o = self.own.state
         return distance(o.x, o.y, v.state.x, v.state.y)

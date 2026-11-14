@@ -133,6 +133,22 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   från väst- eller östsidan ⇒ ~15–18 % grundare än 300 m; berg med topp 250–400 m minst 4 nm
   från start; ränna 250–450 m djup. Kortets fel 0,5 nm (Arktis 0,8), berget saknas i 25 %.
   Arktis: slätt 3 300–3 800 m, rygg med krön 900–1 200 m ± 100–200 m.
+- Jagare (alla scenarier): död zon under skrovet, ingen eko om horisontellt avstånd < djup/tan 20°
+  (200 m ⇒ 0,3 nm), så en djup ubåt tappas i slutet av anfallet. Döv 60 s efter en detonation
+  inom 1,5 nm. Jagare hör inte sina egna sidans pingar. Kuba efter detta: ja-boten hittas
+  fortfarande 8 av 8, men jagaren tappar och återfinner kontakt 2–20 gånger (förut 1) och
+  anfaller 1–19 gånger (förut 2–37).
+- Sonar publicerar `HuntSigns` vid snabb pingtakt och plask; `Knowledge.hunted()` (5 min). Då
+  föreslår maskin `eng.suggest.sprint` (turbin, djup ≤ 220 m, fart = kavitationsfart − 1)
+  i stället för smygmotor, och sonar föreslår inte fart 4 när en kontakt tappas.
+- Jagade (`jagad`, `hunted_scenario`): ubåten börjar 45 m, 6 kn, 1,3 nm från bankens
+  300-meterskurva på djupt vatten; DD1 2,2–3 nm i norr med färsk kontakt (`start_hunt`), DD2
+  7–8,5 nm i söder. Jagarna är `partners` och delar fix (σ + 0,4 nm). `escalate_after=3`:
+  skarpa efter tre övningsanfall (~25 min). `leash_nm=1`: släpper jakten när datumet ligger mer
+  än 1 nm utanför kvadraten. Mål `mission["escape"]`: 1 nm utanför och ingen jägare med datum
+  inom max(1 nm, 3σ) från oss (ett skenmål räknas inte). Navigatören (`exit_route`) föreslår
+  närmaste kant, +4 nm straff inom 40° från en hotkontakt. 8 frön: passiv 0, ja-boten 3,
+  djupt och fort (turbin 12 kn, 200 m, rakt ut) 7.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m.
 - Packis (`ice.py`): rutor 0,05 nm, flerårsis 2–4,5 m, kölar 8–25 m (6 % 30–45 m),
   170 råkar, 28 polynyor ⇒ ~4–5 % öppet vatten, en öppning ungefär var 30:e minut

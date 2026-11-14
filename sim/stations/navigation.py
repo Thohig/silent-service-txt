@@ -70,6 +70,9 @@ BFIX_FLAT = 0.8             # matchningen smalnar inte av mer än så: botten f�
 BFIX_GAIN = 2.0             # föreslå bara om besticket är så här mycket sämre än kortet
 BFIX_RELIEF_M_PER_NM = 150  # föreslå bottenfix bara där kortet visar så här brant botten
 PERISCOPE_FIX_SIGMA = 0.1
+EXIT_FIRST_SUGGEST_S = 150  # ut ur området: låt sonar och djup komma först
+EXIT_THREAT_SECTOR = 40     # en väg ut inom så många grader från en hotkontakt är inte fri
+EXIT_THREAT_PENALTY_NM = 4.0
 SETTLE_SPEED = 1.0          # fart när vi går ned mot botten
 SETTLE_DESCEND_KN = 1.5     # gå ned först när farten är nere i detta
 SETTLE_EXTRA_M = 60         # sikta så här långt under kortets botten
@@ -218,6 +221,11 @@ PHRASES = {
     f"Föreslår nytt sökben, kurs {fmt_course(d['course'])}.",
     "nav.suggest.area": lambda d: f"Kapten, vi är på väg ut ur {d.get('area', 'kvadrat 7')}. "
     f"Föreslår kurs {fmt_course(d['course'])}.",
+    "nav.suggest.exit": lambda d: f"Kapten, navigatören. Närmaste väg ut ur {d['area']} "
+    f"är kurs {fmt_course(d['course'])}, {nm(d['dist'])} sjömil"
+    + (", bort från kontakterna." if d.get('clear') else ".")
+    + f" Föreslår kurs {fmt_course(d['course'])}.",
+    "nav.exit.out": lambda d: f"Kapten, enligt besticket är vi ute ur {d['area']}.",
     "nav.suggest.test_depth": lambda d: f"Kapten, vi är på {d['depth']:.0f} meter, under "
     f"provdjup. Föreslår djup 280.",
     "nav.ice.report": lambda d: _ice_report(d),
@@ -349,6 +357,7 @@ class NavigationStation(Station):
         self._vak_stopping = False
         self._vak_here = False
         self._prev_usable = False
+        self._told_out = False                # har sagt att vi lämnat området
         self.goal: str | None = None         # "station" mot drivstationen, "circle" söker runt den
         self._circle_c: tuple[float, float] | None = None
         self._circle_t = 0
@@ -1169,7 +1178,13 @@ class NavigationStation(Station):
             out.append(Proposal(1, "idle_test_depth", "nav.suggest.test_depth", "djup 280",
                                 {"depth": s.depth}, cooldown=300))
         size = self.game.world.size_nm
-        if not (0.5 <= self.est_x <= size - 0.5 and 0.5 <= self.est_y <= size - 0.5):
+        if self.game.escape_nm is not None:
+            if (route := self.exit_route()) is not None:
+                c, dist, clear = route
+                out.append(Proposal(3, "idle_exit", "nav.suggest.exit", f"kurs {fmt_course(c)}",
+                                    {"course": c, "dist": dist, "clear": clear,
+                                     "area": self.game.area_name}, cooldown=900))
+        elif not (0.5 <= self.est_x <= size - 0.5 and 0.5 <= self.est_y <= size - 0.5):
             c = bearing_to(self.est_x, self.est_y, size / 2, size / 2)
             out.append(Proposal(3, "idle_area", "nav.suggest.area", f"kurs {fmt_course(c)}",
                                 {"course": c, "area": self.game.area_name}, cooldown=900))
@@ -1192,7 +1207,8 @@ class NavigationStation(Station):
             elif s.depth > PERISCOPE_DEPTH:
                 out.append(Proposal(4, "idle_fix", "nav.suggest.fix", "periskopdjup",
                                     {"sigma": sigma}))
-        if self._quiet_contact_picture() and self.now - self.course_set_t >= SEARCH_LEG_S \
+        if self.game.escape_nm is None and self._quiet_contact_picture() \
+                and self.now - self.course_set_t >= SEARCH_LEG_S \
                 and self.vak is None and self.goal is None and s.ordered_speed > 0:
             # gir 90° åt den sida som pekar mest mot kvadratens mitt
             size = self.game.world.size_nm
@@ -1202,6 +1218,51 @@ class NavigationStation(Station):
             out.append(Proposal(6, "idle_search", "nav.suggest.search",
                                 f"kurs {fmt_course(c)}", {"course": c}))
         return out
+
+    # --- ut ur området -------------------------------------------------------------
+    def outside_area(self) -> bool:
+        m, size = self.game.escape_nm or 0.0, self.game.world.size_nm
+        return not (-m <= self.est_x <= size + m and -m <= self.est_y <= size + m)
+
+    def exit_route(self) -> tuple[float, float, bool] | None:
+        """Kortaste vägen ut ur området enligt besticket, helst inte mot en hotkontakt.
+        (kurs, sjömil till marginalen utanför kanten, fri från kontakter)"""
+        if self.outside_area():
+            return None
+        m, size = self.game.escape_nm or 0.0, self.game.world.size_nm
+        x, y = self.est_x, self.est_y
+        sigma = self.uncertainty()
+        routes = [(90.0, size + m - x), (270.0, x + m), (0.0, size + m - y), (180.0, y + m)]
+        threats = [t.last_bearing for t in self.game.knowledge.tracks.values()
+                   if t.threat and t.last_bearing is not None]
+        best = None
+        for c, d in routes:
+            d += sigma                      # osäkert läge: gå en bit längre
+            clear = all(abs(angle_diff(c, b)) > EXIT_THREAT_SECTOR for b in threats)
+            cost = d + (0.0 if clear else EXIT_THREAT_PENALTY_NM)
+            if best is None or cost < best[0]:
+                best = (cost, c, d, clear and bool(threats))
+        _, c, d, clear = best
+        return c, d, clear
+
+    def _escape_watch(self) -> None:
+        if self.outside_area():
+            if not self._told_out:
+                self._told_out = True
+                self.say("nav.exit.out", {"area": self.game.area_name})
+            return
+        self._told_out = False
+        if self.now < EXIT_FIRST_SUGGEST_S:
+            return
+        route = self.exit_route()
+        if route is None:
+            return
+        c, dist, clear = route
+        if abs(angle_diff(c, self.ship.ordered_course)) <= 20:
+            return
+        self.suggest("exit", "nav.suggest.exit",
+                     {"course": c, "dist": dist, "clear": clear, "area": self.game.area_name},
+                     order=f"kurs {fmt_course(c)}", cooldown=1200)
 
     # --- löpande -----------------------------------------------------------------
     def update(self) -> None:
@@ -1264,7 +1325,9 @@ class NavigationStation(Station):
             self.suggest("fix", "nav.suggest.fix", {"sigma": sigma}, order="periskopdjup",
                          cooldown=1800)
         size = self.game.world.size_nm
-        if not (0.5 <= self.est_x <= size - 0.5 and 0.5 <= self.est_y <= size - 0.5):
+        if self.game.escape_nm is not None:
+            self._escape_watch()
+        elif not (0.5 <= self.est_x <= size - 0.5 and 0.5 <= self.est_y <= size - 0.5):
             c = bearing_to(self.est_x, self.est_y, size / 2, size / 2)
             self.suggest("area", "nav.suggest.area", {"course": c, "area": self.game.area_name},
                          order=f"kurs {fmt_course(c)}", cooldown=900)

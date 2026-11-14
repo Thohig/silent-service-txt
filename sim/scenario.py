@@ -71,6 +71,8 @@ class Scenario:
     area_name: str = "kvadrat 7"         # operationsområdet, som besättningen säger det
     outcome_text: dict[str, str] = field(default_factory=dict)   # ersätter Game.OUTCOME_TEXT
     chart_seabed: Seabed | None = None   # det gamla sjökortets bild av botten (kunskap)
+    # målet är att lämna området: så här långt utanför kanten räknas som ute (nm)
+    escape_margin_nm: float | None = None
 
 
 def _crew() -> dict[Role, CrewMember]:
@@ -231,6 +233,111 @@ def arctic_scenario(rng: random.Random) -> Scenario:
                     })
 
 
+HUNTED_ORDER = """\
+STRÄNGT HEMLIGT — ENDAST FÖR BEFÄLHAVAREN
+FRÅN: MARINENS HUVUDSTAB, MOSKVA
+TILL: BEFÄLHAVARE, UBÅT K-114
+DATUM: 26 OKTOBER 1962
+
+1. LÄMNA KVADRAT 7 OUPPTÄCKT OCH FORTSÄTT
+   TILL RESERVOMRÅDET.
+2. GÅ INTE TILL YTAN UNDER AMERIKANSK
+   BEVAKNING.
+3. KARANTÄNFARTYGEN ÄR BUNDNA TILL SINA
+   SEKTORER OCH FÖLJER SÄLLAN EFTER MER ÄN
+   EN SJÖMIL UTANFÖR KVADRATEN.
+4. VAPEN FÅR ENDAST ANVÄNDAS PÅ ORDER FRÅN
+   MOSKVA ELLER OM NI ANGRIPS MED SKARPA
+   VAPEN.
+
+SLUT
+"""
+
+HUNTED_RADIO = [
+    RadioMessage("FRÅN HUVUDSTABEN. AMERIKANSKA JAGARE HAR FÄLLT SJUNKBOMBER MOT VÅRA "
+                 "UBÅTAR I FLERA KVADRATER. LÄMNA KVADRAT 7. FÖRBLI OUPPTÄCKT."),
+    RadioMessage("FRÅN HUVUDSTABEN. INGEN ÄNDRING. KÄRNVAPEN EJ AUKTORISERADE.",
+                 {"nuclear_authorized": False}),
+]
+
+# Flyget kommer tidigare: jagarna har kallat på det.
+HUNTED_AIR = AirDef(first_s=(25 * 60, 45 * 60))
+
+
+def _bank_edge_x(seabed: Seabed, y: float, size: float) -> tuple[float, bool]:
+    """Bankens kant (300-metersdjupet) längs y, och om banken ligger åt väster."""
+    west = seabed.depth_at(0.5, y) < seabed.depth_at(size - 0.5, y)
+    xs = [i * 0.1 for i in range(int(size * 10) + 1)]
+    if not west:
+        xs.reverse()
+    for x in xs:
+        if seabed.depth_at(x, y) > 300:
+            return x, west
+    return size / 2, west
+
+
+def hunted_scenario(rng: random.Random) -> Scenario:
+    """Jagade: spelet börjar när jagaren just fått kontakt och en till är på väg."""
+    start_clock = 40 * 60                               # 00:40, mörkt
+    env = Environment(clock_start=start_clock)
+    size = 20.0
+    # botten först: ubåten börjar på djupt vatten några sjömil från bankens kant
+    sb_rng = random.Random(rng.random())
+    y = rng.uniform(4.5, 6.5)
+    seabed = kuba_seabed(sb_rng, (size / 2, y), size)
+    chart = seabed.chart_copy(sb_rng, err_nm=0.5)
+    env.seabed = seabed
+    edge, west = _bank_edge_x(seabed, y, size)
+    x = edge + (1.3 if west else -1.3)
+    own = OwnShip(ShipState(x=x, y=y, course=rng.uniform(150, 210), speed=6, depth=45,
+                            max_depth=400))
+
+    def destroyer(vid: str, bearing: float, r: float, speed: float) -> Vessel:
+        dx, dy = x + r * math.sin(math.radians(bearing)), y + r * math.cos(math.radians(bearing))
+        return Vessel(vid, "destroyer",
+                      ShipState(x=dx, y=dy, course=bearing_to(dx, dy, x, y), speed=speed,
+                                turn_rate=2.0, accel=0.3, max_speed=32),
+                      side="enemy", has_radar=True)
+
+    # jagaren som har oss: 2–3 nm norrut, på väg in
+    dd1 = destroyer("DD1", rng.uniform(320, 400) % 360, rng.uniform(2.2, 3.0), 15)
+    # den andra kommer från söder och spärrar den vägen ut
+    dd2 = destroyer("DD2", rng.uniform(150, 210), rng.uniform(7.0, 8.5), 25)
+    world = World(own=own, contacts=[dd1, dd2], env=env, rng=random.Random(rng.random()),
+                  size_nm=size, patrol_end=3 * 3600)
+    ai1 = DestroyerAI(dd1, random.Random(rng.random()), area=size, escalate_after=3,
+                      leash_nm=1.0)
+    ai2 = DestroyerAI(dd2, random.Random(rng.random()), area=size, escalate_after=3,
+                      leash_nm=1.0)
+    ai1.partners, ai2.partners = [ai2], [ai1]
+    ai1.start_hunt(x + rng.gauss(0, 0.05), y + rng.gauss(0, 0.05), 50.0, 0.08, contact=True)
+    ai2.start_hunt(x + rng.gauss(0, 0.3), y + rng.gauss(0, 0.3), 50.0, 0.5)
+    world.ais += [ai1, ai2]
+    world.mission["nuclear_authorized"] = False
+    margin = 1.0
+    world.mission["escape"] = {"margin_nm": margin, "outcome": "escaped"}
+    traffic = TrafficGenerator(KUBA_TRAFFIC, random.Random(rng.random()))
+    traffic.populate(world)
+    world.spawners.append(traffic)
+    world.spawners.append(AirPatrol(HUNTED_AIR, random.Random(rng.random()), area=size))
+
+    windows = [(c - start_clock) for c in (1 * 3600 + 30 * 60, 3 * 3600)]
+    return Scenario(world, _crew(), HUNTED_ORDER, start_clock,
+                    radio_windows=windows, radio_messages=list(HUNTED_RADIO),
+                    chart_seabed=chart, escape_margin_nm=margin,
+                    outcome_text={
+                        "escaped": "K-114 har brutit kontakten och lämnat kvadrat 7. Bakom er "
+                                   "pingar jagarna på tomt vatten.",
+                        "patrol_end": "Gryningen kommer och K-114 är fortfarande kvar i kvadrat 7. "
+                                      "Uppdraget har misslyckats.",
+                        "forced": "K-114 har gått till ytan mellan de amerikanska jagarna. "
+                                  "Strålkastarna sveper över tornet. Besättningen lever, "
+                                  "men uppdraget har misslyckats.",
+                        "sank": "Båda jagarna är sänkta. Kriget har börjat i kvadrat 7.",
+                        "quit": "Kaptenen har avbrutit. K-114 lämnar kvadrat 7 i förtid.",
+                    })
+
+
 # --- scenarioregister ----------------------------------------------------------
 @dataclass(frozen=True)
 class ScenarioDef:
@@ -262,3 +369,8 @@ register(ScenarioDef(
     "Polarnatt vid 85° nord. Drivstationen Nord-7 har tystnat. Ta er dit under isen, "
     "hitta öppet vatten och gå upp. En amerikansk ubåt är på väg mot samma plats.",
     arctic_scenario))
+register(ScenarioDef(
+    "jagad", "Jagade, natten till 27 oktober 1962",
+    "En amerikansk jagare har just fått kontakt och en till är på väg. Bryt kontakten "
+    "och ta er ut ur kvadrat 7 innan sjunkbomberna blir skarpa.",
+    hunted_scenario))

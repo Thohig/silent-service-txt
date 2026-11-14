@@ -15,7 +15,17 @@ kontakt, fäller sjunkbomber) och evade (undanmanöver mot torped).
 
 Insatsregler (roe): "signal" fäller signalsjunkbomber och uppmanar via
 undervattenstelefon ubåten att gå till ytan. Om ubåten agerar fientligt
-(torped) blir reglerna "lethal": skarpa sjunkbomber.
+(torped) blir reglerna "lethal": skarpa sjunkbomber. Med `escalate_after`
+går jagaren över till skarpa efter så många övningsanfall utan att ubåten
+gått upp.
+
+Skrovsonaren ser inte brantare än DEAD_ZONE_DEG nedåt: en djup ubåt tappas
+i slutet av anfallet, som då går på förutsagt läge. Efter detonationer nära
+jagaren är sonaren döv en stund. Med `leash_nm` släpper jagaren jakten när
+datumet ligger så långt utanför dess område.
+
+Jagare i samma grupp (`partners`) delar sina fix över radio: en partner
+utan bättre bild får datumet med större osäkerhet.
 """
 from __future__ import annotations
 
@@ -42,6 +52,10 @@ UWT_INTERVAL = 180
 WAKE_NM = 0.3               # ubåt så nära ett handelsfartyg gömmer sig i dess kölvatten
 WAKE_DEPTH_M = 100
 WAKE_CLUTTER_DB = 12.0
+DEAD_ZONE_DEG = 20.0        # skrovsonaren ser inte brantare nedåt: djup ubåt tappas nära
+DEAF_S = 60                 # efter en detonation nära jagaren hör sonaren ingenting
+DEAF_NM = 1.5
+SHARED_SIGMA_NM = 0.4       # ett fix från en annan jagare, med navigationsfel och fördröjning
 
 
 @dataclass
@@ -61,7 +75,8 @@ class Datum:
 
 class DestroyerAI:
     def __init__(self, vessel: Vessel, rng: random.Random, area: float = 20.0,
-                 patrol_speed: float = 15.0):
+                 patrol_speed: float = 15.0, escalate_after: int | None = None,
+                 leash_nm: float | None = None):
         self.vessel = vessel
         self.rng = rng
         self.area = area
@@ -80,6 +95,20 @@ class DestroyerAI:
         self.next_passive = 0
         self.seen_torpedoes: set[str] = set()
         self.attacks = 0
+        self.escalate_after = escalate_after
+        self.leash_nm = leash_nm
+        self.deaf_until = -1
+        self.partners: list[DestroyerAI] = []
+
+    def start_hunt(self, x: float, y: float, depth: float, sigma: float, t: int = 0,
+                   contact: bool = False) -> None:
+        """Börja spelet mitt i jakten: datum på ubåten, ev. med färsk kontakt."""
+        self.datum = Datum(x, y, depth, sigma, t)
+        self.state = "prosecute"
+        if contact:
+            self.last_contact_t = t
+            self.fixes = [(t, x, y)]
+            self.next_ping = t + 1
 
     # ------------------------------------------------------------------ status
     def aware(self) -> bool:
@@ -129,6 +158,19 @@ class DestroyerAI:
                 if sp > 30:
                     vx, vy = vx * 30 / sp, vy * 30 / sp
         self.datum = Datum(x, y, depth, sigma, now, vx, vy)
+        if fix:
+            for p in self.partners:
+                p._shared_datum(now, self.datum)
+
+    def _shared_datum(self, now: int, d: Datum) -> None:
+        """En annan jagare i gruppen meddelar sitt fix över radio."""
+        if self.vessel.sunk:
+            return
+        sigma = d.sigma + SHARED_SIGMA_NM
+        mine = self.datum
+        if mine is not None and now - mine.t < 120 and mine.sigma <= sigma:
+            return
+        self.datum = Datum(d.x, d.y, d.depth, sigma, now, d.vx, d.vy)
 
     def _datum_from_bearing(self, world: World, x: float, y: float, rel_err: float,
                             depth_guess: float = 100.0) -> None:
@@ -153,8 +195,9 @@ class DestroyerAI:
                 if se + self.rng.gauss(0, 2) > 0:
                     self._datum_from_bearing(world, tgt.state.x, tgt.state.y, 0.4,
                                              depth_guess=self.rng.gauss(100, 40))
+        friendly = {v.id for v in world.contacts if v.side == self.vessel.side}
         for tr in world.transients:
-            if tr.source_id == self.vessel.id or tr.kind in ("splash", "uwt", "breakup"):
+            if tr.source_id in friendly or tr.kind in ("splash", "uwt", "breakup"):
                 continue
             hostile = tr.kind == "launch" or (tr.kind == "explosion" and tr.source_id.startswith("T"))
             if tr.kind == "explosion" and not hostile:
@@ -222,7 +265,7 @@ class DestroyerAI:
         self.next_ping = now + PING_INTERVAL[self.state] + self.rng.randint(0, 3)
         echoes = []
         for tgt in [world.own, *[d for d in world.contacts if isinstance(d, Decoy)]]:
-            if tgt.sunk:
+            if tgt.sunk or self._in_dead_zone(tgt):
                 continue
             tl = self._tl(world, tgt.state.x, tgt.state.y, tgt.depth)
             se = acoustics.active_excess(acoustics.PING_LEVEL_SHIP, tl, tgt.target_strength,
@@ -245,11 +288,32 @@ class DestroyerAI:
                         tgt.state.y + self.rng.gauss(0, 0.03),
                         max(15.0, tgt.depth + self.rng.gauss(0, 35)), 0.08, fix=True)
 
+    def _in_dead_zone(self, tgt: Vessel) -> bool:
+        s = self.vessel.state
+        r_m = distance(s.x, s.y, tgt.state.x, tgt.state.y) * 1852.0
+        return r_m < tgt.depth / math.tan(math.radians(DEAD_ZONE_DEG))
+
+    def _beyond_leash(self, now: int) -> bool:
+        if self.leash_nm is None or self.datum is None:
+            return False
+        px, py = self.datum.predict(now)
+        m = self.leash_nm
+        return not (-m <= px <= self.area + m and -m <= py <= self.area + m)
+
     # ------------------------------------------------------------------ beslut
     def step(self, world: World) -> None:
         if self.vessel.sunk:
             return
         noise = self._noise(world)
+        s = self.vessel.state
+        for tr in world.transients:
+            if tr.kind == "explosion" and distance(s.x, s.y, tr.x, tr.y) < DEAF_NM:
+                self.deaf_until = world.time + DEAF_S
+        if world.time < self.deaf_until:
+            self._masts(world)
+            self._emissions(world)
+            self._decide(world)
+            return
         self._passive(world, noise)
         self._masts(world)
         self._emissions(world)
@@ -265,6 +329,9 @@ class DestroyerAI:
             return
         if self.state == "evade":
             self.state = "prosecute" if self.datum else "patrol"
+        if self._beyond_leash(now):
+            self.datum = None               # utanför vår sektor: släpp jakten
+            self.state = "patrol"
         if self.datum is not None and now - self.datum.t > DATUM_TIMEOUT:
             self.datum = None
             self.state = "patrol"
@@ -307,6 +374,9 @@ class DestroyerAI:
                 drop_charges(world, self.vessel, px, py, self.datum.depth,
                              n=3 if practice else 9, practice=practice)
                 self.attacks += 1
+                if practice and self.escalate_after is not None \
+                        and self.attacks >= self.escalate_after:
+                    self.roe = "lethal"
                 self.attack_ready_t = now + ATTACK_COOLDOWN
                 self.opening_until = now + 90
             return

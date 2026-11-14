@@ -162,6 +162,11 @@ class Game:
     def area_name(self) -> str:
         return self.scenario.area_name if self.scenario else "kvadrat 7"
 
+    @property
+    def escape_nm(self) -> float | None:
+        """Om målet är att lämna området: marginalen utanför kanten (nm)."""
+        return self.scenario.escape_margin_nm if self.scenario else None
+
     def clock_str(self, sim_t: int | None = None) -> str:
         return clock(self.start_clock + (self.now if sim_t is None else sim_t))
 
