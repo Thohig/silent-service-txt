@@ -77,8 +77,8 @@ class World:
 
         o = self.own.state
         prev = (o.x, o.y, o.depth)
-        cvx, cvy = self.env.current_velocity()
-        ice = self.env.ice
+        env = self.env
+        ice = env.ice
         for v in [self.own, *self.contacts]:
             if v.sunk or isinstance(v, Torpedo):
                 continue
@@ -99,6 +99,7 @@ class World:
                 v.state.x += ivx * dt
                 v.state.y += ivy * dt
                 continue
+            cvx, cvy = env.current_at(v.state.x, v.state.y, self.time)
             v.state.x += cvx * dt
             v.state.y += cvy * dt
             if v.state.depth <= 0 and v is self.own:

@@ -11,7 +11,7 @@ Ljudprofilen avgör hur ljud dämpas mellan två djup. Den är utbytbar:
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Protocol
 
 from .geo import NM_IN_M, velocity
@@ -73,6 +73,42 @@ class ArcticProfile:
         return tl + self.scatter_loss(range_nm, depth_a, depth_b)
 
 
+TIDE_PERIOD_S = 44712            # halvdygnstidvatten, 12 h 25 min
+
+
+@dataclass(frozen=True)
+class TidalStream:
+    """Tidvattenström: sätter mot flood_set vid flod, motsatt vid ebb.
+
+    Farten skalar med vattendjupet (smalt och grunt ⇒ starkare), noll på land.
+    Samma klass är tidvattentabellen i kunskapen (`Knowledge.tide_table`)."""
+    flood_set: float                 # dit floden sätter
+    peak_kn: float                   # starkaste fart på referensdjupet
+    phase_s: float                   # simtid när floden är som starkast
+    period_s: float = TIDE_PERIOD_S
+    ref_depth: float = 60.0
+    max_factor: float = 1.5
+    min_factor: float = 0.2
+
+    def factor(self, depth: float) -> float:
+        if depth <= 0:
+            return 0.0
+        return min(self.max_factor, max(self.min_factor, self.ref_depth / depth))
+
+    def speed(self, t: float, depth: float) -> float:
+        """Fart i knop längs flood_set (negativ vid ebb)."""
+        return self.peak_kn * self.factor(depth) * \
+            math.cos(2 * math.pi * (t - self.phase_s) / self.period_s)
+
+    def velocity(self, t: float, depth: float) -> tuple[float, float]:
+        return velocity(self.flood_set, self.speed(t, depth))
+
+    def table_copy(self, rng) -> "TidalStream":
+        """Tidvattentabellen: förutsägelsen, med fel i styrka och tid."""
+        return replace(self, peak_kn=self.peak_kn * (1 + rng.gauss(0, 0.2)),
+                       phase_s=self.phase_s + rng.gauss(0, 1200))
+
+
 @dataclass
 class Environment:
     profile: SoundProfile = field(default_factory=Thermocline)
@@ -87,6 +123,7 @@ class Environment:
     clock_start: int = 0             # sekunder efter midnatt vid simtid 0
     ice: IceField | None = None      # packis ovanför, se ice.py
     seabed: Seabed | None = None     # bottentopografi, se seabed.py
+    tide: TidalStream | None = None  # tidvattenström (kustnära)
 
     def bottom_at(self, x: float, y: float) -> float:
         """Bottendjupet (m) på platsen. Sanning: bara ekolodet frågar."""
@@ -121,5 +158,13 @@ class Environment:
         return self.day_visibility_nm if self.is_day(sim_t) else self.night_visibility_nm
 
     def current_velocity(self) -> tuple[float, float]:
-        """Strömmen i nm per sekund."""
+        """Den jämna havsströmmen i nm per sekund."""
         return velocity(self.current_set, self.current_kn)
+
+    def current_at(self, x: float, y: float, t: float) -> tuple[float, float]:
+        """Strömmen på platsen (nm per sekund): havsströmmen plus tidvattnet."""
+        vx, vy = self.current_velocity()
+        if self.tide is not None:
+            tx, ty = self.tide.velocity(t, self.bottom_at(x, y))
+            vx, vy = vx + tx, vy + ty
+        return vx, vy

@@ -13,6 +13,7 @@ from .events import (BearingObserved, ClassificationChanged, ContactDetected,
                      PositionReported)
 from .icemap import IceMap
 from .seabed import Seabed
+from .environment import TidalStream
 from .reports import Quality
 from .tma import BearingObs, Solution, solve
 
@@ -80,6 +81,7 @@ class Knowledge:
     ice: IceMap = field(default_factory=IceMap)
     waypoints: dict[str, Waypoint] = field(default_factory=dict)
     bathymetry: Seabed | None = None     # det gamla sjökortets djupkurvor (inte sanningen)
+    tide_table: TidalStream | None = None   # tidvattentabellen (förutsägelse, inte sanningen)
     hunt_t: int = -10**9                 # senast sonar hörde att fienden har oss
 
     def attach(self, bus: EventBus) -> None:

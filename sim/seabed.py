@@ -138,7 +138,51 @@ class Canyon:
                        half_width=self.half_width * 1.5, deepen=self.deepen * 0.7)
 
 
-Feature = Bank | Seamount | Ridge | Canyon
+@dataclass(frozen=True)
+class Coast:
+    """Kust: land norr om en vågig strandlinje, en farled genom landet och en bukt innanför.
+
+    Djupet utanför stranden växer snabbt (kustbank som stupar mot djuphavet). Land får
+    negativt djup; Seabed måste då ha min_depth under noll."""
+    shore_y: float              # strandlinjens medelläge (nm norrut)
+    wave_amp: float
+    wave_nm: float
+    wave_phase: float
+    channel_x: float            # farledens mitt (nm österut), går rakt norrut
+    channel_w: float            # bredd, nm
+    channel_depth: float        # m
+    bay_x: float
+    bay_y: float
+    bay_rx: float
+    bay_ry: float
+    bay_depth: float            # mitt i bukten, m
+    shelf_m_per_nm: float = 60.0
+    land_m: float = -10.0
+
+    def shore(self, x):
+        return self.shore_y + self.wave_amp * np.sin(2 * np.pi * x / self.wave_nm + self.wave_phase)
+
+    def apply(self, x, y, d):
+        s = self.shore(x) - y                       # nm till havs från stranden
+        shelf = 8.0 + self.shelf_m_per_nm * s + 300.0 * s * s
+        out = np.where(s > 0, np.minimum(d, shelf), self.land_m)
+        chan = (np.abs(x - self.channel_x) < self.channel_w / 2) & \
+            (y > self.shore(x) - 0.6) & (y < self.bay_y)
+        out = np.where(chan, np.maximum(out, self.channel_depth), out)
+        e = ((x - self.bay_x) / self.bay_rx) ** 2 + ((y - self.bay_y) / self.bay_ry) ** 2
+        out = np.where(e < 1, np.maximum(out, self.bay_depth * (1 - 0.45 * e)), out)
+        return out
+
+    def moved(self, rng: random.Random, err_nm: float) -> Coast:
+        """Kusten är bättre kartlagd än djuphavet: små fel i läge och djup."""
+        f = 0.3 * err_nm
+        return replace(self, shore_y=self.shore_y + rng.gauss(0, f),
+                       channel_x=self.channel_x + rng.gauss(0, f),
+                       channel_depth=self.channel_depth * rng.uniform(0.9, 1.1),
+                       bay_depth=self.bay_depth * rng.uniform(0.9, 1.1))
+
+
+Feature = Bank | Seamount | Ridge | Canyon | Coast
 
 
 @dataclass(frozen=True)
@@ -149,6 +193,8 @@ class Seabed:
     # ojämnhet: (kx, ky, fas, andel av djupet) – summan av några vågor
     rough: tuple[tuple[float, float, float, float], ...] = field(default_factory=tuple)
     accuracy_nm: float = 0.0                        # sjökort: angiven lägesnoggrannhet
+    min_depth: float = 20.0                         # under noll: land (kust)
+    contour_levels: tuple[int, ...] = CONTOUR_LEVELS
 
     def depths(self, x, y):
         """Djupet (m) för skalärer eller numpy-matriser i nm."""
@@ -164,7 +210,7 @@ class Seabed:
         if self.rough:
             n = sum(a * np.sin(kx * x + ky * y + ph) for kx, ky, ph, a in self.rough)
             d = d * (1 + n)
-        return np.maximum(d, 20.0)
+        return np.maximum(d, self.min_depth)
 
     def depth_at(self, x: float, y: float) -> float:
         return float(self.depths(x, y))
@@ -195,7 +241,12 @@ class Seabed:
                 continue
             feats.append(f.moved(rng, err_nm))
         return Seabed(self.base + rng.gauss(0, 40), self.gradient, tuple(feats),
-                      accuracy_nm=err_nm)
+                      accuracy_nm=err_nm, min_depth=self.min_depth,
+                      contour_levels=self.contour_levels)
+
+    @property
+    def has_land(self) -> bool:
+        return self.min_depth < 0
 
 
 def _rough(rng: random.Random, n: int, amp: float) -> tuple:
@@ -228,6 +279,23 @@ def kuba_seabed(rng: random.Random, start: tuple[float, float], size: float = 20
                     deepen=rng.uniform(250, 450), half_width=rng.uniform(0.25, 0.4))
     return Seabed(base=deep - 150, gradient=(0.0, 15.0), features=(bank, mount, canyon),
                   rough=_rough(rng, 6, 0.06))
+
+
+COAST_CONTOUR_LEVELS = (0, 20, 50, 200, 1000)
+
+
+def strait_seabed(rng: random.Random, size: float = 14.0) -> Seabed:
+    """Inloppet: djuphav i söder, kustbank, land i norr med farled in till en grund bukt."""
+    cx = size / 2 + rng.uniform(-1.0, 1.0)
+    coast = Coast(shore_y=size * 0.64 + rng.uniform(-0.3, 0.3), wave_amp=rng.uniform(0.2, 0.4),
+                  wave_nm=rng.uniform(4.0, 7.0), wave_phase=rng.uniform(0, 2 * math.pi),
+                  channel_x=cx, channel_w=rng.uniform(0.6, 0.8),
+                  channel_depth=rng.uniform(35, 45),
+                  bay_x=cx + rng.uniform(-0.5, 0.5), bay_y=size * 0.87, bay_rx=rng.uniform(2.2, 2.8),
+                  bay_ry=rng.uniform(1.1, 1.4), bay_depth=rng.uniform(24, 30))
+    return Seabed(base=rng.uniform(1600, 2000), gradient=(0.0, 0.0), features=(coast,),
+                  rough=_rough(rng, 4, 0.04), min_depth=-30.0,
+                  contour_levels=COAST_CONTOUR_LEVELS)
 
 
 def arctic_seabed(rng: random.Random, size: float = 20.0) -> Seabed:

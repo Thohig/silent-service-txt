@@ -39,6 +39,8 @@ STYLE = {
     "merchant_vector": "#a08c58",
     "torpedo": "bold red",
     "contour": "#33505a",
+    "coast": "#9c8a5a",
+    "land": "#4a4232",
     "contour_label": "#4f7480",
     "sounding": "#b09a6a",
     "grid": "#2f4a36",

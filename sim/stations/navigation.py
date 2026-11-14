@@ -70,6 +70,10 @@ BFIX_FLAT = 0.8             # matchningen smalnar inte av mer än så: botten f�
 BFIX_GAIN = 2.0             # föreslå bara om besticket är så här mycket sämre än kortet
 BFIX_RELIEF_M_PER_NM = 150  # föreslå bottenfix bara där kortet visar så här brant botten
 PERISCOPE_FIX_SIGMA = 0.1
+LAND_MARK_STEP_NM = 0.25   # land på sjökortet: en prick per ruta
+LAND_CLEAR_M = 26          # grundare än så framåt: inte ens periskopdjup går, gir i stället
+LAND_TURNS = (30, 60, 90, 120, 150, 180)
+TIDE_TABLE_ERR = 0.3        # tidvattentabellen kan ha så här stort fel (andel av farten)
 EXIT_FIRST_SUGGEST_S = 150  # ut ur området: låt sonar och djup komma först
 EXIT_THREAT_SECTOR = 40     # en väg ut inom så många grader från en hotkontakt är inte fri
 EXIT_THREAT_PENALTY_NM = 4.0
@@ -198,6 +202,10 @@ PHRASES = {
        f"Sjökortet visar {d['shoal']:.0f} meter "
        + ("här" if d["dist"] < 0.15 else f"inom {nm(d['dist'])} sjömil framåt"))
     + f". Föreslår djup {d['depth']:.0f}.",
+    "nav.suggest.land": lambda d: "Kapten, navigatören! "
+    + ("Land" if d["shoal"] <= 0 else f"Bara {d['shoal']:.0f} meter vatten")
+    + (" här enligt kortet" if d["dist"] < 0.15 else f" inom {nm(d['dist'])} sjömil framåt")
+    + f". Föreslår kurs {fmt_course(d['course'])}.",
     "nav.course.done": lambda d: f"Kapten, kurs {fmt_course(d['course'])} påkommen.",
     "nav.speed.done": lambda d: f"Fart {kn(d['speed'])} knop uppnådd.",
     "nav.depth.done": lambda d: "Vi är i ytläge, kapten." if d["depth"] < 1
@@ -347,6 +355,7 @@ class NavigationStation(Station):
         self.log_bias = rng.gauss(0, 0.01 + 0.02 * (1 - skill))
         self.last_fix_t = 0
         self.fix_sigma = PERISCOPE_FIX_SIGMA
+        self._tide_fix_t, self._tide_sigma = 0, 0.0   # tidvattnets bidrag sedan senaste fix
         self._bfix: list[tuple[float, float, float]] | None = None   # (x, y beräknat, djup)
         self._bfix_next = 0
         self.course_set_t = 0
@@ -384,7 +393,8 @@ class NavigationStation(Station):
         return self.est_x, self.est_y
 
     def uncertainty(self) -> float:
-        return self.fix_sigma + DR_GROWTH_NM_PER_H * (self.now - self.last_fix_t) / 3600.0
+        return self.fix_sigma + DR_GROWTH_NM_PER_H * (self.now - self.last_fix_t) / 3600.0 \
+            + (self._tide_sigma if self._tide_fix_t == self.last_fix_t else 0.0)
 
     # --- systemtavlan ------------------------------------------------------------
     def system_items(self) -> list:
@@ -476,8 +486,18 @@ class NavigationStation(Station):
         chart = self.game.knowledge.bathymetry
         if chart is not None:
             size, m = self.game.world.size_nm, CONTOUR_MARGIN_NM
-            for level, segs in contours(chart, -m, -m, size + m, size + m).items():
-                items.extend(Track(seg, "contour", LAYER_CONTOUR, None) for seg in segs)
+            if chart.has_land:
+                step = LAND_MARK_STEP_NM
+                xs = np.arange(-m, size + m + step / 2, step)
+                gx, gy = np.meshgrid(xs, xs)
+                for x, y in zip(gx[chart.depths(gx, gy) <= 0], gy[chart.depths(gx, gy) <= 0]):
+                    items.append(Mark(float(x), float(y), "░", "land", layer=LAYER_CONTOUR - 0.2))
+            for level, segs in contours(chart, -m, -m, size + m, size + m,
+                                        levels=chart.contour_levels).items():
+                style = "coast" if level == 0 else "contour"
+                items.extend(Track(seg, style, LAYER_CONTOUR, None) for seg in segs)
+                if level == 0 or not segs:
+                    continue
                 labelled: set[tuple[int, int]] = set()
                 for fx, fy in CONTOUR_LABEL_SPOTS:
                     px, py = fx * size / 20, fy * size / 20
@@ -496,7 +516,7 @@ class NavigationStation(Station):
         return None if chart is None else chart.depth_at(x, y)
 
     # --- grunt vatten -------------------------------------------------------------
-    def chart_ahead(self) -> tuple[float, float] | None:
+    def chart_ahead(self, course: float | None = None) -> tuple[float, float] | None:
         """Grundaste kortdjup framåt längs kursen, med bestickets osäkerhet åt sidorna:
         (djup, avstånd nm). None om kortet saknar djup."""
         chart = self.game.knowledge.bathymetry
@@ -506,7 +526,7 @@ class NavigationStation(Station):
         reach = max(SHOAL_LOOK_MIN_NM, s.speed * SHOAL_LOOK_MIN / 60)
         dist = np.arange(0.0, reach + 0.05, 0.1)
         side = np.array([-sigma, 0.0, sigma])
-        b = math.radians(s.course)
+        b = math.radians(s.course if course is None else course)
         ux, uy = math.sin(b), math.cos(b)
         dd, ss = np.meshgrid(dist, side)
         xs = self.est_x + dd * ux + ss * uy
@@ -611,6 +631,8 @@ class NavigationStation(Station):
             return
         if (p := self._settle_proposal()) is not None:
             self.propose(p)
+        if self._land_watch():
+            return
         kb = self.known_bottom()
         if kb is None:
             return
@@ -625,6 +647,29 @@ class NavigationStation(Station):
                      order=f"djup {limit:.0f}", cooldown=300,
                      quality=Quality.SAKER if sounded else self._shoal_quality(),
                      alarm=minutes < 3)
+
+    def _land_watch(self) -> bool:
+        """Land eller vatten för grunt även på periskopdjup framåt: föreslå en gir."""
+        s = self.ship
+        if s.speed < 0.5:
+            return False
+        ahead = self.chart_ahead()
+        if ahead is None or ahead[0] >= LAND_CLEAR_M:
+            return False
+        options = [(c, self.chart_ahead(c)) for c in
+                   (norm360(s.course + sgn * a) for a in LAND_TURNS for sgn in (1, -1))]
+        options = [(c, a[0]) for c, a in options if a is not None]
+        if not options:
+            return True
+        best = max(options, key=lambda o: o[1])
+        if best[1] < ahead[0] + 10:
+            return True                     # ingen kurs är bättre: säg inget nytt
+        minutes = ahead[1] * 60 / max(s.speed, 0.5)
+        self.suggest("land", "nav.suggest.land",
+                     {"shoal": ahead[0], "dist": ahead[1], "course": best[0]},
+                     order=f"kurs {fmt_course(best[0])}", cooldown=120,
+                     quality=self._shoal_quality(), alarm=minutes < 4)
+        return True
 
     # --- djupprofilen ------------------------------------------------------------
     def profile_items(self) -> list:
@@ -684,8 +729,26 @@ class NavigationStation(Station):
     def _dead_reckon(self) -> None:
         s = self.ship
         vx, vy = velocity(s.course + self.gyro_err, s.speed * (1 + self.log_bias))
+        if self._tide_fix_t != self.last_fix_t:
+            self._tide_fix_t, self._tide_sigma = self.last_fix_t, 0.0
+        tide = self.game.knowledge.tide_table
+        if tide is not None and not self.own.sys.on_bottom:
+            depth = self.chart_depth_at(self.est_x, self.est_y)
+            if depth is not None:
+                sp = tide.speed(self.now, depth)
+                tx, ty = velocity(tide.flood_set, sp)
+                vx, vy = vx + tx, vy + ty
+                self._tide_sigma += TIDE_TABLE_ERR * abs(sp) / 3600.0
         self.est_x += vx
         self.est_y += vy
+
+    def tide_now(self) -> float | None:
+        """Tidvattnet här enligt tabellen, knop längs flodriktningen (negativt vid ebb)."""
+        tide = self.game.knowledge.tide_table
+        depth = self.chart_depth_at(self.est_x, self.est_y)
+        if tide is None or depth is None:
+            return None
+        return tide.speed(self.now, depth)
 
     # --- order -------------------------------------------------------------------
     def on_order(self, order: Order) -> None:

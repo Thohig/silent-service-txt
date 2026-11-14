@@ -127,7 +127,8 @@ class Game:
 
         self.bus = EventBus()
         self.queue = ReportQueue()
-        self.knowledge = Knowledge(bathymetry=scenario.chart_seabed)
+        self.knowledge = Knowledge(bathymetry=scenario.chart_seabed,
+                                   tide_table=scenario.tide_table)
         self.knowledge.attach(self.bus)          # före stationerna, se events.py
         self.logbook = Logbook(self.clock_str)
         self.logbook.attach(self.bus)

@@ -206,7 +206,7 @@ def _step_torpedo(world: World, t: Torpedo, dt: int) -> None:
         _seek(world, t)
     p0 = (ts.x, ts.y)
     ts.step(dt)
-    cvx, cvy = world.env.current_velocity()
+    cvx, cvy = world.env.current_at(ts.x, ts.y, world.time)
     ts.x += cvx * dt
     ts.y += cvy * dt
     t.run_nm += ts.speed * dt / 3600.0

@@ -9,7 +9,7 @@ from typing import Callable
 from .crew import CrewMember, Role
 from .enemy import DestroyerAI
 from .entities import Vessel
-from .environment import ArcticProfile, Environment
+from .environment import ArcticProfile, Environment, TidalStream
 from .arctic import DriftStation, EnemySub, SubmarineAI
 from .fmt import nm
 from .ice import IceField, clearance
@@ -71,6 +71,7 @@ class Scenario:
     area_name: str = "kvadrat 7"         # operationsområdet, som besättningen säger det
     outcome_text: dict[str, str] = field(default_factory=dict)   # ersätter Game.OUTCOME_TEXT
     chart_seabed: Seabed | None = None   # det gamla sjökortets bild av botten (kunskap)
+    tide_table: TidalStream | None = None   # tidvattentabellen besättningen räknar med
     # målet är att lämna området: så här långt utanför kanten räknas som ute (nm)
     escape_margin_nm: float | None = None
 
