@@ -10,10 +10,13 @@ from dataclasses import dataclass
 from .. import phrases
 from ..crew import Role
 from ..entities import Emission
+from ..fmt import fmt_course
+from ..icemap import thickness_words
 from ..ice import masts_clear
 from ..orders import CommandSpec, Order
 from ..ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH
 from .base import Proposal, Station
+from .navigation import NavigationStation
 
 RECEIVE_S = 60
 TRANSMIT_S = 30
@@ -42,6 +45,12 @@ PHRASES = {
     "radio.sending": lambda d: "Sänder rapport på kortvåg. Trettio sekunder.",
     "radio.sent": lambda d: f"Rapport sänd och kvitterad. {d['contacts']} kontakter rapporterade.",
     "radio.aborted": lambda d: "Sändningen avbröts, antennen kom under ytan.",
+    "radio.prewarn_ice": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}. Det är is "
+    "ovanför oss. " + (f"Navigatören har öppning {d['no']} i bäring {fmt_course(d['bearing'])}, cirka "
+                       f"{d['range']} meter. Föreslår att vi går dit." if d.get("no")
+                       else "Vi har ingen öppning loggad, vi behöver hitta öppet vatten."),
+    "radio.opening_now": lambda d: f"Kapten, radio. Navigatören har {d['kind']} ovanför oss nu, och "
+    f"sambandstillfället kl {d['clock']} är inte avklarat. Föreslår att vi stoppar här.",
     "radio.ice": lambda d: "Kapten, radio. Antennen är under isen, vi får ingen mottagning. "
     "Vi behöver öppet vatten ovanför.",
     "radio.status": lambda d: (f"Nästa sambandstillfälle kl {d['next']}. " if d.get("next")
@@ -102,6 +111,27 @@ class RadioStation(Station):
                     "received": len(self.delivered),
                     "last": self.delivered[-1] if self.delivered else None})
 
+    def _nav(self) -> NavigationStation | None:
+        try:
+            return self.game.station(NavigationStation)
+        except KeyError:
+            return None
+
+    def _ice_route(self) -> tuple[bool, dict]:
+        """Är det is ovanför (enligt navigatörens isekolod), och finns en öppning att gå till?"""
+        nav = self._nav()
+        if nav is None or not nav.under_ice():
+            return False, {}
+        o = nav.best_opening()
+        return True, (nav.opening_data(o) if o is not None else {})
+
+    def _window_pending(self) -> int | None:
+        """Ett sambandstillfälle som snart börjar eller pågår och inte är avklarat."""
+        for i, w0 in enumerate(self.windows):
+            if i not in self._handled and w0 - PREWARN_S <= self.now < w0 + self.window_len:
+                return i
+        return None
+
     def idle_proposals(self) -> list[Proposal]:
         if self.own.state.depth <= ANTENNA_DEPTH:
             return []
@@ -109,12 +139,29 @@ class RadioStation(Station):
             # påminnelse: förvarningen är redan given men vi är kvar på djupet
             if i in self._prewarned and i not in self._handled \
                     and self.now < w0 + self.window_len:
+                d = {"clock": self.game.clock_str(w0)[:5]}
+                ice, opening = self._ice_route()
+                if ice:
+                    if not opening:
+                        return []
+                    return [Proposal(3, f"idle_window{i}", "radio.prewarn_ice", "vak",
+                                     {**d, **opening}, cooldown=900)]
                 return [Proposal(3, f"idle_window{i}", "radio.prewarn", "antenndjup",
-                                 {"clock": self.game.clock_str(w0)[:5]}, cooldown=900)]
+                                 d, cooldown=900)]
         return []
 
     def update(self) -> None:
         st = self.own.state
+        i = self._window_pending()
+        nav = self._nav()
+        if i is not None and nav is not None and nav.opening_now() is not None \
+                and not self.game.queue.has_kind("suggest") \
+                and self.now - self.game.suggested_at.get("vak", -10**9) > 60:
+            latest = nav.icemap.latest(self.now)
+            self.suggest(f"open_now{i}", "radio.opening_now",
+                         {"kind": thickness_words(latest.thickness),
+                          "clock": self.game.clock_str(self.windows[i])[:5]},
+                         order="vak", cooldown=300)
         if self.tx_done_t is not None:
             if st.depth > PERISCOPE_DEPTH + 1:
                 self.tx_done_t = None
@@ -131,7 +178,13 @@ class RadioStation(Station):
             if self.now >= w0 - PREWARN_S and i not in self._prewarned:
                 self._prewarned.add(i)
                 d = {"clock": self.game.clock_str(w0)[:5]}
-                if st.depth > ANTENNA_DEPTH:
+                ice, opening = self._ice_route()
+                if ice and opening:
+                    self.suggest(f"window{i}", "radio.prewarn_ice", {**d, **opening}, order="vak",
+                                 cooldown=0)
+                elif ice:
+                    self.say("radio.prewarn_ice", d)
+                elif st.depth > ANTENNA_DEPTH:
                     self.suggest(f"window{i}", "radio.prewarn", d, order="antenndjup", cooldown=0)
                 else:
                     self.say("radio.prewarn", d)

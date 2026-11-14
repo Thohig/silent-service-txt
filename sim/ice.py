@@ -116,8 +116,12 @@ class IceField:
                 yield int(wy) % n, int(wx) % n
 
     # --- drift -----------------------------------------------------------------
+    def drift_velocity(self) -> tuple[float, float]:
+        """Isens drift i nm per sekund."""
+        return velocity(self.drift_set, self.drift_kn)
+
     def advance(self, dt: float) -> None:
-        vx, vy = velocity(self.drift_set, self.drift_kn)
+        vx, vy = self.drift_velocity()
         self.ox += vx * dt
         self.oy += vy * dt
 

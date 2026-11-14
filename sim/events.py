@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar
 from .reports import Quality, Report
 
 if TYPE_CHECKING:
+    from .icemap import IceSoundingObs
     from .tma import BearingObs
 
 
@@ -94,6 +95,18 @@ class OwnTorpedoHeard(Event):
     kind: str
     bearing: float | None = None
     quality: Quality = Quality.OSAKER
+
+
+@dataclass(frozen=True)
+class IceSounded(Event):
+    """Isekolodet (uppåtriktat) har lodat isen ovanför."""
+    obs: IceSoundingObs
+
+
+@dataclass(frozen=True)
+class OpeningNotFound(Event):
+    """Navigatören sökte en loggad öppning men fann tjock is: den har drivit iväg."""
+    no: int
 
 
 @dataclass(frozen=True)

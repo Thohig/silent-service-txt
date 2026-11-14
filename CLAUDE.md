@@ -45,6 +45,10 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
 - **Scenarier** registreras i `sim/scenario.py` (`register(ScenarioDef(...))`) och
   väljs i gränssnittets väljare eller med `--scenario`. Scenariot bär områdesnamn
   och sluttexter; `Game` ska inte känna till enskilda scenarier.
+- **Is:** `ice.py` är sanning (bara isekolodet i `navigation.py` och mastkontrollerna
+  `masts_clear` läser den); `icemap.py` är kunskap, byggd av `IceSounded` med
+  beräknad position. Öppningars kvalitet = lägesosäkerhet (växer 8 m/min) mot
+  halva längden.
 - **Händelsebussen** (`events.py`) är synkron. `Knowledge` registreras före
   stationerna så att stationer alltid ser uppdaterad kunskap.
 - **Utbyggnadskrokar:** rapportfilter (`ReportQueue.filters`, ändrar `data`) för

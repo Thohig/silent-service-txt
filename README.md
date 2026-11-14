@@ -43,7 +43,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Tid | `tid 1` `tid 2` `tid 5` `tid 10` (faller till 1× vid larm) |
 | Sonar | `aktiv sonar` (ger avstånd men avslöjar oss) |
 | Plott | `läge S-1` · `plot S-1` |
-| Navigation | `position` · `fix` (periskopdjup) · `ekolod` |
+| Navigation | `position` · `fix` (periskopdjup) · `ekolod` · `isekolod` · `vak` (gå till och stoppa under en loggad öppning i isen) |
 | Maskin | `smygmotor` · `turbin` · `stäng reaktorn` · `starta reaktorn` · `nödblåsning` · `maskin` |
 | Vakthavande | `periskop` · `radar` (periskopdjup; radarvarnaren är automatisk) |
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
@@ -61,13 +61,14 @@ en del säger de vilken, och resten verkställs ändå.
 |---|---|
 | Reaktor, turbin, smygmotor, batteri | Fart mot ljud. Kylpumparna brusar alltid; att stänga reaktorn ger tystnad men tömmer batteriet. Snabbstopp kan inträffa. |
 | Kavitation | Över en viss fart (högre på djupet) hörs ubåten långt. |
-| Språngskikt (60 m) | Skyddar mot jagarens sonar, men vi hör också sämre genom det. |
+| Språngskikt (60 m, Kuba) | Skyddar mot jagarens sonar, men vi hör också sämre genom det. |
 | Roder, barlast, skrov | Djupändring kräver fart. Under provdjup (300 m) knakar skrovet; 450 m krossar det. |
 | Skador, läckor, nödblåsning | Sjunkbomber ger skador och vatteninträngning; reparationer tar tid. |
 | Passiv och aktiv sonar | Passiv ger bäringar; aktiv ger avstånd men avslöjar oss. |
 | Periskop, radar, radarvarnare | Avstånd och kurs på periskopdjup, med risk att synas. |
 | Navigering | Besticket driver med ström och loggfel; fix kräver periskopet. |
-| Radio | Sambandstillfällen kl 05:00, 06:30 och 08:00 på antenndjup. Sändning pejlas. |
+| Radio | Sambandstillfällen på antenndjup (tider beror på scenariot). Sändning pejlas. |
+| Packis (arktis) | Masterna kräver öppet vatten. Isekolodet lodar isen ovanför och navigatören loggar öppningar; deras läge blir osäkrare när isen driver. Kölar når 45 m: gå djupt i fart. Tunn is (≤ 1 m) kan brytas igenom i låg fart om råken är minst 120 m. Arktiskt hav saknar språngskikt; djupt gående hör och hörs längre. |
 | Torpeder | 53-61 (rak, snabb), SET-53 (målsökande), T-5 (kärnladdning, spärrad utan order). |
 | Torpeder i vattnet | Sonar följer egna torpeder. Torpedrummet rapporterar normal gång, sväng (målsökning), tappad torped, detonation och miss. `torpeder` ger gångtid, tid till beräknad träff, räckvidd kvar och senaste bäring. |
 | Skenmål | Drar jagarens sonar bort från ubåten. |
@@ -95,7 +96,10 @@ sim/                 ren Python, ingen Textual
   reports.py         strukturerade rapporter + rapportfilter
   phrases.py         frasbok: rapportdata -> svensk text
   game.py            tunn samordnare: tick, order, leverans
-  environment.py     språngskikt, ström, dygnsljus
+  environment.py     ljudprofil (språngskikt/arktis), ström, dygnsljus
+  ice.py             SANNING: packis, kölar, råkar, drift, kontakt med isen
+  icemap.py          KUNSKAP: iskartan ur isekolodets lodningar
+  scenario.py        scenarier och scenarioregistret
   entities.py        fartyg, transienter, emissioner
   ownship.py         egen ubåt: reaktor, batteri, skrov, skador
   enemy.py           jagarens sensorer och beteende
@@ -103,7 +107,7 @@ sim/                 ren Python, ingen Textual
   firecontrol.py     skjutlösning (ren matematik på kunskap)
   stations/          ett system ombord per modul
     base.py          Station: COMMANDS, on_order, update, say, suggest
-    navigation.py    kurs, fart, djup, bestick, fix, ekolod
+    navigation.py    kurs, fart, djup, bestick, fix, ekolod, isekolod, vak
     engineering.py   maskin och skadekontroll
     sonar_room.py    sonar, transienter, aktiv sonar
     officer.py       periskop, radar, radarvarnare

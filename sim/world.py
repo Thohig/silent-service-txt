@@ -68,10 +68,17 @@ class World:
         o = self.own.state
         prev = (o.x, o.y, o.depth)
         cvx, cvy = self.env.current_velocity()
+        ice = self.env.ice
         for v in [self.own, *self.contacts]:
             if v.sunk or isinstance(v, Torpedo):
                 continue
             v.state.step(dt)
+            if v is self.own and ice is not None and v.state.depth <= 1.0:
+                # i ytläge i en vak eller råk: ubåten ligger fast i isen och driver med den
+                ivx, ivy = ice.drift_velocity()
+                v.state.x += ivx * dt
+                v.state.y += ivy * dt
+                continue
             v.state.x += cvx * dt
             v.state.y += cvy * dt
             if v.state.depth <= 0 and v is self.own:

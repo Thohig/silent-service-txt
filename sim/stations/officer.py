@@ -177,7 +177,8 @@ class OfficerStation(Station):
     def idle_proposals(self) -> list[Proposal]:
         st = self.own.state
         held = any(t.held for t in self.game.knowledge.tracks.values())
-        if st.depth <= PERISCOPE_DEPTH + 1 and not held and st.speed <= 7 and \
+        if st.depth <= PERISCOPE_DEPTH and not held and st.speed <= 7 and \
+                not self.game.knowledge.ice.under_ice(self.now) and \
                 self.now - self._last_look_t >= LOOK_INTERVAL_S and self.look_done_t is None:
             return [Proposal(5, "idle_look", "off.suggest.look", "periskop", cooldown=900)]
         return []

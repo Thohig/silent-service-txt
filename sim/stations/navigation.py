@@ -1,4 +1,10 @@
-"""Navigation: kurs, fart, djup, bestick (dödräkning med drift), fix och ekolod."""
+"""Navigation: kurs, fart, djup, bestick (dödräkning med drift), fix och ekolod.
+
+Under is lodar det uppåtriktade isekolodet isen var femte sekund
+(IceSounded, med beräknad position). Navigatören läser iskartan i
+kunskapen, varnar för kölar och tjock is, och kan på order ("vak") styra
+ubåten tillbaka till en loggad öppning och stoppa under den.
+"""
 from __future__ import annotations
 
 import math
@@ -8,9 +14,12 @@ from dataclasses import dataclass
 from .. import acoustics, phrases
 from ..crew import Role
 from ..entities import Transient
+from ..events import IceSounded, OpeningNotFound
 from ..fmt import clock, fmt_course, kn, nm
 from ..geo import angle_diff, bearing_to, distance, norm360, velocity
-from ..ice import masts_clear
+from ..ice import SAIL_TOP_M, masts_clear
+from ..icemap import (MIN_SURFACE_LEN_M, OPEN_M, IceMap, IceSoundingObs, Opening,
+                      describe_opening, round_m, thickness_words)
 from ..orders import NUM, CommandSpec, Order, Unknown, num
 from ..ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH, TEST_DEPTH
 from .base import Proposal, Station
@@ -19,6 +28,13 @@ FIX_TIME_S = 120
 IDLE_FIX_SIGMA_NM = 0.5     # vid tystnad: föreslå fix redan vid denna osäkerhet
 SEARCH_LEG_S = 1800         # utan kontakt: nytt sökben efter så här lång rak kurs
 DR_GROWTH_NM_PER_H = 0.5
+SOUNDER_INTERVAL_S = 5      # isekolodet lodar så här ofta
+SAFE_ICE_DEPTH = 60         # under isen: djupare än de djupaste kölarna (≤ 45 m)
+VAK_SPEED = 3.0             # fart mot en öppning
+VAK_TIMEOUT_S = 1800
+VAK_RUN_OUT_M = 250         # vaken bakom och närmare: gå ut så här långt innan vi vänder
+DECEL_M_PER_S2 = 0.05 * 1852 / 3600
+REPORT_OPENING_M = 60       # kortare öppningar nämns inte när vi passerar dem
 
 
 @dataclass(frozen=True)
@@ -54,6 +70,16 @@ class EchoSounder(Order):
     pass
 
 
+@dataclass(frozen=True)
+class IceReport(Order):
+    pass
+
+
+@dataclass(frozen=True)
+class GoToOpening(Order):
+    pass
+
+
 def _course(m: re.Match) -> Order:
     c = num(m[1])
     if not 0 <= c < 360:
@@ -68,7 +94,10 @@ PHRASES = {
     else f"Fart {kn(d['speed'])} knop, aye.",
     "nav.depth.ack": lambda d: ("Upp till ytan, aye." if d["depth"] == 0 else
                                 f"Djup {d['depth']:.0f} meter, aye.")
-    + (" Det är under provdjup, kapten." if d.get("below_test") else ""),
+    + (" Det är under provdjup, kapten." if d.get("below_test") else "")
+    + (f" Det är is ovanför, kapten, vi kommer inte högre än cirka {d['ice_ceiling']:.0f} meter."
+       if d.get("ice_ceiling") else
+       " Det är is ovanför, kapten, masterna kommer inte upp här." if d.get("ice_masts") else ""),
     "nav.course.done": lambda d: f"Kapten, kurs {fmt_course(d['course'])} påkommen.",
     "nav.speed.done": lambda d: f"Fart {kn(d['speed'])} knop uppnådd.",
     "nav.depth.done": lambda d: "Vi är i ytläge, kapten." if d["depth"] < 1
@@ -94,7 +123,60 @@ PHRASES = {
     f"Föreslår kurs {fmt_course(d['course'])}.",
     "nav.suggest.test_depth": lambda d: f"Kapten, vi är på {d['depth']:.0f} meter, under "
     f"provdjup. Föreslår djup 280.",
+    "nav.ice.report": lambda d: _ice_report(d),
+    "nav.ice.passed": lambda d: f"Isekolod: vi passerade {d['kind']}, cirka {d['length']} meter. "
+    f"Loggat som öppning {d['no']}.",
+    "nav.suggest.keel": lambda d: f"Kapten, navigatören. Vi går grunt under isen i {kn(d['speed'])} "
+    f"knop. Kölarna kan nå 40–45 meter. Föreslår djup {d['depth']}.",
+    "nav.suggest.ice_closing": lambda d: "Kapten! Isekolodet visar tjock is ovanför, isen driver "
+    f"in över oss. Föreslår djup {d['depth']}.",
+    "nav.suggest.fix_vak": lambda d: f"Kapten, navigatören. Bestickets osäkerhet är {nm(d['sigma'])} "
+    f"sjömil och det är is ovanför. " + _opening_words(d) + " Föreslår att vi går dit för en fix.",
+    "nav.vak.none": lambda d: "Kapten, vi har ingen öppning i isen loggad som vi kan hitta igen. "
+    "Vi får leta: isekolodet säger till när vi passerar en.",
+    "nav.vak.ack": lambda d: f"Går till öppning {d['no']}, bäring {fmt_course(d['bearing'])}, cirka "
+    f"{d['range']} meter. Fart {kn(d['speed'])} knop" + (f", djup {d['depth']}" if d.get("depth") else "")
+    + ".",
+    "nav.vak.here": lambda d: f"Vi ligger under öppningen nu, {d['kind']}. Stoppar.",
+    "nav.suggest.up": lambda d: f"Kapten, vi står stilla under öppningen, {d['kind']} ovanför. "
+    + ("Föreslår periskopdjup." if d["open"] else "Föreslår ytläge, vi bryter igenom nyisen."),
+    "nav.vak.missed": lambda d: "Kapten, isekolodet visar tjock is här. Öppningen har drivit "
+    "iväg eller så missade vi den.",
+    "nav.vak.next": lambda d: "Kapten, navigatören. " + _opening_words(d) + " Föreslår att vi går dit.",
+    "nav.vak.too_narrow": lambda d: f"Kapten, vi står under nyisen, men råken är bara cirka "
+    f"{d['length']} meter. För smal för att bryta igenom med hela skrovet. Föreslår att vi söker "
+    f"vidare, fart 5 på {d['depth']} meter.",
+    "nav.suggest.resume": lambda d: "Kapten, navigatören. Vi ligger stilla under tjock is. Föreslår "
+    f"att vi söker vidare efter öppet vatten, fart 5 på {d['depth']} meter.",
+    "nav.vak.overshot": lambda d: "Vi gled förbi öppningen när vi stoppade. Vänder tillbaka.",
+    "nav.vak.search": lambda d: "Kapten, navigatören. Ingen annan öppning loggad. Föreslår att vi "
+    f"fortsätter söka, fart 5 på {d['depth']} meter.",
+    "nav.suggest.stop_here": lambda d: f"Kapten, navigatören. {d['kind'].capitalize()} ovanför oss nu. "
+    f"Bestickets osäkerhet är {nm(d['sigma'])} sjömil. Föreslår att vi stoppar här för en fix.",
+    "nav.vak.timeout": lambda d: "Kapten, vi hittar inte tillbaka till öppningen. Avbryter.",
 }
+
+
+def _opening_words(d: dict) -> str:
+    return (f"Öppning {d['no']} ligger i bäring {fmt_course(d['bearing'])}, cirka {d['range']} "
+            f"meter, {d['length']} meter lång, {d['kind']}.")
+
+
+def _ice_report(d: dict) -> str:
+    if not d.get("sounded"):
+        return "Isekolod: ingen is ovanför."
+    if d["thickness"] < OPEN_M:
+        txt = "Isekolod: öppet vatten ovanför."
+    else:
+        txt = (f"Isekolod: {thickness_words(d['thickness']) if d['thickness'] <= 1.0 else 'tjock is, cirka ' + nm(d['thickness']) + ' meter'}"
+               f" ovanför, undersidan på cirka {nm(d['draft'])} meter.")
+    if d.get("keel"):
+        txt += f" Djupaste köl senaste tio minuterna cirka {d['keel']:.0f} meter."
+    if d.get("opening"):
+        txt += " " + _opening_words(d["opening"])
+    else:
+        txt += " Ingen användbar öppning loggad."
+    return txt
 phrases.register(PHRASES)
 
 
@@ -112,6 +194,9 @@ class NavigationStation(Station):
         CommandSpec(r"fix|ta fix", lambda m: TakeFix(), "fix"),
         CommandSpec(r"position|var är vi\??|pos", lambda m: ReportPosition(), "position"),
         CommandSpec(r"ekolod|loda", lambda m: EchoSounder(), "ekolod"),
+        CommandSpec(r"isekolod|isläge|islage", lambda m: IceReport(), "isekolod"),
+        CommandSpec(r"vak|gå till vaken|ga till vaken|öppning|oppning|till öppningen",
+                    lambda m: GoToOpening(), "vak"),
     ]
 
     def __init__(self, game):
@@ -126,6 +211,12 @@ class NavigationStation(Station):
         self.last_fix_t = 0
         self.course_set_t = 0
         self.fix_done_t: int | None = None
+        self._next_sound = 0
+        self.vak: Opening | None = None
+        self._vak_t = 0
+        self._vak_stopping = False
+        self._vak_here = False
+        self._prev_usable = False
 
     @property
     def own(self):
@@ -142,6 +233,32 @@ class NavigationStation(Station):
     def uncertainty(self) -> float:
         return 0.1 + DR_GROWTH_NM_PER_H * (self.now - self.last_fix_t) / 3600.0
 
+    @property
+    def icemap(self) -> IceMap:
+        return self.game.knowledge.ice
+
+    def under_ice(self) -> bool:
+        return self.icemap.under_ice(self.now)
+
+    def best_opening(self) -> Opening | None:
+        return self.icemap.best(self.now, self.est_x, self.est_y)
+
+    def opening_now(self) -> Opening | None:
+        """Ligger vi under en öppning just nu, i fart, utan att redan vara på väg dit?"""
+        if self.vak is not None or self.ship.speed < 0.5:
+            return None
+        latest = self.icemap.latest(self.now)
+        if latest is None or not latest.usable:
+            return None
+        cur = self.icemap.current
+        # öppet vatten räcker för masterna; nyis måste vara lång nog att bryta igenom
+        if cur is None or not (cur.open or cur.length_m >= MIN_SURFACE_LEN_M):
+            return None
+        return cur
+
+    def opening_data(self, o: Opening) -> dict:
+        return describe_opening(o, self.now, self.est_x, self.est_y)
+
     def _dead_reckon(self) -> None:
         s = self.ship
         vx, vy = velocity(s.course + self.gyro_err, s.speed * (1 + self.log_bias))
@@ -153,10 +270,12 @@ class NavigationStation(Station):
         s = self.ship
         match order:
             case SetCourse(course=c):
+                self.vak = None
                 self.course_set_t = self.now
                 s.order_course(c)
                 self._ack("course", {"course": c}, s.course == s.ordered_course)
             case SetSpeed(speed=v):
+                self.vak = None
                 limit = self.own.max_speed()
                 if v > limit:
                     self.say("nav.limit", {"what": "speed", "limit": limit})
@@ -168,8 +287,13 @@ class NavigationStation(Station):
                     self.say("nav.limit", {"what": "depth", "limit": s.max_depth})
                     return
                 s.order_depth(d)
-                self._ack("depth", {"depth": d, "below_test": d > TEST_DEPTH},
-                          s.depth == s.ordered_depth)
+                data = {"depth": d, "below_test": d > TEST_DEPTH}
+                latest = self.icemap.latest(self.now)
+                if latest is not None and not latest.usable and d < latest.draft + SAIL_TOP_M:
+                    data["ice_ceiling"] = latest.draft + SAIL_TOP_M
+                elif latest is not None and not latest.open and d <= ANTENNA_DEPTH:
+                    data["ice_masts"] = True
+                self._ack("depth", data, s.depth == s.ordered_depth)
             case TakeFix():
                 self._start_fix()
             case ReportPosition():
@@ -182,6 +306,10 @@ class NavigationStation(Station):
                                      acoustics.ECHO_SOUNDER_LEVEL, world.own.id, self.now))
                 depth = world.env.bottom_depth - s.depth + self.game.rng.gauss(0, 15)
                 self.say("nav.echo", {"under_keel": round(depth, -1)})
+            case IceReport():
+                self._ice_report()
+            case GoToOpening():
+                self._go_to_opening()
 
     def _ack(self, what: str, data: dict, already: bool) -> None:
         self.say(f"nav.{what}.ack", {**data, "already": already}, kind="ack")
@@ -208,6 +336,158 @@ class NavigationStation(Station):
         self.fix_done_t = self.now + FIX_TIME_S
         self.say("nav.fix.start", kind="ack")
 
+    # --- isen -----------------------------------------------------------------------
+    def _sound_ice(self) -> None:
+        """Isekolodet: en sensor, läser isen rakt ovanför och publicerar lodningen."""
+        ice = self.game.world.env.ice
+        if ice is None or self.now < self._next_sound:
+            return
+        self._next_sound = self.now + SOUNDER_INTERVAL_S
+        s, rng = self.ship, self.game.rng
+        skill = self.member.effective_skill()
+        t_true = ice.thickness_at(s.x, s.y)
+        if t_true < OPEN_M:
+            t, d = 0.0, 0.0
+        else:
+            t = max(0.1, t_true + rng.gauss(0, 0.1 + 0.15 * (1 - skill)))
+            d = max(0.8 * t, ice.draft_at(s.x, s.y) + rng.gauss(0, 0.5))
+        before = self.icemap.current
+        obs = IceSoundingObs(self.now, self.est_x, self.est_y, round(t, 2), round(d, 1))
+        self.game.bus.publish(IceSounded(self.now, obs))
+        closed = before if (before is not None and self.icemap.current is None) else None
+        if closed is not None and closed.length_m >= REPORT_OPENING_M and self.vak is None:
+            self.say("nav.ice.passed", self.opening_data(closed), quality=closed.quality(self.now))
+        # isen driver in över oss på grunt vatten
+        if self._prev_usable and not obs.usable and s.depth <= ANTENNA_DEPTH + 2:
+            self.suggest("ice_closing", "nav.suggest.ice_closing", {"depth": SAFE_ICE_DEPTH},
+                         order=f"djup {SAFE_ICE_DEPTH}", cooldown=120, alarm=True)
+        self._prev_usable = obs.usable
+
+    def _ice_report(self) -> None:
+        latest = self.icemap.latest(self.now)
+        if latest is None:
+            self.say("nav.ice.report", {"sounded": False})
+            return
+        o = self.best_opening()
+        self.say("nav.ice.report", {
+            "sounded": True, "thickness": latest.thickness, "draft": latest.draft,
+            "keel": self.icemap.deepest_keel(self.now) if self.under_ice() else 0.0,
+            "opening": self.opening_data(o) if o else None},
+            quality=o.quality(self.now) if o else None)
+
+    def _go_to_opening(self) -> None:
+        s = self.ship
+        cur = self.icemap.current
+        if cur is not None and self.icemap.latest(self.now) is not None:
+            self.vak, self._vak_t, self._vak_stopping = cur, self.now, True
+            self._vak_here = True
+            s.order_speed(0)
+            self.say("nav.vak.here", {"kind": thickness_words(cur.thickest)}, kind="ack")
+            return
+        o = self.best_opening()
+        if o is None:
+            self.say("nav.vak.none")
+            return
+        self._steer_for(o)
+
+    def _steer_for(self, o: Opening) -> None:
+        s = self.ship
+        self.vak, self._vak_t, self._vak_stopping, self._vak_here = o, self.now, False, False
+        d = self.opening_data(o)
+        s.order_course(d["bearing"])
+        speed = min(VAK_SPEED, self.own.max_speed())
+        s.order_speed(speed)
+        depth = None
+        if s.ordered_depth > SAFE_ICE_DEPTH:
+            depth = SAFE_ICE_DEPTH
+            s.order_depth(depth)
+        self.say("nav.vak.ack", {**d, "speed": speed, "depth": depth}, kind="ack",
+                 quality=o.quality(self.now))
+
+    def _steer_to_opening(self) -> None:
+        o, s = self.vak, self.ship
+        if o is None:
+            return
+        if self.now - self._vak_t > VAK_TIMEOUT_S:
+            self.vak = None
+            s.order_speed(VAK_SPEED)
+            self.say("nav.vak.timeout")
+            return
+        if not self._vak_stopping:
+            course, rng_m = IceMap.course_and_range_m(self.est_x, self.est_y, o)
+            off = abs(angle_diff(course, s.course))
+            v = s.speed * 1852 / 3600
+            stop_m = v * v / (2 * DECEL_M_PER_S2) + 10
+            if off > 90 and rng_m < VAK_RUN_OUT_M:
+                return                  # vaken ligger bakom: gå rakt ut, vänd sedan
+            over = self.icemap.current is not None and rng_m < 150 and off < 90
+            if (rng_m <= stop_m and off < 45) or over:
+                s.order_speed(0)
+                self._vak_stopping = True
+            else:
+                s.order_course(course)
+            return
+        if s.speed > 0.2:
+            return
+        # stilla: vad säger isekolodet?
+        self.vak, self._vak_stopping = None, False
+        latest = self.icemap.latest(self.now)
+        if latest is not None and latest.open:
+            self.suggest("vak_up", "nav.suggest.up", {"kind": "öppet vatten", "open": True},
+                         order="periskopdjup", cooldown=0)
+            return
+        if latest is not None and latest.usable:
+            if o.length_m >= MIN_SURFACE_LEN_M:
+                self.suggest("vak_up", "nav.suggest.up",
+                             {"kind": thickness_words(latest.thickness), "open": False},
+                             order="ytläge", cooldown=0)
+            else:
+                # bara tornet ryms: för- och akterskeppet skulle stöta i tjock is
+                self.game.bus.publish(OpeningNotFound(self.now, o.no))
+                self.suggest("vak_narrow", "nav.vak.too_narrow",
+                             {"length": round_m(o.length_m), "depth": SAFE_ICE_DEPTH},
+                             order=f"fart 5, djup {SAFE_ICE_DEPTH}", cooldown=0)
+            return
+        if self._vak_here:
+            # vi stoppade när vi var under öppningen men gled förbi: backa tillbaka
+            self.say("nav.vak.overshot")
+            self._steer_for(o)
+            return
+        self.game.bus.publish(OpeningNotFound(self.now, o.no))
+        self.say("nav.vak.missed")
+        nxt = self.best_opening()
+        if nxt is not None:
+            self.suggest("vak_next", "nav.vak.next", self.opening_data(nxt), order="vak",
+                         cooldown=0, quality=nxt.quality(self.now))
+        else:
+            self.suggest("vak_search", "nav.vak.search", {"depth": SAFE_ICE_DEPTH},
+                         order=f"fart 5, djup {SAFE_ICE_DEPTH}", cooldown=0)
+
+    def _ice_advice(self) -> None:
+        sigma = self.uncertainty()
+        if sigma > IDLE_FIX_SIGMA_NM and self.opening_now() is not None and self.fix_done_t is None:
+            latest = self.icemap.latest(self.now)
+            self.suggest("stop_here", "nav.suggest.stop_here",
+                         {"kind": thickness_words(latest.thickness), "sigma": sigma},
+                         order="vak", cooldown=600)
+        if not self.under_ice():
+            return
+        s = self.ship
+        if s.speed < 0.3 and s.ordered_speed == 0 and self.vak is None \
+                and "depth" not in s.changing():
+            # stilla under isen: gå till en känd öppning eller fortsätt söka
+            o = self.best_opening()
+            d = self.opening_data(o) if o is not None else None
+            if d is not None and d["range"] > 150:
+                self.suggest("resume_vak", "nav.vak.next", d, order="vak", cooldown=900,
+                             quality=o.quality(self.now))
+            else:
+                self.suggest("resume", "nav.suggest.resume", {"depth": SAFE_ICE_DEPTH},
+                             order=f"fart 5, djup {SAFE_ICE_DEPTH}", cooldown=900)
+        if s.ordered_depth < SAFE_ICE_DEPTH and s.speed > VAK_SPEED + 0.5 and self.vak is None:
+            self.suggest("keel", "nav.suggest.keel", {"speed": s.speed, "depth": SAFE_ICE_DEPTH},
+                         order=f"djup {SAFE_ICE_DEPTH}", cooldown=900)
+
     # --- initiativ vid tystnad -----------------------------------------------------
     def _quiet_contact_picture(self) -> bool:
         """Ingen kontakt hålls och ingen har hörts på SEARCH_LEG_S sekunder."""
@@ -230,14 +510,22 @@ class NavigationStation(Station):
                                 {"course": c, "area": self.game.area_name}, cooldown=900))
         held = any(t.held for t in self.game.knowledge.tracks.values())
         sigma = self.uncertainty()
-        if not held and sigma > IDLE_FIX_SIGMA_NM and self.fix_done_t is None:
+        if not held and sigma > IDLE_FIX_SIGMA_NM and self.fix_done_t is None and \
+                self.icemap.soundings:
+            o = self.best_opening() if self.under_ice() else None
+            if o is not None and self.vak is None:
+                out.append(Proposal(4, "idle_fix_vak", "nav.suggest.fix_vak", "vak",
+                                    {"sigma": sigma, **self.opening_data(o)},
+                                    quality=o.quality(self.now)))
+        elif not held and sigma > IDLE_FIX_SIGMA_NM and self.fix_done_t is None:
             if s.depth <= PERISCOPE_DEPTH and s.speed <= 7:
                 out.append(Proposal(4, "idle_fix_now", "nav.suggest.fix_now", "fix",
                                     {"sigma": sigma}, cooldown=900))
             elif s.depth > PERISCOPE_DEPTH:
                 out.append(Proposal(4, "idle_fix", "nav.suggest.fix", "periskopdjup",
                                     {"sigma": sigma}))
-        if self._quiet_contact_picture() and self.now - self.course_set_t >= SEARCH_LEG_S:
+        if self._quiet_contact_picture() and self.now - self.course_set_t >= SEARCH_LEG_S \
+                and self.vak is None and s.ordered_speed > 0:
             # gir 90° åt den sida som pekar mest mot kvadratens mitt
             size = self.game.world.size_nm
             to_mid = bearing_to(self.est_x, self.est_y, size / 2, size / 2)
@@ -250,6 +538,9 @@ class NavigationStation(Station):
     # --- löpande -----------------------------------------------------------------
     def update(self) -> None:
         self._dead_reckon()
+        self._sound_ice()
+        self._steer_to_opening()
+        self._ice_advice()
         s = self.ship
         changing = s.changing()
         for what in list(self._pending):
@@ -277,6 +568,11 @@ class NavigationStation(Station):
                 and s.speed <= 7 and "depth" not in changing:
             self.suggest("fix_now", "nav.suggest.fix_now", {"sigma": sigma}, order="fix",
                          cooldown=900)
+        elif sigma > 1.0 and s.depth > PERISCOPE_DEPTH and self.icemap.soundings:
+            o = self.best_opening() if self.under_ice() else None
+            if o is not None and self.vak is None:
+                self.suggest("fix_vak", "nav.suggest.fix_vak", {"sigma": sigma, **self.opening_data(o)},
+                             order="vak", cooldown=1800, quality=o.quality(self.now))
         elif sigma > 1.0 and s.depth > PERISCOPE_DEPTH:
             self.suggest("fix", "nav.suggest.fix", {"sigma": sigma}, order="periskopdjup",
                          cooldown=1800)

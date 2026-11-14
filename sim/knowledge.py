@@ -9,7 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .events import (BearingObserved, ClassificationChanged, ContactDetected,
-                     ContactLost, EventBus)
+                     ContactLost, EventBus, IceSounded, OpeningNotFound)
+from .icemap import IceMap
 from .reports import Quality
 from .tma import BearingObs, Solution, solve
 
@@ -33,12 +34,15 @@ class ContactTrack:
 @dataclass
 class Knowledge:
     tracks: dict[str, ContactTrack] = field(default_factory=dict)
+    ice: IceMap = field(default_factory=IceMap)
 
     def attach(self, bus: EventBus) -> None:
         bus.subscribe(ContactDetected, self._on_detected)
         bus.subscribe(BearingObserved, lambda e: self.on_bearing(e.obs))
         bus.subscribe(ClassificationChanged, self._on_classified)
         bus.subscribe(ContactLost, lambda e: self.on_lost(e.designation))
+        bus.subscribe(IceSounded, lambda e: self.ice.on_sounding(e.obs))
+        bus.subscribe(OpeningNotFound, self._on_opening_not_found)
 
     # --- händelser ------------------------------------------------------------
     def _on_detected(self, e: ContactDetected) -> None:
@@ -50,6 +54,11 @@ class Knowledge:
     def _on_classified(self, e: ClassificationChanged) -> None:
         if tr := self.tracks.get(e.designation):
             tr.classification, tr.class_quality = e.classification, e.quality
+
+    def _on_opening_not_found(self, e: OpeningNotFound) -> None:
+        for o in self.ice.openings:
+            if o.no == e.no:
+                o.dropped = True
 
     def on_detection(self, designation: str, t: int) -> ContactTrack:
         tr = self.tracks.get(designation)
