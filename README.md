@@ -47,7 +47,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Vakthavande | `periskop` · `radar` (periskopdjup; radarvarnaren är automatisk) |
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
-| Övrigt | `hjälp` · `ctrl+q` avslutar |
+| Övrigt | `hjälp` · `avsluta` (avbryter patrullen med slutrapport) · `ctrl+q` stänger programmet |
 
 Flera order kan ges på en rad, åtskilda med komma, semikolon eller "och":
 `kurs 090, fart 5; djup 100`. De verkställs i tur och ordning. Ett komma
@@ -75,8 +75,11 @@ Jagaren pingar, söker kring sin bild av var vi är och fäller
 signalsjunkbomber för att tvinga upp oss. Om vi skjuter blir sjunkbomberna
 skarpa.
 
-Spelet slutar om ubåten förloras, tvingas till ytan, sänker jagaren eller
-när patrullen är slut kl 08:00.
+Spelet slutar om ubåten förloras, tvingas till ytan, sänker jagaren,
+när patrullen är slut kl 08:00 eller när kaptenen skriver `avsluta`. Då visas
+en kort rapport: tid i befäl, order, kontakter, torpeder, sjunkbomber,
+skador, radio och de viktigaste händelserna. Rapporten bygger på
+loggboken (`sim/logbook.py`), alltså på vad besättningen rapporterat.
 
 ## Arkitektur
 

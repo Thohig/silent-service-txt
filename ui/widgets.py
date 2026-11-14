@@ -153,5 +153,22 @@ class ReportLog(RichLog):
             line.append(f"{k}: ", style="dim")
             line.append(v, style="bold")
             self.write(line)
+        session = summary.get("session")
+        if session:
+            self.write(Text(""))
+            self.write(Text("  Patrullens förlopp", style="bold"))
+            for k, v in session["rows"]:
+                line = Text("  ")
+                line.append(f"{k}: ", style="dim")
+                line.append(v)
+                self.write(line)
+            if session["events"]:
+                self.write(Text(""))
+                self.write(Text("  Viktiga händelser", style="bold"))
+                for clock, text in session["events"]:
+                    line = Text("  ")
+                    line.append(f"{clock} ", style="dim")
+                    line.append(text)
+                    self.write(line)
         self.write(Text("═" * 60, style="dim"))
         self.write(Text("  Avsluta med ctrl+q.", style="dim italic"))

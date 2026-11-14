@@ -27,7 +27,9 @@ from .events import (EventBus, GameEnded, OrderIssued, ReportDelivered, Tick,
                      TimeScaleChanged)
 from .fmt import clock
 from .knowledge import Knowledge
-from .orders import (HELP_COMMAND, SUGGESTION_COMMANDS, TIME_COMMAND, AcceptSuggestion,
+from .logbook import Logbook
+from .orders import (HELP_COMMAND, QUIT_COMMAND, SUGGESTION_COMMANDS, TIME_COMMAND,
+                     AcceptSuggestion, Quit,
                      AskSuggestion, CommandRegistry, DeclineSuggestion, Help, Order,
                      split_orders,
                      SetTimeScale, Unknown)
@@ -70,7 +72,7 @@ def build_registry(station_classes: list[type[Station]]) -> CommandRegistry:
     reg = CommandRegistry([TIME_COMMAND, *SUGGESTION_COMMANDS])
     for cls in station_classes:
         reg.register(*cls.COMMANDS)
-    reg.register(HELP_COMMAND)
+    reg.register(QUIT_COMMAND, HELP_COMMAND)
     return reg
 
 
@@ -80,6 +82,7 @@ OUTCOME_TEXT = {
               "men besättningen lever.",
     "sank": "Den amerikanska jagaren är sänkt. Vad som händer nu avgörs inte längre i Kvadrat 7.",
     "patrol_end": "Patrullen är slut. K-114 lämnar Kvadrat 7.",
+    "quit": "Kaptenen har avbrutit patrullen. K-114 lämnar Kvadrat 7 i förtid.",
 }
 
 
@@ -108,6 +111,8 @@ class Game:
         self.queue = ReportQueue()
         self.knowledge = Knowledge()
         self.knowledge.attach(self.bus)          # före stationerna, se events.py
+        self.logbook = Logbook(self.clock_str)
+        self.logbook.attach(self.bus)
 
         station_classes = stations if stations is not None else DEFAULT_STATIONS
         self.stations: list[Station] = [cls(self) for cls in station_classes]
@@ -225,7 +230,7 @@ class Game:
             case AskSuggestion(role=None, other=False) if self.active_suggestion():
                 self._system("order.suggestion_repeat", {"text": self.active_suggestion()[1]})
                 return
-        if not isinstance(order, (Unknown, Help, SetTimeScale, AskSuggestion)):
+        if not isinstance(order, (Unknown, Help, SetTimeScale, AskSuggestion, Quit)):
             self._ordered[type(order)] = (order, self.now)
             if self.suggestion and \
                     type(self.registry.parse(self.suggestion[0])) is type(order):
@@ -236,6 +241,9 @@ class Game:
                 self.set_time_scale(n, "order")
             case Help():
                 self._system("system.help", {"text": self.registry.help_text()})
+            case Quit():
+                self.world.end("quit")
+                self._end()
             case Unknown(reason=reason):
                 self.say(Role.NAVIGATOR, "order.unknown", {"reason": reason})
 
@@ -276,6 +284,7 @@ class Game:
             "torpedoes": m.get("torpedoes_fired", 0),
             "nuclear": bool(m.get("nuclear_used")),
             "hull": self.world.own.sys.hull,
+            "session": self.logbook.report(self.now, self.knowledge),
         }
         self.log(f"SLUT {summary}")
         self.bus.publish(GameEnded(self.now, o["outcome"], summary))
