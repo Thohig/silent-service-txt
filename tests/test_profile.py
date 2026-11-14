@@ -43,7 +43,8 @@ def test_bottom_only_from_the_echo_sounder():
     g.command("ekolod")
     _run(g, 5)
     [b] = g.profile().bottom
-    assert abs(b.depth - g.world.env.bottom_depth) < 80
+    s = g.world.own.state
+    assert abs(b.depth - g.world.env.bottom_at(s.x, s.y)) < 60
     assert "ekolod ger bottendjupet" not in _text(render_profile(g.profile(), 100, 30))
 
 
@@ -95,14 +96,15 @@ def test_render_draws_us_on_our_depth_row_and_the_ordered_depth():
 def test_deep_bottom_goes_in_its_own_band_with_unknown_stretches():
     v = _view(items=[BottomSounding(3000, 2380.0)])
     out = _text(render_profile(v, 100, 30))
-    assert "axeln bruten" in out and "2 380" in out and "▓" in out and "?" in out
+    assert "axeln bruten" in out and "2 300" in out and "▓" in out and "?" in out
+    assert "ekolod 04:50" in out
 
 
 def test_shallow_bottom_is_drawn_in_place():
     v = _view(depth=40, ordered=40, items=[BottomSounding(3500, 120.0)])
     out = _text(render_profile(v, 100, 30, max_depth=150))
     assert "axeln bruten" not in out
-    assert "botten 120" in out
+    assert "ekolod 120" in out
 
 
 def test_events_row_shows_what_was_heard():
@@ -116,7 +118,7 @@ def test_gauge_is_ordered_by_depth():
     v = _view(depth=95, ordered=120, items=[BottomSounding(3500, 2380.0)])
     rows = [line.plain for line in render_gauge(v)]
     order = [next(i for i, r in enumerate(rows) if key in r)
-             for key in ("yta", "skikt", "↓120", "prov", "kross", "botten")]
+             for key in ("yta", "skikt", "↓120", "prov", "kross", "ekolod")]
     assert order == sorted(order)
 
 

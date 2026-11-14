@@ -38,6 +38,9 @@ STYLE = {
     "merchant": "#c8b070",
     "merchant_vector": "#a08c58",
     "torpedo": "bold red",
+    "contour": "#33505a",
+    "contour_label": "#4f7480",
+    "sounding": "#b09a6a",
     "grid": "#2f4a36",
     "border": "#5f8a66",
     "axis": "#7f9a80",
@@ -118,6 +121,9 @@ class Canvas:
         """Skriv en etikett utan att skriva över märken; flytta åt vänster vid kanten."""
         if c + len(s) > self.cols:
             c = max(0, c - len(s) - 3)
+        span = range(max(0, c - 1), min(self.cols, c + len(s) + 1))
+        if self.inside(c, r) and any(self.prio[r][i] >= LABEL_PRIO for i in span):
+            return                      # en annan etikett ligger redan här
         for i, ch in enumerate(s):
             self.put(c + i, r, ch, style, prio)
         if c > 0 and self.prio[r][c - 1] < LAYER_MARK:
@@ -184,10 +190,10 @@ def render_chart(view: ChartView, cx: float, cy: float, scale: float,
             case Track(points=pts, style=s):
                 st = item_style(s)
                 for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
-                    cv.line(x0, y0, x1, y1, "·", st, it.layer)
+                    cv.line(x0, y0, x1, y1, it.char, st, it.layer)
                 if len(pts) == 1:
                     c, r = cv.cell(*pts[0])
-                    cv.put(c, r, "·", st, it.layer)
+                    cv.put(c, r, it.char or "·", st, it.layer)
             case Ring():
                 cv.ring(it.x, it.y, it.radius, item_style(it.style, it.quality, faded=True),
                         it.layer)

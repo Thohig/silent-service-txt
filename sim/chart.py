@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from .reports import Quality
 
 # Ritordning: lägre lager ritas först och skrivs över av högre.
+LAYER_CONTOUR = -0.5        # djupkurvorna: under allt utom rutnätet
 LAYER_TRACK = 0
 LAYER_ICE = 1               # lodningarna ligger längs spåret och säger mer än det
 LAYER_RING = 2
@@ -63,10 +64,11 @@ class Ring:
 
 @dataclass(frozen=True)
 class Track:
-    """Ett spår av punkter (besticket)."""
+    """Ett spår av punkter (besticket, djupkurvor). char None: tecknet följer linjens riktning."""
     points: tuple[tuple[float, float], ...]
     style: str
-    layer: int = LAYER_TRACK
+    layer: float = LAYER_TRACK
+    char: str | None = "·"
 
 
 @dataclass(frozen=True)

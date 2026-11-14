@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Protocol
 from .geo import NM_IN_M, velocity
 
 if TYPE_CHECKING:
+    from .seabed import Seabed
     from .ice import IceField
 
 ABSORPTION_DB_PER_NM = 0.5
@@ -85,6 +86,11 @@ class Environment:
     night_visibility_nm: float = 2.5
     clock_start: int = 0             # sekunder efter midnatt vid simtid 0
     ice: IceField | None = None      # packis ovanför, se ice.py
+    seabed: Seabed | None = None     # bottentopografi, se seabed.py
+
+    def bottom_at(self, x: float, y: float) -> float:
+        """Bottendjupet (m) på platsen. Sanning: bara ekolodet frågar."""
+        return self.seabed.depth_at(x, y) if self.seabed is not None else self.bottom_depth
 
     @property
     def layer_depth(self) -> float | None:

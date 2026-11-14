@@ -71,6 +71,7 @@ en del säger de vilken, och resten verkställs ändå.
 | Passiv och aktiv sonar | Passiv ger bäringar; aktiv ger avstånd men avslöjar oss. |
 | Periskop, radar, radarvarnare | Avstånd och kurs på periskopdjup, med risk att synas. |
 | Navigering | Besticket driver med ström och loggfel; fix kräver periskopet. |
+| Havsbotten | Botten varierar: vid Kuba en bank på 120–200 m längs ena sidan, ett undervattensberg och en ränna i djuphavet; i Arktis en rygg vars krön når cirka 1 000 m. Sjökortet har djupkurvor från ett gammalt kort, förskjutna och utjämnade, och ibland saknas berget. Ekolodet (`ekolod`) ger det verkliga djupet men hörs. |
 | Radio | Sambandstillfällen på antenndjup (tider beror på scenariot). Sändning pejlas. |
 | Arktis: Nord-7 | Drivstationen driver med isen. Huvudstaben ger en ungefärlig position; generatorn hörs på några sjömil och ljuset syns i periskopet. Målet är ytläge inom 1,5 sjömil. En amerikansk atomubåt hör oss före vi hör den och skuggar oss, men skjuter inte. |
 | Brand och rök (arktis) | En brand i turbinrummet stoppar turbinen. Röken stiger tills vi ventilerar i öppen luft och sänker besättningens förmåga; för tät rök kväver besättningen. |
@@ -126,6 +127,7 @@ sim/                 ren Python, ingen Textual
   weapons.py         torpeder, sjunkbomber, skenmål
   firecontrol.py     skjutlösning (ren matematik på kunskap)
   chart.py           sjökortets ritelement; stationerna bidrar via chart_items()
+  seabed.py          SANNING: bottentopografi; chart_copy() ger sjökortets bild (kunskap)
   profile.py         djupprofilens element; stationerna bidrar via profile_items()
   stations/          ett system ombord per modul
     base.py          Station: COMMANDS, on_order, update, say, suggest

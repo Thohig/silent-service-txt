@@ -59,7 +59,7 @@ def test_dead_reckoning_track_and_fix_split_the_track():
         g.tick()
     assert len(nav.fixes) == 1
     view = g.chart()
-    tracks = [i for i in view.drawables if isinstance(i, Track)]
+    tracks = [i for i in view.drawables if isinstance(i, Track) and i.style == "track"]
     assert len(tracks) == 2
     fx, fy, _ = nav.fixes[0]
     assert tracks[1].points[0] == (fx, fy)

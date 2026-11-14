@@ -13,6 +13,7 @@ from .environment import ArcticProfile, Environment
 from .arctic import DriftStation, EnemySub, SubmarineAI
 from .fmt import nm
 from .ice import IceField, clearance
+from .seabed import Seabed, arctic_seabed, kuba_seabed
 from .ownship import OwnShip
 from .ship import ShipState
 from .geo import bearing_to, distance
@@ -69,6 +70,7 @@ class Scenario:
     known_positions: list[tuple[str, float, float, float, int]] = field(default_factory=list)
     area_name: str = "kvadrat 7"         # operationsområdet, som besättningen säger det
     outcome_text: dict[str, str] = field(default_factory=dict)   # ersätter Game.OUTCOME_TEXT
+    chart_seabed: Seabed | None = None   # det gamla sjökortets bild av botten (kunskap)
 
 
 def _crew() -> dict[Role, CrewMember]:
@@ -117,8 +119,13 @@ def default_scenario(rng: random.Random) -> Scenario:
     crew = _crew()
     # sambandstillfällen kl 05:00, 06:30 och 08:00
     windows = [(c - start_clock) for c in (5 * 3600, 6 * 3600 + 1800, 8 * 3600)]
+    # botten sist, så att den inte flyttar övriga slumpdragningar
+    sb_rng = random.Random(rng.random())
+    env.seabed = kuba_seabed(sb_rng, (own.state.x, own.state.y), world.size_nm)
+    chart = env.seabed.chart_copy(sb_rng, err_nm=0.5)
     return Scenario(world, crew, SECRET_ORDER, start_clock,
-                    radio_windows=windows, radio_messages=list(RADIO_MESSAGES))
+                    radio_windows=windows, radio_messages=list(RADIO_MESSAGES),
+                    chart_seabed=chart)
 
 
 ARCTIC_ORDER = """\
@@ -205,7 +212,10 @@ def arctic_scenario(rng: random.Random) -> Scenario:
     world.mission["fire_at"] = rng.randint(40 * 60, 110 * 60)
     crew = _crew()
     windows = [(c - start_clock) for c in (3 * 3600, 4 * 3600 + 1800, 6 * 3600)]
-    return Scenario(world, crew, order, start_clock,
+    sb_rng = random.Random(rng.random())
+    env.seabed = arctic_seabed(sb_rng, world.size_nm)
+    chart = env.seabed.chart_copy(sb_rng, err_nm=0.8)
+    return Scenario(world, crew, order, start_clock, chart_seabed=chart,
                     radio_windows=windows, radio_messages=messages,
                     known_positions=[(STATION_NAME, ox, oy, 2.0, 0)],
                     area_name="område Nord-3",

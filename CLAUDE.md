@@ -57,7 +57,12 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   `masts_clear` läser den); `icemap.py` är kunskap, byggd av `IceSounded` med
   beräknad position. Öppningars kvalitet = lägesosäkerhet (växer 8 m/min) mot
   halva längden.
-- **Sjökortet** (§): `Station.chart_items()` ger ritelement (`sim/chart.py`) ur
+- **Havsbotten:** `seabed.py` är sanning (`Environment.bottom_at`; bara ekolodet läser den).
+  Scenariot ger också `chart_seabed`, det gamla sjökortets bild (`Seabed.chart_copy`:
+  formerna flyttade, ingen ojämnhet, ibland utan berg) som blir `Knowledge.bathymetry`.
+  Navigatören ritar djupkurvor ur den och loggar kortets djup längs besticket.
+  Botten dras sist i scenariot så att övriga slumpdragningar inte flyttas.
+- **Sjökortet**: `Station.chart_items()` ger ritelement (`sim/chart.py`) ur
   kunskapen i beräknade koordinater; `Game.chart()` samlar, `ui/chart_render.py`
   rastrerar (en rad = två kolumner i höjd). Nytt system ritar sig självt.
 - **Djupprofilen** (`°`, `profil`): `Station.profile_items()` ger element (`sim/profile.py`):
@@ -101,6 +106,10 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   45–75 min mellan. Radar: master 6 nm (6 %/svep), ytläge 25 nm. MAD 250 m snedavstånd
   från 60 m höjd (säkert under ~190 m). Passiva bojar DT 8; aktiv boj 205 dB var 20:e s.
   Med flyg: jagaren hittar ja-boten i 9 av 12 frön (7 utan), flyget självt i 8 av 12.
+- Botten (Kuba): djuphav 1 850–2 350 m, +15 m/nm norrut; bank 120–200 m med kanten 4,5–5,5 nm
+  från väst- eller östsidan ⇒ ~15–18 % grundare än 300 m; berg med topp 250–400 m minst 4 nm
+  från start; ränna 250–450 m djup. Kortets fel 0,5 nm (Arktis 0,8), berget saknas i 25 %.
+  Arktis: slätt 3 300–3 800 m, rygg med krön 900–1 200 m ± 100–200 m.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m.
 - Packis (`ice.py`): rutor 0,05 nm, flerårsis 2–4,5 m, kölar 8–25 m (6 % 30–45 m),
   170 råkar, 28 polynyor ⇒ ~4–5 % öppet vatten, en öppning ungefär var 30:e minut

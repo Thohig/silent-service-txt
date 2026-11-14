@@ -12,8 +12,9 @@ import re
 from dataclasses import dataclass
 
 from .. import acoustics, phrases
-from ..chart import LAYER_ICE, LAYER_OWN, Mark, Note, Ray, Ring, Track
-from ..profile import BottomSounding, DepthTrace, IceSounding, Level
+from ..chart import LAYER_CONTOUR, LAYER_ICE, LAYER_OWN, Mark, Note, Ray, Ring, Track
+from ..profile import BottomSounding, ChartBottom, DepthTrace, IceSounding, Level
+from ..seabed import contours
 from ..crew import Role
 from ..entities import Transient
 from ..events import IceSounded, OpeningNotFound
@@ -53,6 +54,8 @@ DR_TRACK_INTERVAL_S = 60    # navigatören prickar in besticket på kortet så h
 OWN_VECTOR_S = 360          # egen fartvektor på kortet: sex minuters gång
 DEPTH_LOG_INTERVAL_S = 10   # djupprofilen: djupmätaren noteras så här ofta
 PROFILE_KEEP_S = 3 * 3600   # så långt bakåt minns profilen
+CONTOUR_MARGIN_NM = 4.0     # djupkurvor så här långt utanför kvadraten
+CONTOUR_LABEL_SPOTS = ((5, 5), (15, 5), (5, 15), (15, 15), (10, 10))   # andelar av kvadraten ×20
 
 
 @dataclass(frozen=True)
@@ -277,6 +280,9 @@ class NavigationStation(Station):
         # djupprofilen: djupmätaren (t, djup) och ekolodets bottenlodningar
         self.depth_log: list[tuple[int, float]] = [(0, s.depth)]
         self.bottom_soundings: list[BottomSounding] = []
+        cd = self.chart_depth_at(s.x, s.y)
+        self.chart_depth_log: list[tuple[int, float]] = [] if cd is None else [(0, round(cd))]
+        self._contour_items: list | None = None
 
     @property
     def own(self):
@@ -304,6 +310,11 @@ class NavigationStation(Station):
             if seg is self.dr_track[-1]:
                 pts.append((self.est_x, self.est_y))
             items.append(Track(tuple(pts), "track"))
+        items.extend(self._contours())
+        for b in reversed(self.bottom_soundings):      # nyaste först: dess etikett vinner
+            if b.x is not None:
+                items.append(Mark(b.x, b.y, "∙", "sounding", f"{b.depth:.0f}".replace(",", " "),
+                                  layer=LAYER_ICE))
         for x, y, _ in self.fixes:
             items.append(Mark(x, y, "+", "fix"))
         # isen: lodningarna där vi beräknade att vi var
@@ -327,6 +338,33 @@ class NavigationStation(Station):
         items.append(Mark(self.est_x, self.est_y, "@", "own", layer=LAYER_OWN))
         return items
 
+    def _contours(self) -> list:
+        """Sjökortets djupkurvor, beräknade en gång ur det gamla kortet."""
+        if self._contour_items is not None:
+            return self._contour_items
+        items: list = []
+        chart = self.game.knowledge.bathymetry
+        if chart is not None:
+            size, m = self.game.world.size_nm, CONTOUR_MARGIN_NM
+            for level, segs in contours(chart, -m, -m, size + m, size + m).items():
+                items.extend(Track(seg, "contour", LAYER_CONTOUR, None) for seg in segs)
+                labelled: set[tuple[int, int]] = set()
+                for fx, fy in CONTOUR_LABEL_SPOTS:
+                    px, py = fx * size / 20, fy * size / 20
+                    (ax, ay), _ = min(segs, key=lambda sg: (sg[0][0] - px) ** 2 + (sg[0][1] - py) ** 2)
+                    key = (round(ax / 3), round(ay / 3))
+                    if (ax - px) ** 2 + (ay - py) ** 2 < 9 and key not in labelled:
+                        labelled.add(key)
+                        items.append(Mark(ax, ay, "╴", "contour_label", f"{level}",
+                                          layer=LAYER_CONTOUR + 0.1))
+        self._contour_items = items
+        return items
+
+    def chart_depth_at(self, x: float, y: float) -> float | None:
+        """Sjökortets djup på en (beräknad) plats, om kortet har djupkurvor."""
+        chart = self.game.knowledge.bathymetry
+        return None if chart is None else chart.depth_at(x, y)
+
     # --- djupprofilen ------------------------------------------------------------
     def profile_items(self) -> list:
         items: list = [
@@ -336,6 +374,8 @@ class NavigationStation(Station):
             Level(CRUSH_DEPTH, "krossdjup", "crush", "━"),
             DepthTrace(tuple(self.depth_log) + ((self.now, self.ship.depth),)),
         ]
+        if self.chart_depth_log:
+            items.append(ChartBottom(tuple(self.chart_depth_log)))
         items.extend(self.bottom_soundings)
         items.extend(IceSounding(o.t, o.thickness, o.draft, o.open, o.usable)
                      for o in self.icemap.soundings)
@@ -345,9 +385,13 @@ class NavigationStation(Station):
         if self.now % DEPTH_LOG_INTERVAL_S:
             return
         self.depth_log.append((self.now, round(self.ship.depth, 1)))
+        cd = self.chart_depth_at(self.est_x, self.est_y)
+        if cd is not None:
+            self.chart_depth_log.append((self.now, round(cd)))
         cutoff = self.now - PROFILE_KEEP_S
         if self.depth_log[0][0] < cutoff:
             self.depth_log = [p for p in self.depth_log if p[0] >= cutoff]
+            self.chart_depth_log = [p for p in self.chart_depth_log if p[0] >= cutoff]
             self.bottom_soundings = [b for b in self.bottom_soundings if b.t >= cutoff]
 
     @property
@@ -422,8 +466,10 @@ class NavigationStation(Station):
                 world = self.game.world
                 world.emit(Transient("echosounder", s.x, s.y, s.depth,
                                      acoustics.ECHO_SOUNDER_LEVEL, world.own.id, self.now))
-                depth = round(world.env.bottom_depth - s.depth + self.game.rng.gauss(0, 15), -1)
-                self.bottom_soundings.append(BottomSounding(self.now, s.depth + depth))
+                bottom = world.env.bottom_at(s.x, s.y)
+                depth = round(bottom - s.depth + self.game.rng.gauss(0, 2 + bottom * 0.005), -1)
+                self.bottom_soundings.append(BottomSounding(self.now, s.depth + depth,
+                                                            self.est_x, self.est_y))
                 self.say("nav.echo", {"under_keel": depth})
             case IceReport():
                 self._ice_report()

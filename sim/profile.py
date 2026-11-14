@@ -32,9 +32,17 @@ class DepthTrace:
 
 @dataclass(frozen=True)
 class BottomSounding:
-    """Ekolodets lodning: botten på detta djup vid tiden t."""
+    """Ekolodets lodning: botten på detta djup vid tiden t (och beräknad position)."""
     t: int
     depth: float
+    x: float | None = None
+    y: float | None = None
+
+
+@dataclass(frozen=True)
+class ChartBottom:
+    """Sjökortets djup längs besticket över tid: (t, djup)."""
+    points: tuple[tuple[int, float], ...]
 
 
 @dataclass(frozen=True)
@@ -63,7 +71,7 @@ class ProfileNote:
     quality: Quality | None = None
 
 
-ProfileItem = Level | DepthTrace | BottomSounding | IceSounding | HeardEvent | ProfileNote
+ProfileItem = Level | DepthTrace | BottomSounding | ChartBottom | IceSounding | HeardEvent | ProfileNote
 
 
 @dataclass
@@ -95,6 +103,10 @@ class ProfileView:
     @property
     def bottom(self) -> list[BottomSounding]:
         return sorted(self.of(BottomSounding), key=lambda b: b.t)
+
+    @property
+    def chart_bottom(self) -> list[tuple[int, float]]:
+        return [p for cb in self.of(ChartBottom) for p in cb.points]
 
     @property
     def ice(self) -> list[IceSounding]:

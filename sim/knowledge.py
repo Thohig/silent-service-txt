@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from .events import (BearingObserved, ClassificationChanged, ContactDetected,
                      ContactLost, EventBus, IceSounded, OpeningNotFound, PositionReported)
 from .icemap import IceMap
+from .seabed import Seabed
 from .reports import Quality
 from .tma import BearingObs, Solution, solve
 
@@ -76,6 +77,7 @@ class Knowledge:
     tracks: dict[str, ContactTrack] = field(default_factory=dict)
     ice: IceMap = field(default_factory=IceMap)
     waypoints: dict[str, Waypoint] = field(default_factory=dict)
+    bathymetry: Seabed | None = None     # det gamla sjökortets djupkurvor (inte sanningen)
 
     def attach(self, bus: EventBus) -> None:
         bus.subscribe(ContactDetected, self._on_detected)

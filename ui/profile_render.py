@@ -20,6 +20,7 @@ DEPTH_ZOOM = (40, 80, 150, 300, 500)          # största djup i bilden, meter
 TIME_ZOOM = (10, 30, 60, 120)                 # sekunder per kolumn
 DEFAULT_TIME_ZOOM = 1
 BOTTOM_VALID_S = 600        # en ekolodslodning gäller så här länge framåt
+BAND_ROWS = 3               # bottenbandet under den brutna axeln
 TICK_MINUTES = (1, 2, 5, 10, 15, 30, 60)
 DEPTH_TICKS = (5, 10, 20, 25, 50, 100)
 ROW_METERS = (1, 2, 2.5, 5, 10, 12.5, 15, 20, 25, 30, 40, 50)     # jämna meter per rad
@@ -35,6 +36,7 @@ STYLE = {
     "crush": "#b05050",
     "bottom": "#8a7a5a",
     "bottom_old": "#5a5040",
+    "chart_bottom": "#6f7fa0",
     "ice_open": "bold #5fd7ff",
     "ice_thin": "#5f87af",
     "ice_thick": "#8fa39a",
@@ -55,7 +57,8 @@ EVENT_PRIO = {"explosion": 6, "breakup": 6, "splash": 5, "own_launch": 5, "own_b
 
 LEGEND = [
     ("▬▶", "own", "vi nu"), ("·", "trace", "vårt djup"), ("┆", "ordered", "beordrat"),
-    ("─", "layer", "språngskikt"), ("▓", "bottom", "botten (ekolod)"), ("█", "ice_thick", "is"),
+    ("─", "layer", "språngskikt"), ("▓", "bottom", "ekolod"), ("~", "chart_bottom", "sjökortets djup"),
+    ("█", "ice_thick", "is"),
     ("≈", "ice_open", "öppet vatten"),
     None, ("◦", "heard_ping", "ping"), ("↓", "heard_splash", "plask"),
     ("✱", "heard_explosion", "detonation"),
@@ -64,11 +67,19 @@ LEGEND = [
 ]
 
 
+def known_bottom(view: ProfileView, t0: int) -> list[float]:
+    """Bottendjup besättningen känner i bilden: sjökortet längs besticket och lodningarna."""
+    return ([d for t, d in view.chart_bottom if t >= t0]
+            + [b.depth for b in view.bottom if b.t + BOTTOM_VALID_S >= t0])
+
+
 def auto_depth_zoom(view: ProfileView, t0: int) -> int:
-    """Minsta skala som rymmer vårt djup i bilden, beordrat djup och isens kölar."""
+    """Minsta skala som rymmer vårt djup, beordrat djup, isens kölar och grund botten."""
+    shallow = [d for d in known_bottom(view, t0) if d * 1.15 + 5 <= DEPTH_ZOOM[-1]]
     deepest = max([view.depth, view.ordered_depth]
                   + [d for t, d in view.trace if t >= t0]
-                  + [s.draft for s in view.ice if s.t >= t0])
+                  + [s.draft for s in view.ice if s.t >= t0]
+                  + ([min(shallow)] if shallow else []))
     for i, z in enumerate(DEPTH_ZOOM):
         if deepest * 1.15 + 5 <= z:
             return i
@@ -131,12 +142,19 @@ def render_profile(view: ProfileView, width: int, height: int,
     if max_depth is None:
         max_depth = DEPTH_ZOOM[auto_depth_zoom(view, t0)]
     bottoms = [b for b in view.bottom if b.t + BOTTOM_VALID_S >= t0]
-    bottom_in_view = any(b.depth <= max_depth for b in bottoms)
-    band = 0 if bottom_in_view else 2              # bruten axel + bottenraden
+    chart_cols = _per_column(view.chart_bottom, col_of, cols)
+    known = known_bottom(view, t0)
+    band = 1 + BAND_ROWS                            # bruten axel + bottenbandet
     plot_rows = max(4, height - 1 - 1 - band)      # tidsaxel överst, ljud underst
     need = max_depth / (plot_rows - 1)
     dpr = next((m for m in ROW_METERS if m >= need), need)
     max_depth = dpr * (plot_rows - 1)
+    if known and min(known) <= max_depth:          # grunt: botten ritas i bilden
+        band = 0
+        plot_rows = max(4, height - 1 - 1)
+        need = max_depth / (plot_rows - 1)
+        dpr = next((m for m in ROW_METERS if m >= need), need)
+        max_depth = dpr * (plot_rows - 1)
 
     def row_of(d: float) -> int:
         return min(plot_rows - 1, max(0, round(d / dpr)))
@@ -167,15 +185,28 @@ def render_profile(view: ProfileView, width: int, height: int,
         right[r] = Text(f" {lv.label}", style=st)
         left[r] = Text(f"{lv.depth:>{MARGIN - 2}.0f} ┼", style=st)
 
-    # botten i bilden (grunt vatten)
-    if bottom_in_view:
-        for i, b in enumerate(bottoms):
-            end = bottoms[i + 1].t if i + 1 < len(bottoms) else b.t + BOTTOM_VALID_S
-            for c in range(max(0, col_of(b.t)), min(cols, col_of(min(end, now)) + 1)):
-                for r in range(row_of(b.depth), plot_rows):
-                    g.put(c, r, "▓", STYLE["bottom"])
-        right[row_of(bottoms[-1].depth)] = Text(f" botten {fmt_m(bottoms[-1].depth)}",
-                                                style=STYLE["bottom"])
+    # botten i bilden (grunt vatten): sjökortets djup och lodningarna
+    if not band:
+        for c, d in chart_cols.items():
+            if d <= max_depth:
+                g.put(c, row_of(d), "~", STYLE["chart_bottom"])
+        if chart_cols:
+            c_last = max(chart_cols)
+            d = chart_cols[c_last]
+            if d <= max_depth:
+                right[row_of(d)] = Text(f" kortet {fmt_m(d)}", style=STYLE["chart_bottom"])
+        for c, (d, fresh) in _sounded_columns(view, bottoms, col_of, cols).items():
+            st = STYLE["bottom" if fresh else "bottom_old"]
+            if d > max_depth:
+                continue                              # djupare än bilden: bara en ▾ nedan
+            for r in range(row_of(d), plot_rows):
+                g.put(c, r, "▓", st)
+        for b in bottoms:
+            if b.depth > max_depth:
+                g.put(col_of(b.t), plot_rows - 1, "▾", STYLE["bottom_old"])
+        if bottoms and bottoms[-1].depth <= max_depth:
+            right[row_of(bottoms[-1].depth)] = Text(f" ekolod {fmt_m(bottoms[-1].depth)}",
+                                                    style=STYLE["bottom"])
 
     # isen ovanför, kolumn för kolumn: öppet vinner, annars djupaste kölen
     cells: dict[int, list] = {}
@@ -236,7 +267,7 @@ def render_profile(view: ProfileView, width: int, height: int,
         lines.append(Text.assemble(left[r], g.line(r), _pad(right[r])))
 
     if band:
-        lines.extend(_bottom_band(view, bottoms, cols, col_of, max_depth))
+        lines.extend(_bottom_band(view, bottoms, chart_cols, cols, col_of))
     lines.append(_events_row(view, cols, col_of))
     return lines[:height]
 
@@ -262,37 +293,82 @@ def _time_axis(view: ProfileView, cols: int, spc: int) -> Text:
     return Text.assemble(Text(" " * MARGIN), g.line(0), _pad(Text(" " + view.clock[:5])))
 
 
-def _bottom_band(view: ProfileView, bottoms, cols: int, col_of, max_depth: float) -> list[Text]:
-    brk = Text(" " * (MARGIN - 1) + "┊", style=STYLE["axis"])
-    brk.append(("≈ " * cols)[:cols], style=STYLE["dim"])
-    brk.append(_pad(Text(" axeln bruten", style=STYLE["dim"])))
+def _per_column(points, col_of, cols: int) -> dict[int, float]:
+    """Medelvärde per kolumn av (t, värde)."""
+    acc: dict[int, list[float]] = {}
+    for t, d in points:
+        c = col_of(t)
+        if 0 <= c < cols:
+            acc.setdefault(c, []).append(d)
+    return {c: sum(v) / len(v) for c, v in acc.items()}
 
-    g = _Grid(cols, 1)
+
+def _sounded_columns(view: ProfileView, bottoms, col_of, cols: int) -> dict[int, tuple[float, bool]]:
+    """Kolumner där en lodning gäller: (djup, färsk). En lodning gäller till nästa
+    eller BOTTOM_VALID_S framåt."""
+    out: dict[int, tuple[float, bool]] = {}
     now = view.now
     for i, b in enumerate(bottoms):
         end = bottoms[i + 1].t if i + 1 < len(bottoms) else b.t + BOTTOM_VALID_S
         fresh = now - b.t < BOTTOM_VALID_S
         for c in range(max(0, col_of(b.t)), min(cols, col_of(min(end, now)) + 1)):
-            g.put(c, 0, "▓", STYLE["bottom" if fresh else "bottom_old"])
-    # okända sträckor får ett frågetecken i mitten
+            out[c] = (b.depth, fresh)
+    return out
+
+
+def _bottom_band(view: ProfileView, bottoms, chart_cols: dict[int, float], cols: int,
+                 col_of) -> list[Text]:
+    """Botten under den brutna axeln: BAND_ROWS rader med egen skala."""
+    brk = Text(" " * (MARGIN - 1) + "┊", style=STYLE["axis"])
+    brk.append(("≈ " * cols)[:cols], style=STYLE["dim"])
+    brk.append(_pad(Text(" axeln bruten", style=STYLE["dim"])))
+
+    sounded = _sounded_columns(view, bottoms, col_of, cols)
+    values = list(chart_cols.values()) + [d for d, _ in sounded.values()]
+    g = _Grid(cols, BAND_ROWS)
+    left = [Text(" " * (MARGIN - 1) + "│", style=STYLE["axis"]) for _ in range(BAND_ROWS)]
+    right = [Text("") for _ in range(BAND_ROWS)]
+    if not values:
+        g.text(max(0, cols // 2 - 14), BAND_ROWS // 2, " ekolod ger bottendjupet ", STYLE["dim"])
+        right[BAND_ROWS // 2] = Text(" botten okänd", style=STYLE["dim"])
+        left[BAND_ROWS // 2] = Text(f"{'?':>{MARGIN - 2}} ┤", style=STYLE["axis"])
+        return [brk] + [Text.assemble(left[r], g.line(r), _pad(right[r]))
+                        for r in range(BAND_ROWS)]
+
+    lo = math.floor(min(values) / 100) * 100
+    hi = max(lo + 100 * (BAND_ROWS - 1), math.ceil(max(values) / 100) * 100)
+    step = (hi - lo) / (BAND_ROWS - 1)
+
+    def row_of(d: float) -> int:
+        return min(BAND_ROWS - 1, max(0, round((d - lo) / step)))
+
+    for r in range(BAND_ROWS):
+        left[r] = Text(f"{fmt_m(lo + r * step):>{MARGIN - 2}} ┤", style=STYLE["axis"])
+    for c, d in chart_cols.items():
+        g.put(c, row_of(d), "~", STYLE["chart_bottom"])
+    for c, (d, fresh) in sounded.items():
+        for r in range(row_of(d), BAND_ROWS):
+            g.put(c, r, "▓", STYLE["bottom" if fresh else "bottom_old"])
+    # okända sträckor (varken kort eller lodning) får ett frågetecken i mitten
     run_start = None
     for c in range(cols + 1):
-        empty = c < cols and g.get(c, 0) == " "
+        empty = c < cols and all(g.get(c, r) == " " for r in range(BAND_ROWS))
         if empty and run_start is None:
             run_start = c
         elif not empty and run_start is not None:
             if c - run_start >= 3:
-                g.put((run_start + c) // 2, 0, "?", STYLE["dim"])
+                g.put((run_start + c) // 2, BAND_ROWS // 2, "?", STYLE["dim"])
             run_start = None
+    if chart_cols:
+        d = chart_cols[max(chart_cols)]
+        right[row_of(d)] = Text(f" kortet {fmt_m(d)}", style=STYLE["chart_bottom"])
     if bottoms:
         b = bottoms[-1]
-        label = f"{fmt_m(b.depth):>{MARGIN - 2}} ┤"
-        tail = Text(f" botten {clock(view.start_clock + b.t)[:5]}", style=STYLE["bottom"])
-    else:
-        label = f"{'?':>{MARGIN - 2}} ┤"
-        tail = Text(" botten okänd", style=STYLE["dim"])
-        g.text(max(0, cols // 2 - 14), 0, " ekolod ger bottendjupet ", STYLE["dim"])
-    return [brk, Text.assemble(Text(label, style=STYLE["axis"]), g.line(0), _pad(tail))]
+        r = row_of(b.depth)
+        if chart_cols and r == row_of(chart_cols[max(chart_cols)]):
+            r = min(BAND_ROWS - 1, r + 1) if r < BAND_ROWS - 1 else r - 1
+        right[r] = Text(f" ekolod {clock(view.start_clock + b.t)[:5]}", style=STYLE["bottom"])
+    return [brk] + [Text.assemble(left[r], g.line(r), _pad(right[r])) for r in range(BAND_ROWS)]
 
 
 def _events_row(view: ProfileView, cols: int, col_of) -> Text:
@@ -381,13 +457,17 @@ def render_gauge(view: ProfileView) -> list[Text]:
         own.append(" vi", style=STYLE["own"])
     rows.append((view.depth, 2, own))
 
+    chart = view.chart_bottom
+    if chart:
+        d = chart[-1][1]
+        row(d, 3, f"~{fmt_m(d)}", "~~", "kortet", STYLE["chart_bottom"])
     b = view.latest_bottom()
     if b is not None:
         fresh = view.now - b.t < BOTTOM_VALID_S
-        row(b.depth, 3, f"~{fmt_m(b.depth)}", "▓▓", f"botten {clock(view.start_clock + b.t)[:5]}",
+        row(b.depth, 4, f"{fmt_m(b.depth)}", "▓▓", f"ekolod {clock(view.start_clock + b.t)[:5]}",
             STYLE["bottom" if fresh else "bottom_old"])
     else:
-        row(10**6, 3, "?", "▓▓", "botten okänd", STYLE["dim"])
+        row(10**6, 4, "?", "▓▓", "ekolod ej lodat", STYLE["dim"])
 
     rows.sort(key=lambda x: (x[0], x[1]))
     head = Text(" DJUPMÄTARE", style="bold")
