@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 SINK_RATE = 3.5              # m/s för sjunkbomber
 ARM_DISTANCE_NM = 0.25       # torpeden armeras efter denna sträcka
 HIT_RADIUS_NM = 0.03         # ~55 m: halva jagarens längd
+# större fartyg: halva längden (trupptransport ~170 m, tanker ~185 m)
+HULL_HALF_NM = {"transport": 0.045, "tanker": 0.05}
 
 
 @dataclass(frozen=True)
@@ -198,6 +200,7 @@ def _sink(world: World, v: Vessel) -> None:
     world.emit(Transient("breakup", v.state.x, v.state.y, 20.0, acoustics.BREAKUP_LEVEL,
                          v.id, world.time))
     world.mission.setdefault("sunk", []).append(v.id)
+    world.mission["last_sink_t"] = world.time
 
 
 def _step_torpedo(world: World, t: Torpedo, dt: int) -> None:
@@ -222,7 +225,8 @@ def _step_torpedo(world: World, t: Torpedo, dt: int) -> None:
         for v in world.contacts:
             if v.side == "own" or v.sunk or not v.is_ship:
                 continue
-            if _closest_approach(p0, p1, (v.state.x, v.state.y)) <= t.spec.kill_radius_nm:
+            radius = max(t.spec.kill_radius_nm, HULL_HALF_NM.get(v.kind, 0.0))
+            if _closest_approach(p0, p1, (v.state.x, v.state.y)) <= radius:
                 _detonate(world, t, v)
                 return
     if t.run_nm >= t.spec.range_nm:

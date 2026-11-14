@@ -11,6 +11,7 @@ from .enemy import DestroyerAI
 from .entities import Vessel
 from .environment import ArcticProfile, Environment, TidalStream
 from .arctic import DriftStation, EnemySub, SubmarineAI
+from .convoy import ConvoyDef, make_convoy, make_escorts
 from .fmt import nm
 from .ice import IceField, clearance
 from .seabed import Seabed, arctic_seabed, kuba_seabed, strait_seabed
@@ -466,6 +467,91 @@ def strait_scenario(rng: random.Random) -> Scenario:
                     })
 
 
+CONVOY_ORDER = """\
+STRÄNGT HEMLIGT — ENDAST FÖR BEFÄLHAVAREN
+FRÅN: MARINENS HUVUDSTAB, MOSKVA
+TILL: BEFÄLHAVARE, UBÅT K-114
+DATUM: 28 OKTOBER 1962
+
+1. KARANTÄNLINJEN HAR BRUTITS. AMERIKANSKA
+   STYRKOR FÖRBEREDER LANDSTIGNING PÅ KUBA.
+2. EN KONVOJ MED TRUPPTRANSPORTER OCH
+   EN TANKER UNDER ESKORT ÄR RAPPORTERAD
+   CIRKA {dist} SJÖMIL {dir} OM ER,
+   KURS CIRKA {course}. DEN SICKSACKAR.
+3. ANFALL KONVOJEN MED KONVENTIONELLA
+   TORPEDER. SÄNK MINST ETT FARTYG.
+   BRYT SEDAN KONTAKTEN.
+4. KÄRNVAPEN FÅR INTE ANVÄNDAS.
+   NEUTRAL SJÖFART FÅR INTE ANGRIPAS.
+
+SLUT
+"""
+
+CONVOY_RADIO = [
+    RadioMessage("FRÅN HUVUDSTABEN. KONVOJEN HAR SETTS AV SPANINGSFLYG. INGEN ÄNDRING I ORDERN."),
+    RadioMessage("FRÅN HUVUDSTABEN. KÄRNVAPEN FÅR INTE ANVÄNDAS.", {"nuclear_authorized": False}),
+]
+
+
+def convoy_scenario(rng: random.Random) -> Scenario:
+    """Konvojen: krig, en eskorterad konvoj sicksackar förbi; sänk ett fartyg och kom undan."""
+    start_clock = 6 * 3600 + 30 * 60                   # 06:30, just efter gryningen
+    size = 20.0
+    env = Environment(clock_start=start_clock)
+    ox, oy = size / 2, rng.uniform(5.0, 8.0)
+    own = OwnShip(ShipState(x=ox, y=oy, course=0, speed=4, depth=60, max_depth=400))
+    world = World(own=own, env=env, rng=random.Random(rng.random()), size_nm=size,
+                  patrol_end=4 * 3600)
+    # konvojen kommer från nordnordost; dess väg passerar oss på 1,5–5 nm
+    base = rng.uniform(190.0, 230.0)
+    ux, uy = math.sin(math.radians(base)), math.cos(math.radians(base))
+    nx, ny = uy, -ux
+    side = rng.choice((-1.0, 1.0)) * rng.uniform(1.5, 5.0)
+    run_in = rng.uniform(16.0, 20.0)
+    cx, cy = ox + side * nx - run_in * ux, oy + side * ny - run_in * uy
+    convoy = make_convoy(world, ConvoyDef(start=(cx, cy), base_course=base),
+                         random.Random(rng.random()))
+    make_escorts(world, convoy, random.Random(rng.random()))
+    world.mission["nuclear_authorized"] = False
+    world.mission["strike"] = {"targets": [v.id for v in convoy.vessels], "clear_s": 600,
+                               "outcome": "convoy_attacked", "miss_nm": 8.0,
+                               "miss_outcome": "convoy_missed"}
+    traffic = TrafficGenerator(KUBA_TRAFFIC, random.Random(rng.random()))
+    traffic.populate(world)
+    world.spawners.append(traffic)
+    world.spawners.append(AirPatrol(KUBA_AIR, random.Random(rng.random()), area=size))
+
+    # huvudstabens rapport: läget med några sjömils fel, kursen avrundad
+    rx, ry = cx + rng.gauss(0, 2.0), cy + rng.gauss(0, 2.0)
+    order = CONVOY_ORDER.format(dist=round(distance(ox, oy, rx, ry)),
+                                dir=_compass(bearing_to(ox, oy, rx, ry)),
+                                course=f"{int(round(base / 10.0) * 10) % 360:03d}")
+    windows = [(c - start_clock) for c in (7 * 3600 + 30 * 60, 9 * 3600)]
+    sb_rng = random.Random(rng.random())
+    env.seabed = kuba_seabed(sb_rng, (ox, oy), size)
+    chart = env.seabed.chart_copy(sb_rng, err_nm=0.5)
+    return Scenario(world, _crew(), order, start_clock,
+                    radio_windows=windows, radio_messages=list(CONVOY_RADIO),
+                    chart_seabed=chart, area_name="kvadrat 12",
+                    outcome_text={
+                        "convoy_attacked": "K-114 har sänkt fartyg ur konvojen och brutit kontakten. "
+                                           "Bakom er brinner det på horisonten.",
+                        "convoy_missed": "Konvojen har passerat. K-114 kom aldrig till skott. "
+                                         "Trupperna når Kuba.",
+                        "patrol_end": "Tiden är ute. Konvojen är borta och K-114 har inte "
+                                      "fullgjort ordern.",
+                        "sank": "Hela konvojen och dess eskort är sänkta. Kriget till sjöss har "
+                                "börjat på allvar.",
+                        "forced": "K-114 har tvingats till ytan av eskortjagarna. Besättningen "
+                                  "tas till fånga.",
+                        "neutral_sunk": "K-114 har sänkt ett neutralt fartyg. Huvudstaben kallar "
+                                        "hem befälhavaren för att stå till svars.",
+                        "lost": "K-114 är förlorad norr om Kuba med hela besättningen.",
+                        "quit": "Kaptenen har avbrutit. K-114 lämnar kvadrat 12.",
+                    })
+
+
 # --- scenarioregister ----------------------------------------------------------
 @dataclass(frozen=True)
 class ScenarioDef:
@@ -507,3 +593,8 @@ register(ScenarioDef(
     "Smyg in mot den amerikanska flottbasen genom ett grunt inlopp med nät, hydrofoner och "
     "patrullbåt. Fotografera ankarplatsen i dagsljus och ta er ut igen.",
     strait_scenario))
+register(ScenarioDef(
+    "konvoj", "Konvojen, 28 oktober 1962",
+    "Kriget har börjat. En eskorterad konvoj med trupper till Kuba sicksackar genom "
+    "kvadrat 12. Kom i skjutläge, sänk minst ett fartyg och bryt kontakten.",
+    convoy_scenario))

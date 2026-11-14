@@ -13,6 +13,7 @@ och knyter numret till tuben. Alla torpeder avfyras därför här.
 """
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -32,6 +33,10 @@ from .base import Proposal, Station
 
 N_TUBES = 8
 CONFIRM_S = 60          # en upprepad eldorder inom så här lång tid verkställs
+SALVO_MAX = 3
+SALVO_GAP_NM = 0.08     # torpederna i en salva går minst så här långt isär vid målet (~150 m)
+SALVO_GAP_MAX_NM = 0.25 # ... och högst så här (lägesfelet vid målet bestämmer)
+SALVO_STEP_DEG = (1.0, 10.0)
 RELOAD_S = 300
 MAX_LAUNCH_DEPTH = 120
 MAX_LAUNCH_SPEED = 12
@@ -51,6 +56,14 @@ class FireTube(Order):
     tube: int
     designation: str | None = None
     course: float | None = None
+    offset: float = 0.0           # salva: vinkel från skjutlösningens kurs
+
+
+@dataclass(frozen=True)
+class FireSalvo(Order):
+    """Salva raka torpeder i solfjäder mot en kontakt; torpedrummet lägger spridningen."""
+    designation: str
+    tubes: tuple[int, ...] | None = None    # None: de laddade raka tuberna, högst SALVO_MAX
 
 
 @dataclass(frozen=True)
@@ -175,6 +188,8 @@ PHRASES = {
     "torp.fired": lambda d: f"{ru('Torpeda vysjla')}! Tub {d['tube']} avfyrad, {d['type']}, kurs {fmt_course(d['course'])}"
     + (f", beräknad gångtid {_mmss(d['run_s'])}" if d.get("run_s") else "")
     + (". Lösningen var dålig, risk för miss." if d.get("quality") == Quality.DALIG else "."),
+    "torp.salvo": lambda d: f"Salva mot {d['designation']}: {d['n']} torpeder i solfjäder, "
+    f"{nm(d['step'])} grader isär.",
     "torp.leg_warning": lambda d: f"Kapten, torpedrummet. Varning: {d['designation']} sicksackar. "
     f"Benet har gått {round(d['elapsed_s'] / 60)} minuter av ungefär {round(d['leg_s'] / 60)}, och en "
     f"{d['type']} är framme om {_mmss(d['run_s'])}. Konvojen kan ha girat innan dess."
@@ -220,6 +235,8 @@ RU_PHRASES = {
     f"{R.course(d['course'])}"
     + (f", расчётное время хода {R.mmss(d['run_s'])}" if d.get("run_s") else "")
     + (". Решение было плохое, возможен промах." if d.get("quality") == Quality.DALIG else "."),
+    "torp.salvo": lambda d: f"Залп по {R.contact(d['designation'], True)}: "
+    f"{R.count(d['n'], ('торпеда', 'торпеды', 'торпед'))} веером.",
     "torp.leg_warning": lambda d: f"{R.CAPTAIN}, торпедный отсек. Внимание: цель идёт "
     f"зигзагом, конвой может повернуть раньше, чем дойдёт торпеда.",
     "torp.time": lambda d: f"Время торпеды из аппарата {d['tube']}"
@@ -266,6 +283,10 @@ class TorpedoRoom(Station):
                     lambda m: TorpedoStatus(), "torpeder"),
         CommandSpec(rf"(?:skjutlösning|skjutlosning|eldlösning|eldlosning)(?:\s+{DESIG})?",
                     lambda m: FiringSolution(desig(m[1])), "skjutlösning S-1"),
+        CommandSpec(rf"(?:eld|avfyra|fyr|skjut)\s+tub\s+(\d)\s*-\s*(\d)\s+(?:mot\s+)?{DESIG}",
+                    lambda m: FireSalvo(desig(m[3]), tuple(range(int(m[1]), int(m[2]) + 1))),
+                    "eld tub 1-3 mot S-1"),
+        CommandSpec(rf"salva\s+(?:mot\s+)?{DESIG}", lambda m: FireSalvo(desig(m[1])), "salva S-1"),
         CommandSpec(r"skenmål|skenmal|motmedel", lambda m: LaunchDecoy(), "skenmål"),
     ]
 
@@ -323,6 +344,8 @@ class TorpedoRoom(Station):
         match order:
             case FireTube():
                 self._fire(order)
+            case FireSalvo():
+                self._salvo(order)
             case LoadTube(tube=n, type=typ):
                 self._load(n, typ)
             case TubeStatus():
@@ -345,7 +368,35 @@ class TorpedoRoom(Station):
     def _tube(self, n: int) -> Tube | None:
         return self.tubes[n - 1] if 1 <= n <= N_TUBES else None
 
-    def _fire(self, o: FireTube) -> None:
+    def _salvo(self, o: FireSalvo) -> None:
+        """Raka torpeder i solfjäder: mittersta på lösningen, de andra vid sidan."""
+        tubes = list(o.tubes) if o.tubes else [
+            t.n for t in self.tubes if t.load and not TORPEDO_TYPES[t.load].homing
+            and not TORPEDO_TYPES[t.load].nuclear][:SALVO_MAX]
+        tubes = [n for n in tubes if (t := self._tube(n)) is not None and t.load]
+        if not tubes:
+            self.say("torp.refused", {"reason": "inga laddade raka tuber för en salva"})
+            return
+        tr, sol = self._solution_for(o.designation)
+        aim = self._aim(sol, self._tube(tubes[0]).load) if sol is not None else None
+        dist = aim[2] if aim else 2.0
+        # lägesfelet vid målet: avståndets σ plus fartens och kursens σ under gångtiden
+        gap = SALVO_GAP_NM
+        if aim and sol is not None:
+            run_h = aim[1] / 3600.0
+            err = math.sqrt(sol.range_sigma ** 2 + (run_h * sol.speed_sigma) ** 2
+                            + (run_h * sol.speed * math.radians(min(sol.course_sigma, 60))) ** 2)
+            gap = min(max(err, SALVO_GAP_NM), SALVO_GAP_MAX_NM)
+        step = math.degrees(math.atan2(gap, max(dist, 0.1)))
+        step = min(max(step, SALVO_STEP_DEG[0]), SALVO_STEP_DEG[1])
+        n = len(tubes)
+        for i, tube in enumerate(tubes):
+            off = (i - (n - 1) / 2) * step
+            if not self._fire(FireTube(tube, designation=o.designation, offset=off)):
+                return
+        self.say("torp.salvo", {"designation": o.designation, "n": n, "step": step})
+
+    def _fire(self, o: FireTube) -> bool:
         tube = self._tube(o.tube)
         st, sys = self.own.state, self.own.sys
         reason = None
@@ -365,7 +416,7 @@ class TorpedoRoom(Station):
             reason = b
         if reason:
             self.say("torp.refused", {"reason": reason})
-            return
+            return False
         spec = TORPEDO_TYPES[tube.load]
         quality = None
         run_s = None
@@ -374,22 +425,23 @@ class TorpedoRoom(Station):
             tr, sol = self._solution_for(o.designation)
             if tr is None:
                 self.say("torp.refused", {"reason": f"vi har ingen kontakt {o.designation}"})
-                return
+                return False
             if sol is None:
                 self.say("torp.refused", {"reason": f"plottet har ingen lösning på {o.designation}"})
-                return
+                return False
             aim = self._aim(sol, tube.load)
             if aim is None:
                 self.say("torp.refused", {"reason": f"{o.designation} är utom räckhåll för {spec.key}"})
-                return
+                return False
             course, run_s, dist = aim
+            course = (course + o.offset) % 360
             if not tr.warship and self._confirmed.get(tr.designation, -10**9) < self.now - CONFIRM_S:
                 # torpedrummet frågar en gång; samma order inom en minut verkställs
                 self._confirmed[tr.designation] = self.now
                 self.say("torp.confirm", {"designation": tr.designation,
                                           "classification": tr.classification,
                                           "civil": tr.civil}, quality=tr.class_quality)
-                return
+                return False
             quality = sol.quality
             if spec.nuclear:
                 detonate_at = dist
@@ -409,8 +461,9 @@ class TorpedoRoom(Station):
         self.say("torp.fired", {"tube": o.tube, "type": spec.key, "course": course,
                                 "run_s": run_s, "quality": quality},
                  kind="ack", quality=quality, alarm=True)
-        if o.designation and run_s:
+        if o.designation and run_s and o.offset == 0.0:
             self._leg_warning(o.designation, run_s, spec.key)
+        return True
 
     def _leg_warning(self, designation: str, run_s: float, type_key: str) -> None:
         """Ett sicksackande mål kan gira innan torpeden är framme: säg det."""

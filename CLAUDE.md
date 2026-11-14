@@ -222,6 +222,16 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   besättningens verktyg klarar 3 (goda bilder i 6), bot som läser sanningen 5 (bilder i 8);
   ja-boten och den som försöker smyga genom skärmen utan fartyg klarar 0. Botarna i scratchpad
   (`follow_bot.py`, `strait_bot.py`).
+- Konvojen (`konvoj`, `convoy_scenario`): 28 okt, krig, 06:30 (dagsljus). Konvoj (2 trupptransporter,
+  1 tanker) och 2 eskorter, baskurs 190–230°, start 16–20 nm bort, vägen passerar oss på 1,5–5 nm;
+  ordern ger läge (±2 nm) och kurs avrundad. Mål `mission["strike"]`: minst ett mål sänkt och ingen
+  jägare har oss 10 min efter senaste sänkningen ⇒ `convoy_attacked`; alla mål > 8 nm och förbi oss
+  ⇒ `convoy_missed`. Kuba-trafik och flyg finns kvar. Träffradie för stora fartyg = halva längden
+  (`HULL_HALF_NM`: transport 0,045, tanker 0,05 nm). Salva (`salva S-x`, `eld tub 1-3 mot S-x`):
+  raka torpeder i solfjäder, avstånd vid målet = lägesfelet (σ avstånd, fart, kurs under gångtiden)
+  inom 0,08–0,25 nm. Sonar håller isär okända pingare på bäringen (±3°). 8 frön: passiv 0, ja-boten 0,
+  bot med besättningens verktyg (periskop var 4:e min, `anfall`, salva mot klassad transport/tanker
+  inom 3 nm, sedan djupt bort) 3 (och 1 neutral sänkt). Boten i scratchpad (`convoy_bots.py`).
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m.
 - Packis (`ice.py`): rutor 0,05 nm, flerårsis 2–4,5 m, kölar 8–25 m (6 % 30–45 m),
   170 råkar, 28 polynyor ⇒ ~4–5 % öppet vatten, en öppning ungefär var 30:e minut

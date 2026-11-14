@@ -8,7 +8,7 @@ och plottlagets målrörelseanalys.
 
 ```bash
 uv run main.py                     # scenarioväljare, slumpat frö
-uv run main.py --scenario kuba     # hoppa över väljaren (kuba, jagad, sundet, arktis)
+uv run main.py --scenario kuba     # hoppa över väljaren (kuba, jagad, sundet, konvoj, arktis)
 uv run main.py --seed 4            # reproducerbart scenario
 uv run main.py --tyst              # utan ljud
 uv run pytest             # tester
@@ -59,7 +59,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Maskin | `smygmotor` · `turbin` · `stäng reaktorn` · `starta reaktorn` · `nödblåsning` · `maskin` · `ventilera` (periskopdjup i öppen luft) |
 | Vakthavande | `periskop` · `periskop 047` eller `periskop S-3` (kort titt, ±16°, kortare tid med masten uppe) · `radar` (periskopdjup; radarvarnaren är automatisk) · `foto` (periskopfoto av ankarplatsen) |
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
-| Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
+| Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `salva S-1` eller `eld tub 1-3 mot S-1` (raka torpeder i solfjäder efter lösningens osäkerhet) · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
 | Ljud | `ctrl+t` eller `ljud` / `ljud av` / `ljud på`: besättningen talar (macOS-rösten Alva, de ryska fraserna med Milena om den finns), larmen går det sonaren hör spelas i stereo (babord till vänster) och båten låter: reaktor, turbin, skrov, is, brand och kontakternas propellrar |
 | Vyer | `Tab` växlar logg → sjökort → djupprofil → systemtavla → periskopbild → logg; `Esc` går tillbaka till loggen. Orden `sjökort`, `profil`, `system` och `periskopbild` öppnar en vy direkt. I periskopbilden byter ← → föremål i okularet |
 | Sjökort | Navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, `c` centrerar |
@@ -88,6 +88,7 @@ en del säger de vilken, och resten verkställs ändå.
 | Radio | Sambandstillfällen på antenndjup (tider beror på scenariot). Sändning pejlas. |
 | Jagade (`jagad`) | Spelet börjar mitt i jakten, kl 00:40: en jagare har just fått kontakt på 2–3 sjömil och en till kommer söderifrån. Jagarna delar sina fix över radio. Efter tre anfall med signalsjunkbomber går de över till skarpa. Smyga hjälper inte när de redan har oss: djupt och fort, och sväng när de går in för anfall, för skrovsonaren ser inte rakt ned och efter detonationerna är den döv en minut. Målet är att lämna kvadrat 7 (en sjömil utanför kanten, längre följer jagarna inte efter) utan att någon jagare eller något plan har kontakt. Navigatören föreslår kortaste vägen ut som inte leder mot en hotkontakt, och banken på ena sidan ger möjlighet att lägga sig på botten. Flyget kommer efter 25–45 minuter. |
 | Sundet (`sundet`) | Guantánamo, 04:20, gryning 06:10. In mot inloppet från havet: en patrullbåt håller en skärm på djupt vatten 1,5–2,5 sjömil ut, hydrofoner ligger på botten en halv sjömil ut och ett nät spärrar farleden. Grinden i nätet öppnas när ett fartyg ska igenom; periskopet ser bojarna och om grinden är öppen. Patrullbåten eskorterar fartyg på väg in fram till grinden. Den som följer tätt efter ett fartyg (`följ S-3`: navigatören styr på kontaktens bäring och håller plottets fart) göms i dess brus och kölvatten och kommer in genom grinden; ut kommer man på samma sätt. Fotografera ankarplatsen (`foto`, dagsljus, ju närmare desto bättre bild; god bild krävs) och ta er ut. `kurs mot ankarplatsen` / `kurs mot nätet` styr mot kända platser. Tidvattnet sätter in och ut i farleden; navigatören räknar med tabellen, som har fel. Nära land tar navigatören fix på landmärken på en halv minut. På grunt vatten dränks aktiv sonar av efterklang. |
+| Konvojen (`konvoj`) | 28 oktober, kriget har börjat. 06:30, just efter gryningen. En konvoj med två trupptransporter och ett tankfartyg kommer från nordost med två eskortjagare i skärm 2,5 sjömil framför. Den sicksackar kring en baskurs. Ordern ger ungefär läge och kurs. Plottet grupperar kontakterna till en konvoj och räknar ut baskursen ur benen; det går mycket bättre med periskoptittar, för utkiken bedömer kursen ur vinkeln på bogen. `anfall S-x` tar oss till skjutläge vid sidan av konvojens väg; `salva S-x` skjuter raka torpeder i solfjäder. Eskortjagarna fäller skarpt direkt men släpper jakten när konvojen gått vidare; bara en i taget jagar. Målet är att sänka minst ett fartyg och sedan bryta kontakten. Neutral trafik finns kvar. |
 | Arktis: Nord-7 | Drivstationen driver med isen. Huvudstaben ger en ungefärlig position; generatorn hörs på några sjömil och ljuset syns i periskopet. Målet är ytläge inom 1,5 sjömil. En amerikansk atomubåt hör oss före vi hör den och skuggar oss, men skjuter inte. |
 | Brand och rök (arktis) | En brand i turbinrummet stoppar turbinen. Röken stiger tills vi ventilerar i öppen luft och sänker besättningens förmåga; för tät rök kväver besättningen. |
 | Isljud (arktis) | Bakgrundsbruset beror på isen. Skruvis knakar och kan först tas för en kontakt. |

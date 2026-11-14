@@ -10,6 +10,7 @@ Ett tick:
 """
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass, field
 from typing import Any
@@ -135,6 +136,9 @@ class World:
             if self.time - self.mission["all_sunk_t"] >= SINK_ENDING_DELAY:
                 self.end("sank")
             return
+        strike = self.mission.get("strike")
+        if strike and self._strike_done(strike):
+            return
         goal = self.mission.get("goal")
         if goal and self.own.surfaced:
             target = next((v for v in self.contacts if v.id == goal["id"]), None)
@@ -158,6 +162,28 @@ class World:
                     return
         if self.patrol_end is not None and self.time >= self.patrol_end:
             self.end("patrol_end")
+
+    def _strike_done(self, strike: dict) -> bool:
+        """Anfallsmål: sänkt minst ett mål och ingen jägare har oss sedan clear_s; eller
+        alla mål har passerat och ligger miss_nm bort utan att något sänkts."""
+        targets = [v for v in self.contacts if v.id in strike["targets"]]
+        sunk = [v for v in targets if v.sunk]
+        if sunk:
+            if self.time - self.mission.get("last_sink_t", 0) >= strike["clear_s"] and \
+                    not any(self._hunting_us(ai) for ai in self.ais):
+                self.end(strike["outcome"], sunk=len(sunk))
+                return True
+            return False
+        o = self.own.state
+        alive = [v for v in targets if not v.sunk]
+        if alive and all(
+                distance(o.x, o.y, v.state.x, v.state.y) > strike["miss_nm"]
+                and (o.x - v.state.x) * math.sin(math.radians(v.state.course))
+                + (o.y - v.state.y) * math.cos(math.radians(v.state.course)) < 0
+                for v in alive):
+            self.end(strike["miss_outcome"])
+            return True
+        return False
 
     # --- sanningshjälp (sensorer, vapen, sanningslogg) ----------------------
     def _hunting_us(self, ai: Any) -> bool:

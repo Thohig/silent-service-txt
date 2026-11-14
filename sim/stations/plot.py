@@ -33,6 +33,8 @@ FORGET_S = 1800                 # tappade kontakter: bäringen tas bort efter s�
 CONVOY_TURN_REPEAT_S = 180      # "konvojen girar" högst så här ofta
 CONVOY_POINT_AGE_S = 300        # en lösning så gammal räknas inte i grupperingen
 CONVOY_MAX_KN = 25.0            # snabbare lösning på ett konvojfartyg är fel
+CONVOY_COURSE_SIGMA = 30.0      # sämre bestämd kurs än så räknas inte i grupperingen
+CONVOY_SPEED_SIGMA = 6.0
 
 
 @dataclass(frozen=True)
@@ -238,16 +240,36 @@ class PlotTeam(Station):
                  kind="solution", quality=convoy.base.quality if convoy.base else Quality.DALIG)
 
     def _points(self) -> list[TrackPoint]:
+        """Kontakternas läge och rörelse: TMA-lösningen, annars utkikens senaste bedömning."""
+        k = self.game.knowledge
+        seen = {}
+        pic = k.periscope
+        if pic is not None and self.now - pic.t <= CONVOY_POINT_AGE_S:
+            seen = {o.designation: o for o in pic.objects if o.designation and o.seen_t == pic.t
+                    and o.course is not None and o.aob_quality >= Quality.OSAKER}
+        ex, ey = self.game.own_position_estimate()
         pts = []
-        for tr in self.game.knowledge.tracks.values():
-            sol = tr.solution
-            if not tr.held or tr.civil or sol is None or sol.quality < Quality.OSAKER \
-                    or self.now - sol.t > CONVOY_POINT_AGE_S or sol.speed > CONVOY_MAX_KN:
+        for tr in k.tracks.values():
+            if not tr.held or tr.civil or "handelsfartyg" in tr.classification:
                 continue
-            dt = (self.now - sol.t) / 3600.0
-            pts.append(TrackPoint(tr.designation, sol.x + sol.state[2] * dt,
-                                  sol.y + sol.state[3] * dt, sol.course, sol.speed,
-                                  "jagare" in tr.classification))
+            escort = "jagare" in tr.classification
+            sol = tr.solution
+            if sol is not None and sol.quality >= Quality.OSAKER \
+                    and self.now - sol.t <= CONVOY_POINT_AGE_S and sol.speed <= CONVOY_MAX_KN \
+                    and sol.course_sigma <= CONVOY_COURSE_SIGMA \
+                    and sol.speed_sigma <= CONVOY_SPEED_SIGMA:
+                dt = (self.now - sol.t) / 3600.0
+                pts.append(TrackPoint(tr.designation, sol.x + sol.state[2] * dt,
+                                      sol.y + sol.state[3] * dt, sol.course, sol.speed, escort))
+            elif (o := seen.get(tr.designation)) is not None:
+                # periskopet: bäring och avstånd från vårt läge, kurs ur vinkeln på bogen
+                b = math.radians(o.bearing)
+                dt = (self.now - pic.t) / 3600.0
+                vx = o.speed * math.sin(math.radians(o.course))
+                vy = o.speed * math.cos(math.radians(o.course))
+                pts.append(TrackPoint(tr.designation, ex + o.range_nm * math.sin(b) + vx * dt,
+                                      ey + o.range_nm * math.cos(b) + vy * dt, o.course,
+                                      o.speed, escort))
         return pts
 
     def _assess_convoy(self) -> None:
@@ -267,6 +289,7 @@ class PlotTeam(Station):
             if p.designation not in members:
                 members.append(p.designation)
         members = [m for m in members if (tr := k.tracks.get(m)) is not None
+                   and "jagare" not in tr.classification and "handelsfartyg" not in tr.classification
                    and (tr.held or self.now - (tr.observations[-1].t if tr.observations else 0)
                         < FORGET_S)]
         if len(members) < 2:

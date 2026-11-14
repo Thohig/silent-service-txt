@@ -31,6 +31,7 @@ BEARING_REPORT_DELTA = 5.0
 BEARING_REPORT_MAX_AGE = 300
 SMOOTH_OBS = 6
 FAST_PING_S = 13
+PING_SAME_DEG = 3.0         # okända pingar inom så här många grader räknas som samma pingare
 ICE_REPORT_S = 1800          # knakande is rapporteras inte oftare
 PROFILE_KEEP_S = 3 * 3600    # djupprofilen minns hörda ljud så här länge
 # Djupprofilens symboler för hörda ljud (och våra egna): (symbol, stil)
@@ -380,10 +381,15 @@ class SonarRoom(Station):
         d = {"bearing": ev.bearing, "designation": ev.designation}
         detail = ""
         if ev.kind == "ping":
-            key = ev.designation or "okänd"
-            if key not in self._pings and "okänd" in self._pings and ev.designation:
-                self._pings[key] = self._pings.pop("okänd")      # samma pingare, nu identifierad
+            # okända pingare hålls isär på bäringen: två jagare i skärm är inte en snabb pingare
+            unknown = next((k for k, q in self._pings.items() if k.startswith("okänd")
+                            and abs(angle_diff(q.get("bearing", ev.bearing), ev.bearing))
+                            <= PING_SAME_DEG), None)
+            key = ev.designation or unknown or f"okänd{len(self._pings)}"
+            if key not in self._pings and unknown and ev.designation:
+                self._pings[key] = self._pings.pop(unknown)      # samma pingare, nu identifierad
             p = self._pings.setdefault(key, {"last": None, "fast": False, "close_t": -10**9})
+            p["bearing"] = ev.bearing
             if p["last"] is None or self.now - p["last"] > 900:
                 self.say("sonar.ping.first", d, kind="contact", alarm=True)
                 self._suggest_layer()
