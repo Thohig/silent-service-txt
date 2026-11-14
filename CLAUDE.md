@@ -67,6 +67,13 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   ⇒ `Knowledge.convoy`. Konvojens girar sägs som `plot.convoy.turn`, inte `plot.maneuver`.
   Med periskoptitt var 4:e min: baskurs inom 5° och säker efter ~10 ben; bara sonar: grov fart
   (TMA drar avståndet mot 6 nm), kvaliteten dålig/osäker.
+- **Anfall** (`anfall S-x`, navigatören, `firecontrol.approach`): kurs till en punkt 1,2 nm vid sidan
+  av målets väg (konvojens baskurs om ≥ osäker, annars nuvarande ben eller TMA-lösningen) där målet
+  är tvärs 4 min efter att vi är framme; omräkning var 30:e s. Hinns det inte i vår fart föreslås
+  lägsta fart som räcker (inom 1,5 h). I skjutläge (tvärs inom 8 min, ≤ 2,5 nm från vägen) föreslås
+  fart 3. Passerat (bakom, två gånger i rad, säkert bara med baskurs eller < 3 nm) ⇒ slutar.
+  Torpedrummet (`_leg_warning`) varnar när gångtiden är längre än det som är kvar av benet.
+  Fyra provkörningar (periskop var 4:e min): framme i alla, närmaste passage 0,2–3,3 nm.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen

@@ -175,6 +175,10 @@ PHRASES = {
     "torp.fired": lambda d: f"{ru('Torpeda vysjla')}! Tub {d['tube']} avfyrad, {d['type']}, kurs {fmt_course(d['course'])}"
     + (f", beräknad gångtid {_mmss(d['run_s'])}" if d.get("run_s") else "")
     + (". Lösningen var dålig, risk för miss." if d.get("quality") == Quality.DALIG else "."),
+    "torp.leg_warning": lambda d: f"Kapten, torpedrummet. Varning: {d['designation']} sicksackar. "
+    f"Benet har gått {round(d['elapsed_s'] / 60)} minuter av ungefär {round(d['leg_s'] / 60)}, och en "
+    f"{d['type']} är framme om {_mmss(d['run_s'])}. Konvojen kan ha girat innan dess."
+    + (" Den målsökande torpeden söker själv efter giren." if d.get("homing") else ""),
     "torp.time": lambda d: f"Tid för torpeden från tub {d['tube']}"
     + (f" mot {d['designation']}" if d.get("designation") else "") + "!",
     "torp.loading": lambda d: f"Laddar tub {d['tube']} med {d['type']}. Fem minuter.",
@@ -216,6 +220,8 @@ RU_PHRASES = {
     f"{R.course(d['course'])}"
     + (f", расчётное время хода {R.mmss(d['run_s'])}" if d.get("run_s") else "")
     + (". Решение было плохое, возможен промах." if d.get("quality") == Quality.DALIG else "."),
+    "torp.leg_warning": lambda d: f"{R.CAPTAIN}, торпедный отсек. Внимание: цель идёт "
+    f"зигзагом, конвой может повернуть раньше, чем дойдёт торпеда.",
     "torp.time": lambda d: f"Время торпеды из аппарата {d['tube']}"
     + (f" по {R.contact(d['designation'], True)}" if d.get("designation") else "") + "!",
     "torp.loading": lambda d: f"Есть, заряжаем аппарат {d['tube']}, {R.weapon(d['type'])}. "
@@ -403,6 +409,24 @@ class TorpedoRoom(Station):
         self.say("torp.fired", {"tube": o.tube, "type": spec.key, "course": course,
                                 "run_s": run_s, "quality": quality},
                  kind="ack", quality=quality, alarm=True)
+        if o.designation and run_s:
+            self._leg_warning(o.designation, run_s, spec.key)
+
+    def _leg_warning(self, designation: str, run_s: float, type_key: str) -> None:
+        """Ett sicksackande mål kan gira innan torpeden är framme: säg det."""
+        c = self.game.knowledge.convoy
+        tr = self.game.knowledge.track(designation)
+        if c is None or tr is None or tr.designation not in c.members \
+                or c.mean_leg_s is None or c.last_turn_t is None:
+            return
+        elapsed = self.now - c.last_turn_t
+        left = c.mean_leg_s - elapsed
+        if run_s <= left:
+            return
+        self.say("torp.leg_warning", {"designation": tr.designation, "elapsed_s": elapsed,
+                                      "leg_s": c.mean_leg_s, "run_s": run_s, "type": type_key,
+                                      "homing": TORPEDO_TYPES[type_key].homing},
+                 quality=Quality.OSAKER)
 
     def _load(self, n: int, typ: str) -> None:
         tube = self._tube(n)
@@ -441,6 +465,11 @@ class TorpedoRoom(Station):
             rows.append(row)
         self.say("torp.solution", {"designation": tr.designation, "quality": sol.quality,
                                    "rows": rows}, quality=sol.quality)
+        straight = [r for r in rows if r.get("course") is not None
+                    and not TORPEDO_TYPES[r["type"]].homing]
+        if straight:
+            self._leg_warning(tr.designation, min(r["run_s"] for r in straight),
+                              straight[0]["type"])
 
     # --- löpande -----------------------------------------------------------------
     def update(self) -> None:

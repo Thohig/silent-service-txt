@@ -32,6 +32,7 @@ MANEUVER_REPEAT_S = 300         # säg "har ändrat kurs" högst så här ofta p
 FORGET_S = 1800                 # tappade kontakter: bäringen tas bort efter så här länge
 CONVOY_TURN_REPEAT_S = 180      # "konvojen girar" högst så här ofta
 CONVOY_POINT_AGE_S = 300        # en lösning så gammal räknas inte i grupperingen
+CONVOY_MAX_KN = 25.0            # snabbare lösning på ett konvojfartyg är fel
 
 
 @dataclass(frozen=True)
@@ -241,7 +242,7 @@ class PlotTeam(Station):
         for tr in self.game.knowledge.tracks.values():
             sol = tr.solution
             if not tr.held or tr.civil or sol is None or sol.quality < Quality.OSAKER \
-                    or self.now - sol.t > CONVOY_POINT_AGE_S:
+                    or self.now - sol.t > CONVOY_POINT_AGE_S or sol.speed > CONVOY_MAX_KN:
                 continue
             dt = (self.now - sol.t) / 3600.0
             pts.append(TrackPoint(tr.designation, sol.x + sol.state[2] * dt,
@@ -276,7 +277,7 @@ class PlotTeam(Station):
             sx = sum(math.sin(math.radians(p.course)) for p in group)
             sy = sum(math.cos(math.radians(p.course)) for p in group)
             leg_course = norm360(math.degrees(math.atan2(sx, sy)))
-            leg_speed = sum(p.speed for p in group) / len(group)
+            leg_speed = sorted(p.speed for p in group)[len(group) // 2]
             escorts = escorts_near(group, pts)
         else:
             x, y, _vx, _vy = prev.advance(self.now)

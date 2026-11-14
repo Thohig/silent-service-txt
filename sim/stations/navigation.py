@@ -82,6 +82,13 @@ LAND_MARK_STEP_NM = 0.25   # land på sjökortet: en prick per ruta
 LAND_CLEAR_M = 21          # grundare än så framåt: inte ens periskopdjup går, gir i stället
 LAND_TURNS = (30, 60, 90, 120, 150, 180)
 FOLLOW_STEP_S = 15         # följ: ny kurs på kontaktens bäring så här ofta
+ATTACK_STEP_S = 30         # anfall: ny kurs mot skjutläget så här ofta
+ATTACK_OFFSET_NM = 1.2     # skjutläget ligger så här långt från målets väg
+ATTACK_LEAD_H = 4 / 60     # framme så här länge innan målet är tvärs
+ATTACK_IN_POSITION_H = 8 / 60   # målet tvärs inom så här lång tid ...
+ATTACK_IN_POSITION_NM = 2.5     # ... och vi så här nära dess väg: i skjutläge
+ATTACK_PASSED_NM = 0.3          # vi ligger så här långt bakom målet: det har passerat
+ATTACK_MAX_H = 1.5         # längre bort än så: vi hinner inte i praktiken
 PATH_STEP_NM = 0.1         # vägsökningens rutnät
 EXIT_RECALC_S = 20         # vägen ut räknas om så här ofta
 TIDE_TABLE_ERR = 0.3        # tidvattentabellen kan ha så här stort fel (andel av farten)
@@ -104,6 +111,11 @@ class SteerTo(Order):
 
 @dataclass(frozen=True)
 class FollowContact(Order):
+    designation: str
+
+
+@dataclass(frozen=True)
+class AttackApproach(Order):
     designation: str
 
 
@@ -172,6 +184,29 @@ def _course(m: re.Match) -> Order:
     return SetCourse(int(round(c)) % 360)
 
 
+
+def _minutes(m: float) -> str:
+    n = max(1, round(m))
+    return f"{n} minut" if n == 1 else f"{n} minuter"
+
+
+def _att_what(d: dict) -> str:
+    return "konvojen" if d["what"] == "konvojen" else d["designation"]
+
+
+def _att_side(d: dict) -> str:
+    return "styrbord" if d["side"] > 0 else "babord"
+
+
+def _att_path(d: dict) -> str:
+    what = "konvojens" if d["what"] == "konvojen" else "dess"
+    if d["basis"] == "base":
+        return f"{what} baskurs {fmt_course(d['target_course'])}"
+    if d["basis"] == "leg":
+        return f"{what} nuvarande ben {fmt_course(d['target_course'])} (baskursen är inte känd)"
+    return f"{what} kurs {fmt_course(d['target_course'])}"
+
+
 PHRASES = {
     "nav.course.ack": lambda d: f"{ru('Jest')}, kurs {fmt_course(d['course'])}."
     + (" Vi ligger på den." if d.get("already") else ""),
@@ -228,6 +263,26 @@ PHRASES = {
                                       ", farten håller vi tills plottet har en lösning") + ".",
     "nav.follow.none": lambda d: f"Kapten, vi har ingen bäring på {d['designation']}.",
     "nav.follow.lost": lambda d: f"Kapten, vi har tappat {d['designation']}. Slutar följa.",
+    "nav.attack": lambda d: f"Anfall mot {_att_what(d)}. Skjutläge {nm(d['offset'])} sjömil om "
+    f"{_att_side(d)} om {_att_path(d)}. Kurs {fmt_course(d['course'])}, framme om "
+    f"{d['minutes']:.0f} minuter i {kn(d['speed'])} knop.",
+    "nav.attack.speed": lambda d: f"Anfall mot {_att_what(d)}. I {kn(d['speed'])} knop hinner vi "
+    f"inte. I {d['need']} knop är vi i skjutläge om {d['minutes']:.0f} minuter, kurs "
+    f"{fmt_course(d['course'])}." + (" Det kräver turbinen." if d.get("turbine") else ""),
+    "nav.suggest.attack_speed": lambda d: f"Kapten, navigatören. Föreslår fart {d['need']} "
+    f"för att hinna till skjutläget.",
+    "nav.attack.cannot": lambda d: f"Kapten, vi hinner inte till skjutläge framför {_att_what(d)}, "
+    f"den går {d['target_speed']:.0f} knop bort från oss.",
+    "nav.attack.none": lambda d: f"Kapten, plottet har ingen lösning på {d['designation']} "
+    "att anfalla efter.",
+    "nav.attack.lost": lambda d: f"Kapten, lösningen på {d['designation']} är för gammal. "
+    "Slutar styra mot skjutläget.",
+    "nav.attack.arrived": lambda d: f"Kapten, vi är i skjutläge. {_att_what(d).capitalize()} "
+    f"är tvärs om ungefär {_minutes(d['passage_min'])}, vi ligger {nm(d['dist'])} "
+    f"sjömil om {'styrbord' if d['side'] > 0 else 'babord'} om {_att_path(d)}.",
+    "nav.attack.passed": lambda d: f"Kapten, {_att_what(d)} har redan passerat oss. "
+    "Slutar styra mot skjutläget.",
+    "nav.suggest.attack_slow": lambda d: "Kapten, navigatören. Föreslår fart 3, tyst medan de kommer.",
     "nav.steer": lambda d: f"Kurs {fmt_course(d['course'])} mot {d['name']}, "
     f"{nm(d['range'])} sjömil, ± {nm(d['sigma'])}.",
     "nav.steer.none": lambda d: f"Kapten, vi har ingen position för {d['name']}. "
@@ -400,6 +455,20 @@ RU_PHRASES = {
     + f" {_ru_ahead(d)} по карте. Предлагаю курс {R.course(d['course'])}.",
     "nav.follow": lambda d: f"Есть, идём в кильватер {R.contact(d['designation'], True)}, "
     f"курс {R.course(d['course'])}.",
+    "nav.attack": lambda d: f"Есть, выходим в атаку. Курс {R.course(d['course'])}, в точке залпа "
+    f"через {R.count(d['minutes'], R.MINUTE)}.",
+    "nav.attack.speed": lambda d: f"{R.CAPTAIN}, на этой скорости не успеем. Нужно "
+    f"{R.count(d['need'], R.KNOT)}, тогда в точке залпа через {R.count(d['minutes'], R.MINUTE)}.",
+    "nav.suggest.attack_speed": lambda d: f"{R.CAPTAIN}, штурман. Предлагаю ход "
+    f"{R.count(d['need'], R.KNOT)}.",
+    "nav.attack.cannot": lambda d: f"{R.CAPTAIN}, в точку залпа не успеваем, цель уходит.",
+    "nav.attack.none": lambda d: f"{R.CAPTAIN}, по {R.contact(d['designation'], True)} решения нет.",
+    "nav.attack.lost": lambda d: f"{R.CAPTAIN}, решение по {R.contact(d['designation'], True)} "
+    "устарело. Прекращаем выход в атаку.",
+    "nav.attack.arrived": lambda d: f"{R.CAPTAIN}, мы в точке залпа. Цель пройдёт траверз примерно "
+    f"через {R.count(max(1, round(d['passage_min'])), R.MINUTE)}.",
+    "nav.attack.passed": lambda d: f"{R.CAPTAIN}, цель уже прошла. Прекращаем выход в атаку.",
+    "nav.suggest.attack_slow": lambda d: f"{R.CAPTAIN}, штурман. Предлагаю ход три узла.",
     "nav.follow.lost": lambda d: f"{R.CAPTAIN}, мы потеряли {R.contact(d['designation'])}. "
     "Прекращаем следование.",
     "nav.suggest.fix": lambda d: f"{R.CAPTAIN}, штурман. Ошибка счисления {R.dec(d['sigma'], R.MILE)}. "
@@ -455,6 +524,9 @@ class NavigationStation(Station):
                     lambda m: GoToOpening(), "vak"),
         CommandSpec(r"(?:gå till |ga till |kurs mot |mot )?(?:drivstationen|stationen|nord-?7)",
                     lambda m: GoToStation(), "drivstationen"),
+        CommandSpec(r"anfall (?:mot )?(s-?\d+)|anfallsläge (s-?\d+)|anfallslage (s-?\d+)",
+                    lambda m: AttackApproach(m.group(1) or m.group(2) or m.group(3)),
+                    "anfall S-1"),
         CommandSpec(r"följ (s-?\d+)|folj (s-?\d+)",
                     lambda m: FollowContact(m.group(1) or m.group(2)), "följ S-1"),
         CommandSpec(r"(?:kurs|styr|gå|ga) mot (.+)", lambda m: SteerTo(m.group(1)), "kurs mot <plats>"),
@@ -493,6 +565,8 @@ class NavigationStation(Station):
         self.exit_via: str | None = None      # vägen ut går först runt land
         self.follow: str | None = None        # kontakten vi följer (goal "follow")
         self.follow_speed = True
+        self.attack: str | None = None        # kontakten vi går till skjutläge mot (goal "attack")
+        self._attack_behind = 0
         self._water = None                    # sjökortets vattenrutnät för vägsökning
         self._exit_cache: tuple[int, tuple | None, str | None] | None = None
         self.goal: str | None = None         # "station" mot drivstationen, "circle" söker runt den
@@ -935,6 +1009,8 @@ class NavigationStation(Station):
                 self._steer_to(name)
             case FollowContact(designation=d):
                 self._start_follow(d)
+            case AttackApproach(designation=d):
+                self._start_attack(d)
             case SettleOnBottom():
                 self._settle()
 
@@ -1462,6 +1538,100 @@ class NavigationStation(Station):
             self.say("nav.follow", {"designation": self.follow, "course": c, "speed": speed},
                      kind="ack")
 
+    # --- anfall: till skjutläge vid sidan av målets väg -----------------------------
+    def _start_attack(self, designation: str) -> None:
+        self.vak = None
+        self.goal = "attack"
+        self._attack_behind = 0
+        self.attack = (designation or "").upper().replace(" ", "")
+        if not self.attack.startswith("S-"):
+            self.attack = "S-" + self.attack.lstrip("S")
+        self._attack_step(announce=True)
+
+    def _attack_target(self):
+        """Målets mitt nu och fart (knop) enligt plottet: konvojens baskurs om vi har den."""
+        k = self.game.knowledge
+        tr = k.track(self.attack)
+        if tr is None:
+            return None
+        c = k.convoy
+        if c is not None and tr.designation in c.members:
+            x, y, vx, vy = c.advance(self.now)
+            basis = "base" if c.base is not None and c.base.quality >= Quality.OSAKER else "leg"
+            q = c.base.quality if basis == "base" else Quality.DALIG
+            return x, y, vx, vy, "konvojen", basis, q
+        sol = tr.solution
+        if sol is None or sol.quality < Quality.OSAKER or self.now - sol.t > 600 or not tr.held:
+            return None
+        dt = (self.now - sol.t) / 3600.0
+        vx, vy = sol.state[2], sol.state[3]
+        return sol.x + vx * dt, sol.y + vy * dt, vx, vy, tr.designation, "solution", sol.quality
+
+    def _attack_step(self, announce: bool = False) -> None:
+        from ..firecontrol import approach
+        tgt = self._attack_target()
+        if tgt is None:
+            self.goal = None
+            self.say("nav.attack.none" if announce else "nav.attack.lost",
+                     {"designation": self.attack}, alarm=not announce)
+            return
+        x, y, vx, vy, what, basis, q = tgt
+        s = self.ship
+        ex, ey = self.game.own_position_estimate()
+        speed = max(3.0, s.ordered_speed if s.ordered_speed is not None else s.speed)
+        res = approach(ex, ey, x, y, vx, vy, speed, ATTACK_OFFSET_NM, ATTACK_LEAD_H)
+        data = {"designation": self.attack, "what": what, "basis": basis, "quality": q,
+                "offset": ATTACK_OFFSET_NM, "speed": speed,
+                "target_course": norm360(math.degrees(math.atan2(vx, vy))),
+                "target_speed": math.hypot(vx, vy)}
+        v = math.hypot(vx, vy)
+        if v > 0.5:
+            # var vi ligger i förhållande till målets väg: framför (+) eller bakom, och åt sidan
+            along = ((ex - x) * vx + (ey - y) * vy) / v
+            across = abs((ex - x) * vy - (ey - y) * vx) / v
+            # bakom målet: säkert bara med baskursen eller nära; två gånger i rad
+            behind = along < -ATTACK_PASSED_NM and (basis != "leg" or math.hypot(ex - x, ey - y) < 3.0)
+            self._attack_behind = self._attack_behind + 1 if behind else 0
+            if self._attack_behind >= 2:
+                self.goal = None
+                self.say("nav.attack.passed", data, quality=q, alarm=not announce)
+                return
+            if 0 <= along / v <= ATTACK_IN_POSITION_H and across <= ATTACK_IN_POSITION_NM:
+                self.goal = None
+                data.update(passage_min=along / v * 60, dist=across,
+                            side=1 if (ex - x) * vy - (ey - y) * vx > 0 else -1)
+                self.say("nav.attack.arrived", data, quality=q, alarm=True)
+                if s.speed > 3.5:
+                    self.suggest("attack_slow", "nav.suggest.attack_slow", data, order="fart 3",
+                                 cooldown=120)
+                return
+        if res is None or res[1] > ATTACK_MAX_H:
+            need = None
+            for v in range(int(speed) + 1, 26):
+                r2 = approach(ex, ey, x, y, vx, vy, float(v), ATTACK_OFFSET_NM, ATTACK_LEAD_H)
+                if r2 is not None and r2[1] <= ATTACK_MAX_H:
+                    need, res = v, r2
+                    break
+            if need is None:
+                self.goal = None
+                self.say("nav.attack.cannot", data, quality=q)
+                return
+            s.order_course(round(res[0]) % 360)
+            if announce:
+                limit = self.own.max_speed()
+                data.update(course=res[0], minutes=res[1] * 60, need=need, side=res[4],
+                            turbine=need > limit)
+                self.say("nav.attack.speed", data, kind="ack", quality=q)
+                if need <= limit:
+                    self.suggest("attack_speed", "nav.suggest.attack_speed", data,
+                                 order=f"fart {need}", cooldown=120)
+            return
+        course, t_h, _px, _py, side = res
+        s.order_course(round(course) % 360)
+        if announce:
+            data.update(course=course, minutes=t_h * 60, side=side)
+            self.say("nav.attack", data, kind="ack", quality=q)
+
     def _steer_to(self, name: str) -> None:
         wps = self.game.knowledge.waypoints
         key = name.strip().lower()
@@ -1608,6 +1778,8 @@ class NavigationStation(Station):
         self._dead_reckon()
         if self.goal == "follow" and self.now % FOLLOW_STEP_S == 0:
             self._follow_step()
+        if self.goal == "attack" and self.now % ATTACK_STEP_S == 0:
+            self._attack_step()
         self._log_depth()
         if self.now % DR_TRACK_INTERVAL_S == 0:
             self.dr_track[-1].append((self.est_x, self.est_y))

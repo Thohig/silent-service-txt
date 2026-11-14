@@ -55,7 +55,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Tid | `tid 1` `tid 2` `tid 5` `tid 10` (faller till 1× vid larm) |
 | Sonar | `aktiv sonar` (ger avstånd men avslöjar oss) |
 | Plott | `läge S-1` · `plot S-1` |
-| Navigation | `position` · `fix` (periskopdjup) · `kurs mot <plats>` · `följ S-1` (i kontaktens kölvatten) · `ekolod` · `isekolod` · `vak` (gå till och stoppa under en loggad öppning i isen) · `drivstationen` (styr mot Nord-7) · `botten` (lägg oss stilla på botten; `djup` eller `fart` lättar) · `bottenfix` (nio lodningar på tre minuter jämförs med sjökortets djup) |
+| Navigation | `position` · `fix` (periskopdjup) · `kurs mot <plats>` · `följ S-1` (i kontaktens kölvatten) · `anfall S-1` (till skjutläge 1,2 nm från målets väg, efter konvojens baskurs om plottet har den) · `ekolod` · `isekolod` · `vak` (gå till och stoppa under en loggad öppning i isen) · `drivstationen` (styr mot Nord-7) · `botten` (lägg oss stilla på botten; `djup` eller `fart` lättar) · `bottenfix` (nio lodningar på tre minuter jämförs med sjökortets djup) |
 | Maskin | `smygmotor` · `turbin` · `stäng reaktorn` · `starta reaktorn` · `nödblåsning` · `maskin` · `ventilera` (periskopdjup i öppen luft) |
 | Vakthavande | `periskop` · `periskop 047` eller `periskop S-3` (kort titt, ±16°, kortare tid med masten uppe) · `radar` (periskopdjup; radarvarnaren är automatisk) · `foto` (periskopfoto av ankarplatsen) |
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
