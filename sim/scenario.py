@@ -16,6 +16,7 @@ from .ice import IceField, clearance
 from .ownship import OwnShip
 from .ship import ShipState
 from .geo import bearing_to, distance
+from .traffic import Lane, TrafficDef, TrafficGenerator
 from .world import World
 
 SECRET_ORDER = """\
@@ -81,6 +82,15 @@ def _crew() -> dict[Role, CrewMember]:
     }
 
 
+# Civil trafik kring kvadrat 7 (x österut, y norrut, kvadraten 0–20 nm).
+KUBA_TRAFFIC = TrafficDef(lanes=(
+    Lane("västgående", start=(24.0, 15.0), end=(-4.0, 11.0), per_hour=0.7),
+    Lane("östgående", start=(-4.0, 6.0), end=(24.0, 9.0), per_hour=0.7),
+    Lane("mot Kuba", start=(8.0, 24.0), end=(12.0, -4.0), per_hour=0.4, speed=(9.0, 12.0),
+         soviet=1.0),
+), initial=3)
+
+
 def default_scenario(rng: random.Random) -> Scenario:
     start_clock = 4 * 3600 + 30 * 60
     env = Environment(clock_start=start_clock)
@@ -94,6 +104,8 @@ def default_scenario(rng: random.Random) -> Scenario:
                   patrol_end=int(3.5 * 3600))
     world.ais.append(DestroyerAI(dd, random.Random(rng.random()), area=world.size_nm))
     world.mission["nuclear_authorized"] = False
+    world.traffic = TrafficGenerator(KUBA_TRAFFIC, random.Random(rng.random()))
+    world.traffic.populate(world)
 
     crew = _crew()
     # sambandstillfällen kl 05:00, 06:30 och 08:00

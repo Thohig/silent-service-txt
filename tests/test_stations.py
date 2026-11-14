@@ -4,6 +4,7 @@ import random
 from sim.events import BearingObserved, ContactDetected, GameEnded, ReportDelivered
 from sim.game import Game
 from sim.geo import distance
+from sim.reports import Quality
 from sim.scenario import default_scenario
 from sim.stations import NavigationStation, TorpedoRoom
 from sim.tma import BearingObs
@@ -108,7 +109,7 @@ def test_torpedo_fire_needs_solution_and_nuclear_is_locked():
     dd = _park_destroyer(g, 10.0, 6.0, speed=0)
     g.world.own.state.order_speed(3)
     k = g.knowledge
-    g.bus.publish(ContactDetected(0, "S-1", 0.0, "jagare"))
+    g.bus.publish(ContactDetected(0, "S-1", 0.0, "jagare", Quality.GOD))
     ex, ey = g.own_position_estimate()
     g.bus.publish(BearingObserved(0, BearingObs(0, 0.0, 0.5, ex, ey, 0, designation="S-1",
                                                 range_nm=distance(ex, ey, dd.state.x, dd.state.y),

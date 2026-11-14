@@ -73,6 +73,7 @@ en del säger de vilken, och resten verkställs ändå.
 | Brand och rök (arktis) | En brand i turbinrummet stoppar turbinen. Röken stiger tills vi ventilerar i öppen luft och sänker besättningens förmåga; för tät rök kväver besättningen. |
 | Isljud (arktis) | Bakgrundsbruset beror på isen. Skruvis knakar och kan först tas för en kontakt. |
 | Packis (arktis) | Masterna kräver öppet vatten. Isekolodet lodar isen ovanför och navigatören loggar öppningar; deras läge blir osäkrare när isen driver. Kölar når 45 m: gå djupt i fart. Tunn is (≤ 1 m) kan brytas igenom i låg fart om råken är minst 120 m. Arktiskt hav saknar språngskikt; djupt gående hör och hörs längre. |
+| Civil trafik (Kuba) | Handelsfartyg går genom kvadraten i tre leder; sovjetiska fraktfartyg mot Kuba stoppar när jagaren kommer nära och vänder hem. De hörs som okända kontakter tills sonar klassat dem. Deras brus kan dölja oss: under ett handelsfartyg (inom ett par kabellängder, grundare än 100 m) drunknar vårt eko i dess kölvatten. Att sänka ett civilt fartyg avslutar patrullen, och torpedrummet frågar en gång innan det skjuter mot något som inte är säkert klassat som örlogsfartyg. |
 | Torpeder | 53-61 (rak, snabb), SET-53 (målsökande), T-5 (kärnladdning, spärrad utan order). |
 | Torpeder i vattnet | Sonar följer egna torpeder. Torpedrummet rapporterar normal gång, sväng (målsökning), tappad torped, detonation och miss. `torpeder` ger gångtid, tid till beräknad träff, räckvidd kvar och senaste bäring. |
 | Skenmål | Drar jagarens sonar bort från ubåten. |
@@ -113,6 +114,7 @@ sim/                 ren Python, ingen Textual
   icemap.py          KUNSKAP: iskartan ur isekolodets lodningar
   scenario.py        scenarier och scenarioregistret
   arctic.py          SANNING: drivstationen och den amerikanska ubåtens AI
+  traffic.py         SANNING: civil trafik, leder och handelsfartygens AI
   entities.py        fartyg, transienter, emissioner
   ownship.py         egen ubåt: reaktor, batteri, skrov, skador
   enemy.py           jagarens sensorer och beteende

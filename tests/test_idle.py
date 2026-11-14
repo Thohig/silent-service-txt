@@ -14,6 +14,8 @@ SEEDS = range(1, 6)
 def _game(seed=3, stations=None):
     g = Game(default_scenario(random.Random(seed)), seed=seed, stations=stations)
     g.world.ais.clear()
+    g.world.contacts = [v for v in g.world.contacts if v.side != "neutral"]   # tomt hav
+    g.world.traffic = None
     reports = []
     g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
     return g, reports

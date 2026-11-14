@@ -28,6 +28,7 @@ from ..weapons import TORPEDO_TYPES, launch_decoy, launch_torpedo
 from .base import Proposal, Station
 
 N_TUBES = 8
+CONFIRM_S = 60          # en upprepad eldorder inom så här lång tid verkställs
 RELOAD_S = 300
 MAX_LAUNCH_DEPTH = 120
 MAX_LAUNCH_SPEED = 12
@@ -163,6 +164,11 @@ def _solution(d: dict) -> str:
 
 PHRASES = {
     "torp.refused": lambda d: f"Kapten, {d['reason']}.",
+    "torp.confirm": lambda d: (
+        f"Kapten, {d['designation']} är klassad som {d['classification']}. "
+        if d["civil"] else
+        f"Kapten, {d['designation']} är inte säkert klassad som örlogsfartyg, "
+        f"bara {d['classification']}. ") + "Upprepa ordern om vi ska skjuta.",
     "torp.fired": lambda d: f"Tub {d['tube']} avfyrad! {d['type']}, kurs {fmt_course(d['course'])}"
     + (f", beräknad gångtid {_mmss(d['run_s'])}" if d.get("run_s") else "")
     + (". Lösningen var dålig, risk för miss." if d.get("quality") == Quality.DALIG else "."),
@@ -217,6 +223,7 @@ class TorpedoRoom(Station):
     def __init__(self, game):
         super().__init__(game)
         self.tubes = [Tube(i + 1) for i in range(N_TUBES)]
+        self._confirmed: dict[str, int] = {}     # kontakt -> när vi frågade om den
         for t in self.tubes[:4]:
             t.load = "53-61"
         for t in self.tubes[4:6]:
@@ -326,6 +333,13 @@ class TorpedoRoom(Station):
                 self.say("torp.refused", {"reason": f"{o.designation} är utom räckhåll för {spec.key}"})
                 return
             course, run_s, dist = aim
+            if not tr.warship and self._confirmed.get(tr.designation, -10**9) < self.now - CONFIRM_S:
+                # torpedrummet frågar en gång; samma order inom en minut verkställs
+                self._confirmed[tr.designation] = self.now
+                self.say("torp.confirm", {"designation": tr.designation,
+                                          "classification": tr.classification,
+                                          "civil": tr.civil}, quality=tr.class_quality)
+                return
             quality = sol.quality
             if spec.nuclear:
                 detonate_at = dist

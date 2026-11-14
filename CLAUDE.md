@@ -45,6 +45,10 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
 - **Scenarier** registreras i `sim/scenario.py` (`register(ScenarioDef(...))`) och
   väljs i gränssnittets väljare eller med `--scenario`. Scenariot bär områdesnamn
   och sluttexter; `Game` ska inte känna till enskilda scenarier.
+- **Civil trafik:** `traffic.py` (sanning). `World.traffic` skickar in nya fartyg,
+  `MerchantAI` styr dem. Neutrala fartyg (`World.neutral_ships`) är inte fiender; sänks
+  ett slutar spelet (`neutral_sunk`). Kunskap: `ContactTrack.civil`/`warship`; civila
+  räknas inte som hot men plottas tyst för kortet.
 - **Is:** `ice.py` är sanning (bara isekolodet i `navigation.py` och mastkontrollerna
   `masts_clear` läser den); `icemap.py` är kunskap, byggd av `IceSounded` med
   beräknad position. Öppningars kvalitet = lägesosäkerhet (växer 8 m/min) mot
@@ -71,6 +75,10 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   chi² > 4 eller brytpunktstest > 15 (två raka ben före/efter 5 eller 10 min mot ett;
   raka mål ger median 2, max ~12). Plottlaget säger manöver högst var 5:e min per kontakt.
   Två ben i sicksack ska normalt ge god/säker lösning på ~20 min.
+- Civil trafik (Kuba, `KUBA_TRAFFIC` i `scenario.py`): tre leder, 1,8 fartyg/h plus 3 från
+  start, 9–14 kn, källnivå `140 + fart`. Maskering: neutralt fartyg inom 4° av målets
+  bäring adderar sitt brus; ubåt < 100 m inom 0,3 nm från ett handelsfartyg får −12 dB eko
+  hos jagaren. Jagaren hittar ja-boten i ~5 av 8 frön, som utan trafik.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m.
 - Packis (`ice.py`): rutor 0,05 nm, flerårsis 2–4,5 m, kölar 8–25 m (6 % 30–45 m),
   170 råkar, 28 polynyor ⇒ ~4–5 % öppet vatten, en öppning ungefär var 30:e minut

@@ -22,13 +22,14 @@ TICKER_LINES = 2
 
 LEGEND = [
     ("@", "own", "beräknad position"), ("·", "track", "bestick"), ("+", "fix", "fix"),
-    ("◆", "contact", "lösning"), ("╲", "bearing", "bäring utan lösning"),
+    ("◆", "contact", "lösning"), ("◇", "merchant", "handelsfartyg"),
+    ("╲", "bearing", "bäring utan lösning"),
     ("⊕", "waypoint", "position från huvudstaben"), ("≈", "ice_open", "öppet vatten"),
     ("=", "ice_thin", "tunn is"), ("#", "ice_thick", "tjock is"), ("Ö", "opening", "öppning"),
     (".", "own", "osäkerhet"),
 ]
 
-LEGEND_SPLIT = 6                  # andra raden: isen och osäkerheten
+LEGEND_SPLIT = 7                  # andra raden: isen och osäkerheten
 
 
 class ChartScreen(Screen):

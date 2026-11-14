@@ -84,6 +84,8 @@ OUTCOME_TEXT = {
     "sank": "Den amerikanska jagaren är sänkt. Vad som händer nu avgörs inte längre i Kvadrat 7.",
     "patrol_end": "Patrullen är slut. K-114 lämnar Kvadrat 7.",
     "station_reached": "K-114 har nått målet.",
+    "neutral_sunk": "K-114 har sänkt ett civilt fartyg. Patrullen avbryts; befälhavaren kallas "
+                    "hem för att stå till svars.",
     "quit": "Kaptenen har avbrutit patrullen. K-114 lämnar Kvadrat 7 i förtid.",
 }
 

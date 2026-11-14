@@ -125,19 +125,21 @@ class PlotTeam(Station):
         """Lösningar som läge, fartvektor och avståndsosäkerhet; annars senaste bäringen."""
         items: list = []
         for tr in self.game.knowledge.tracks.values():
-            if tr.benign and "drivstation" not in tr.classification:
+            if tr.benign and "drivstation" not in tr.classification and not tr.civil:
                 continue
             sol = tr.solution
-            if sol is not None and sol.quality >= Quality.OSAKER and tr.threat:
+            style = "merchant" if tr.civil else "contact"
+            if sol is not None and sol.quality >= Quality.OSAKER and (tr.threat or tr.civil):
                 dt = (self.now - sol.t) / 3600.0
                 vx, vy = sol.state[2], sol.state[3]
                 x, y = sol.x + vx * dt, sol.y + vy * dt
                 faded = not tr.held
-                items.append(Ring(x, y, sol.range_sigma, "contact", quality=sol.quality))
-                items.append(Ray(x, y, sol.course, sol.speed * VECTOR_S / 3600, "contact_vector",
+                what = "handelsfartyg" if tr.civil else sol.quality.label
+                items.append(Ring(x, y, sol.range_sigma, style, quality=sol.quality))
+                items.append(Ray(x, y, sol.course, sol.speed * VECTOR_S / 3600, f"{style}_vector",
                                  quality=sol.quality, faded=faded))
-                items.append(Mark(x, y, "◆", "contact",
-                                  f"{tr.designation} {sol.quality.label}, {sol.speed:.0f} kn",
+                items.append(Mark(x, y, "◇" if tr.civil else "◆", style,
+                                  f"{tr.designation} {what}, {sol.speed:.0f} kn",
                                   quality=sol.quality, faded=faded))
             elif tr.observations:
                 o = tr.observations[-1]
@@ -147,7 +149,10 @@ class PlotTeam(Station):
                 label = f"{tr.designation} {fmt_course(o.bearing)}"
                 if age >= 60:
                     label += f" ({age // 60} min)"
-                items.append(Ray(o.own_x, o.own_y, o.bearing, BEARING_LINE_NM, "bearing", label,
+                if tr.civil:
+                    label += " handelsfartyg"
+                items.append(Ray(o.own_x, o.own_y, o.bearing, BEARING_LINE_NM,
+                                 "merchant_vector" if tr.civil else "bearing", label,
                                  quality=sol.quality if sol else Quality.DALIG,
                                  faded=not tr.held or age > FADE_S))
         return items
@@ -157,12 +162,13 @@ class PlotTeam(Station):
         if self.now % PLOT_INTERVAL:
             return
         for tr in self.game.knowledge.tracks.values():
-            if not tr.threat or len(tr.observations) < 3:
+            civil = tr.civil and tr.held
+            if not (tr.threat or civil) or len(tr.observations) < 3:
                 continue
             prev_q = tr.solution.quality if tr.solution else None
             sol = self._resolve(tr)
-            if sol is None:
-                continue
+            if sol is None or civil:
+                continue                # handelsfartyg plottas tyst, för kortet
             if sol.n_obs >= 12 and (sol.fit > MANEUVER_CHI2 or self._target_turned(tr, sol)):
                 tr.tma_from_t = self.now - 120
                 # ett mål som girar hela tiden (jagaren söker) startas om tyst däremellan

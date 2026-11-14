@@ -20,7 +20,8 @@ from .. import phrases
 from ..crew import ROLE_LABEL, Role
 from ..entities import Emission
 from ..arctic import STATION_LIGHT_NM
-from ..events import BearingObserved, ContactDetected, PositionReported
+from ..events import (BearingObserved, ClassificationChanged, ContactDetected,
+                      PositionReported)
 from ..fmt import fmt_course, kn, nm
 from ..geo import angle_diff, norm360, velocity
 from ..ice import masts_clear
@@ -48,6 +49,11 @@ class PeriscopeLook(Order):
 @dataclass(frozen=True)
 class RadarSweep(Order):
     pass
+
+
+# vad utkiken ser i periskopet: (klassning till plottet, ord i rapporten)
+SIGHTED = {"destroyer": ("jagare, amerikansk", "jagare"),
+           "merchant": ("handelsfartyg", "handelsfartyg")}
 
 
 def _contact(d: dict) -> str:
@@ -218,8 +224,12 @@ class OfficerStation(Station):
         bearing = norm360(world.true_bearing(v) + rng.gauss(0, bearing_sigma))
         r = world.true_range(v)
         r_meas = max(0.05, r + rng.gauss(0, range_sigma))
-        if self.game.knowledge.tracks.get(desig) is None:
+        tr = self.game.knowledge.tracks.get(desig)
+        if tr is None:
             self.game.bus.publish(ContactDetected(self.now, desig, bearing, label, Quality.GOD))
+        elif source == "periskop" and tr.class_quality < Quality.GOD:
+            # det vi ser i periskopet slår sonarens gissning
+            self.game.bus.publish(ClassificationChanged(self.now, desig, label, Quality.GOD))
         ex, ey = self.game.own_position_estimate()
         self.game.bus.publish(BearingObserved(self.now, BearingObs(
             self.now, bearing, bearing_sigma, ex, ey, self.own.state.course,
@@ -247,13 +257,13 @@ class OfficerStation(Station):
                 self.say("off.periscope.none", {"day": world.env.is_day(self.now), "visibility": vis})
             for v in seen:
                 r = world.true_range(v)
-                d = self._observe(v, 0.5, 0.08 * r + 0.03, "periskop",
-                                  "jagare, amerikansk" if v.kind == "destroyer" else "ytfartyg")
-                d.update(label="jagare" if v.kind == "destroyer" else "fartyg",
+                full, short = SIGHTED.get(v.kind, ("ytfartyg", "fartyg"))
+                d = self._observe(v, 0.5, 0.08 * r + 0.03, "periskop", full)
+                d.update(label=short,
                          course=norm360(v.state.course + rng.gauss(0, 8)),
                          speed=max(0, round(v.state.speed + rng.gauss(0, 2))))
                 self.say("off.periscope.contact", d, kind="contact", quality=Quality.GOD)
-                if r < 3.0:
+                if r < 3.0 and v.kind == "destroyer":
                     self.suggest("down_close", "off.suggest.down",
                                  {"reason": f"{d['designation']} är nära.", "depth": 100},
                                  order="djup 100", cooldown=300)

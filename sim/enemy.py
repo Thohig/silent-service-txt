@@ -38,6 +38,9 @@ PING_INTERVAL = {"patrol": 30, "prosecute": 15, "attack": 8, "evade": 30}
 DATUM_TIMEOUT = 900
 ATTACK_COOLDOWN = 240
 UWT_INTERVAL = 180
+WAKE_NM = 0.3               # ubåt så nära ett handelsfartyg gömmer sig i dess kölvatten
+WAKE_DEPTH_M = 100
+WAKE_CLUTTER_DB = 12.0
 
 
 @dataclass
@@ -86,6 +89,23 @@ class DestroyerAI:
         return acoustics.power_sum(world.env.noise_at(s.x, s.y),
                                    acoustics.hull_sonar_self_noise(self.vessel.state.speed))
 
+    def _noise_toward(self, world: World, noise: float, tgt: Vessel) -> float:
+        """Brus i den riktning sonaren lyssnar: ett handelsfartyg i samma bäring dränker målet."""
+        s = self.vessel.state
+        mask = world.masking_noise(s.x, s.y, 5.0, tgt.state.x, tgt.state.y)
+        return noise if mask is None else acoustics.power_sum(noise, mask)
+
+    @staticmethod
+    def _wake_clutter(world: World, tgt: Vessel) -> float:
+        """Ekot från en ubåt under ett handelsfartygs kölvatten drunknar bland skrovekon
+        och luftbubblor (dB avdrag)."""
+        if tgt.depth > WAKE_DEPTH_M:
+            return 0.0
+        for m in world.neutral_ships:
+            if not m.sunk and distance(m.state.x, m.state.y, tgt.state.x, tgt.state.y) < WAKE_NM:
+                return WAKE_CLUTTER_DB
+        return 0.0
+
     def _tl(self, world: World, x: float, y: float, depth: float) -> float:
         s = self.vessel.state
         return acoustics.transmission_loss(distance(s.x, s.y, x, y), 5.0, depth, world.env)
@@ -127,7 +147,8 @@ class DestroyerAI:
                 if tgt.sunk:
                     continue
                 se = tgt.radiated_level(world.env) - self._tl(world, tgt.state.x, tgt.state.y,
-                                                              tgt.depth) - noise - DT_PASSIVE
+                                                              tgt.depth) - self._noise_toward(
+                    world, noise, tgt) - DT_PASSIVE
                 if se + self.rng.gauss(0, 2) > 0:
                     self._datum_from_bearing(world, tgt.state.x, tgt.state.y, 0.4,
                                              depth_guess=self.rng.gauss(100, 40))
@@ -204,7 +225,8 @@ class DestroyerAI:
                 continue
             tl = self._tl(world, tgt.state.x, tgt.state.y, tgt.depth)
             se = acoustics.active_excess(acoustics.PING_LEVEL_SHIP, tl, tgt.target_strength,
-                                         noise, DT_ACTIVE) + self.rng.gauss(0, 3)
+                                         self._noise_toward(world, noise, tgt), DT_ACTIVE) \
+                - self._wake_clutter(world, tgt) + self.rng.gauss(0, 3)
             if se > 0:
                 echoes.append((tgt, se))
         if not echoes:

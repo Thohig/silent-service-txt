@@ -35,6 +35,8 @@ STYLE = {
     "contact": "bold cyan",
     "contact_vector": "cyan",
     "bearing": "cyan",
+    "merchant": "#c8b070",
+    "merchant_vector": "#a08c58",
     "torpedo": "bold red",
     "grid": "#2f4a36",
     "border": "#5f8a66",
@@ -42,7 +44,7 @@ STYLE = {
 }
 ARROWS = {(0, -1): "↑", (0, 1): "↓", (-1, 0): "←", (1, 0): "→",
           (-1, -1): "↖", (1, -1): "↗", (-1, 1): "↙", (1, 1): "↘", (0, 0): "·"}
-EDGE_STYLES = {"contact", "waypoint"}     # visas med pil vid kanten när de ligger utanför
+EDGE_STYLES = {"contact", "waypoint", "merchant"}     # visas med pil vid kanten när de ligger utanför
 QUALITY_KEYED = {"opening", "contact", "contact_vector"}
 
 

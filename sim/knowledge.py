@@ -27,11 +27,22 @@ class ContactTrack:
     tma_from_t: int = -10**9       # plottlaget använder bara bäringar efter denna tid
 
     @property
+    def civil(self) -> bool:
+        """Klassad (minst god) som handelsfartyg."""
+        return self.class_quality >= Quality.GOD and "handelsfartyg" in self.classification
+
+    @property
+    def warship(self) -> bool:
+        """Klassad (minst god) som örlogsfartyg: jagare eller ubåt."""
+        c = self.classification
+        return self.class_quality >= Quality.GOD and ("jagare" in c or "ubåt" in c)
+
+    @property
     def benign(self) -> bool:
-        """Säkert klassad som isljud eller drivstationen: inget fartyg, inget hot."""
+        """Säkert klassad som isljud, drivstationen eller handelsfartyg: inget hot."""
         c = self.classification
         return self.class_quality >= Quality.GOD and \
-            ("isljud" in c or "isskruvning" in c or "drivstation" in c)
+            ("isljud" in c or "isskruvning" in c or "drivstation" in c or self.civil)
 
     @property
     def threat(self) -> bool:

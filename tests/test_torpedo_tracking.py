@@ -5,6 +5,7 @@ import re
 from sim.events import BearingObserved, ContactDetected, ReportDelivered
 from sim.game import Game
 from sim.geo import bearing_to, distance
+from sim.reports import Quality
 from sim.scenario import default_scenario
 from sim.stations import TorpedoRoom
 from sim.tma import BearingObs
@@ -20,8 +21,11 @@ def _game(seed):
 
 
 def _setup(g, range_nm=2.0, dd_speed=0.0, dd_course=90.0):
-    """Jagaren rakt norr om oss, passiv, och plottet har en exakt lösning."""
+    """Jagaren rakt norr om oss, passiv, klassad, och plottet har en exakt lösning.
+    Ingen civil trafik."""
     g.world.ais.clear()
+    g.world.contacts = [v for v in g.world.contacts if v.side != "neutral"]
+    g.world.traffic = None
     own = g.world.own.state
     own.order_speed(3)
     dd = g.world.contacts[0]
@@ -32,7 +36,7 @@ def _setup(g, range_nm=2.0, dd_speed=0.0, dd_course=90.0):
     dd.state.order_speed(dd_speed)
     ex, ey = g.own_position_estimate()
     b = bearing_to(ex, ey, dd.state.x, dd.state.y)
-    g.bus.publish(ContactDetected(g.now, "S-1", b, "jagare"))
+    g.bus.publish(ContactDetected(g.now, "S-1", b, "jagare", Quality.GOD))
     g.bus.publish(BearingObserved(g.now, BearingObs(
         g.now, b, 0.5, ex, ey, own.course, designation="S-1",
         range_nm=distance(ex, ey, dd.state.x, dd.state.y), range_sigma=0.02)))
