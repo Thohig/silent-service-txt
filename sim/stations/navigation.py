@@ -302,9 +302,10 @@ class NavigationStation(Station):
             items.append(Mark(x, y, "+", "fix"))
         # isen: lodningarna där vi beräknade att vi var
         for o in self.icemap.soundings:
-            sym, style = (("≈", "ice_open") if o.open else ("=", "ice_thin") if o.usable
-                          else ("#", "ice_thick"))
-            items.append(Mark(o.x, o.y, sym, style, layer=LAYER_ICE))
+            # i samma ruta vinner tunnast: öppet vatten är det vi letar efter
+            sym, style, up = (("≈", "ice_open", 0.2) if o.open else
+                              ("=", "ice_thin", 0.1) if o.usable else ("#", "ice_thick", 0.0))
+            items.append(Mark(o.x, o.y, sym, style, layer=LAYER_ICE + up))
         for o in self.icemap.candidates(now):
             q = o.quality(now)
             cx, cy = o.center

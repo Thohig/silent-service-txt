@@ -15,8 +15,8 @@ from dataclasses import dataclass, field
 from .reports import Quality
 
 # Ritordning: lägre lager ritas först och skrivs över av högre.
-LAYER_ICE = 0
-LAYER_TRACK = 1
+LAYER_TRACK = 0
+LAYER_ICE = 1               # lodningarna ligger längs spåret och säger mer än det
 LAYER_RING = 2
 LAYER_RAY = 3
 LAYER_MARK = 4
