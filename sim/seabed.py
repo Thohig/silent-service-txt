@@ -389,7 +389,7 @@ def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
     # tillbaka till förra läget, men aldrig under botten
     st.x, st.y = px, py
     floor = min(seabed.depth_at(p[1], p[2]) for p in keel_points(px, py, st.course))
-    st.depth = min(pdepth, floor - 0.5)
+    st.depth = max(0.0, min(pdepth, floor - 0.5))
     st.ordered_depth = min(st.ordered_depth, max(0.0, round(floor - BACKOFF_M)))
     if sys.settle and speed <= TOUCH_MAX_KN:
         # avsiktligt: vi lägger oss på botten och ligger kvar

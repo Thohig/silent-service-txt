@@ -59,6 +59,13 @@ class ContactDetected(Event):
 
 
 @dataclass(frozen=True)
+class PhotoTaken(Event):
+    """Periskopfoto av ett spaningsmål, med bildens kvalitet."""
+    quality: Quality
+    target: str
+
+
+@dataclass(frozen=True)
 class HuntSigns(Event):
     """Sonar tolkar ljuden som att fienden har kontakt med oss (snabb pingtakt, sjunkbomber)."""
     reason: str

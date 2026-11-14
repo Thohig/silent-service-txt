@@ -20,7 +20,7 @@ from .. import phrases
 from ..crew import ROLE_LABEL, Role
 from ..entities import Emission
 from ..arctic import STATION_LIGHT_NM
-from ..events import (BearingObserved, ClassificationChanged, ContactDetected,
+from ..events import (BearingObserved, ClassificationChanged, ContactDetected, PhotoTaken,
                       PositionReported)
 from ..fmt import fmt_course, kn, nm
 from ..geo import angle_diff, norm360, velocity
@@ -52,6 +52,18 @@ class RadarSweep(Order):
     pass
 
 
+@dataclass(frozen=True)
+class Photograph(Order):
+    pass
+
+
+PHOTO_S = 40               # periskopet uppe medan kameran arbetar
+# bildens kvalitet efter avstånd (nm) till närmaste fartyg vid ankarplatsen: dag, natt
+PHOTO_RANGES = {True: ((1.2, Quality.SAKER), (2.2, Quality.GOD), (3.5, Quality.OSAKER)),
+                False: ((0.6, Quality.GOD), (1.2, Quality.OSAKER))}
+PHOTO_TARGET_KIND = "moored"
+
+
 # vad utkiken ser i periskopet: (klassning till plottet, ord i rapporten)
 SIGHTED = {"destroyer": ("jagare, amerikansk", "jagare"),
            "merchant": ("handelsfartyg", "handelsfartyg"),
@@ -79,6 +91,16 @@ PHRASES = {
     "off.periscope.net": lambda d: f"Periskop: rad av små bojar tvärs farleden, närmast i bäring "
     f"{fmt_course(d['bearing'])}, cirka {nm(d['range'])} sjömil. Ett nät! Grinden i bäring "
     f"{fmt_course(d['gate_bearing'])} är " + ("öppen." if d["gate_open"] else "stängd."),
+    "off.photo.start": lambda d: "Periskop upp, kameran klar. Fotograferar.",
+    "off.photo.aborted": lambda d: "Kapten, vi kom under periskopdjup. Inga bilder.",
+    "off.photo.nothing": lambda d: "Kapten, bilderna visar inget. "
+    + ("Ankarplatsen är för långt bort." if d.get("far") else "Inga fartyg i sikte.")
+    + ("" if d["day"] else " Det är för mörkt."),
+    "off.photo.done": lambda d: f"Bilder tagna, kapten. {d['count']} fartyg till ankars på cirka "
+    f"{nm(d['range'])} sjömil. Bildkvaliteten är {d['quality']}"
+    + ("." if d["day"] else ", i mörker.") + " Periskop ner.",
+    "off.suggest.photo": lambda d: f"Kapten, vakthavande. Ankarplatsen är cirka {nm(d['range'])} "
+    f"sjömil bort, nära nog för {d['quality']} bild. Föreslår fotografering.",
     "off.radar.start": lambda d: "Radar sänder. Ett svep.",
     "off.radar.contact": lambda d: f"Radar: {d['designation']} i bäring {fmt_course(d['bearing'])}, "
     f"avstånd {nm(d['range'])} sjömil.",
@@ -108,12 +130,14 @@ class OfficerStation(Station):
     COMMANDS = [
         CommandSpec(r"periskop|periskop upp|titta", lambda m: PeriscopeLook(), "periskop"),
         CommandSpec(r"radar|radarsvep", lambda m: RadarSweep(), "radar"),
+        CommandSpec(r"foto|fotografera|ta bilder|ta foto|kamera", lambda m: Photograph(), "foto"),
     ]
 
     def __init__(self, game):
         super().__init__(game)
         self.look_done_t: int | None = None
         self.radar_done_t: int | None = None
+        self.photo_done_t: int | None = None
         self._esm_last: dict[str, tuple[str, int]] = {}
         self._next_esm = 0
         self._last_look_t = -10**9
@@ -151,6 +175,13 @@ class OfficerStation(Station):
                 self.say("off.periscope.up", kind="ack")
             case AskSuggestion(role=role, other=other):
                 self._answer_request(Role(role) if role else None, other)
+            case Photograph():
+                if reason := self._check_mast("periskopet"):
+                    self.say("off.refused", {"reason": reason})
+                    return
+                sys.periscope_until = max(sys.periscope_until, self.now + PHOTO_S)
+                self.photo_done_t = self.now + PHOTO_S
+                self.say("off.photo.start", kind="ack")
             case RadarSweep():
                 if reason := self._check_mast("radarn"):
                     self.say("off.refused", {"reason": reason})
@@ -248,6 +279,52 @@ class OfficerStation(Station):
             designation=desig, range_nm=r_meas, range_sigma=range_sigma, source=source)))
         return {"designation": desig, "bearing": bearing, "range": r_meas}
 
+    def _photo_targets(self):
+        world = self.game.world
+        return [v for v in world.contacts if v.kind == PHOTO_TARGET_KIND and not v.sunk]
+
+    def _photo_quality(self, r: float) -> Quality | None:
+        day = self.game.world.env.is_day(self.now)
+        for limit, q in PHOTO_RANGES[day]:
+            if r <= limit:
+                return q
+        return None
+
+    def _photo_done(self) -> None:
+        world = self.game.world
+        if self.own.state.depth > PERISCOPE_DEPTH + 1:
+            self.say("off.photo.aborted")
+            return
+        targets = self._photo_targets()
+        if not targets:
+            self.say("off.photo.nothing", {"day": world.env.is_day(self.now)})
+            return
+        r = min(world.true_range(v) for v in targets)
+        q = self._photo_quality(r)
+        if q is None:
+            self.say("off.photo.nothing", {"day": world.env.is_day(self.now), "far": True})
+            return
+        n = sum(1 for v in targets if world.true_range(v) <= r + 1.0)
+        world.mission["best_photo"] = max(world.mission.get("best_photo", -1), int(q))
+        self.game.bus.publish(PhotoTaken(self.now, q, "ankarplatsen"))
+        self.say("off.photo.done", {"range": r * self.game.rng.uniform(0.9, 1.1), "count": n,
+                                    "quality": q.label, "day": world.env.is_day(self.now)},
+                 quality=q)
+
+    def _suggest_photo(self) -> None:
+        """Efter ett periskopsvep: ankarplatsen nära nog för en bättre bild än vi har."""
+        world = self.game.world
+        targets = self._photo_targets()
+        if not targets:
+            return
+        r = min(world.true_range(v) for v in targets)
+        q = self._photo_quality(r)
+        best = self.game.knowledge.best_photo
+        if q is None or (best is not None and q <= best):
+            return
+        self.suggest("photo", "off.suggest.photo", {"range": r, "quality": q.label},
+                     order="foto", cooldown=300, quality=q)
+
     def _esm_air(self) -> None:
         """Flygradar: stark på långt håll, och bäringen drar snabbt."""
         world, rng = self.game.world, self.game.rng
@@ -302,6 +379,8 @@ class OfficerStation(Station):
                      for v in sp.periscope_view(world, rng)]
             for type_, d in views:
                 self.say(type_, d, kind="contact", alarm=True)
+            if any(v.kind == PHOTO_TARGET_KIND for v in seen):
+                self._suggest_photo()
             if not seen and not stations and not planes and not views:
                 self.say("off.periscope.none", {"day": world.env.is_day(self.now), "visibility": vis})
             for v in seen:
@@ -316,6 +395,10 @@ class OfficerStation(Station):
                     self.suggest("down_close", "off.suggest.down",
                                  {"reason": f"{d['designation']} är nära.", "depth": 100},
                                  order="djup 100", cooldown=300)
+
+        if self.photo_done_t is not None and self.now >= self.photo_done_t:
+            self.photo_done_t = None
+            self._photo_done()
 
         if self.radar_done_t is not None and self.now >= self.radar_done_t:
             self.radar_done_t = None

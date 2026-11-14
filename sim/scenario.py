@@ -13,8 +13,9 @@ from .environment import ArcticProfile, Environment, TidalStream
 from .arctic import DriftStation, EnemySub, SubmarineAI
 from .fmt import nm
 from .ice import IceField, clearance
-from .seabed import Seabed, arctic_seabed, kuba_seabed
+from .seabed import Seabed, arctic_seabed, kuba_seabed, strait_seabed
 from .ownship import OwnShip
+from .reports import Quality
 from .ship import ShipState
 from .geo import bearing_to, distance
 from .air import AirDef, AirPatrol
@@ -74,6 +75,7 @@ class Scenario:
     tide_table: TidalStream | None = None   # tidvattentabellen besättningen räknar med
     # målet är att lämna området: så här långt utanför kanten räknas som ute (nm)
     escape_margin_nm: float | None = None
+    escape_requires_photo: Quality | None = None   # utvägen räknas först med ett så bra foto
 
 
 def _crew() -> dict[Role, CrewMember]:
@@ -339,6 +341,128 @@ def hunted_scenario(rng: random.Random) -> Scenario:
                     })
 
 
+STRAIT_ORDER = """\
+STRÄNGT HEMLIGT — ENDAST FÖR BEFÄLHAVAREN
+FRÅN: MARINENS HUVUDSTAB, MOSKVA
+TILL: BEFÄLHAVARE, UBÅT K-114
+DATUM: 25 OKTOBER 1962
+
+1. GÅ IN MOT INLOPPET TILL GUANTÁNAMOBUKTEN.
+   FOTOGRAFERA FARTYGEN VID ANKARPLATSEN
+   GENOM PERISKOPET. BILDERNA MÅSTE VARA
+   GODA. DAGSLJUS KRÄVS.
+2. INLOPPET SKYDDAS AV NÄT MED GRIND, AV
+   HYDROFONER PÅ BOTTEN OCH AV PATRULLBÅTAR.
+   GRINDEN ÖPPNAS FÖR FARTYG.
+3. LÄMNA OMRÅDET SÖDERUT OUPPTÄCKT MED
+   BILDERNA.
+4. VAPEN FÅR ENDAST ANVÄNDAS PÅ ORDER FRÅN
+   MOSKVA.
+
+SLUT
+"""
+
+STRAIT_RADIO = [
+    RadioMessage("FRÅN HUVUDSTABEN. FLERA AMERIKANSKA FARTYG HAR ANLÄNT TILL GUANTÁNAMO. "
+                 "BILDERNA ÄR AV STÖRSTA VIKT. FÖRBLI OUPPTÄCKT."),
+    RadioMessage("FRÅN HUVUDSTABEN. INGEN ÄNDRING.", {"nuclear_authorized": False}),
+]
+
+HARBOR_PATROL_SPEED = 8.0
+
+
+def strait_scenario(rng: random.Random) -> Scenario:
+    """Genom sundet: smyg in mot en flottbas, fotografera ankarplatsen, ta dig ut."""
+    from .harbor import HarborDefense, HydrophoneLine, Net, PatrolBoatAI, hydrophone_points
+    start_clock = 4 * 3600 + 20 * 60                   # 04:20, gryningen kl 06:10
+    size = 14.0
+    sb_rng = random.Random(rng.random())
+    seabed = strait_seabed(sb_rng, size)
+    chart = seabed.chart_copy(sb_rng, err_nm=0.3)
+    coast = seabed.features[0]
+    cx = coast.channel_x
+    shore_c = float(coast.shore(cx))
+    tide = TidalStream(flood_set=0.0, peak_kn=rng.uniform(0.9, 1.3),
+                       phase_s=rng.uniform(0, 44712))
+    env = Environment(clock_start=start_clock, background_noise=64.0, current_set=270.0,
+                      current_kn=0.2, seabed=seabed, tide=tide)
+    own = OwnShip(ShipState(x=cx + rng.uniform(-3.0, 3.0), y=1.5, course=0, speed=5, depth=100,
+                            max_depth=400))
+    world = World(own=own, env=env, rng=random.Random(rng.random()), size_nm=size,
+                  patrol_end=5 * 3600)
+
+    # skyddet: nät i farledens mynning, hydrofoner en sjömil ut, patrullbåt däremellan
+    net_y = shore_c + 0.5
+    half = coast.channel_w / 2 + 0.05
+    net = Net(y=net_y, x0=cx - half, x1=cx + half, gate_x=cx)
+    phones = HydrophoneLine(hydrophone_points(cx - 3.0, cx + 3.0, shore_c - 1.0, 0.6),
+                            random.Random(rng.random()))
+    xs = [cx - 3.0 + 0.1 * i for i in range(61)]
+    top = min(float(coast.shore(x)) for x in xs) - 0.4
+    box = (cx - 3.0, top - 2.2, cx + 3.0, top)
+    pb = Vessel("PB1", "patrol",
+                ShipState(x=rng.uniform(box[0], box[2]), y=rng.uniform(box[1], box[3]),
+                          course=rng.uniform(0, 360), speed=HARBOR_PATROL_SPEED, turn_rate=4.0,
+                          accel=0.5, max_speed=24),
+                side="enemy", has_radar=True)
+    world.contacts.append(pb)
+    boat = PatrolBoatAI(pb, random.Random(rng.random()), area=size,
+                        patrol_speed=HARBOR_PATROL_SPEED, box=box, leash_nm=0.8)
+    world.ais.append(boat)
+    harbor = HarborDefense(hydrophones=phones, net=net, boats=[boat])
+    world.spawners.append(harbor)
+
+    # fartygen vid ankarplatsen
+    ax, ay = coast.bay_x + rng.uniform(-0.6, 0.6), coast.bay_y + rng.uniform(-0.2, 0.3)
+    n_ships = rng.randint(3, 5)
+    placed = 0
+    for _ in range(60):
+        if placed >= n_ships:
+            break
+        mx, my = ax + rng.uniform(-1.0, 1.0), ay + rng.uniform(-0.5, 0.5)
+        if seabed.depth_at(mx, my) < 12:
+            continue
+        placed += 1
+        world.contacts.append(Vessel(f"M{placed}", "moored",
+                                     ShipState(x=mx, y=my, course=rng.uniform(0, 360), speed=0),
+                                     side="enemy", has_radar=False))
+
+    # hamntrafik genom grinden
+    lanes = (Lane("in", start=(cx, -2.0), end=(cx, coast.bay_y - 0.2), per_hour=0.5,
+                  speed=(8.0, 11.0), moor=True),
+             Lane("ut", start=(cx, coast.bay_y - 0.4), end=(cx, -3.0), per_hour=0.4,
+                  speed=(8.0, 11.0)))
+    traffic = TrafficGenerator(TrafficDef(lanes=lanes, initial=1, width_nm=0.03),
+                               random.Random(rng.random()))
+    traffic.populate(world)
+    world.spawners.append(traffic)
+
+    world.mission["nuclear_authorized"] = False
+    margin = 0.5
+    world.mission["escape"] = {"margin_nm": margin, "outcome": "recon_done",
+                               "requires_photo": int(Quality.GOD)}
+    windows = [(c - start_clock) for c in (6 * 3600 + 30 * 60, 8 * 3600)]
+    known = [("Ankarplatsen", ax + rng.gauss(0, 0.2), ay + rng.gauss(0, 0.2), 0.4, 0),
+             ("Nätet", cx + rng.gauss(0, 0.05), net_y + rng.gauss(0, 0.15), 0.2, 0)]
+    return Scenario(world, _crew(), STRAIT_ORDER, start_clock,
+                    radio_windows=windows, radio_messages=list(STRAIT_RADIO),
+                    known_positions=known, chart_seabed=chart,
+                    tide_table=tide.table_copy(random.Random(rng.random())),
+                    area_name="inloppet", escape_margin_nm=margin,
+                    escape_requires_photo=Quality.GOD,
+                    outcome_text={
+                        "recon_done": "K-114 har lämnat inloppet med bilderna av ankarplatsen. "
+                                      "Filmen framkallas ombord; i Moskva väntar man på dem.",
+                        "patrol_end": "Tiden är ute. K-114 lämnar Guantánamo utan de bilder "
+                                      "huvudstaben ville ha.",
+                        "forced": "K-114 har gått till ytan utanför den amerikanska flottbasen. "
+                                  "Besättningen lever, men uppdraget har misslyckats.",
+                        "sank": "Fartygen i Guantánamobukten är sänkta. Kriget har börjat.",
+                        "quit": "Kaptenen har avbrutit. K-114 lämnar inloppet i förtid.",
+                        "lost": "K-114 är förlorad utanför Guantánamo med hela besättningen.",
+                    })
+
+
 # --- scenarioregister ----------------------------------------------------------
 @dataclass(frozen=True)
 class ScenarioDef:
@@ -375,3 +499,8 @@ register(ScenarioDef(
     "En amerikansk jagare har just fått kontakt och en till är på väg. Bryt kontakten "
     "och ta er ut ur kvadrat 7 innan sjunkbomberna blir skarpa.",
     hunted_scenario))
+register(ScenarioDef(
+    "sundet", "Guantánamo, 25 oktober 1962",
+    "Smyg in mot den amerikanska flottbasen genom ett grunt inlopp med nät, hydrofoner och "
+    "patrullbåt. Fotografera ankarplatsen i dagsljus och ta er ut igen.",
+    strait_scenario))

@@ -38,6 +38,7 @@ class Lane:
     per_hour: float
     speed: tuple[float, float] = (9.0, 14.0)
     soviet: float = 0.0          # andel sovjetiska fraktfartyg (stoppar vid karantänlinjen)
+    moor: bool = False           # ankrar vid ledens slut (in i en hamn) i stället för att gå vidare
 
 
 @dataclass(frozen=True)
@@ -54,13 +55,14 @@ class MerchantAI:
     roe = "-"
 
     def __init__(self, vessel: Vessel, rng: random.Random, target: tuple[float, float],
-                 home: tuple[float, float], soviet: bool, speed: float):
+                 home: tuple[float, float], soviet: bool, speed: float, moor: bool = False):
         self.vessel = vessel
         self.rng = rng
         self.target = target
         self.home = home
         self.soviet = soviet
         self.speed = speed
+        self.moor = moor
         self.state = "transit"
         self.resume_t = 0
 
@@ -69,7 +71,7 @@ class MerchantAI:
 
     def step(self, world: World) -> None:
         v, s = self.vessel, self.vessel.state
-        if v.sunk:
+        if v.sunk or self.state == "moored":
             return
         if self.state == "stopped":
             if world.time >= self.resume_t:
@@ -88,6 +90,11 @@ class MerchantAI:
             tx, ty = self.target
             if distance(s.x, s.y, tx, ty) < ARRIVE_NM:
                 self.target = None          # rakt fram ut ur området
+                if self.moor:
+                    self.state = "moored"   # till ankars i hamnen
+                    s.order_speed(0)
+                    s.speed = 0.0
+                    v.kind = "moored"
             elif world.time % 60 == 0:
                 s.order_course(bearing_to(s.x, s.y, tx, ty))
 
@@ -142,6 +149,7 @@ class TrafficGenerator:
         soviet = rng.random() < lane.soviet
         world.contacts.append(v)
         world.ais.append(MerchantAI(v, random.Random(rng.random()), (tx, ty),
-                                    (x0 + nx * off, y0 + ny * off), soviet, speed))
+                                    (x0 + nx * off, y0 + ny * off), soviet, speed,
+                                    moor=lane.moor))
         return v
 

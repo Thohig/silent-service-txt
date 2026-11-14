@@ -140,6 +140,9 @@ class World:
                 self.end(goal["outcome"])
                 return
         esc = self.mission.get("escape")
+        if esc and esc.get("requires_photo") is not None and \
+                self.mission.get("best_photo", -1) < esc["requires_photo"]:
+            esc = None                      # inte utan bilderna
         if esc and not self.own.surfaced and self._outside_area(esc["margin_nm"]) \
                 and not any(self._hunting_us(ai) for ai in self.ais):
             self.end(esc["outcome"])

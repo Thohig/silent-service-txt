@@ -8,6 +8,7 @@ ubåten tillbaka till en loggad öppning och stoppa under den.
 from __future__ import annotations
 
 import math
+from collections import deque
 import re
 
 import numpy as np
@@ -71,8 +72,10 @@ BFIX_GAIN = 2.0             # föreslå bara om besticket är så här mycket s�
 BFIX_RELIEF_M_PER_NM = 150  # föreslå bottenfix bara där kortet visar så här brant botten
 PERISCOPE_FIX_SIGMA = 0.1
 LAND_MARK_STEP_NM = 0.25   # land på sjökortet: en prick per ruta
-LAND_CLEAR_M = 26          # grundare än så framåt: inte ens periskopdjup går, gir i stället
+LAND_CLEAR_M = 21          # grundare än så framåt: inte ens periskopdjup går, gir i stället
 LAND_TURNS = (30, 60, 90, 120, 150, 180)
+PATH_STEP_NM = 0.1         # vägsökningens rutnät
+EXIT_RECALC_S = 20         # vägen ut räknas om så här ofta
 TIDE_TABLE_ERR = 0.3        # tidvattentabellen kan ha så här stort fel (andel av farten)
 EXIT_FIRST_SUGGEST_S = 150  # ut ur området: låt sonar och djup komma först
 EXIT_THREAT_SECTOR = 40     # en väg ut inom så många grader från en hotkontakt är inte fri
@@ -84,6 +87,11 @@ SETTLE_SUGGEST_MAX_M = 280  # föreslå att lägga oss på botten bara grundare 
 BOTTOM_WORDS = {"lera": "lerbotten", "sand": "sandbotten", "klippa": "klippbotten"}
 CONTOUR_MARGIN_NM = 4.0     # djupkurvor så här långt utanför kvadraten
 CONTOUR_LABEL_SPOTS = ((5, 5), (15, 5), (5, 15), (15, 15), (10, 10))   # andelar av kvadraten ×20
+
+
+@dataclass(frozen=True)
+class SteerTo(Order):
+    name: str
 
 
 @dataclass(frozen=True)
@@ -202,6 +210,10 @@ PHRASES = {
        f"Sjökortet visar {d['shoal']:.0f} meter "
        + ("här" if d["dist"] < 0.15 else f"inom {nm(d['dist'])} sjömil framåt"))
     + f". Föreslår djup {d['depth']:.0f}.",
+    "nav.steer": lambda d: f"Kurs {fmt_course(d['course'])} mot {d['name']}, "
+    f"{nm(d['range'])} sjömil, ± {nm(d['sigma'])}.",
+    "nav.steer.none": lambda d: f"Kapten, vi har ingen position för {d['name']}. "
+    + (f"Vi känner till: {', '.join(d['known'])}." if d["known"] else ""),
     "nav.suggest.land": lambda d: "Kapten, navigatören! "
     + ("Land" if d["shoal"] <= 0 else f"Bara {d['shoal']:.0f} meter vatten")
     + (" här enligt kortet" if d["dist"] < 0.15 else f" inom {nm(d['dist'])} sjömil framåt")
@@ -230,7 +242,9 @@ PHRASES = {
     "nav.suggest.area": lambda d: f"Kapten, vi är på väg ut ur {d.get('area', 'kvadrat 7')}. "
     f"Föreslår kurs {fmt_course(d['course'])}.",
     "nav.suggest.exit": lambda d: f"Kapten, navigatören. Närmaste väg ut ur {d['area']} "
-    f"är kurs {fmt_course(d['course'])}, {nm(d['dist'])} sjömil"
+    + (f"går runt land, {nm(d['dist'])} sjömil. Första biten kurs {fmt_course(d['course'])}"
+       if d.get("via") else
+       f"är kurs {fmt_course(d['course'])}, {nm(d['dist'])} sjömil")
     + (", bort från kontakterna." if d.get('clear') else ".")
     + f" Föreslår kurs {fmt_course(d['course'])}.",
     "nav.exit.out": lambda d: f"Kapten, enligt besticket är vi ute ur {d['area']}.",
@@ -336,6 +350,7 @@ class NavigationStation(Station):
                     lambda m: GoToOpening(), "vak"),
         CommandSpec(r"(?:gå till |ga till |kurs mot |mot )?(?:drivstationen|stationen|nord-?7)",
                     lambda m: GoToStation(), "drivstationen"),
+        CommandSpec(r"(?:kurs|styr|gå|ga) mot (.+)", lambda m: SteerTo(m.group(1)), "kurs mot <plats>"),
         CommandSpec(r"bottenfix|fix mot botten|djupfix|lodfix", lambda m: BottomFix(), "bottenfix"),
         CommandSpec(r"(?:lägg oss på |lagg oss pa |lägg på |lagg pa |sätt oss på |satt oss pa |"
                     r"gå ned på |ga ned pa )?botten", lambda m: SettleOnBottom(), "botten"),
@@ -367,6 +382,9 @@ class NavigationStation(Station):
         self._vak_here = False
         self._prev_usable = False
         self._told_out = False                # har sagt att vi lämnat området
+        self.exit_via: str | None = None      # vägen ut går först runt land
+        self._water = None                    # sjökortets vattenrutnät för vägsökning
+        self._exit_cache: tuple[int, tuple | None, str | None] | None = None
         self.goal: str | None = None         # "station" mot drivstationen, "circle" söker runt den
         self._circle_c: tuple[float, float] | None = None
         self._circle_t = 0
@@ -802,6 +820,8 @@ class NavigationStation(Station):
                 self._go_to_opening()
             case GoToStation():
                 self._go_to_station()
+            case SteerTo(name=name):
+                self._steer_to(name)
             case SettleOnBottom():
                 self._settle()
 
@@ -1242,11 +1262,12 @@ class NavigationStation(Station):
                                 {"depth": s.depth}, cooldown=300))
         size = self.game.world.size_nm
         if self.game.escape_nm is not None:
-            if (route := self.exit_route()) is not None:
+            if self.game.escape_ready() and (route := self.exit_route()) is not None:
                 c, dist, clear = route
                 out.append(Proposal(3, "idle_exit", "nav.suggest.exit", f"kurs {fmt_course(c)}",
                                     {"course": c, "dist": dist, "clear": clear,
-                                     "area": self.game.area_name}, cooldown=900))
+                                     "area": self.game.area_name, "via": self.exit_via},
+                                    cooldown=900))
         elif not (0.5 <= self.est_x <= size - 0.5 and 0.5 <= self.est_y <= size - 0.5):
             c = bearing_to(self.est_x, self.est_y, size / 2, size / 2)
             out.append(Proposal(3, "idle_area", "nav.suggest.area", f"kurs {fmt_course(c)}",
@@ -1282,50 +1303,146 @@ class NavigationStation(Station):
                                 f"kurs {fmt_course(c)}", {"course": c}))
         return out
 
+    def _steer_to(self, name: str) -> None:
+        wps = self.game.knowledge.waypoints
+        key = name.strip().lower()
+        wp = next((w for n, w in wps.items() if n.lower() == key), None) or \
+            next((w for n, w in wps.items() if n.lower().startswith(key[:5])), None)
+        if wp is None:
+            self.say("nav.steer.none", {"name": name, "known": sorted(wps)})
+            return
+        c = round(bearing_to(self.est_x, self.est_y, wp.x, wp.y)) % 360
+        self.vak = None
+        self.goal = None
+        self.course_set_t = self.now
+        self.ship.order_course(c)
+        self.say("nav.steer", {"name": wp.name, "course": c,
+                               "range": distance(self.est_x, self.est_y, wp.x, wp.y),
+                               "sigma": wp.sigma(self.now) + self.uncertainty()}, kind="ack")
+
     # --- ut ur området -------------------------------------------------------------
     def outside_area(self) -> bool:
         m, size = self.game.escape_nm or 0.0, self.game.world.size_nm
         return not (-m <= self.est_x <= size + m and -m <= self.est_y <= size + m)
 
-    def exit_route(self) -> tuple[float, float, bool] | None:
-        """Kortaste vägen ut ur området enligt besticket, helst inte mot en hotkontakt.
-        (kurs, sjömil till marginalen utanför kanten, fri från kontakter)"""
-        if self.outside_area():
-            return None
+    def _clear_path(self, x: float, y: float, course: float, dist: float) -> bool:
+        chart = self.game.knowledge.bathymetry
+        if chart is None or not chart.has_land:
+            return True
+        b = math.radians(course)
+        steps = np.arange(0.1, dist + 0.05, 0.1)
+        return not (chart.depths(x + steps * math.sin(b), y + steps * math.cos(b))
+                    < LAND_CLEAR_M).any()
+
+    def _edge_routes(self, x: float, y: float) -> list[tuple[float, float]]:
+        """Raka vägar ut till marginalen utanför varje kant som inte går över land."""
         m, size = self.game.escape_nm or 0.0, self.game.world.size_nm
-        x, y = self.est_x, self.est_y
         sigma = self.uncertainty()
         routes = [(90.0, size + m - x), (270.0, x + m), (0.0, size + m - y), (180.0, y + m)]
+        return [(c, d + sigma) for c, d in routes if self._clear_path(x, y, c, d + sigma)]
+
+    def _water_grid(self):
+        """Sjökortets vatten (djupt nog för periskopdjup) på ett rutnät, en gång."""
+        if self._water is None:
+            chart = self.game.knowledge.bathymetry
+            size, m = self.game.world.size_nm, (self.game.escape_nm or 0.0) + PATH_STEP_NM * 2
+            xs = np.arange(-m, size + m + PATH_STEP_NM / 2, PATH_STEP_NM)
+            gx, gy = np.meshgrid(xs, xs)            # [rad=y, kolumn=x]
+            self._water = (xs, chart.depths(gx, gy) >= LAND_CLEAR_M)
+        return self._water
+
+    def _path_out(self, x: float, y: float) -> tuple[float, float] | None:
+        """Väg genom vattnet ut ur området (bredden först på kortets rutnät).
+        (kurs mot den längsta raka biten av vägen, total längd) eller None."""
+        chart = self.game.knowledge.bathymetry
+        if chart is None or not chart.has_land:
+            return None
+        xs, ok = self._water_grid()
+        n = len(xs)
+        m, size = self.game.escape_nm or 0.0, self.game.world.size_nm
+        i0 = int(round((y - xs[0]) / PATH_STEP_NM))
+        j0 = int(round((x - xs[0]) / PATH_STEP_NM))
+        if not (0 <= i0 < n and 0 <= j0 < n):
+            return None
+        prev = {(i0, j0): None}
+        queue = deque([(i0, j0)])
+        goal = None
+        while queue:
+            i, j = queue.popleft()
+            px, py = xs[j], xs[i]
+            if not (-m <= px <= size + m and -m <= py <= size + m):
+                goal = (i, j)
+                break
+            for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)):
+                a, b = i + di, j + dj
+                if 0 <= a < n and 0 <= b < n and ok[a, b] and (a, b) not in prev:
+                    prev[(a, b)] = (i, j)
+                    queue.append((a, b))
+        if goal is None:
+            return None
+        path = []
+        cur = goal
+        while cur is not None:
+            path.append((float(xs[cur[1]]), float(xs[cur[0]])))
+            cur = prev[cur]
+        path.reverse()
+        total = sum(distance(*path[k], *path[k + 1]) for k in range(len(path) - 1))
+        # styr mot den längsta punkten längs vägen som syns rakt fram
+        aim = path[min(1, len(path) - 1)]
+        for px, py in path[1:]:
+            d = distance(x, y, px, py)
+            if d > 0.05 and self._clear_path(x, y, bearing_to(x, y, px, py), d):
+                aim = (px, py)
+        return bearing_to(x, y, *aim), total
+
+    def exit_route(self) -> tuple[float, float, bool] | None:
+        """Kortaste vägen ut ur området enligt besticket, helst inte mot en hotkontakt och
+        aldrig över land. (kurs, sjömil, fri från kontakter). Finns ingen rak väg går den
+        via en känd plats; `exit_via` säger vilken."""
+        self.exit_via = None
+        if self.outside_area():
+            return None
+        x, y = self.est_x, self.est_y
         threats = [t.last_bearing for t in self.game.knowledge.tracks.values()
                    if t.threat and t.last_bearing is not None]
         best = None
-        for c, d in routes:
-            d += sigma                      # osäkert läge: gå en bit längre
+        for c, d in self._edge_routes(x, y):
             clear = all(abs(angle_diff(c, b)) > EXIT_THREAT_SECTOR for b in threats)
             cost = d + (0.0 if clear else EXIT_THREAT_PENALTY_NM)
             if best is None or cost < best[0]:
                 best = (cost, c, d, clear and bool(threats))
+        if best is None and (leg := self._path_out(x, y)) is not None:
+            c, total = leg
+            best = (total, c, total, False)
+            self.exit_via = "runt land"
+        if best is None:
+            return None
         _, c, d, clear = best
         return c, d, clear
 
     def _escape_watch(self) -> None:
+        if not self.game.escape_ready():
+            return
         if self.outside_area():
             if not self._told_out:
                 self._told_out = True
                 self.say("nav.exit.out", {"area": self.game.area_name})
             return
         self._told_out = False
-        if self.now < EXIT_FIRST_SUGGEST_S:
+        if self.now < EXIT_FIRST_SUGGEST_S or not self.game.escape_ready():
             return
-        route = self.exit_route()
+        if self._exit_cache is None or self.now - self._exit_cache[0] >= EXIT_RECALC_S:
+            self._exit_cache = (self.now, self.exit_route(), self.exit_via)
+        _, route, self.exit_via = self._exit_cache
         if route is None:
             return
         c, dist, clear = route
         if abs(angle_diff(c, self.ship.ordered_course)) <= 20:
             return
         self.suggest("exit", "nav.suggest.exit",
-                     {"course": c, "dist": dist, "clear": clear, "area": self.game.area_name},
-                     order=f"kurs {fmt_course(c)}", cooldown=1200)
+                     {"course": c, "dist": dist, "clear": clear, "area": self.game.area_name,
+                      "via": self.exit_via},
+                     order=f"kurs {fmt_course(c)}", cooldown=600 if self.exit_via else 1200)
 
     # --- löpande -----------------------------------------------------------------
     def update(self) -> None:

@@ -168,6 +168,12 @@ class Game:
         """Om målet är att lämna området: marginalen utanför kanten (nm)."""
         return self.scenario.escape_margin_nm if self.scenario else None
 
+    def escape_ready(self) -> bool:
+        """Har vi det vi kom för (t.ex. fotot), så att vägen ut är det som återstår?"""
+        need = self.scenario.escape_requires_photo if self.scenario else None
+        best = self.knowledge.best_photo
+        return need is None or (best is not None and best >= need)
+
     def clock_str(self, sim_t: int | None = None) -> str:
         return clock(self.start_clock + (self.now if sim_t is None else sim_t))
 

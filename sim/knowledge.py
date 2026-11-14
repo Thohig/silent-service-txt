@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .events import (BearingObserved, ClassificationChanged, ContactDetected,
-                     ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound,
+                     ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound, PhotoTaken,
                      PositionReported)
 from .icemap import IceMap
 from .seabed import Seabed
@@ -82,6 +82,7 @@ class Knowledge:
     waypoints: dict[str, Waypoint] = field(default_factory=dict)
     bathymetry: Seabed | None = None     # det gamla sjökortets djupkurvor (inte sanningen)
     tide_table: TidalStream | None = None   # tidvattentabellen (förutsägelse, inte sanningen)
+    best_photo: Quality | None = None    # bästa spaningsfotot hittills
     hunt_t: int = -10**9                 # senast sonar hörde att fienden har oss
 
     def attach(self, bus: EventBus) -> None:
@@ -93,8 +94,13 @@ class Knowledge:
         bus.subscribe(OpeningNotFound, self._on_opening_not_found)
         bus.subscribe(PositionReported, self._on_position)
         bus.subscribe(HuntSigns, self._on_hunt)
+        bus.subscribe(PhotoTaken, self._on_photo)
 
     # --- händelser ------------------------------------------------------------
+    def _on_photo(self, e: PhotoTaken) -> None:
+        if self.best_photo is None or e.quality > self.best_photo:
+            self.best_photo = e.quality
+
     def _on_hunt(self, e: HuntSigns) -> None:
         self.hunt_t = e.t
 
