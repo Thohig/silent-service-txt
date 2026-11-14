@@ -2,17 +2,16 @@
 
 Passiv:  SE = SL - TL - (NL_bakgrund ⊕ NL_egen) - DT
 Aktiv:   SE = SL_ping - 2·TL + TS - NL - DT
-där ⊕ är effektsumma av brusnivåer i dB. Språngskiktet lägger till
-extra dämpning när källa och mottagare ligger på var sin sida om det.
+där ⊕ är effektsumma av brusnivåer i dB. Utbredningsförlusten (TL)
+kommer från miljöns ljudprofil, se environment.py.
 """
 from __future__ import annotations
 
 import math
 
-from .geo import NM_IN_M
+from .environment import ABSORPTION_DB_PER_NM, spherical_loss  # noqa: F401
 
 BACKGROUND_NOISE_DB = 60.0
-ABSORPTION_DB_PER_NM = 0.5
 
 # Källnivå för främmande fartyg: bas + lutning * fart
 _SOURCE = {
@@ -61,12 +60,11 @@ def cavitation_speed(depth: float) -> float:
 
 def transmission_loss(range_nm: float, depth_a: float | None = None,
                       depth_b: float | None = None, env=None) -> float:
-    r_m = max(range_nm * NM_IN_M, 1.0)
-    tl = 20.0 * math.log10(r_m) + ABSORPTION_DB_PER_NM * range_nm
+    """Utbredningsförlust. Med miljö och djup avgör miljöns ljudprofil,
+    annars ren sfärisk spridning."""
     if env is not None and depth_a is not None and depth_b is not None:
-        if env.layer_between(depth_a, depth_b):
-            tl += env.layer_loss
-    return tl
+        return env.transmission_loss(range_nm, depth_a, depth_b)
+    return spherical_loss(range_nm)
 
 
 def power_sum(*levels_db: float) -> float:

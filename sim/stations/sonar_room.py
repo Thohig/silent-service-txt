@@ -193,7 +193,7 @@ class SonarRoom(Station):
         st, env = self.own.state, self.game.world.env
         held = any(t.held for t in self.game.knowledge.tracks.values())
         out = []
-        if held and st.ordered_depth < env.layer_depth:
+        if held and env.layer_depth is not None and st.ordered_depth < env.layer_depth:
             d = env.layer_depth + 60
             out.append(Proposal(2, "idle_layer", "sonar.suggest.layer",
                                 f"djup {d:.0f}", {"layer": env.layer_depth, "depth": d}))
@@ -204,7 +204,7 @@ class SonarRoom(Station):
 
     def _suggest_layer(self) -> None:
         env, st = self.game.world.env, self.own.state
-        if st.ordered_depth < env.layer_depth:
+        if env.layer_depth is not None and st.ordered_depth < env.layer_depth:
             d = env.layer_depth + 60
             self.suggest("layer", "sonar.suggest.layer", {"layer": env.layer_depth, "depth": d},
                          order=f"djup {d:.0f}", cooldown=1800)
@@ -266,7 +266,7 @@ class SonarRoom(Station):
     def _evasive_depth(self, cooldown: int = 300) -> None:
         st = self.own.state
         env = self.game.world.env
-        if st.ordered_depth < env.layer_depth:
+        if env.layer_depth is not None and st.ordered_depth < env.layer_depth:
             d = env.layer_depth + 60
         elif st.ordered_depth < 200:
             d = min(st.ordered_depth + 80, 280)

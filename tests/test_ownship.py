@@ -3,7 +3,7 @@ import random
 import pytest
 
 from sim import acoustics as ac
-from sim.environment import Environment
+from sim.environment import Environment, Thermocline
 from sim.ownship import TEST_DEPTH, OwnShip
 from sim.ship import ShipState
 from sim.world import World
@@ -21,7 +21,7 @@ def _run(w, n):
 
 
 def test_layer_adds_loss_only_across_it():
-    env = Environment(layer_depth=60, layer_loss=7)
+    env = Environment(profile=Thermocline(layer_depth=60, layer_loss=7))
     same = ac.transmission_loss(5, 5, 40, env)
     across = ac.transmission_loss(5, 5, 100, env)
     assert across - same == pytest.approx(7)

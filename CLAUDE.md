@@ -52,7 +52,9 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   prestationspåverkan; prenumeration på `ReportDelivered` för tal (`say`).
 
 ## Kalibrering (ändra medvetet, kör sedan provspel)
-- Språngskikt 60 m, 7 dB (`environment.py`). Kavitationsfart `6 + djup/25` kn.
+- Språngskikt 60 m, 7 dB (`Thermocline` i `environment.py`). Arktis (`ArcticProfile`):
+  inget skikt, sfäriskt till 1 nm sedan cylindriskt, isstudsar 2,4 dB/nm som halveras
+  vid 150 m medeldjup. Kavitationsfart `6 + djup/25` kn.
 - Jagare: källnivå `137 + 1,25·fart`; ping 230 dB; aktiv räckvidd ~4,4 nm över
   skiktet, ~2 nm under. Passivt hör den oss sällan om vi inte kaviterar.
 - Egen ubåt: turbin 128 dB, smygmotor 112, reaktorpumpar 120 (går alltid när
