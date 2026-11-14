@@ -139,7 +139,7 @@ class Net:
 
 class PatrolBoatAI(DestroyerAI):
     """Liten ubåtsjaktbåt vid inloppet."""
-    PING_LEVEL = 218.0
+    PING_LEVEL = 196.0       # liten båt, gammal sonar: ~0,6 nm under skiktet
     SPEED_CLOSE = 18
     SPEED_SEARCH = 9
     SPEED_OPEN = 14
@@ -147,6 +147,9 @@ class PatrolBoatAI(DestroyerAI):
     SPEED_EVADE = 22
     CHARGES = (2, 6)
     PATROL_MARGIN = 0.1
+    PING_INTERVAL = {"patrol": 45, "prosecute": 15, "attack": 8, "evade": 30}
+    MAST_NM = 2.0
+    MAST_P = 0.01
 
 
 @dataclass

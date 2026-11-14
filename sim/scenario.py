@@ -368,7 +368,7 @@ STRAIT_RADIO = [
     RadioMessage("FRÅN HUVUDSTABEN. INGEN ÄNDRING.", {"nuclear_authorized": False}),
 ]
 
-HARBOR_PATROL_SPEED = 8.0
+HARBOR_PATROL_SPEED = 6.0
 
 
 def strait_scenario(rng: random.Random) -> Scenario:
@@ -395,11 +395,11 @@ def strait_scenario(rng: random.Random) -> Scenario:
     net_y = shore_c + 0.5
     half = coast.channel_w / 2 + 0.05
     net = Net(y=net_y, x0=cx - half, x1=cx + half, gate_x=cx)
-    phones = HydrophoneLine(hydrophone_points(cx - 3.0, cx + 3.0, shore_c - 1.0, 0.6),
+    phones = HydrophoneLine(hydrophone_points(cx - 2.5, cx + 2.5, shore_c - 0.6, 0.5),
                             random.Random(rng.random()))
-    xs = [cx - 3.0 + 0.1 * i for i in range(61)]
-    top = min(float(coast.shore(x)) for x in xs) - 0.4
-    box = (cx - 3.0, top - 2.2, cx + 3.0, top)
+    xs = [cx - 2.0 + 0.1 * i for i in range(41)]
+    top = min(float(coast.shore(x)) for x in xs) - 1.5   # skärm ute på djupt vatten
+    box = (cx - 2.0, top - 1.0, cx + 2.0, top)
     pb = Vessel("PB1", "patrol",
                 ShipState(x=rng.uniform(box[0], box[2]), y=rng.uniform(box[1], box[3]),
                           course=rng.uniform(0, 360), speed=HARBOR_PATROL_SPEED, turn_rate=4.0,
@@ -428,13 +428,14 @@ def strait_scenario(rng: random.Random) -> Scenario:
                                      side="enemy", has_radar=False))
 
     # hamntrafik genom grinden
-    lanes = (Lane("in", start=(cx, -2.0), end=(cx, coast.bay_y - 0.2), per_hour=0.5,
+    lanes = (Lane("in", start=(cx, -2.0), end=(cx, coast.bay_y - 0.2), per_hour=0.6,
                   speed=(8.0, 11.0), moor=True),
              Lane("ut", start=(cx, coast.bay_y - 0.4), end=(cx, -3.0), per_hour=0.4,
                   speed=(8.0, 11.0)))
     traffic = TrafficGenerator(TrafficDef(lanes=lanes, initial=1, width_nm=0.03),
                                random.Random(rng.random()))
     traffic.populate(world)
+    traffic.next_t[0] = rng.randint(60 * 60, 90 * 60)   # ett fartyg in genom grinden efter gryningen
     world.spawners.append(traffic)
 
     world.mission["nuclear_authorized"] = False

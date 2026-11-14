@@ -37,7 +37,7 @@ from typing import TYPE_CHECKING
 from . import acoustics
 from .entities import Transient, Vessel
 from .geo import bearing_to, distance, norm360
-from .seabed import bottom_clutter
+from .seabed import bottom_clutter, shallow_reverb
 from .weapons import Decoy, Torpedo, drop_charges
 
 if TYPE_CHECKING:
@@ -82,7 +82,10 @@ class DestroyerAI:
     SPEED_ATTACK = 15
     SPEED_EVADE = 30
     CHARGES = (3, 9)        # signal, skarpa
+    PING_INTERVAL = PING_INTERVAL
     PATROL_MARGIN = 1.0     # så långt utanför patrullområdet innan den vänder
+    MAST_NM = 4.0           # utkik och radar ser periskop och master så här långt
+    MAST_P = 0.03           # sannolikhet per sekund att de upptäcks inom det
 
     def __init__(self, vessel: Vessel, rng: random.Random, area: float = 20.0,
                  patrol_speed: float = 15.0, escalate_after: int | None = None,
@@ -157,6 +160,8 @@ class DestroyerAI:
     def _set_datum(self, world: World, x: float, y: float, depth: float, sigma: float,
                    fix: bool = False) -> None:
         now = world.time
+        if self._outside_leash(x, y):
+            return                  # utanför vår sektor: följ inte efter
         if self.datum is not None and not fix and sigma > self.datum.sigma \
                 and now - self.datum.t < 120:
             return          # behåll bättre färsk information
@@ -177,7 +182,7 @@ class DestroyerAI:
 
     def _shared_datum(self, now: int, d: Datum) -> None:
         """En annan jagare i gruppen meddelar sitt fix över radio."""
-        if self.vessel.sunk:
+        if self.vessel.sunk or self._outside_leash(d.x, d.y):
             return
         sigma = d.sigma + SHARED_SIGMA_NM
         mine = self.datum
@@ -232,7 +237,7 @@ class DestroyerAI:
         if own.surfaced:
             det_r, p = (10.0 if world.env.is_day(world.time) else 6.0), 0.2
         elif own.masts_up(world.time):
-            det_r, p = 4.0, 0.03
+            det_r, p = self.MAST_NM, self.MAST_P
         else:
             return
         if r < det_r and self.rng.random() < p:
@@ -275,7 +280,7 @@ class DestroyerAI:
         s = self.vessel.state
         now = world.time
         world.emit(Transient("ping", s.x, s.y, 5.0, self.PING_LEVEL, self.vessel.id, now))
-        self.next_ping = now + PING_INTERVAL[self.state] + self.rng.randint(0, 3)
+        self.next_ping = now + self.PING_INTERVAL[self.state] + self.rng.randint(0, 3)
         echoes = []
         for tgt in [world.own, *[d for d in world.contacts if isinstance(d, Decoy)]]:
             if tgt.sunk or self._in_dead_zone(tgt):
@@ -284,6 +289,7 @@ class DestroyerAI:
             se = acoustics.active_excess(self.PING_LEVEL, tl, tgt.target_strength,
                                          self._noise_toward(world, noise, tgt), DT_ACTIVE) \
                 - self._wake_clutter(world, tgt) - bottom_clutter(world, tgt) \
+                - shallow_reverb(world, tgt.state.x, tgt.state.y) \
                 + self.rng.gauss(0, 3)
             if se > 0:
                 echoes.append((tgt, se))
@@ -306,13 +312,17 @@ class DestroyerAI:
         r_m = distance(s.x, s.y, tgt.state.x, tgt.state.y) * 1852.0
         return r_m < tgt.depth / math.tan(math.radians(DEAD_ZONE_DEG))
 
-    def _beyond_leash(self, now: int) -> bool:
-        if self.leash_nm is None or self.datum is None:
+    def _outside_leash(self, px: float, py: float) -> bool:
+        if self.leash_nm is None:
             return False
-        px, py = self.datum.predict(now)
         m = self.leash_nm
         x0, y0, x1, y1 = self.box
         return not (x0 - m <= px <= x1 + m and y0 - m <= py <= y1 + m)
+
+    def _beyond_leash(self, now: int) -> bool:
+        if self.datum is None:
+            return False
+        return self._outside_leash(*self.datum.predict(now))
 
     # ------------------------------------------------------------------ beslut
     def step(self, world: World) -> None:

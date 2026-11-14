@@ -61,7 +61,7 @@ DEPTH_LOG_INTERVAL_S = 10   # djupprofilen: djupmätaren noteras så här ofta
 PROFILE_KEEP_S = 3 * 3600   # så långt bakåt minns profilen
 SHOAL_MARGIN_M = 30         # håll så här långt över botten enligt kortet
 SHOAL_LOOK_MIN = 6          # navigatören tittar så många minuters gång framåt
-SHOAL_LOOK_MIN_NM = 1.0     # men minst så långt
+SHOAL_LOOK_MIN_NM = 0.6     # men minst så långt (stigning 100 m tar ~7 min)
 SHOAL_CHECK_S = 20
 SOUNDING_TRUST_S = 600      # en lodning räknas så här länge
 BFIX_N = 9                  # fix mot botten: så många lodningar
@@ -71,6 +71,11 @@ BFIX_FLAT = 0.8             # matchningen smalnar inte av mer än så: botten f�
 BFIX_GAIN = 2.0             # föreslå bara om besticket är så här mycket sämre än kortet
 BFIX_RELIEF_M_PER_NM = 150  # föreslå bottenfix bara där kortet visar så här brant botten
 PERISCOPE_FIX_SIGMA = 0.1
+COAST_FIX_SIGMA = 0.05      # bäringar på landmärken: snabbare och bättre
+COAST_FIX_S = 30
+COAST_FIX_NIGHT_S = 45      # fyrar
+LANDMARK_DAY_NM = 8.0
+LANDMARK_NIGHT_NM = 5.0
 LAND_MARK_STEP_NM = 0.25   # land på sjökortet: en prick per ruta
 LAND_CLEAR_M = 21          # grundare än så framåt: inte ens periskopdjup går, gir i stället
 LAND_TURNS = (30, 60, 90, 120, 150, 180)
@@ -224,7 +229,9 @@ PHRASES = {
     else f"Djup {d['depth']:.0f} meter, kapten.",
     "nav.limit": lambda d: f"Kapten, högsta fart just nu är {kn(d['limit'])} knop."
     if d["what"] == "speed" else f"Kapten, största djup är {d['limit']:.0f} meter.",
-    "nav.fix.start": lambda d: "Tar fix i periskopet, cirka två minuter.",
+    "nav.fix.start": lambda d: ("Tar fix på landmärken, en halv minut." if d.get("coast") and
+                                d.get("day") else "Tar fix på fyrarna, under en minut."
+                                if d.get("coast") else "Tar fix i periskopet, cirka två minuter."),
     "nav.fix.refused": lambda d: f"Kapten, {d['reason']}.",
     "nav.fix.aborted": lambda d: "Fixen avbröts, vi lämnade periskopdjup.",
     "nav.fix.done": lambda d: f"Fix tagen. Bestick korrigerat {nm(d['error'])} sjömil "
@@ -370,7 +377,8 @@ class NavigationStation(Station):
         self.log_bias = rng.gauss(0, 0.01 + 0.02 * (1 - skill))
         self.last_fix_t = 0
         self.fix_sigma = PERISCOPE_FIX_SIGMA
-        self._tide_fix_t, self._tide_sigma = 0, 0.0   # tidvattnets bidrag sedan senaste fix
+        self._tide_fix_t, self._tide_sigma = 0, 0.0
+        self._fix_coast = False   # tidvattnets bidrag sedan senaste fix
         self._bfix: list[tuple[float, float, float]] | None = None   # (x, y beräknat, djup)
         self._bfix_next = 0
         self.course_set_t = 0
@@ -939,9 +947,24 @@ class NavigationStation(Station):
         if reason:
             self.say("nav.fix.refused", {"reason": reason})
             return
-        own.sys.periscope_until = max(own.sys.periscope_until, self.now + FIX_TIME_S)
-        self.fix_done_t = self.now + FIX_TIME_S
-        self.say("nav.fix.start", kind="ack")
+        day = self.game.world.env.is_day(self.now)
+        self._fix_coast = self._land_in_sight(day)
+        t = (COAST_FIX_S if day else COAST_FIX_NIGHT_S) if self._fix_coast else FIX_TIME_S
+        own.sys.periscope_until = max(own.sys.periscope_until, self.now + t)
+        self.fix_done_t = self.now + t
+        self.say("nav.fix.start", {"coast": self._fix_coast, "day": day}, kind="ack")
+
+    def _land_in_sight(self, day: bool) -> bool:
+        """Visar kortet land inom synhåll? Då tas fixen med bäringar på landmärken."""
+        chart = self.game.knowledge.bathymetry
+        if chart is None or not chart.has_land:
+            return False
+        reach = LANDMARK_DAY_NM if day else LANDMARK_NIGHT_NM
+        ang = np.radians(np.arange(0, 360, 15))
+        for r in np.arange(0.5, reach + 0.01, 0.5):
+            if (chart.depths(self.est_x + r * np.sin(ang), self.est_y + r * np.cos(ang)) <= 0).any():
+                return True
+        return False
 
     # --- isen -----------------------------------------------------------------------
     def _sound_ice(self) -> None:
@@ -1472,7 +1495,8 @@ class NavigationStation(Station):
             elif self.now >= self.fix_done_t:
                 self.fix_done_t = None
                 rng = self.game.rng
-                new_x, new_y = s.x + rng.gauss(0, 0.08), s.y + rng.gauss(0, 0.08)
+                e = COAST_FIX_SIGMA if self._fix_coast else 0.08
+                new_x, new_y = s.x + rng.gauss(0, e), s.y + rng.gauss(0, e)
                 err = distance(self.est_x, self.est_y, new_x, new_y)
                 b = bearing_to(self.est_x, self.est_y, new_x, new_y)
                 self.dr_track[-1].append((self.est_x, self.est_y))
@@ -1480,7 +1504,7 @@ class NavigationStation(Station):
                 self.fixes.append((new_x, new_y, self.now))
                 self.est_x, self.est_y = new_x, new_y
                 self.last_fix_t = self.now
-                self.fix_sigma = PERISCOPE_FIX_SIGMA
+                self.fix_sigma = COAST_FIX_SIGMA if self._fix_coast else PERISCOPE_FIX_SIGMA
                 self.say("nav.fix.done", {"error": err, "bearing": b})
 
         sigma = self.uncertainty()

@@ -149,6 +149,24 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   inom max(1 nm, 3σ) från oss (ett skenmål räknas inte). Navigatören (`exit_route`) föreslår
   närmaste kant, +4 nm straff inom 40° från en hotkontakt. 8 frön: passiv 0, ja-boten 3,
   djupt och fort (turbin 12 kn, 200 m, rakt ut) 7.
+- Kust (`seabed.Coast`, `strait_seabed`): land har negativt djup (`Seabed.min_depth` < 0),
+  sjökortet ritar land (`░`) och kustlinje. Tidvatten (`environment.TidalStream`, period 12 h 25 min)
+  skalar med djupet: `peak·clamp(60/djup, 0,2, 1,5)`; `Environment.current_at(x, y, t)` används för
+  alla fartyg och torpeder. Navigatören räknar besticket med `Knowledge.tide_table` (fel ±20 % och
+  ±20 min) och lägger 0,3·|tidvatten| per timme på σ. Landvarning (`_land_watch`) föreslår gir när
+  kortet visar < 21 m framåt. Fix nära land (land inom 8 nm dag, 5 natt): 30 s / 45 s, σ 0,05.
+  Vägen ut (`exit_route`) går aldrig över land; finns ingen rak väg söker den på kortets rutnät.
+  Efterklang på grunt vatten (`seabed.shallow_reverb`): aktiv sonar −15 dB vid 0 m, 0 vid 100 m.
+  Navigatören tittar 6 min framåt, minst 0,6 nm (förut 1 nm).
+- Hamnskydd (`harbor.py`): hydrofoner DT 10, kustbrus 64 dB (smygmotor 3 kn hörs < 0,15 nm,
+  turbin 5 kn ~0,5 nm); nät med grind ±0,06 nm som är öppen 4 min efter att ett fartyg varit inom
+  1 nm. Patrullbåt (`PatrolBoatAI`): ping 196 dB (~0,5 nm under skiktet, ~1 nm över), 6 kn,
+  ping var 45:e s i patrull, master inom 2 nm med 1 %/s. Jägare tar aldrig emot ett datum utanför
+  `leash_nm` (gäller även Jagade).
+- Sundet (`sundet`, `strait_scenario`): KALIBRERINGEN ÄR INTE KLAR. Med skärmen 1,5–2,5 nm ut
+  klarar inte ens en bot som läser sanningen (väntar tills patrullbåten är > 2,2 nm bort, korsar
+  i 5 kn på 120 m) uppdraget i något av 8 frön: den upptäcks i skärmen, av hydrofonerna eller när
+  navigatören tar upp den grunt för tidigt. Botarna ligger i scratchpad (`strait_bot.py`).
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m.
 - Packis (`ice.py`): rutor 0,05 nm, flerårsis 2–4,5 m, kölar 8–25 m (6 % 30–45 m),
   170 råkar, 28 polynyor ⇒ ~4–5 % öppet vatten, en öppning ungefär var 30:e minut

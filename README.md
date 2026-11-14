@@ -8,7 +8,7 @@ och plottlagets målrörelseanalys.
 
 ```bash
 uv run main.py                     # scenarioväljare, slumpat frö
-uv run main.py --scenario kuba     # hoppa över väljaren (kuba, jagad, arktis)
+uv run main.py --scenario kuba     # hoppa över väljaren (kuba, jagad, sundet, arktis)
 uv run main.py --seed 4            # reproducerbart scenario
 uv run main.py --tyst              # utan ljud
 uv run pytest             # tester
@@ -44,9 +44,9 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Tid | `tid 1` `tid 2` `tid 5` `tid 10` (faller till 1× vid larm) |
 | Sonar | `aktiv sonar` (ger avstånd men avslöjar oss) |
 | Plott | `läge S-1` · `plot S-1` |
-| Navigation | `position` · `fix` (periskopdjup) · `ekolod` · `isekolod` · `vak` (gå till och stoppa under en loggad öppning i isen) · `drivstationen` (styr mot Nord-7) · `botten` (lägg oss stilla på botten; `djup` eller `fart` lättar) · `bottenfix` (nio lodningar på tre minuter jämförs med sjökortets djup) |
+| Navigation | `position` · `fix` (periskopdjup) · `kurs mot <plats>` · `ekolod` · `isekolod` · `vak` (gå till och stoppa under en loggad öppning i isen) · `drivstationen` (styr mot Nord-7) · `botten` (lägg oss stilla på botten; `djup` eller `fart` lättar) · `bottenfix` (nio lodningar på tre minuter jämförs med sjökortets djup) |
 | Maskin | `smygmotor` · `turbin` · `stäng reaktorn` · `starta reaktorn` · `nödblåsning` · `maskin` · `ventilera` (periskopdjup i öppen luft) |
-| Vakthavande | `periskop` · `radar` (periskopdjup; radarvarnaren är automatisk) |
+| Vakthavande | `periskop` · `radar` (periskopdjup; radarvarnaren är automatisk) · `foto` (periskopfoto av ankarplatsen) |
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
 | Ljud | `ctrl+t` eller `ljud` / `ljud av` / `ljud på`: besättningen talar (macOS-rösten Alva), larmen går det sonaren hör spelas i stereo (babord till vänster) och båten låter: reaktor, turbin, skrov, is, brand och kontakternas propellrar |
@@ -76,6 +76,7 @@ en del säger de vilken, och resten verkställs ändå.
 | Havsbotten | Botten varierar: vid Kuba en bank på 120–200 m längs ena sidan, ett undervattensberg och en ränna i djuphavet; i Arktis en rygg vars krön når cirka 1 000 m. Sjökortet har djupkurvor från ett gammalt kort, förskjutna och utjämnade, och ibland saknas berget. Ekolodet (`ekolod`) ger det verkliga djupet men hörs. Går vi in i botten i mer än 2 knop går vi på grund: skador på skrov, sonar eller roder och läckor i högre fart. Navigatören varnar när kortet eller en färsk lodning visar grundare vatten framåt, och osäkrare ju äldre besticket är. Grundare än provdjup kan vi lägga oss stilla på botten (`botten`): maskinen stoppas, kylpumparna går på lågvarv och jagarens eko drunknar i bottenekot. Sand och lera är mjuka; klippbotten (berg, ryggar, branta sluttningar) skrapar skrovet. Bottentypen står på sjökortet, som kan ha fel. Navigatören föreslår det när vi är jagade över grunt, mjukt vatten. Fix mot botten (`bottenfix`) går utan periskop, även under isen: nio lodningar i minst två knop matchas mot kortet. Längs en rak sluttning ger det bara en lägeslinje, vid ett berg eller en ränna läget i båda led, och aldrig bättre än kortet (0,5 nm vid Kuba, 0,8 i Arktis). Saknar kortet något säger navigatören det och låter besticket vara. Lodningarna hörs. |
 | Radio | Sambandstillfällen på antenndjup (tider beror på scenariot). Sändning pejlas. |
 | Jagade (`jagad`) | Spelet börjar mitt i jakten, kl 00:40: en jagare har just fått kontakt på 2–3 sjömil och en till kommer söderifrån. Jagarna delar sina fix över radio. Efter tre anfall med signalsjunkbomber går de över till skarpa. Smyga hjälper inte när de redan har oss: djupt och fort, och sväng när de går in för anfall, för skrovsonaren ser inte rakt ned och efter detonationerna är den döv en minut. Målet är att lämna kvadrat 7 (en sjömil utanför kanten, längre följer jagarna inte efter) utan att någon jagare eller något plan har kontakt. Navigatören föreslår kortaste vägen ut som inte leder mot en hotkontakt, och banken på ena sidan ger möjlighet att lägga sig på botten. Flyget kommer efter 25–45 minuter. |
+| Sundet (`sundet`) | Guantánamo, 04:20, gryning 06:10. In mot inloppet från havet: en patrullbåt håller en skärm på djupt vatten 1,5–2,5 sjömil ut, hydrofoner ligger på botten en halv sjömil ut och ett nät spärrar farleden. Grinden i nätet öppnas när ett fartyg ska igenom; periskopet ser bojarna och om grinden är öppen. Fotografera ankarplatsen (`foto`, dagsljus, ju närmare desto bättre bild; god bild krävs) och ta er ut. `kurs mot ankarplatsen` / `kurs mot nätet` styr mot kända platser. Tidvattnet sätter in och ut i farleden; navigatören räknar med tabellen, som har fel. Nära land tar navigatören fix på landmärken på en halv minut. På grunt vatten dränks aktiv sonar av efterklang. |
 | Arktis: Nord-7 | Drivstationen driver med isen. Huvudstaben ger en ungefärlig position; generatorn hörs på några sjömil och ljuset syns i periskopet. Målet är ytläge inom 1,5 sjömil. En amerikansk atomubåt hör oss före vi hör den och skuggar oss, men skjuter inte. |
 | Brand och rök (arktis) | En brand i turbinrummet stoppar turbinen. Röken stiger tills vi ventilerar i öppen luft och sänker besättningens förmåga; för tät rök kväver besättningen. |
 | Isljud (arktis) | Bakgrundsbruset beror på isen. Skruvis knakar och kan först tas för en kontakt. |

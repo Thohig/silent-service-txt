@@ -356,6 +356,21 @@ def keel_clearance(seabed: Seabed, x: float, y: float, course: float, depth: flo
     return min(seabed.depth_at(px, py) - depth for _, px, py in keel_points(x, y, course))
 
 
+SHALLOW_REVERB_M = 100.0        # grundare: efterklang från botten och ytan stör aktiv sonar
+SHALLOW_REVERB_DB = 15.0        # vid noll meter; linjärt mot SHALLOW_REVERB_M
+
+
+def shallow_reverb(world: World, x: float, y: float) -> float:
+    """Avdrag (dB) för aktiv sonar mot ett mål på grunt vatten: efterklangen dränker ekot."""
+    seabed = world.env.seabed
+    if seabed is None:
+        return 0.0
+    d = seabed.depth_at(x, y)
+    if d >= SHALLOW_REVERB_M:
+        return 0.0
+    return SHALLOW_REVERB_DB * (SHALLOW_REVERB_M - max(d, 0.0)) / SHALLOW_REVERB_M
+
+
 def bottom_clutter(world: World, vessel) -> float:
     """Ekot från en ubåt som ligger på eller strax över botten drunknar i bottenekot (dB)."""
     seabed = world.env.seabed

@@ -131,3 +131,26 @@ def test_chart_draws_land_and_coastline():
     items = g.chart().items if hasattr(g.chart(), "items") else g.chart()
     styles = {getattr(i, "style", None) for i in items}
     assert {"land", "coast"} <= styles
+
+
+def test_fix_near_land_uses_landmarks_and_is_quick():
+    sb = _sb()
+    c = sb.features[0]
+    g = _game(sb, c.channel_x, float(c.shore(c.channel_x)) - 2.0, depth=15.0, speed=3.0)
+    g.world.env.clock_start = 12 * 3600
+    said = []
+    g.bus.subscribe(ReportDelivered, lambda e: said.append(e.report.type))
+    g.command("fix")
+    for _ in range(40):
+        g.tick()
+    assert "nav.fix.done" in said
+    assert g.station(NavigationStation).uncertainty() < 0.07
+    # långt ute till havs: den vanliga fixen på två minuter
+    g = _game(sb, c.channel_x, 0.5, depth=15.0, speed=3.0)
+    g.world.env.clock_start = 12 * 3600
+    said = []
+    g.bus.subscribe(ReportDelivered, lambda e: said.append(e.report.type))
+    g.command("fix")
+    for _ in range(40):
+        g.tick()
+    assert "nav.fix.done" not in said
