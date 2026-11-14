@@ -12,7 +12,8 @@ from ..geo import angle_diff, norm360
 from ..knowledge import ContactTrack
 from ..orders import DESIG, CommandSpec, Order, desig
 from ..reports import Quality
-from ..tma import MANEUVER_CHI2, Solution, own_maneuvered, predicted_bearing
+from ..tma import (MANEUVER_CHI2, MANEUVER_SPLIT, MAX_TARGET_KN, Solution, maneuver_statistic,
+                   own_maneuvered, predicted_bearing)
 from .base import Proposal, Station
 
 PLOT_INTERVAL = 30              # sekunder mellan omräkningar
@@ -22,6 +23,7 @@ TABLE_ROWS = 15
 BEARING_LINE_NM = 12.0          # bäringslinjer på kortet
 VECTOR_S = 360                  # fartvektor på kortet: sex minuters gång
 FADE_S = 300                    # äldre bäringar ritas bleka
+MANEUVER_REPEAT_S = 300         # säg "har ändrat kurs" högst så här ofta per kontakt
 FORGET_S = 1800                 # tappade kontakter: bäringen tas bort efter så här länge
 
 
@@ -53,6 +55,7 @@ class PlotTeam(Station):
     def __init__(self, game):
         super().__init__(game)
         self._last_suggest: dict[str, int] = {}
+        self._maneuver_said: dict[str, int] = {}
 
     # --- order ------------------------------------------------------------------
     def on_order(self, order: Order) -> None:
@@ -160,10 +163,13 @@ class PlotTeam(Station):
             sol = self._resolve(tr)
             if sol is None:
                 continue
-            if sol.fit > MANEUVER_CHI2 and sol.n_obs >= 12:
+            if sol.n_obs >= 12 and (sol.fit > MANEUVER_CHI2 or self._target_turned(tr, sol)):
                 tr.tma_from_t = self.now - 120
-                self.say("plot.maneuver", {"designation": tr.designation},
-                         kind="solution", quality=Quality.DALIG, alarm=True)
+                # ett mål som girar hela tiden (jagaren söker) startas om tyst däremellan
+                if self.now - self._maneuver_said.get(tr.designation, -10**9) >= MANEUVER_REPEAT_S:
+                    self._maneuver_said[tr.designation] = self.now
+                    self.say("plot.maneuver", {"designation": tr.designation},
+                             kind="solution", quality=Quality.DALIG, alarm=True)
                 sol = self._resolve(tr)
                 if sol is None:
                     continue
@@ -199,6 +205,15 @@ class PlotTeam(Station):
                                  "course": course, "first": not sol.own_maneuvered},
                                 quality=sol.quality, cooldown=SUGGEST_COOLDOWN))
         return out
+
+    def _target_turned(self, tr: ContactTrack, sol: Solution) -> bool:
+        """Har målet girat? Brytpunktstestet på bäringarna sedan senaste omstart.
+        En dålig lösning ritas inte som läge, så den prövas inte, utom när den är
+        dålig för att farten är orimlig: det är ofta just en gir."""
+        if sol.quality < Quality.OSAKER and sol.speed <= MAX_TARGET_KN:
+            return False
+        obs = [o for o in tr.observations if o.t >= tr.tma_from_t]
+        return maneuver_statistic(obs, sol) > MANEUVER_SPLIT
 
     def _maneuvered_recently(self, tr: ContactTrack) -> bool:
         recent = [o for o in tr.observations if o.t >= self.now - SUGGEST_MIN_LEG_S]

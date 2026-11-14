@@ -38,6 +38,15 @@ MAX_OBS = 400
 MIN_OBS = 6
 MIN_SPAN_S = 60
 MANEUVER_CHI2 = 4.0     # över detta passar rak-kurs-modellen inte datan
+# Brytpunktstest: hur mycket bättre två raka ben (före/efter de senaste minuterna)
+# förklarar bäringarna än ett. Utan manöver ~chi² med 4 frihetsgrader (median 2,
+# 99 % under 10 i provspel); en gir ger tiotals till hundratals.
+MANEUVER_SPLIT = 15.0
+SPLIT_AGES_S = (300, 600)       # pröva brytpunkt så här långt tillbaka
+SPLIT_MIN_BEFORE = 12           # bäringar före brytpunkten
+SPLIT_MIN_BEFORE_SPAN_S = 300
+SPLIT_MIN_AFTER = 8
+MAX_TARGET_KN = 35.0            # snabbare än något fartyg: rak-kurs-modellen stämmer inte
 _START_RANGES_NM = (1.0, 2.0, 3.5, 5.0, 7.0, 10.0, 14.0)
 
 
@@ -266,7 +275,48 @@ def solve(observations: Sequence[BearingObs], t_now: int | None = None,
         course=course, speed=speed, range_nm=rng,
         bearing=norm360(math.degrees(math.atan2(dx, dy))),
         range_sigma=range_sigma, course_sigma=course_sigma, speed_sigma=speed_sigma,
-        quality=Quality.DALIG if fit > MANEUVER_CHI2 else quality_from(rel, len(obs), span),
+        quality=Quality.DALIG if fit > MANEUVER_CHI2 or speed > MAX_TARGET_KN
+        else quality_from(rel, len(obs), span),
         n_obs=len(obs), span_s=span, own_maneuvered=own_maneuvered(obs),
         rms_residual=rms, fit=fit,
     )
+
+
+def _bearing_cost(obs: Sequence[BearingObs], sol: Solution) -> float:
+    """Viktad kvadratsumma av residualerna (utan antagandena)."""
+    p = _Problem(obs, sol.t_ref)
+    e, _ = p.residuals_and_jacobian(np.array(sol.state))
+    return float(np.sum(p.w * e * e))
+
+
+def maneuver_statistic(observations: Sequence[BearingObs],
+                       full: Solution | None = None) -> float:
+    """Brytpunktstest för målmanöver.
+
+    En mjuk gir som rak-kurs-modellen kan följa syns inte i den sammanlagda
+    anpassningen (fit), men två raka ben förklarar då bäringarna mycket
+    bättre än ett. Returnerar största förbättringen över de prövade
+    brytpunkterna; 0 om datan inte räcker. full: färdig lösning på samma
+    bäringar, om den redan finns.
+    """
+    obs = list(observations)[-MAX_OBS:]
+    if not obs:
+        return 0.0
+    obs = [o for o in obs if o.t >= obs[-1].t - MAX_SPAN_S]
+    full = full if full is not None else solve(obs)
+    if full is None:
+        return 0.0
+    c_full = _bearing_cost(obs, full)
+    best = 0.0
+    for age in SPLIT_AGES_S:
+        cut = obs[-1].t - age
+        before = [o for o in obs if o.t < cut]
+        after = [o for o in obs if o.t >= cut]
+        if len(before) < SPLIT_MIN_BEFORE or len(after) < SPLIT_MIN_AFTER \
+                or before[-1].t - before[0].t < SPLIT_MIN_BEFORE_SPAN_S:
+            continue
+        sa, sb = solve(before), solve(after)
+        if sa is None or sb is None:
+            continue
+        best = max(best, c_full - _bearing_cost(before, sa) - _bearing_cost(after, sb))
+    return best

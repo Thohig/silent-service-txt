@@ -67,7 +67,9 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
 - Egen ubåt: turbin 128 dB, smygmotor 112, reaktorpumpar 120 (går alltid när
   reaktorn är i drift). Vi hör jagaren på ~5–6 nm under skiktet i 5 kn.
 - TMA: svaga antaganden (fart σ 30 kn, avstånd log-normal kring 6 nm), 30 min
-  fönster, kvalitet ur σ_r/r (10/25/50 %), manöverdetektering vid chi² > 4.
+  fönster, kvalitet ur σ_r/r (10/25/50 %), fart > 35 kn ⇒ dålig. Målmanöver vid
+  chi² > 4 eller brytpunktstest > 15 (två raka ben före/efter 5 eller 10 min mot ett;
+  raka mål ger median 2, max ~12). Plottlaget säger manöver högst var 5:e min per kontakt.
   Två ben i sicksack ska normalt ge god/säker lösning på ~20 min.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m.
 - Packis (`ice.py`): rutor 0,05 nm, flerårsis 2–4,5 m, kölar 8–25 m (6 % 30–45 m),
@@ -75,7 +77,7 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   i 5 kn. Tornets topp 13 m och skrovets 8 m över kölen. Tunn is ≤ 1 m bryts i
   ≤ 2 kn på 40 s. Isdrift 0,25 kn mot 200°. Isbrus 50 dB (fast is) till 72 dB.
 - Arktis: generatorn 142 dB, US-ubåt 125 + 1,5·fart med DT 0 och egenbrus 48 + fart.
-  Mål: ytläge inom 1,5 nm från Nord-7. Ja-boten når målet i ~11 av 12 frön.
+  Mål: ytläge inom 1,5 nm från Nord-7. Ja-boten når målet i ~10 av 12 frön.
 - Brand (arktis, 40–110 min): rök 0,0009/s medan det brinner (7–13 min), sedan
   +0,2/h tills ventilation (−0,02/min på periskopdjup, −0,05/min i ytläge). Rök 1,0 = förlorad.
   Röken sänker `effective_skill()` med upp till 50 %.

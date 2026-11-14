@@ -3,7 +3,8 @@ import random
 from sim.geo import bearing_to, distance
 from sim.reports import Quality
 from sim.ship import ShipState
-from sim.tma import BearingObs, solve
+from sim.tma import (MANEUVER_CHI2, MANEUVER_SPLIT, MAX_TARGET_KN, BearingObs, maneuver_statistic,
+                     solve)
 
 
 def _run(own, tgt, seconds, rng, obs, sigma=1.0, every=10, t0=0):
@@ -105,3 +106,50 @@ def test_target_maneuver_is_detected_by_poor_fit():
     after = solve(obs, t_now=t, own_now=(own.x, own.y))
     assert before.fit < 2.0
     assert after.fit > 4.0 and after.quality == Quality.DALIG
+
+
+# --- målmanöver: brytpunktstestet ---------------------------------------------------
+def _two_legs(seed, turn_to=None, turn_rate=1.0):
+    """Egen ubåt sicksackar; målet går rakt eller girar mjukt efter 20 min."""
+    rng = random.Random(seed)
+    own = ShipState(x=10, y=2, course=0, speed=5)
+    tgt = ShipState(x=6, y=8, course=100, speed=15, turn_rate=turn_rate, max_speed=30)
+    obs: list[BearingObs] = []
+    t = _run(own, tgt, 600, rng, obs, sigma=1.0, every=5)
+    own.order_course(60)
+    t = _run(own, tgt, 600, rng, obs, sigma=1.0, every=5, t0=t)
+    if turn_to is not None:
+        tgt.order_course(turn_to)
+    t = _run(own, tgt, 420, rng, obs, sigma=1.0, every=5, t0=t)
+    return obs, t, own, tgt
+
+
+def test_gentle_target_turn_is_found_by_the_split_test():
+    """En gir på 35° som den sammanlagda anpassningen inte ser (fit ~1)."""
+    found = 0
+    for seed in range(8):
+        obs, t, own, tgt = _two_legs(seed, turn_to=135)
+        sol = solve(obs, t_now=t, own_now=(own.x, own.y))
+        assert sol.fit < MANEUVER_CHI2
+        if maneuver_statistic(obs, sol) > MANEUVER_SPLIT:
+            found += 1
+    assert found >= 7
+
+
+def test_straight_target_rarely_trips_the_split_test():
+    stats = []
+    for seed in range(20):
+        obs, t, own, tgt = _two_legs(100 + seed)
+        stats.append(maneuver_statistic(obs))
+    assert sum(s > MANEUVER_SPLIT for s in stats) <= 1
+    assert sorted(stats)[len(stats) // 2] < 5
+
+
+def test_impossible_speed_is_poor_quality():
+    obs, t, own, tgt = _two_legs(3)
+    sol = solve(obs, t_now=t, own_now=(own.x, own.y))
+    assert sol.quality >= Quality.GOD
+    fast = [BearingObs(o.t // 3, o.bearing, o.sigma, o.own_x, o.own_y, o.own_course)
+            for o in obs]                       # samma bäringar på en tredjedel av tiden
+    q = solve(fast)
+    assert q.speed > MAX_TARGET_KN and q.quality == Quality.DALIG
