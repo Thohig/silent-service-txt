@@ -74,7 +74,9 @@ PHOTO_TARGET_KIND = "moored"
 SIGHTED = {"destroyer": ("jagare, amerikansk", "jagare"),
            "merchant": ("handelsfartyg", "handelsfartyg"),
            "patrol": ("patrullbåt, amerikansk", "patrullbåt"),
-           "moored": ("fartyg till ankars", "fartyg till ankars")}
+           "moored": ("fartyg till ankars", "fartyg till ankars"),
+           "transport": ("trupptransport, amerikansk", "trupptransport"),
+           "tanker": ("tankfartyg, amerikanskt", "tankfartyg")}
 
 
 def _view_object(type_: str, d: dict) -> SightedObject | None:

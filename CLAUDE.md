@@ -49,6 +49,10 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   `MerchantAI` styr dem. Neutrala fartyg (`World.neutral_ships`) är inte fiender; sänks
   ett slutar spelet (`neutral_sunk`). Kunskap: `ContactTrack.civil`/`warship`; civila
   räknas inte som hot men plottas tyst för kortet.
+- **Konvoj:** `convoy.py` (sanning). `Convoy` är en spawner med en ledpunkt som sicksackar efter
+  `ZIGZAG_PLANS` (medelavdrift ~0) kring baskursen; `ConvoyShipAI` håller platsen (fast i baskursens
+  riktning). Nödgir 50° bort från hotet, +3 kn i 15 min (sänkt fartyg, egen torped < 1,5 nm,
+  detonation < 4 nm), sedan baskurs och plan igen. Typer `transport` (145 + fart dB) och `tanker` (143).
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen

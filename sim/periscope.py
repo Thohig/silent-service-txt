@@ -29,6 +29,8 @@ HEIGHTS: dict[str, tuple[float, float, float]] = {
     "merchant": (7.0, 16.0, 28.0),
     "moored": (7.0, 16.0, 28.0),
     "patrol": (2.5, 5.0, 9.0),
+    "transport": (9.0, 22.0, 34.0),
+    "tanker": (5.0, 13.0, 26.0),
 }
 DEFAULT_HEIGHTS = (6.0, 14.0, 25.0)
 

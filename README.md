@@ -146,6 +146,7 @@ sim/                 ren Python, ingen Textual
   profile.py         djupprofilens element; stationerna bidrar via profile_items()
   systems.py         systemtavlans element; stationerna bidrar via system_items()
   periscope.py       periskopbilden: synlig del, vinkel på bogen, lanternor (kunskap)
+  convoy.py          SANNING: konvojens ledpunkt, sicksack, formation och nödgir
   stations/          ett system ombord per modul
     base.py          Station: COMMANDS, on_order, update, say, suggest
     navigation.py    kurs, fart, djup, bestick, fix, ekolod, isekolod, vak

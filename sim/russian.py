@@ -83,6 +83,12 @@ CLASS_RU = {
     "ytfartyg, tvåskruv, snabbgående, trolig patrullbåt":
         "надводная цель, двухвальная, быстроходная, вероятно сторожевой катер",
     "patrullbåt, diesel, två axlar": "сторожевой катер, дизели, два вала",
+    "ytfartyg, stort, två axlar, långsamt varvtal":
+        "надводная цель, крупная, двухвальная, малые обороты",
+    "stort fartyg, ångturbiner, två axlar, trolig trupptransport":
+        "крупное судно, паровые турбины, два вала, вероятно войсковой транспорт",
+    "ytfartyg, stort, enskruv, tungt lastat": "надводная цель, крупная, одновальная, гружёная",
+    "tankfartyg, ångturbin, en axel": "танкер, паровая турбина, один вал",
     "svagt maskinbuller, stillaliggande": "слабый шум механизмов, без хода",
     "hjälpmaskiner, troligen fartyg till ankars": "вспомогательные механизмы, вероятно судно на якоре",
     "fartyg till ankars, hjälpmaskiner": "судно на якоре, вспомогательные механизмы",

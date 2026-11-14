@@ -49,7 +49,7 @@ def contact_sample(classification: str) -> str | None:
         return "generator"
     if "jagare" in c or "tvåskruv" in c:
         return "screws_warship"
-    if "handelsfartyg" in c or "enskruv" in c:
+    if any(w in c for w in ("handelsfartyg", "enskruv", "stort", "tankfartyg", "trupptransport")):
         return "screws_merchant"
     if "ubåt" in c or "undervattens" in c:
         return "screws_sub"
