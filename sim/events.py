@@ -1,16 +1,23 @@
 """Händelsebuss mellan simulering, besättning och gränssnitt.
 
-Prenumeranter registrerar sig på en händelsetyp (eller basklassen Event för
-allt). Gränssnittet, framtida talsyntes (macOS "say") och berättelselagret
-kopplar in sig här utan att simuleringen känner till dem.
+Allt som händer ombord publiceras här. Stationer, kunskapslagret,
+gränssnittet och framtida lager (talsyntes, berättelse, politisk officer)
+prenumererar på det de bryr sig om utan att känna till varandra.
+
+Prenumeranter anropas synkront i den ordning de registrerades. Game
+registrerar kunskapslagret före stationerna, så att en stations
+hanterare alltid ser uppdaterad kunskap.
 """
 from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
-from .reports import Report
+from .reports import Quality, Report
+
+if TYPE_CHECKING:
+    from .tma import BearingObs
 
 
 @dataclass(frozen=True)
@@ -21,6 +28,13 @@ class Event:
 @dataclass(frozen=True)
 class Tick(Event):
     pass
+
+
+# --- order och rapporter ------------------------------------------------------
+@dataclass(frozen=True)
+class OrderIssued(Event):
+    text: str
+    order: Any
 
 
 @dataclass(frozen=True)
@@ -34,15 +48,25 @@ class TimeScaleChanged(Event):
     reason: str = ""
 
 
-@dataclass(frozen=True)
-class OrderIssued(Event):
-    text: str
-    order: Any
-
-
+# --- sensorer (det sonaroperatören uppfattar) --------------------------------
 @dataclass(frozen=True)
 class ContactDetected(Event):
     designation: str
+    bearing: float = 0.0
+    classification: str = ""
+    quality: Quality = Quality.DALIG
+
+
+@dataclass(frozen=True)
+class BearingObserved(Event):
+    obs: BearingObs
+
+
+@dataclass(frozen=True)
+class ClassificationChanged(Event):
+    designation: str
+    classification: str
+    quality: Quality
 
 
 @dataclass(frozen=True)

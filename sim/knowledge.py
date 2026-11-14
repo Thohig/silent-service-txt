@@ -1,8 +1,15 @@
-"""Kunskap: det besättningen vet. Byggs enbart av observationer, aldrig av World."""
+"""Kunskap: det besättningen vet.
+
+Byggs enbart av sensorhändelser på bussen, aldrig av World. Det gör att
+gränsen mellan sanning och kunskap hålls av strukturen: kunskapslagret har
+ingen referens till världen.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .events import (BearingObserved, ClassificationChanged, ContactDetected,
+                     ContactLost, EventBus)
 from .reports import Quality
 from .tma import BearingObs, Solution, solve
 
@@ -16,10 +23,6 @@ class ContactTrack:
     observations: list[BearingObs] = field(default_factory=list)
     solution: Solution | None = None
     held: bool = True
-    # bokföring för muntliga rapporter
-    last_reported_bearing: float | None = None
-    last_bearing_report_t: int = -10**9
-    last_suggest_t: int = -10**9
 
     @property
     def last_bearing(self) -> float | None:
@@ -30,8 +33,20 @@ class ContactTrack:
 class Knowledge:
     tracks: dict[str, ContactTrack] = field(default_factory=dict)
 
-    def track(self, designation: str) -> ContactTrack | None:
-        return self.tracks.get(_normalize(designation))
+    def attach(self, bus: EventBus) -> None:
+        bus.subscribe(ContactDetected, self._on_detected)
+        bus.subscribe(BearingObserved, lambda e: self.on_bearing(e.obs))
+        bus.subscribe(ClassificationChanged, self._on_classified)
+        bus.subscribe(ContactLost, lambda e: self.on_lost(e.designation))
+
+    # --- händelser ------------------------------------------------------------
+    def _on_detected(self, e: ContactDetected) -> None:
+        tr = self.on_detection(e.designation, e.t)
+        tr.classification, tr.class_quality = e.classification, e.quality
+
+    def _on_classified(self, e: ClassificationChanged) -> None:
+        if tr := self.tracks.get(e.designation):
+            tr.classification, tr.class_quality = e.classification, e.quality
 
     def on_detection(self, designation: str, t: int) -> ContactTrack:
         tr = self.tracks.get(designation)
@@ -50,6 +65,10 @@ class Knowledge:
         if tr is not None:
             tr.observations.append(obs)
         return tr
+
+    # --- frågor ---------------------------------------------------------------
+    def track(self, designation: str) -> ContactTrack | None:
+        return self.tracks.get(_normalize(designation))
 
     def resolve(self, designation: str, t_now: int,
                 own_now: tuple[float, float]) -> Solution | None:

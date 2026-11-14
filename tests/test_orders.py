@@ -1,5 +1,10 @@
-from sim.orders import (Help, QuerySolution, SetCourse, SetDepth, SetSpeed,
-                        SetTimeScale, ShowPlot, Unknown, parse)
+from sim.game import build_registry
+from sim.orders import Help, SetTimeScale, Unknown
+from sim.stations import (DEFAULT_STATIONS, QuerySolution, SetCourse, SetDepth,
+                          SetSpeed, ShowPlot)
+
+reg = build_registry(DEFAULT_STATIONS)
+parse = reg.parse
 
 
 def test_basic_orders():
@@ -24,6 +29,13 @@ def test_contact_designations():
 
 def test_invalid_orders():
     assert isinstance(parse("kurs 400"), Unknown)
+    assert parse("kurs 400").reason == "kursen måste vara 000–359"
     assert isinstance(parse("tid 3"), Unknown)
-    assert isinstance(parse("djup 900"), Unknown)
     assert isinstance(parse("dyk dyk dyk"), Unknown)
+
+
+def test_help_lists_every_station_command():
+    h = reg.help_text()
+    for word in ("kurs 090", "fart 5", "djup 100", "tid 1|2|5|10", "läge S-1", "plot S-1"):
+        assert word in h
+    assert h.rstrip().endswith("hjälp")

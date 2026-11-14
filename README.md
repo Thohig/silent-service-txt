@@ -29,15 +29,43 @@ till `logs/truth-*.log`.
 
 ## Arkitektur
 
-- `sim/` är ren Python utan Textual. Den skiljer **sanning** (`world.py`) från
-  **kunskap** (`knowledge.py`). Bara sonaroperatören (`sonar.py`) läser
-  sanningen, och han lämnar bara ifrån sig brusiga bäringar.
-- `sim/events.py` är händelsebussen mellan simulering, besättning och
-  gränssnitt. Framtida talsyntes och berättelselager kopplas in här.
-- `sim/reports.py` har en `ReportQueue` med rapportfilter, som är kroken för
-  trötthet, moral, lojalitet och sabotage.
-- `sim/crew.py` låter all påverkan på skicklighet gå via
+```
+sim/                 ren Python, ingen Textual
+  world.py           SANNING: exakta positioner
+  sonar.py           sensorn: enda bryggan sanning -> brusiga observationer
+  knowledge.py       KUNSKAP: byggs bara från händelser på bussen
+  tma.py             bäringsbaserad målrörelseanalys
+  events.py          händelsebussen
+  orders.py          orderregister (CommandSpec/CommandRegistry)
+  reports.py         strukturerade rapporter + rapportfilter
+  phrases.py         frasbok: rapportdata -> svensk text
+  game.py            tunn samordnare: tick, order, leverans
+  stations/          ett system ombord per modul
+    base.py          Station: COMMANDS, on_order, update, say
+    navigation.py    kurs, fart, djup
+    sonar_room.py    sonaroperatören
+    plot.py          plottlaget
+ui/                  Textual
+```
+
+### Lägga till ett system
+
+1. Skapa `sim/stations/<system>.py` med en klass som ärver `Station`.
+2. Definiera ordertyper (`Order`-dataklasser) och `COMMANDS` med
+   `CommandSpec(mönster, bygg, hjälptext)`.
+3. Hantera dina order i `on_order` och kör löpande logik i `update`.
+4. Rapportera med `self.say("system.händelse", {...data...})` och lägg till
+   en fras i `phrases.PHRASES`.
+5. Lägg klassen i `DEFAULT_STATIONS`. Game behöver inte ändras.
+
+Stationer pratar med varandra via händelsebussen. Kunskapslagret
+registreras före stationerna, så en station ser alltid uppdaterad kunskap.
+
+### Utbyggnadspunkter
+
+- **Trötthet, lojalitet, sabotage:** rapportfilter i `ReportQueue.filters`
+  ändrar `report.data` före formulering. Skicklighet går via
   `CrewMember.effective_skill()`.
-- `sim/tma.py` gör bäringsbaserad minsta-kvadratanalys. Kvaliteten
-  (dålig/osäker/god/säker) härleds ur lösningens kovarians.
-- `ui/` innehåller Textual-gränssnittet.
+- **Tal (macOS `say`):** prenumerera på `ReportDelivered`.
+- **Berättelselager, politisk officer:** prenumerera på händelser och
+  skicka egna rapporter.

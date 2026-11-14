@@ -1,8 +1,17 @@
 """Rapporter från besättningen och kön som levererar dem med fördröjning.
 
-Rapportflödet är: besättningsmedlem skapar Report -> ReportQueue.submit()
--> rapportfilter (krok för trötthet, lojalitet, sabotage m.m.) -> kö ->
-levereras när simtiden når t_due.
+En rapport bär strukturerad data (type + data), inte färdig text:
+    station.say("sonar.bearing", {"designation": "S-1", "bearing": 47.2, ...})
+
+Flödet:
+    Report -> ReportQueue.submit()
+           -> rapportfilter (kan ändra data, fördröja eller stoppa:
+              krok för trötthet, lojalitet, sabotage)
+           -> kö -> vid t_due: phrases.render() formulerar texten
+           -> ReportDelivered på händelsebussen.
+
+Eftersom filtren arbetar på data kan en sabotör ändra en bäring och texten
+blir ändå korrekt formulerad.
 """
 from __future__ import annotations
 
@@ -10,7 +19,7 @@ import heapq
 import itertools
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Callable, Protocol
+from typing import Any, Callable, Protocol
 
 
 class Quality(IntEnum):
@@ -28,13 +37,16 @@ class Quality(IntEnum):
 class Report:
     t_due: int
     speaker: str                       # visningsnamn, t.ex. "Sonar (Volkov)"
-    text: str
+    type: str                          # meddelandetyp, t.ex. "sonar.bearing"
+    data: dict[str, Any] = field(default_factory=dict)
     role: str = ""                     # besättningsroll som avsändare
     quality: Quality | None = None
     alarm: bool = False                # sätter tidskomprimering till 1x
+    kind: str = "info"                 # ack, done, contact, solution, plot, suggest, info, system
+    # fylls i av phrases.render() vid leverans:
+    text: str = ""
     table: list[list[str]] | None = None
     table_header: list[str] | None = None
-    kind: str = "info"                 # ack, done, contact, solution, plot, suggest, info
 
 
 class ReportFilter(Protocol):

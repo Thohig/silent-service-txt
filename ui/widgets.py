@@ -5,7 +5,8 @@ from rich.table import Table
 from rich.text import Text
 from textual.widgets import RichLog, Static
 
-from sim.game import StatusSnapshot, kn
+from sim.fmt import kn
+from sim.game import StatusSnapshot
 from sim.geo import fmt_course
 from sim.reports import Quality, Report
 
