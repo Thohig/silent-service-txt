@@ -26,6 +26,15 @@ from .widgets import ReportLog, StatusBar
 
 MAX_TICKS_PER_FRAME = 20
 CHART_WORDS = {"sjökort", "sjokort", "kort", "karta"}
+CHART_KEY = "§"
+
+
+class OrderInput(Input):
+    """Orderraden. Släpper sjökortstangenten vidare till appens bindning
+    (Textual tar annars bort bindningar för tecken som fältet kan skriva)."""
+
+    def check_consume_key(self, key: str, character: str | None) -> bool:
+        return character != CHART_KEY and super().check_consume_key(key, character)
 FRAME_S = 0.05
 
 
@@ -43,7 +52,7 @@ class SubApp(App):
     #order:focus { border: tall #5f8a66; }
     """
     BINDINGS = [Binding("ctrl+q", "quit", "Avsluta", priority=True),
-                Binding("f2", "chart", "Sjökort", priority=True)]
+                Binding("section_sign", "chart", "Sjökort", priority=True)]
 
     def __init__(self, seed: int | None = None, log_dir: Path | str = "logs",
                  scenario: str | None = None):
@@ -74,7 +83,7 @@ class SubApp(App):
                                for sd in SCENARIOS.values()], id="scenarios")
         yield Teletype("", id="intro")
         yield ReportLog(id="log", wrap=True, markup=False, max_lines=2000)
-        yield Input(placeholder="Order …   (skriv hjälp för en lista)", id="order")
+        yield OrderInput(placeholder="Order …   (skriv hjälp för en lista)", id="order")
 
     def on_mount(self) -> None:
         self.query_one("#log").display = False
@@ -139,14 +148,14 @@ class SubApp(App):
                        f"Du har befälet. Ubåten går kurs {fmt_course(st.course)}, "
                        f"fart {kn(st.speed)} knop, djup {st.depth:.0f} meter.")
         log.add_system(self.game.clock_str(), "Skriv hjälp för en lista över order. Besättningens förslag godkänns med ja, avslås med nej.")
-        log.add_system(self.game.clock_str(), "F2 visar navigatörens sjökort.")
+        log.add_system(self.game.clock_str(), f"{CHART_KEY} visar navigatörens sjökort.")
         self.running = True
         self._last = time.monotonic()
         self.set_interval(FRAME_S, self._pump)
 
     # ------------------------------------------------------------------ sjökort
     def action_chart(self) -> None:
-        """F2: visa eller stäng sjökortet. Spelet går vidare under tiden."""
+        """§: visa eller stäng sjökortet. Spelet går vidare under tiden."""
         if not self.running or self.game is None:
             return
         if isinstance(self.screen, ChartScreen):

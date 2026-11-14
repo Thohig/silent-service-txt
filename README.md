@@ -48,7 +48,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Vakthavande | `periskop` · `radar` (periskopdjup; radarvarnaren är automatisk) |
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
-| Sjökort | `F2` eller `sjökort` visar navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, `c` centrerar, `Esc` tillbaka |
+| Sjökort | `§` eller `sjökort` visar navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, `c` centrerar, `Esc` tillbaka |
 | Övrigt | `hjälp` · `avsluta` (avbryter patrullen med slutrapport) · `ctrl+q` stänger programmet |
 
 Flera order kan ges på en rad, åtskilda med komma, semikolon eller "och":
@@ -81,7 +81,7 @@ Jagaren pingar, söker kring sin bild av var vi är och fäller
 signalsjunkbomber för att tvinga upp oss. Om vi skjuter blir sjunkbomberna
 skarpa.
 
-Sjökortet (`F2`) visar bara det besättningen vet: navigatörens beräknade
+Sjökortet (`§`) visar bara det besättningen vet: navigatörens beräknade
 position med osäkerhetsring, besticket och fixarna, plottlagets lösningar
 (läge, fartvektor, avståndsosäkerhet) och bäringar utan lösning, isekolodets
 lodningar och öppningar, huvudstabens positioner och egna torpeder. Allt ritas
@@ -129,7 +129,7 @@ sim/                 ren Python, ingen Textual
     plot.py          plottlaget
     torpedo_room.py  torpedrum och eldledning
 ui/                  Textual
-  chart.py           sjökortet i helskärm (F2)
+  chart.py           sjökortet i helskärm (§)
   chart_render.py    rastrering av sjökortet till tecken
 ```
 

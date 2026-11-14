@@ -1,4 +1,4 @@
-"""Sjökortet i helskärm (F2). Spelet går vidare medan kortet visas."""
+"""Sjökortet i helskärm (§). Spelet går vidare medan kortet visas."""
 from __future__ import annotations
 
 from rich.text import Text

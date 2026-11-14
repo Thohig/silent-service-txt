@@ -49,7 +49,7 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   `masts_clear` läser den); `icemap.py` är kunskap, byggd av `IceSounded` med
   beräknad position. Öppningars kvalitet = lägesosäkerhet (växer 8 m/min) mot
   halva längden.
-- **Sjökortet** (F2): `Station.chart_items()` ger ritelement (`sim/chart.py`) ur
+- **Sjökortet** (§): `Station.chart_items()` ger ritelement (`sim/chart.py`) ur
   kunskapen i beräknade koordinater; `Game.chart()` samlar, `ui/chart_render.py`
   rastrerar (en rad = två kolumner i höjd). Nytt system ritar sig självt.
 - **Händelsebussen** (`events.py`) är synkron. `Knowledge` registreras före
