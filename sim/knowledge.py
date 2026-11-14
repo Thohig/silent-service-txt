@@ -9,7 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .events import (BearingObserved, ClassificationChanged, ContactDetected,
-                     ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound, PeriscopeSighted,
+                     ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound, PeriscopeBlocked,
+                     PeriscopeSighted,
                      PhotoTaken, PositionReported)
 from .icemap import IceMap
 from .periscope import PeriscopePicture
@@ -86,6 +87,7 @@ class Knowledge:
     best_photo: Quality | None = None    # bästa spaningsfotot hittills
     hunt_t: int = -10**9                 # senast sonar hörde att fienden har oss
     periscope: PeriscopePicture | None = None   # utkikens senaste bild
+    periscope_blocked: tuple[int, str] | None = None   # (tid, skäl) när periskopet inte kom upp
 
     def attach(self, bus: EventBus) -> None:
         bus.subscribe(ContactDetected, self._on_detected)
@@ -98,6 +100,7 @@ class Knowledge:
         bus.subscribe(HuntSigns, self._on_hunt)
         bus.subscribe(PhotoTaken, self._on_photo)
         bus.subscribe(PeriscopeSighted, self._on_periscope)
+        bus.subscribe(PeriscopeBlocked, lambda e: setattr(self, "periscope_blocked", (e.t, e.reason)))
 
     # --- händelser ------------------------------------------------------------
     def _on_periscope(self, e: PeriscopeSighted) -> None:

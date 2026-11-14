@@ -34,6 +34,8 @@ DEFAULT_HEIGHTS = (6.0, 14.0, 25.0)
 
 # synlig del -> vinkel på bogen, 1σ i grader
 AOB_SIGMA = {"helt": 8.0, "överbyggnad": 15.0, "mastoppar": 30.0, "ljus": 25.0}
+SECTOR_HALF_DEG = 16.0         # en kort titt (periskop 047) ser så här långt åt sidorna
+CARRY_S = 600                  # föremål utanför en kort titt finns kvar i bilden så här länge
 SIDELIGHT_ARC = 112.5          # lanternorna syns från rakt förut till 22,5° akter om tvärs
 
 
@@ -105,6 +107,15 @@ class SightedObject:
     speed: float | None = None
     lights: tuple[str, ...] = ()
     detail: str = ""                # t.ex. "lågt" för flyg, "grinden öppen" för nätet
+    seen_t: int = -1                # när utkiken såg det (äldre än bilden: från ett tidigare svep)
+
+
+@dataclass(frozen=True)
+class IceBearing:
+    """Isen i en riktning: avstånd till kanten (None = öppet så långt vi ser), vall."""
+    bearing: float
+    edge_nm: float | None
+    ridged: bool = False
 
 
 @dataclass(frozen=True)
@@ -115,6 +126,23 @@ class PeriscopePicture:
     own_course: float               # vår kurs när bilden togs (för remsans "rätt förut")
     eye: str                        # "periskop" eller "brygga"
     objects: tuple[SightedObject, ...] = ()
+    sector: float | None = None     # kort titt mot denna bäring (± SECTOR_HALF_DEG), annars runt
+    ice: tuple[IceBearing, ...] = ()
 
     def ships(self) -> list[SightedObject]:
         return [o for o in self.objects if o.designation is not None]
+
+
+def in_sector(bearing: float, sector: float | None) -> bool:
+    return sector is None or abs(angle_diff(bearing, sector)) <= SECTOR_HALF_DEG
+
+
+def carried(prev: PeriscopePicture | None, now: int, sector: float,
+            fresh: list[SightedObject]) -> list[SightedObject]:
+    """Föremål från förra bilden utanför den korta tittens sektor (och inte sedda nu)."""
+    if prev is None:
+        return []
+    seen = {o.designation for o in fresh if o.designation}
+    return [o for o in prev.objects
+            if not in_sector(o.bearing, sector) and now - o.seen_t <= CARRY_S
+            and (o.designation is None or o.designation not in seen)]

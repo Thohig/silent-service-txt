@@ -312,6 +312,41 @@ def masts_clear(world: World) -> bool:
     return ice.is_open(s.x, s.y)
 
 
+ICE_LOOK_DIRS = 16          # riktningar periskopet ser isen i
+ICE_LOOK_NM = 0.6           # längre bort smälter isen ihop med horisonten (mörker, snödis)
+RIDGE_DRAFT_M = 15.0        # en köl så djup har en vall som syns över isen
+
+
+def ice_view(world: World) -> list[tuple[float, float | None, bool]]:
+    """Periskopets bild av isen runt öppningen (en sensor, som masts_clear).
+
+    En post per riktning: (bäring, avstånd till iskanten i nm eller None om öppet
+    så långt vi ser, om det står en vall nära kanten).
+    """
+    ice = world.env.ice
+    if ice is None:
+        return []
+    s = world.own.state
+    out = []
+    for k in range(ICE_LOOK_DIRS):
+        b = k * 360.0 / ICE_LOOK_DIRS
+        dx, dy = math.sin(math.radians(b)), math.cos(math.radians(b))
+        edge, ridged = None, False
+        r = CELL_NM / 2
+        while r <= ICE_LOOK_NM:
+            x, y = s.x + dx * r, s.y + dy * r
+            if not ice.is_open(x, y):
+                if edge is None:
+                    edge = r
+                if ice.draft_at(x, y) >= RIDGE_DRAFT_M:
+                    ridged = True
+                if r - edge >= 0.15:
+                    break
+            r += CELL_NM / 2
+        out.append((b, edge, ridged))
+    return out
+
+
 # --- isljud ------------------------------------------------------------------------
 class IceSource(Vessel):
     """En ihållande ljudkälla: isen skruvar sig. Driver med isen, tystnar efter en tid."""

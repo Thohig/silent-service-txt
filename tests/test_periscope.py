@@ -216,3 +216,77 @@ def test_tab_reaches_the_periscope_view(tmp_path):
             assert not isinstance(app.screen, PeriscopeScreen)
 
     asyncio.run(run())
+
+
+# --- kort titt, is och sektor (P3) -----------------------------------------------
+from sim.scenario import arctic_scenario  # noqa: E402
+from sim.stations.officer import OfficerStation, SHORT_LOOK_S  # noqa: E402
+
+
+def test_short_look_parses_bearing_and_contact():
+    g = _game_at_periscope_depth(day=True)
+    g.command("periskop 180")
+    off = g.station(OfficerStation)
+    assert off.look_sector == 180
+    assert off.look_done_t == g.now + SHORT_LOOK_S
+    g2 = _game_at_periscope_depth(day=True)
+    g2.command("periskop S-7")
+    assert g2.station(OfficerStation).look_done_t is None     # ingen sådan kontakt
+
+
+def test_short_look_sees_only_its_sector_and_keeps_the_rest_as_older():
+    g = _game_at_periscope_depth(day=True)
+    _look(g)                                       # helt svep: jagaren rakt norrut
+    dd0 = next(o for o in g.knowledge.periscope.ships() if o.kind == "destroyer")
+    for _ in range(60):
+        g.tick()
+    g.command("periskop 180")
+    for _ in range(SHORT_LOOK_S + 2):
+        g.tick()
+    pic = g.knowledge.periscope
+    assert pic.sector == 180
+    dd = next(o for o in pic.ships() if o.designation == dd0.designation)
+    assert dd.seen_t == dd0.seen_t < pic.t         # från förra svepet, inte sett nu
+    rows = [r.plain for r in render_periscope(pic, 100, 30, 0, 0, lambda t: "05:00:00")]
+    assert "{" in rows[0] and "}" in rows[0]
+    # en kort titt mot jagaren ser den på nytt
+    g.command(f"periskop {dd0.designation}")
+    for _ in range(SHORT_LOOK_S + 2):
+        g.tick()
+    pic = g.knowledge.periscope
+    dd = next(o for o in pic.ships() if o.designation == dd0.designation)
+    assert dd.seen_t == pic.t
+    rows = [r.plain for r in render_periscope(pic, 100, 30, None, 0)]
+    assert rows
+
+
+def _arctic(seed=4):
+    g = Game(arctic_scenario(random.Random(seed)), seed=seed)
+    st = g.world.own.state
+    st.depth = st.ordered_depth = 15.0
+    st.speed = st.ordered_speed = 1.0
+    return g
+
+
+def test_ice_overhead_blocks_the_periscope_and_is_noted():
+    g = _arctic()
+    ice, st = g.world.env.ice, g.world.own.state
+    if ice.is_open(st.x, st.y):
+        ice.thickness[ice._cell(st.x, st.y)] = 3.0
+    g.command("periskop")
+    assert g.knowledge.periscope_blocked is not None
+    assert g.knowledge.periscope is None
+
+
+def test_periscope_sees_the_ice_around_an_opening():
+    g = _arctic()
+    ice, st = g.world.env.ice, g.world.own.state
+    ice.carve_polynya(st.x, st.y, 0.15)
+    _look(g)
+    pic = g.knowledge.periscope
+    assert pic is not None and len(pic.ice) == 16
+    edges = [i.edge_nm for i in pic.ice if i.edge_nm is not None]
+    assert len(edges) >= 12 and all(0.08 < e < 0.3 for e in edges)
+    rows = [r.plain for r in render_periscope(pic, 100, 30, None, 0)]
+    eye = "\n".join(rows[4:-1])
+    assert "▂" in eye and "^" in rows[1]

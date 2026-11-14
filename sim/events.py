@@ -73,6 +73,12 @@ class PeriscopeSighted(Event):
 
 
 @dataclass(frozen=True)
+class PeriscopeBlocked(Event):
+    """Periskopet kom inte upp, t.ex. för att det är is ovanför."""
+    reason: str
+
+
+@dataclass(frozen=True)
 class HuntSigns(Event):
     """Sonar tolkar ljuden som att fienden har kontakt med oss (snabb pingtakt, sjunkbomber)."""
     reason: str

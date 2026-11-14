@@ -53,8 +53,8 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen
   märker flyget via radarvarnaren, periskopet och transienterna `buoy`/`buoy_ping`.
-- **Is:** `ice.py` är sanning (bara isekolodet i `navigation.py` och mastkontrollerna
-  `masts_clear` läser den); `icemap.py` är kunskap, byggd av `IceSounded` med
+- **Is:** `ice.py` är sanning (bara isekolodet i `navigation.py`, mastkontrollerna
+  `masts_clear` och periskopets `ice_view` läser den); `icemap.py` är kunskap, byggd av `IceSounded` med
   beräknad position. Öppningars kvalitet = lägesosäkerhet (växer 8 m/min) mot
   halva längden.
 - **Havsbotten:** `seabed.py` är sanning (`Environment.bottom_at`; bara ekolodet läser den).
@@ -101,6 +101,10 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   Vyn (`ui/periscope_render.py`, `ui/periscope.py`): 360°-remsa med fören i mitten, okular (32°)
   mot valt föremål (← →), siluetter i `ART` (fören åt höger, speglas vid babord, trycks ihop efter
   |sin vpb|, skärs efter synlig del), natt bara lanternor, bild äldre än 60 s nedtonad.
+  Kort titt (`periskop 047`, `periskop S-3`): 8 s mast uppe i stället för 15, ser bara ±16°;
+  föremål utanför sektorn följer med från förra bilden i 10 min (`seen_t`, ritas nedtonade).
+  Is: `ice.ice_view` (periskopet är en sensor) ger kant och vallar i 16 riktningar ut till 0,6 nm;
+  kommer masten inte upp för isen publiceras `PeriscopeBlocked` och vyn säger det.
 - **Tangenter:** `Tab` växlar vy, `Esc` tillbaka, `ctrl+t` ljud. Undvik F-tangenter
   (medietangenter på Mac) och ctrl-tangenter som orderraden (`Input`) redan använder.
 - **Ljud** (`ui/audio.py`): `SoundBoard` lyssnar bara på bussen – `ReportDelivered` ger tal

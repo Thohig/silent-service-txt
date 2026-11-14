@@ -72,8 +72,9 @@ class PeriscopeScreen(Screen):
         objs = ordered_objects(pic)
         if self._pic_t != pic.t:
             self._pic_t = pic.t
-            if self.selected_key not in {object_key(o) for o in objs}:
-                self.selected_key = None
+            fresh = {object_key(o) for o in objs if not (0 <= o.seen_t < pic.t)}
+            if self.selected_key not in fresh:
+                self.selected_key = None        # nytt svep: välj bland det vi just såg
         for i, o in enumerate(objs):
             if object_key(o) == self.selected_key:
                 return i
@@ -97,10 +98,14 @@ class PeriscopeScreen(Screen):
         pic = game.knowledge.periscope
         age = 0 if pic is None else game.now - pic.t
         index = None if pic is None else self._index(pic)
-        body.update(Text("\n").join(render_periscope(pic, w, h, index, age)))
-        t = header(pic, game.clock_str(pic.t) if pic else "", age)
+        body.update(Text("\n").join(render_periscope(pic, w, h, index, age, game.clock_str)))
+        note = None
+        blocked = game.knowledge.periscope_blocked
+        if blocked is not None and (pic is None or blocked[0] > pic.t):
+            note = f"Is ovanför kl {game.clock_str(blocked[0])[:5]}, masten kom inte upp."
+        t = header(pic, game.clock_str(pic.t) if pic else "", age, note)
         t.append("\n")
-        t.append(" ←/→ byt föremål · periskop tar en ny bild på periskopdjup · "
+        t.append(" ←/→ byt föremål · periskop ger ett svep, periskop 047 eller S-3 en kort titt · "
                  "Tab logg · Esc tillbaka", style="dim")
         head.update(t)
 
