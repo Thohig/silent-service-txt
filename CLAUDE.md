@@ -12,7 +12,7 @@ oktober 1962. Python 3.12, Textual, numpy, uv. Användaren kör macOS (Apple Sil
 
 ## Kommandon
 ```bash
-uv run main.py [--seed N]     # spela
+uv run main.py [--seed N] [--scenario kuba]   # spela (utan --scenario: väljare)
 uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
 ```
 
@@ -42,6 +42,9 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
 - **Rapporter** bär `type` + `data`, aldrig färdig text. Texten skapas av
   `phrases.render()` vid leverans, efter rapportfiltren. Varje station registrerar
   sina fraser med `phrases.register({...})` i sin egen modul.
+- **Scenarier** registreras i `sim/scenario.py` (`register(ScenarioDef(...))`) och
+  väljs i gränssnittets väljare eller med `--scenario`. Scenariot bär områdesnamn
+  och sluttexter; `Game` ska inte känna till enskilda scenarier.
 - **Händelsebussen** (`events.py`) är synkron. `Knowledge` registreras före
   stationerna så att stationer alltid ser uppdaterad kunskap.
 - **Utbyggnadskrokar:** rapportfilter (`ReportQueue.filters`, ändrar `data`) för

@@ -86,6 +86,12 @@ OUTCOME_TEXT = {
 }
 
 
+def outcome_text(scenario: Scenario | None, outcome: str) -> str:
+    if scenario is not None and outcome in scenario.outcome_text:
+        return scenario.outcome_text[outcome]
+    return OUTCOME_TEXT.get(outcome, outcome)
+
+
 class Game:
     def __init__(self, scenario: Scenario, seed: int | None = None,
                  truth_log: TruthLog | None = None,
@@ -137,6 +143,10 @@ class Game:
         except KeyError:
             s = self.world.own.state
             return s.x, s.y
+
+    @property
+    def area_name(self) -> str:
+        return self.scenario.area_name if self.scenario else "kvadrat 7"
 
     def clock_str(self, sim_t: int | None = None) -> str:
         return clock(self.start_clock + (self.now if sim_t is None else sim_t))
@@ -275,7 +285,7 @@ class Game:
         m = self.world.mission
         summary = {
             "outcome": o["outcome"],
-            "text": OUTCOME_TEXT.get(o["outcome"], o["outcome"]),
+            "text": outcome_text(self.scenario, o["outcome"]),
             "cause": o.get("cause"),
             "clock": self.clock_str(),
             "detected": m.get("enemy_contacts", 0),

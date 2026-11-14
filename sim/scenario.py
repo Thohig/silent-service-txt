@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
+from typing import Callable
 
 from .crew import CrewMember, Role
 from .enemy import DestroyerAI
@@ -55,6 +56,8 @@ class Scenario:
     radio_windows: list[int] = field(default_factory=list)   # simtid när fönster öppnar
     radio_window_len: int = 20 * 60
     radio_messages: list[RadioMessage] = field(default_factory=list)
+    area_name: str = "kvadrat 7"         # operationsområdet, som besättningen säger det
+    outcome_text: dict[str, str] = field(default_factory=dict)   # ersätter Game.OUTCOME_TEXT
 
 
 def default_scenario(rng: random.Random) -> Scenario:
@@ -84,3 +87,31 @@ def default_scenario(rng: random.Random) -> Scenario:
     windows = [(c - start_clock) for c in (5 * 3600, 6 * 3600 + 1800, 8 * 3600)]
     return Scenario(world, crew, SECRET_ORDER, start_clock,
                     radio_windows=windows, radio_messages=list(RADIO_MESSAGES))
+
+
+# --- scenarioregister ----------------------------------------------------------
+@dataclass(frozen=True)
+class ScenarioDef:
+    key: str                                   # namnet för --scenario
+    title: str
+    summary: str
+    build: Callable[[random.Random], Scenario]
+
+
+SCENARIOS: dict[str, ScenarioDef] = {}
+
+
+def register(sd: ScenarioDef) -> None:
+    SCENARIOS[sd.key] = sd
+
+
+def build_scenario(key: str, rng: random.Random) -> Scenario:
+    if key not in SCENARIOS:
+        raise KeyError(f"okänt scenario {key!r}, välj bland: {', '.join(SCENARIOS)}")
+    return SCENARIOS[key].build(rng)
+
+
+register(ScenarioDef(
+    "kuba", "Kvadrat 7, oktober 1962",
+    "Kubakrisen. Förbli oupptäckt för en amerikansk jagare i karantänlinjen.",
+    default_scenario))

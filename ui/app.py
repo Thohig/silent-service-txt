@@ -6,14 +6,18 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.containers import Vertical
 from textual.css.query import NoMatches
-from textual.widgets import Input
+from textual.widgets import Input, OptionList, Static
+from textual.widgets.option_list import Option
 
 from sim.events import GameEnded, ReportDelivered, TimeScaleChanged
 from sim.game import Game
-from sim.scenario import default_scenario
+from sim.fmt import fmt_course, kn
+from sim.scenario import SCENARIOS, build_scenario
 from sim.truthlog import TruthLog
 
 from .teletype import Teletype
@@ -29,38 +33,75 @@ class SubApp(App):
     Screen { background: #0b0f0c; }
     #status { height: 2; background: #1c2a20; color: #c8d0b0; }
     #intro  { height: 1fr; padding: 2 6; }
+    #picker { height: 1fr; padding: 2 6; }
+    #picker-title { color: #c8d0b0; text-style: bold; margin-bottom: 1; }
+    #scenarios { background: #0b0f0c; border: none; color: #c8d0b0; }
     #log    { height: 1fr; padding: 0 1; background: #0b0f0c; scrollbar-size-vertical: 1; }
     #order  { border: tall #2f4a36; background: #0f1611; }
     #order:focus { border: tall #5f8a66; }
     """
     BINDINGS = [Binding("ctrl+q", "quit", "Avsluta", priority=True)]
 
-    def __init__(self, seed: int | None = None, log_dir: Path | str = "logs"):
+    def __init__(self, seed: int | None = None, log_dir: Path | str = "logs",
+                 scenario: str | None = None):
+        """scenario: nyckel i SCENARIOS. Utan scenario börjar spelet med en väljare."""
         super().__init__()
-        seed = seed if seed is not None else random.randrange(1_000_000)
-        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.truth_log = TruthLog(Path(log_dir) / f"truth-{stamp}.log")
-        self.truth_log.write(f"# seed={seed}")
-        self.game = Game(default_scenario(random.Random(seed)), seed=seed,
-                         truth_log=self.truth_log)
+        self.seed = seed if seed is not None else random.randrange(1_000_000)
+        self.log_dir = Path(log_dir)
+        self.game: Game | None = None
+        self.truth_log: TruthLog | None = None
         self.running = False
         self._acc = 0.0
         self._last = 0.0
+        if scenario is not None:
+            self._create_game(scenario)
+
+    def _create_game(self, key: str) -> None:
+        scenario = build_scenario(key, random.Random(self.seed))
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.truth_log = TruthLog(self.log_dir / f"truth-{stamp}.log")
+        self.truth_log.write(f"# seed={self.seed} scenario={key}")
+        self.game = Game(scenario, seed=self.seed, truth_log=self.truth_log)
 
     def compose(self) -> ComposeResult:
         yield StatusBar(id="status")
-        yield Teletype(self.game.secret_order, id="intro")
+        with Vertical(id="picker"):
+            yield Static("K-114 — välj scenario", id="picker-title")
+            yield OptionList(*[Option(_scenario_label(sd), id=sd.key)
+                               for sd in SCENARIOS.values()], id="scenarios")
+        yield Teletype("", id="intro")
         yield ReportLog(id="log", wrap=True, markup=False, max_lines=2000)
         yield Input(placeholder="Order …   (skriv hjälp för en lista)", id="order")
 
     def on_mount(self) -> None:
         self.query_one("#log").display = False
-        self.query_one(StatusBar).show(self.game.status())
-        self.game.bus.subscribe(ReportDelivered, self._on_report)
-        self.game.bus.subscribe(TimeScaleChanged, self._on_time_scale)
-        self.game.bus.subscribe(GameEnded, self._on_game_ended)
+        if self.game is None:
+            self.query_one("#intro").display = False
+            self.query_one("#order").display = False
+            self.query_one("#scenarios", OptionList).focus()
+        else:
+            self._begin()
+
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        if self.game is not None or event.option.id is None:
+            return
+        self._create_game(event.option.id)
+        self._begin()
+
+    def _begin(self) -> None:
+        """Scenariot är valt: visa den hemliga ordern på fjärrskrivaren."""
+        game = self.game
+        self.query_one("#picker").display = False
+        self.query_one("#intro").display = True
+        self.query_one("#order").display = True
+        self.query_one(StatusBar).show(game.status())
+        game.bus.subscribe(ReportDelivered, self._on_report)
+        game.bus.subscribe(TimeScaleChanged, self._on_time_scale)
+        game.bus.subscribe(GameEnded, self._on_game_ended)
         self.query_one("#order", Input).focus()
-        self.query_one(Teletype).start()
+        tt = self.query_one(Teletype)
+        tt.full_text = game.secret_order
+        tt.start()
 
     def on_teletype_finished(self, _: Teletype.Finished) -> None:
         self.query_one(Teletype).set_footer("Tryck Enter för att ta befälet.")
@@ -69,6 +110,8 @@ class SubApp(App):
     def on_input_submitted(self, event: Input.Submitted) -> None:
         text = event.value.strip()
         event.input.value = ""
+        if self.game is None:
+            return
         if not self.running:
             tt = self.query_one(Teletype)
             if not tt.done:
@@ -85,8 +128,10 @@ class SubApp(App):
         self.query_one(Teletype).display = False
         log = self.query_one(ReportLog)
         log.display = True
+        st = self.game.world.own.state
         log.add_system(self.game.clock_str(),
-                       "Du har befälet. Ubåten går kurs 000, fart 5 knop, djup 100 meter.")
+                       f"Du har befälet. Ubåten går kurs {fmt_course(st.course)}, "
+                       f"fart {kn(st.speed)} knop, djup {st.depth:.0f} meter.")
         log.add_system(self.game.clock_str(), "Skriv hjälp för en lista över order. Besättningens förslag godkänns med ja, avslås med nej.")
         self.running = True
         self._last = time.monotonic()
@@ -94,7 +139,7 @@ class SubApp(App):
 
     # ------------------------------------------------------------------ realtid
     def _pump(self) -> None:
-        if not self.is_running or self.game.over:
+        if not self.is_running or self.game is None or self.game.over:
             return
         now = time.monotonic()
         self._acc += (now - self._last) * self.game.time_scale
@@ -134,4 +179,12 @@ class SubApp(App):
         self.query_one(StatusBar).show(self.game.status())
 
     def on_unmount(self) -> None:
-        self.truth_log.close()
+        if self.truth_log:
+            self.truth_log.close()
+
+
+def _scenario_label(sd) -> Text:
+    t = Text(sd.title, style="bold")
+    t.append(f"  ({sd.key})\n", style="dim")
+    t.append(sd.summary, style="italic")
+    return t

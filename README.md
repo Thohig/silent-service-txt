@@ -7,8 +7,9 @@ och plottlagets målrörelseanalys.
 ## Köra
 
 ```bash
-uv run main.py            # nytt slumpat scenario
-uv run main.py --seed 4   # reproducerbart scenario
+uv run main.py                     # scenarioväljare, slumpat frö
+uv run main.py --scenario kuba     # hoppa över väljaren
+uv run main.py --seed 4            # reproducerbart scenario
 uv run pytest             # tester
 ```
 

@@ -89,7 +89,7 @@ PHRASES = {
     f"{nm(d['sigma'])} sjömil. Föreslår att vi tar en fix nu.",
     "nav.suggest.search": lambda d: "Kapten, navigatören. Inga kontakter på länge. "
     f"Föreslår nytt sökben, kurs {fmt_course(d['course'])}.",
-    "nav.suggest.area": lambda d: f"Kapten, vi är på väg ut ur kvadrat 7. "
+    "nav.suggest.area": lambda d: f"Kapten, vi är på väg ut ur {d.get('area', 'kvadrat 7')}. "
     f"Föreslår kurs {fmt_course(d['course'])}.",
     "nav.suggest.test_depth": lambda d: f"Kapten, vi är på {d['depth']:.0f} meter, under "
     f"provdjup. Föreslår djup 280.",
@@ -224,7 +224,7 @@ class NavigationStation(Station):
         if not (0.5 <= self.est_x <= size - 0.5 and 0.5 <= self.est_y <= size - 0.5):
             c = bearing_to(self.est_x, self.est_y, size / 2, size / 2)
             out.append(Proposal(3, "idle_area", "nav.suggest.area", f"kurs {fmt_course(c)}",
-                                {"course": c}, cooldown=900))
+                                {"course": c, "area": self.game.area_name}, cooldown=900))
         held = any(t.held for t in self.game.knowledge.tracks.values())
         sigma = self.uncertainty()
         if not held and sigma > IDLE_FIX_SIGMA_NM and self.fix_done_t is None:
@@ -280,7 +280,7 @@ class NavigationStation(Station):
         size = self.game.world.size_nm
         if not (0.5 <= self.est_x <= size - 0.5 and 0.5 <= self.est_y <= size - 0.5):
             c = bearing_to(self.est_x, self.est_y, size / 2, size / 2)
-            self.suggest("area", "nav.suggest.area", {"course": c},
+            self.suggest("area", "nav.suggest.area", {"course": c, "area": self.game.area_name},
                          order=f"kurs {fmt_course(c)}", cooldown=900)
         if s.depth > TEST_DEPTH + 5:
             self.suggest("test_depth", "nav.suggest.test_depth", {"depth": s.depth},
