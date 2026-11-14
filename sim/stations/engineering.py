@@ -14,11 +14,13 @@ from .base import Station
 @dataclass(frozen=True)
 class SetPropulsion(Order):
     mode: str            # turbine, electric
+    STANDING = True
 
 
 @dataclass(frozen=True)
 class ReactorOrder(Order):
     action: str          # start, stop
+    STANDING = True
 
 
 @dataclass(frozen=True)

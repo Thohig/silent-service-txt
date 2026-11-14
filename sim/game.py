@@ -28,7 +28,7 @@ from .events import (EventBus, GameEnded, OrderIssued, ReportDelivered, Tick,
 from .fmt import clock
 from .knowledge import Knowledge
 from .orders import (HELP_COMMAND, SUGGESTION_COMMANDS, TIME_COMMAND, AcceptSuggestion,
-                     CommandRegistry, DeclineSuggestion, Help, RepeatSuggestion,
+                     CommandRegistry, DeclineSuggestion, Help, Order, RepeatSuggestion,
                      SetTimeScale, Unknown)
 from .ownship import PERISCOPE_DEPTH
 from .reports import Quality, Report, ReportQueue
@@ -96,6 +96,9 @@ class Game:
         self.time_scale = 1
         self.over = False
         self.suggestion: tuple[str, str, int] | None = None   # (order, text, t)
+        # senaste order av varje typ: typ -> (order, tid). Används för att inte
+        # föreslå eller hålla kvar förslag om sådant kaptenen redan beslutat.
+        self._ordered: dict[type[Order], tuple[Order, int]] = {}
 
         self.bus = EventBus()
         self.queue = ReportQueue()
@@ -138,7 +141,24 @@ class Game:
             speaker=member.callsign, type=type, data=data, role=role.value,
             quality=quality, alarm=alarm, kind=kind))
 
+    def suggestion_redundant(self, order_text: str, made_t: int) -> bool:
+        """Har kaptenen redan beslutat i frågan?
+
+        Sant om en order av samma typ har getts sedan förslaget gjordes
+        (förslaget är inaktuellt), eller om förslaget är exakt den bestående
+        order som redan gäller (t.ex. "fart 6" när fart 6 är beordrad).
+        """
+        o = self.registry.parse(order_text)
+        last = self._ordered.get(type(o))
+        if last is None:
+            return False
+        last_order, t = last
+        return t >= made_t or (o.STANDING and last_order == o)
+
     def _deliver(self, r: Report) -> None:
+        if r.kind == "suggest" and r.data.get("order") and \
+                self.suggestion_redundant(r.data["order"], r.data.get("made_t", r.t_due)):
+            return                              # kaptenen har redan beslutat
         phrases.render(r, self.clock_str)
         if r.kind == "suggest" and r.data.get("order"):
             self.suggestion = (r.data["order"], r.text, self.now)
@@ -188,6 +208,11 @@ class Game:
                 else:
                     self._system("order.suggestion_repeat", {"text": sug[1]})
                 return
+        if not isinstance(order, (Unknown, Help, SetTimeScale)):
+            self._ordered[type(order)] = (order, self.now)
+            if self.suggestion and \
+                    type(self.registry.parse(self.suggestion[0])) is type(order):
+                self.suggestion = None          # kaptenen har själv beslutat i frågan
         self.bus.publish(OrderIssued(self.now, text, order))
         match order:
             case SetTimeScale(scale=n):

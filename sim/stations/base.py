@@ -57,14 +57,19 @@ class Station:
                 quality: Quality | None = None, alarm: bool = False) -> bool:
         """Föreslå en åtgärd. order är texten som utförs om kaptenen svarar ja.
 
-        Samma förslag (key) upprepas inte inom cooldown sekunder.
+        Samma förslag (key) upprepas inte inom cooldown sekunder. Ett förslag
+        om något kaptenen redan har beordrat ges inte alls (se
+        Game.suggestion_redundant) och förbrukar då ingen cooldown.
         """
+        if order and self.game.suggestion_redundant(order, self.now):
+            return False
         if self.now - self._suggested.get(key, -10**9) < cooldown:
             return False
         self._suggested[key] = self.now
         d = dict(data or {})
         if order:
             d["order"] = order
+            d["made_t"] = self.now
         self.say(type, d, kind="suggest", quality=quality, alarm=alarm)
         return True
 

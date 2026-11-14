@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Callable, Iterable
+from typing import Callable, ClassVar, Iterable
 
 TIME_SCALES = (1, 2, 5, 10)
 
@@ -20,7 +20,13 @@ DESIG = r"(s\s*-?\s*\d+)"
 
 @dataclass(frozen=True)
 class Order:
-    """Basklass för alla order."""
+    """Basklass för alla order.
+
+    STANDING: ordern sätter ett bestående läge (kurs, fart, djup, framdrivning,
+    reaktor). Ett förslag om exakt samma order som redan gäller är då meningslöst.
+    Engångsåtgärder (fix, skenmål, sänd …) kan däremot behöva upprepas.
+    """
+    STANDING: ClassVar[bool] = False
 
 
 @dataclass(frozen=True)

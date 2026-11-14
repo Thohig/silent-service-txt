@@ -20,6 +20,9 @@ till `logs/truth-*.log`.
 Besättningen föreslår själv åtgärder. Ett förslag med en färdig order visas
 som `[ja: …]` och på statusraden. Svara `ja` för att verkställa eller `nej`
 för att avslå. Avfyring föreslås aldrig som en ja-order.
+Ger du själv en order om samma sak (till exempel `fart 6` när besättningen
+föreslagit `fart 4`) släpps förslaget, och besättningen föreslår aldrig en
+kurs, fart, framdrivning eller ett djup som redan är beordrat.
 
 | Område | Order |
 |---|---|

@@ -21,16 +21,19 @@ DR_GROWTH_NM_PER_H = 0.5
 @dataclass(frozen=True)
 class SetCourse(Order):
     course: int
+    STANDING = True
 
 
 @dataclass(frozen=True)
 class SetSpeed(Order):
     speed: float
+    STANDING = True
 
 
 @dataclass(frozen=True)
 class SetDepth(Order):
     depth: int
+    STANDING = True
 
 
 @dataclass(frozen=True)
