@@ -4,6 +4,12 @@ Eldledningen räknar bara på kunskap: plottlagets lösning och navigatörens
 bestick. Avfyring kräver alltid en uttrycklig order; torpedofficeren
 meddelar när en skjutlösning finns men föreslår aldrig avfyring som en
 order som kan godkännas med "ja".
+
+Torpeder i vattnet följs via sonaren (OwnTorpedoHeard): normal gång,
+sväng (målsökning), tappad, detonation och tystnad utan detonation. Hörs
+ingenting innan räckvidden är slut rapporteras en trolig miss. Sonaren
+numrerar egna torpeder i avfyrningsordning; torpedrummet gör detsamma
+och knyter numret till tuben. Alla torpeder avfyras därför här.
 """
 from __future__ import annotations
 
@@ -12,7 +18,7 @@ from dataclasses import dataclass, field
 
 from .. import phrases
 from ..crew import Role
-from ..events import SoundHeard
+from ..events import OwnTorpedoHeard, SoundHeard
 from ..fmt import fmt_course, nm
 from ..firecontrol import intercept
 from ..orders import DESIG, NUM, CommandSpec, Order, Unknown, desig, num
@@ -24,6 +30,8 @@ N_TUBES = 8
 RELOAD_S = 300
 MAX_LAUNCH_DEPTH = 120
 MAX_LAUNCH_SPEED = 12
+RUN_REPORT_AFTER = 10       # s efter avfyring innan sonar bekräftar normal gång
+END_GRACE_S = 30            # marginal efter räckvidden innan vi säger trolig miss
 
 TYPE_ALIASES = {
     "53-61": "53-61", "53": "53-61", "rak": "53-61", "raka": "53-61",
@@ -52,6 +60,11 @@ class TubeStatus(Order):
 
 
 @dataclass(frozen=True)
+class TorpedoStatus(Order):
+    pass
+
+
+@dataclass(frozen=True)
 class FiringSolution(Order):
     designation: str | None
 
@@ -76,6 +89,25 @@ class Tube:
     ready_t: int = 0
 
 
+@dataclass
+class Running:
+    """En torped i vattnet, så som torpedrummet känner till den."""
+    no: int                       # avfyrningsordning, samma som sonarens
+    tube: int
+    type: str
+    designation: str | None
+    course: float
+    launch_t: int
+    t_hit: int | None             # beräknad träfftid (bara mot kontakt)
+    t_end: int                    # när räckvidden är slut
+    bearing: float | None = None
+    heard_t: int | None = None
+    lost: bool = False
+    turned: bool = False
+    confirmed: bool = False
+    timed: bool = False
+
+
 def _mmss(s: float) -> str:
     s = int(round(s))
     return f"{s // 60} min {s % 60:02d} s"
@@ -90,6 +122,29 @@ def _tubes(d: dict) -> str:
             parts.append(f"{t['n']}: {t['load'] or 'tom'}")
     inv = ", ".join(f"{k} {v}" for k, v in d["inventory"].items())
     return "Tuber – " + ", ".join(parts) + f". I förråd: {inv}. Skenmål: {d['decoys']}."
+
+
+def _in_water(d: dict) -> str:
+    if not d["running"]:
+        return "Inga torpeder i vattnet."
+    rows = []
+    for r in d["running"]:
+        aim = f" mot {r['designation']}" if r["designation"] else f", kurs {fmt_course(r['course'])}"
+        s = f"tub {r['tube']} ({r['type']}{aim}): gått {_mmss(r['elapsed'])}"
+        if r.get("to_hit") is not None:
+            s += (f", beräknad träff om {_mmss(r['to_hit'])}" if r["to_hit"] > 0
+                  else ", beräknad träfftid passerad")
+        s += f", räckvidden slut om {_mmss(r['to_end'])}"
+        if r["bearing"] is None:
+            s += ", sonar hör den inte"
+        elif r["lost"]:
+            s += f", sonar har tappat den (sista bäring {fmt_course(r['bearing'])})"
+        else:
+            s += f", hörs i bäring {fmt_course(r['bearing'])}"
+        if r["turned"]:
+            s += ", har svängt, troligen målsökt"
+        rows.append(s)
+    return "Torpeder i vattnet – " + "; ".join(rows) + "."
 
 
 def _solution(d: dict) -> str:
@@ -120,6 +175,22 @@ PHRASES = {
     "torp.ready": lambda d: f"Kapten, torped. Vi har skjutlösning på {d['designation']}: "
     f"tub {d['tube']} med {d['type']}, gångtid {_mmss(d['run_s'])}. Inväntar order.",
     "torp.suggest.decoy": lambda d: "Kapten, torped. Föreslår skenmål för att dra deras sonar.",
+    "torp.in_water": _in_water,
+    "torp.run.running": lambda d: f"Tub {d['tube']}: sonar hör torpeden i bäring "
+    f"{fmt_course(d['bearing'])}, normal gång.",
+    "torp.run.turned": lambda d: f"Tub {d['tube']}: torpeden svänger, nu i bäring "
+    f"{fmt_course(d['bearing'])}. Målsökaren har troligen fått något.",
+    "torp.run.lost": lambda d: f"Tub {d['tube']}: sonar har tappat torpeden"
+    + (f", sista bäring {fmt_course(d['bearing'])}" if d.get("bearing") is not None else "") + ".",
+    "torp.run.hit": lambda d: (
+        f"Tub {d['tube']}: kärnladdningen har detonerat i bäring {fmt_course(d['bearing'])}."
+        if d.get("nuclear") else
+        f"Tub {d['tube']}: detonation i bäring {fmt_course(d['bearing'])}. Det var vår torped!"),
+    "torp.run.silent": lambda d: f"Tub {d['tube']}: torpeden har tystnat"
+    + (f" i bäring {fmt_course(d['bearing'])}" if d.get("bearing") is not None else "")
+    + " utan detonation. Miss, kapten.",
+    "torp.run.timeout": lambda d: f"Tub {d['tube']}: torpedens räckvidd är slut och vi har inte "
+    "hört någon detonation. Trolig miss.",
 }
 phrases.register(PHRASES)
 
@@ -132,7 +203,9 @@ class TorpedoRoom(Station):
         CommandSpec(rf"(?:eld|avfyra|fyr|skjut)\s+tub\s+(\d)\s+kurs\s+{NUM}",
                     lambda m: FireTube(int(m[1]), course=num(m[2]) % 360), "eld tub 1 kurs 045"),
         CommandSpec(r"ladda\s+tub\s+(\d)\s+(?:med\s+)?(\S+)", _load, "ladda tub 7 SET-53"),
-        CommandSpec(r"tuber|torpeder|torpedrum", lambda m: TubeStatus(), "tuber"),
+        CommandSpec(r"tuber|torpedrum", lambda m: TubeStatus(), "tuber"),
+        CommandSpec(r"torpeder|torpedläge|torpedlage|torpeder i vattnet",
+                    lambda m: TorpedoStatus(), "torpeder"),
         CommandSpec(rf"(?:skjutlösning|skjutlosning|eldlösning|eldlosning)(?:\s+{DESIG})?",
                     lambda m: FiringSolution(desig(m[1])), "skjutlösning S-1"),
         CommandSpec(r"skenmål|skenmal|motmedel", lambda m: LaunchDecoy(), "skenmål"),
@@ -147,12 +220,14 @@ class TorpedoRoom(Station):
             t.load = "SET-53"
         self.inventory = {"53-61": 6, "SET-53": 4, "T-5": 2}
         self.decoys = 6
-        self.running: list[tuple[int, str | None, int]] = []
+        self.in_water: list[Running] = []
+        self._launches = 0
         self._ready_said: dict[str, Quality] = {}
 
     def attach(self, bus) -> None:
         super().attach(bus)
         bus.subscribe(SoundHeard, self._on_sound)
+        bus.subscribe(OwnTorpedoHeard, self._on_own_torpedo)
 
     @property
     def own(self):
@@ -195,6 +270,8 @@ class TorpedoRoom(Station):
                 self.say("torp.status", {
                     "tubes": [{"n": t.n, "load": t.load, "loading": t.loading} for t in self.tubes],
                     "inventory": dict(self.inventory), "decoys": self.decoys})
+            case TorpedoStatus():
+                self._report_in_water()
             case FiringSolution(designation=d):
                 self._preview(d)
             case LaunchDecoy():
@@ -254,8 +331,13 @@ class TorpedoRoom(Station):
         launch_torpedo(self.game.world, spec, course, detonate_at)
         self.game.world.mission["hostile_act"] = True
         tube.load = None
-        if run_s:
-            self.running.append((o.tube, o.designation, int(self.now + run_s)))
+        self._launches += 1
+        run_nm = min(detonate_at, spec.range_nm) if detonate_at else spec.range_nm
+        self.in_water.append(Running(
+            no=self._launches, tube=o.tube, type=spec.key, designation=o.designation,
+            course=course, launch_t=self.now,
+            t_hit=int(self.now + run_s) if run_s else None,
+            t_end=int(self.now + run_nm / spec.speed * 3600)))
         self.say("torp.fired", {"tube": o.tube, "type": spec.key, "course": course,
                                 "run_s": run_s, "quality": quality},
                  kind="ack", quality=quality, alarm=True)
@@ -304,13 +386,13 @@ class TorpedoRoom(Station):
             if t.loading and self.now >= t.ready_t:
                 t.load, t.loading = t.loading, None
                 self.say("torp.loaded", {"tube": t.n, "type": t.load})
-        still = []
-        for tube, d, t_hit in self.running:
-            if self.now >= t_hit:
-                self.say("torp.time", {"tube": tube, "designation": d}, kind="info")
-            else:
-                still.append((tube, d, t_hit))
-        self.running = still
+        for r in list(self.in_water):
+            if r.t_hit is not None and not r.timed and self.now >= r.t_hit:
+                r.timed = True
+                self.say("torp.time", {"tube": r.tube, "designation": r.designation}, kind="info")
+            if self.now >= r.t_end + END_GRACE_S:
+                self.in_water.remove(r)
+                self.say("torp.run.timeout", {"tube": r.tube}, quality=Quality.OSAKER)
 
         if self.now % 30 == 0:
             self._readiness()
@@ -331,6 +413,44 @@ class TorpedoRoom(Station):
                                   "type": tube.load, "run_s": aim[1]},
                                  quality=sol.quality, cooldown=0)
                     break
+
+    # --- torpeder i vattnet ---------------------------------------------------------
+    def _report_in_water(self) -> None:
+        rows = []
+        for r in self.in_water:
+            rows.append({
+                "tube": r.tube, "type": r.type, "designation": r.designation,
+                "course": r.course, "elapsed": self.now - r.launch_t,
+                "to_hit": None if r.t_hit is None else r.t_hit - self.now,
+                "to_end": max(0, r.t_end - self.now),
+                "bearing": r.bearing, "lost": r.lost, "turned": r.turned})
+        self.say("torp.in_water", {"running": rows})
+
+    def _on_own_torpedo(self, e: OwnTorpedoHeard) -> None:
+        r = next((x for x in self.in_water if x.no == e.no), None)
+        if r is None:
+            return
+        d = {"tube": r.tube, "bearing": e.bearing if e.bearing is not None else r.bearing}
+        match e.kind:
+            case "running":
+                r.bearing, r.heard_t, r.lost = e.bearing, self.now, False
+                if not r.confirmed and self.now - r.launch_t >= RUN_REPORT_AFTER:
+                    r.confirmed = True
+                    self.say("torp.run.running", d, quality=e.quality)
+            case "turned":
+                r.bearing, r.heard_t, r.turned = e.bearing, self.now, True
+                if TORPEDO_TYPES[r.type].homing:
+                    self.say("torp.run.turned", d, quality=e.quality, alarm=True)
+            case "lost":
+                r.lost = True
+                self.say("torp.run.lost", d)
+            case "detonated":
+                self.in_water.remove(r)
+                self.say("torp.run.hit", {**d, "nuclear": TORPEDO_TYPES[r.type].nuclear},
+                         kind="contact", quality=Quality.SAKER, alarm=True)
+            case "silent":
+                self.in_water.remove(r)
+                self.say("torp.run.silent", d, quality=Quality.GOD)
 
     def _on_sound(self, e: SoundHeard) -> None:
         if self.decoys > 0 and (e.kind == "splash" or e.detail == "fast"):

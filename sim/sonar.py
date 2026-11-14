@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 from .crew import CrewMember
 from . import acoustics
-from .geo import bearing_to, norm360
+from .geo import angle_diff, bearing_to, norm360
 from .reports import Quality
 from .tma import BearingObs
 from .entities import Vessel
@@ -23,6 +23,9 @@ from .world import World
 
 OBS_INTERVAL = 5           # sekunder mellan loggade bäringar till plottet
 LOSE_AFTER = 120           # sekunder utan hörbar signal innan kontakten förloras
+OWN_LOSE_AFTER = 60        # egen torped: sekunder tyst innan operatören tappar den
+OWN_TURN_DEG = 20.0        # så mycket måste en egen torped svänga för att det ska höras
+OWN_END_WAIT = 2           # sekunder att vänta på detonation när en torped tystnar
 
 # Klassificeringsstadier per typ: (ackumulerad lyssning, text)
 _CLASS_STAGES = {
@@ -56,6 +59,22 @@ class TransientHeard:
     se: float
     designation: str | None   # om källan är en känd kontakt
     practice: bool = False
+    own_weapon: bool = False  # ljudet kom från en egen torped
+
+
+@dataclass
+class OwnTorpedo:
+    """Operatören följer en egen torped.
+
+    no är ordningsnumret i avfyrningsordning (1, 2, …). Torpedrummet räknar
+    sina avfyringar på samma sätt och knyter numret till en tub.
+    kind: running (bäring), turned (har svängt), lost (hörs inte längre),
+    detonated (detonation från torpeden), silent (tystnade utan detonation).
+    """
+    no: int
+    kind: str
+    bearing: float | None
+    se: float = 0.0
 
 
 @dataclass
@@ -65,7 +84,7 @@ class ClassificationUpdate:
     quality: Quality
 
 
-SonarEvent = Detection | Lost | ClassificationUpdate | BearingObs | TransientHeard
+SonarEvent = Detection | Lost | ClassificationUpdate | BearingObs | TransientHeard | OwnTorpedo
 
 
 @dataclass
@@ -82,11 +101,27 @@ class _Tracking:
 
 
 @dataclass
+class _OwnTrack:
+    """Operatörens minne av en egen torped."""
+    no: int
+    launch_course: float
+    held: bool = True
+    silent_for: int = 0
+    last_obs_t: int = -10**9
+    last_bearing: float | None = None
+    turned: bool = False
+    done_t: int | None = None
+    ended: bool = False
+
+
+@dataclass
 class SonarStation:
     operator: CrewMember
     rng: random.Random
     _tracks: dict[str, _Tracking] = field(default_factory=dict)
     _next_number: int = 1
+    _own: dict[str, _OwnTrack] = field(default_factory=dict)
+    _own_count: int = 0
 
     def threshold(self, world: World) -> float:
         """Operatörens tröskel, sämre om sonaren är skadad."""
@@ -115,6 +150,8 @@ class SonarStation:
         events: list[SonarEvent] = []
         for v in world.contacts:
             if v.side == "own":
+                if v.kind == "torpedo":
+                    events += self._own_torpedo(world, v)
                 continue
             t = self._tracks.setdefault(v.id, _Tracking())
             t.fluct = 0.95 * t.fluct + self.rng.gauss(0.0, 0.5)
@@ -175,6 +212,44 @@ class SonarStation:
             sigma=sig, own_x=own_xy[0], own_y=own_xy[1],
             own_course=world.own.state.course, se=se, designation=designation, source=source)
 
+    def _own_torpedo(self, world: World, v: Vessel) -> list[SonarEvent]:
+        """Följ en egen torped: bäring, sväng, tappad och tystnad."""
+        tr = self._own.get(v.id)
+        if tr is None:
+            self._own_count += 1
+            tr = self._own[v.id] = _OwnTrack(self._own_count, v.state.course)
+        if tr.ended:
+            return []
+        if getattr(v, "done", False):
+            # Torpeden har slutat gå. En detonation hörs nästa tick (_transients);
+            # hörs ingen tystnade den utan att detonera.
+            if tr.done_t is None:
+                tr.done_t = world.time
+            elif world.time - tr.done_t >= OWN_END_WAIT:
+                tr.ended = True
+                if tr.held:
+                    return [OwnTorpedo(tr.no, "silent", tr.last_bearing)]
+            return []
+        out: list[SonarEvent] = []
+        se = world.raw_signal_excess(v) - self.threshold(world)
+        if se > 0:
+            tr.silent_for = 0
+            tr.held = True
+            if world.time - tr.last_obs_t >= OBS_INTERVAL:
+                tr.last_obs_t = world.time
+                tr.last_bearing = self._noisy_bearing(world, v, se)
+                out.append(OwnTorpedo(tr.no, "running", tr.last_bearing, se))
+            if not tr.turned and abs(angle_diff(v.state.course, tr.launch_course)) > OWN_TURN_DEG:
+                tr.turned = True
+                tr.last_bearing = self._noisy_bearing(world, v, se)
+                out.append(OwnTorpedo(tr.no, "turned", tr.last_bearing, se))
+        else:
+            tr.silent_for += 1
+            if tr.held and tr.silent_for >= OWN_LOSE_AFTER:
+                tr.held = False
+                out.append(OwnTorpedo(tr.no, "lost", tr.last_bearing))
+        return out
+
     def _transients(self, world: World, own_xy) -> list[SonarEvent]:
         out: list[SonarEvent] = []
         noise = acoustics.power_sum(world.env.background_noise, world.own.self_noise())
@@ -190,8 +265,14 @@ class SonarStation:
             sig = self.bearing_sigma(se)
             desig = self.designation_of(tr.source_id)
             track = self._tracks.get(tr.source_id)
-            out.append(TransientHeard(tr.kind, norm360(true_b + self.rng.gauss(0, sig)), se,
-                                      desig if track and track.held else None, tr.practice))
+            heard_b = norm360(true_b + self.rng.gauss(0, sig))
+            own_t = self._own.get(tr.source_id)
+            if own_t is not None and tr.kind == "explosion" and not own_t.ended:
+                own_t.ended = True
+                out.append(OwnTorpedo(own_t.no, "detonated", heard_b, se))
+            out.append(TransientHeard(tr.kind, heard_b, se,
+                                      desig if track and track.held else None, tr.practice,
+                                      own_weapon=own_t is not None))
             # en ping ger en skarp bäring på en känd kontakt
             if tr.kind == "ping" and track is not None and track.held and desig:
                 src = next((v for v in world.contacts if v.id == tr.source_id), None)

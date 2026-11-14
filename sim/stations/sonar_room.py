@@ -13,12 +13,13 @@ from .. import acoustics, phrases
 from ..crew import Role
 from ..entities import Transient
 from ..events import (BearingObserved, ClassificationChanged, ContactDetected,
-                      ContactLost, SoundHeard)
+                      ContactLost, OwnTorpedoHeard, SoundHeard)
 from ..fmt import fmt_course, nm
 from ..geo import angle_diff, circular_mean, norm360
 from ..orders import CommandSpec, Order
 from ..reports import Quality
-from ..sonar import ClassificationUpdate, Detection, Lost, SonarStation, TransientHeard
+from ..sonar import (ClassificationUpdate, Detection, Lost, OwnTorpedo, SonarStation,
+                     TransientHeard)
 from ..tma import BearingObs
 from .base import Station
 
@@ -183,6 +184,10 @@ class SonarRoom(Station):
                         self._maybe_call_bearing(ev.designation)
                 case TransientHeard():
                     self._on_sound(ev)
+                case OwnTorpedo():
+                    # Torpedrummet rapporterar egna torpeder med tubnummer.
+                    q = Quality.GOD if ev.se >= 6 else Quality.OSAKER
+                    bus.publish(OwnTorpedoHeard(self.now, ev.no, ev.kind, ev.bearing, q))
 
     def _suggest_layer(self) -> None:
         env, st = self.game.world.env, self.own.state
@@ -231,6 +236,8 @@ class SonarRoom(Station):
             if ev.se > 160:
                 if self._dedupe("nuclear", 60):
                     self.say("sonar.nuclear", d, kind="contact", alarm=True)
+            elif ev.own_weapon:
+                pass                    # torpedrummet rapporterar sina egna träffar
             elif self._dedupe("explosion", 10):
                 self.say("sonar.explosion", {**d, "practice": ev.practice, "near": ev.se > 110},
                          kind="contact", alarm=not ev.practice)
@@ -239,7 +246,8 @@ class SonarRoom(Station):
                 self.say("sonar.uwt", d, kind="contact")
         elif ev.kind == "breakup":
             if self._dedupe(f"breakup{ev.designation}", 60):
-                self.say("sonar.breakup", d, kind="contact", alarm=True)
+                # brytningsljudet följer på detonationen; rapportera det efter den
+                self.say("sonar.breakup", d, kind="contact", alarm=True, extra_delay=6)
         bus.publish(SoundHeard(self.now, ev.kind, ev.bearing, ev.designation, ev.practice, detail))
 
     def _evasive_depth(self, cooldown: int = 300) -> None:

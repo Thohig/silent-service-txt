@@ -32,7 +32,7 @@ för att avslå. Avfyring föreslås aldrig som en ja-order.
 | Maskin | `smygmotor` · `turbin` · `stäng reaktorn` · `starta reaktorn` · `nödblåsning` · `maskin` |
 | Vakthavande | `periskop` · `radar` (periskopdjup; radarvarnaren är automatisk) |
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
-| Torped | `tuber` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
+| Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
 | Övrigt | `hjälp` · `ctrl+q` avslutar |
 
 ## System ombord
@@ -49,6 +49,7 @@ för att avslå. Avfyring föreslås aldrig som en ja-order.
 | Navigering | Besticket driver med ström och loggfel; fix kräver periskopet. |
 | Radio | Sambandstillfällen kl 05:00, 06:30 och 08:00 på antenndjup. Sändning pejlas. |
 | Torpeder | 53-61 (rak, snabb), SET-53 (målsökande), T-5 (kärnladdning, spärrad utan order). |
+| Torpeder i vattnet | Sonar följer egna torpeder. Torpedrummet rapporterar normal gång, sväng (målsökning), tappad torped, detonation och miss. `torpeder` ger gångtid, tid till beräknad träff, räckvidd kvar och senaste bäring. |
 | Skenmål | Drar jagarens sonar bort från ubåten. |
 
 Jagaren pingar, söker kring sin bild av var vi är och fäller

@@ -85,6 +85,18 @@ class SoundHeard(Event):
 
 
 @dataclass(frozen=True)
+class OwnTorpedoHeard(Event):
+    """Sonaren hör en egen torped. no = ordningsnummer i avfyrningsordning.
+
+    kind: running, turned, lost, detonated, silent (se sim/sonar.py OwnTorpedo).
+    """
+    no: int
+    kind: str
+    bearing: float | None = None
+    quality: Quality = Quality.OSAKER
+
+
+@dataclass(frozen=True)
 class GameEnded(Event):
     outcome: str
     summary: dict
