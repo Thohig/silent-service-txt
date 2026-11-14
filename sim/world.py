@@ -18,7 +18,7 @@ from . import acoustics
 from .entities import Emission, Transient, Vessel
 from .environment import Environment
 from .geo import bearing_to, distance
-from .ice import ice_contact
+from .ice import ice_contact, ice_sounds
 from .ownship import OwnShip
 from .weapons import Torpedo, step_weapons
 
@@ -86,6 +86,7 @@ class World:
         if self.env.ice is not None:
             self.env.ice.advance(dt)
             ice_contact(self, prev, dt)
+            ice_sounds(self)
 
         self.own.update(self, dt)
         step_weapons(self, dt)
@@ -130,4 +131,8 @@ class World:
         """SE vid egna hydrofoner, utan operatörens tröskel – ren fysik."""
         tl = self.tl_to_own(v.state.x, v.state.y, v.depth)
         return v.radiated_level(self.env) - tl - acoustics.power_sum(
-            self.env.background_noise, self.own.self_noise())
+            self.background_at_own(), self.own.self_noise())
+
+    def background_at_own(self) -> float:
+        o = self.own.state
+        return self.env.noise_at(o.x, o.y)

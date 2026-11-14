@@ -98,6 +98,12 @@ class Environment:
     def transmission_loss(self, range_nm: float, depth_a: float, depth_b: float) -> float:
         return self.profile.transmission_loss(range_nm, depth_a, depth_b)
 
+    def noise_at(self, x: float, y: float) -> float:
+        """Bakgrundsbrus (dB) på platsen: isens brus om det finns is, annars havsbrus."""
+        if self.ice is not None:
+            return self.ice.noise_at(x, y)
+        return self.background_noise
+
     def clock(self, sim_t: int) -> int:
         return (self.clock_start + sim_t) % 86400
 

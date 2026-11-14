@@ -116,7 +116,7 @@ class PlotTeam(Station):
         if self.now % PLOT_INTERVAL:
             return
         for tr in self.game.knowledge.tracks.values():
-            if not tr.held or len(tr.observations) < 3:
+            if not tr.threat or len(tr.observations) < 3:
                 continue
             prev_q = tr.solution.quality if tr.solution else None
             sol = self._resolve(tr)
@@ -150,7 +150,7 @@ class PlotTeam(Station):
         out = []
         for tr in self.game.knowledge.tracks.values():
             sol = tr.solution
-            if not tr.held or sol is None or sol.quality >= Quality.GOD:
+            if not tr.threat or sol is None or sol.quality >= Quality.GOD:
                 continue
             if self._maneuvered_recently(tr):
                 continue

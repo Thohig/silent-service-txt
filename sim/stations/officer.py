@@ -176,7 +176,7 @@ class OfficerStation(Station):
 
     def idle_proposals(self) -> list[Proposal]:
         st = self.own.state
-        held = any(t.held for t in self.game.knowledge.tracks.values())
+        held = self.game.knowledge.threat_held()
         if st.depth <= PERISCOPE_DEPTH and not held and st.speed <= 7 and \
                 not self.game.knowledge.ice.under_ice(self.now) and \
                 self.now - self._last_look_t >= LOOK_INTERVAL_S and self.look_done_t is None:

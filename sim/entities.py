@@ -22,7 +22,7 @@ class Vessel:
 
     @property
     def is_ship(self) -> bool:
-        return self.kind not in ("torpedo", "decoy")
+        return self.kind not in ("torpedo", "decoy", "ice")
 
     def radiated_level(self, env) -> float:
         """Utstrålat bredbandsljud (dB). Sjunkna fartyg är tysta."""

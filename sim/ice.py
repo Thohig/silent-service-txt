@@ -11,6 +11,11 @@ Isen genereras ur ett seedat frö:
   råkar        smala rännor, öppna eller med nyis 0,2–0,8 m,
   polynyor     öppna vakar, 150–450 m tvärs.
 
+Isen låter: bakgrundsbruset är lågt under fast is (~50 dB) men högt vid
+iskanter och där isen skruvar sig (upp mot ~72 dB). Skruvzonerna knakar
+(transienter "ice") och ger ibland ihållande ljudkällor som sonaren kan ta
+för kontakter (IceSource, kind "ice").
+
 Isen driver med transpolardriften (drift_set, drift_kn), oberoende av
 vattnets ström. Den flyttar alltså vakar och kölar i förhållande till
 ubåten.
@@ -28,7 +33,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from .entities import Transient, Vessel
 from .geo import NM_IN_M, velocity
+from .ship import ShipState
 
 if TYPE_CHECKING:
     from .world import World
@@ -42,6 +49,25 @@ HULL_TOP_M = 8.0            # skrovets ovansida över kölen
 SAIL_TOP_M = 13.0           # tornets ovansida över kölen
 HULL_HALF_NM = 50.0 / NM_IN_M   # för- och akterskeppet, från tornet räknat
 BUMP_BACKOFF_M = 5.0        # efter stöt mot isen går ubåten ned så här mycket
+NOISE_SOLID_DB = 50.0       # bakgrundsbrus under fast, tyst is
+NOISE_EDGE_DB = 8.0         # tillägg nära råkar och vakar
+NOISE_RIDGING_DB = 14.0     # tillägg i aktiva skruvzoner
+CRACK_RATE_PER_S = 0.03     # knakande isljud i omgivningen
+CRACK_LEVEL = (148.0, 168.0)
+SOURCE_INTERVAL_S = (900, 2100)  # ihållande skruvljud: nytt så här ofta
+SOURCE_LIFE_S = (480, 1500)
+SOURCE_LEVEL = (134.0, 144.0)
+
+
+def _box_mean(a: np.ndarray, r: int) -> np.ndarray:
+    """Medelvärde i en (2r+1)² ruta, periodiskt."""
+    out = np.zeros_like(a)
+    for d in range(-r, r + 1):
+        out += np.roll(a, d, axis=0)
+    tmp, out = out, np.zeros_like(a)
+    for d in range(-r, r + 1):
+        out += np.roll(tmp, d, axis=1)
+    return out / (2 * r + 1) ** 2
 
 
 def _smooth_noise(gen: np.random.Generator, n: int, k: int) -> np.ndarray:
@@ -99,6 +125,14 @@ class IceField:
                         draft[(ci + di) % n, (cj + dj) % n] = 0.89 * t
         self.thickness = thick
         self.draft = draft
+        # brus: skruvzoner (långsamt varierande aktivitet) och iskanter
+        self.activity = np.clip((_smooth_noise(gen, n, 5) - 0.5) * 2.5, 0.0, 1.0)
+        edge = _box_mean((thick <= 1.0).astype(float), 4)
+        self.noise_db = NOISE_SOLID_DB + NOISE_EDGE_DB * np.clip(edge * 4, 0, 1) \
+            + NOISE_RIDGING_DB * self.activity
+        self.sources: list = []
+        self.next_source_t = int(gen.integers(300, 900))
+        self._source_no = 0
 
     def _walk(self, gen: np.random.Generator, length_nm: float, width: int = 1):
         """Rutor längs en slingrande linje. index = (rad = y, kolumn = x)."""
@@ -136,6 +170,13 @@ class IceField:
 
     def draft_at(self, x: float, y: float) -> float:
         return float(self.draft[self._cell(x, y)])
+
+    def noise_at(self, x: float, y: float) -> float:
+        """Bakgrundsbrus (dB) från isen på denna plats."""
+        return float(self.noise_db[self._cell(x, y)])
+
+    def activity_at(self, x: float, y: float) -> float:
+        return float(self.activity[self._cell(x, y)])
 
     def is_open(self, x: float, y: float) -> bool:
         return self.thickness_at(x, y) < OPEN_M
@@ -252,3 +293,60 @@ def masts_clear(world: World) -> bool:
         return True
     s = world.own.state
     return ice.is_open(s.x, s.y)
+
+
+# --- isljud ------------------------------------------------------------------------
+class IceSource(Vessel):
+    """En ihållande ljudkälla: isen skruvar sig. Driver med isen, tystnar efter en tid."""
+
+    def __init__(self, id: str, x: float, y: float, level: float, end_t: int,
+                 drift_set: float, drift_kn: float):
+        super().__init__(id=id, kind="ice", state=ShipState(x=x, y=y, course=drift_set,
+                                                            speed=drift_kn, depth=2.0),
+                         side="neutral")
+        self.level = level
+        self.end_t = end_t
+
+    def radiated_level(self, env) -> float:
+        return -999.0 if self.sunk else self.level
+
+
+def _active_spot(world: World, rmin: float, rmax: float, tries: int = 6) -> tuple[float, float]:
+    """En plats rmin–rmax nm från ubåten, helst i en aktiv skruvzon."""
+    ice, rng, o = world.env.ice, world.rng, world.own.state
+    best, best_a = (o.x, o.y), -1.0
+    for _ in range(tries):
+        b = math.radians(rng.uniform(0, 360))
+        r = rng.uniform(rmin, rmax)
+        x, y = o.x + r * math.sin(b), o.y + r * math.cos(b)
+        a = ice.activity_at(x, y)
+        if a > best_a:
+            best, best_a = (x, y), a
+    return best
+
+
+def ice_sounds(world: World) -> None:
+    """Isens ljud i omgivningen: knakande transienter och ihållande skruvljud."""
+    ice, rng, now = world.env.ice, world.rng, world.time
+    if ice is None:
+        return
+    if rng.random() < CRACK_RATE_PER_S:
+        x, y = _active_spot(world, 0.5, 5.0)
+        level = CRACK_LEVEL[0] + (CRACK_LEVEL[1] - CRACK_LEVEL[0]) * ice.activity_at(x, y) \
+            + rng.gauss(0, 3)
+        world.emit(Transient("ice", x, y, 1.0, level, "ICE", now))
+    if now >= ice.next_source_t:
+        ice.next_source_t = now + rng.randint(*SOURCE_INTERVAL_S)
+        x, y = _active_spot(world, 1.5, 6.0)
+        ice._source_no += 1
+        src = IceSource(f"IS{ice._source_no}", x, y, rng.uniform(*SOURCE_LEVEL),
+                        now + rng.randint(*SOURCE_LIFE_S), ice.drift_set, ice.drift_kn)
+        ice.sources.append(src)
+        world.contacts.append(src)
+    for src in list(ice.sources):
+        if not src.sunk and now >= src.end_t:
+            src.sunk = True                     # tystnar
+        if src.sunk and now >= src.end_t + 900:
+            ice.sources.remove(src)
+            if src in world.contacts:
+                world.contacts.remove(src)

@@ -100,7 +100,7 @@ PHRASES = {
     "ice.pressing": lambda d: "Tornet ligger an mot tunn is. Vi trycker på, cirka fyrtio sekunder.",
     "ice.broke_through": lambda d: "Vi har brutit igenom isen!"
     + (" Periskopet fick en smäll." if d.get("damaged") else " Inga skador."),
-    "repaired": lambda d: f"{COMPONENT_LABEL[d['component']].capitalize()} är reparerad.",
+    "repaired": lambda d: f"Reparationen av {COMPONENT_LABEL[d['component']]} är klar.",
     "shock": lambda d: ("Smällar nära, inga skador. Små laddningar." if d.get("practice")
                         else "Kraftig tryckvåg! Inga skador." if d["strength"] == "kraftig"
                         else "Detonation på avstånd. Inga skador."),
@@ -182,7 +182,7 @@ class EngineeringStation(Station):
                                 {"speed": safe}, cooldown=600))
         if s.reactor in ("scram", "off") and s.battery < 0.5:
             out.append(Proposal(1, "idle_restart", "eng.suggest.restart", "starta reaktorn"))
-        if s.propulsion == "turbine" and any(t.held for t in self.game.knowledge.tracks.values()):
+        if s.propulsion == "turbine" and self.game.knowledge.threat_held():
             out.append(Proposal(2, "idle_creep", "eng.suggest.creep", "smygmotor"))
         return out
 
@@ -210,5 +210,5 @@ class EngineeringStation(Station):
             self.suggest("blow", "eng.suggest.blow", {"flooding": s.flooding},
                          order="nödblåsning", cooldown=120, alarm=True)
         if s.propulsion == "turbine" and self.game.knowledge.tracks and \
-                any(t.held for t in self.game.knowledge.tracks.values()):
+                self.game.knowledge.threat_held():
             self.suggest("creep", "eng.suggest.creep", order="smygmotor", cooldown=3600)

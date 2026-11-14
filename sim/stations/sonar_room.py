@@ -27,6 +27,7 @@ BEARING_REPORT_DELTA = 5.0
 BEARING_REPORT_MAX_AGE = 300
 SMOOTH_OBS = 6
 FAST_PING_S = 13
+ICE_REPORT_S = 1800          # knakande is rapporteras inte oftare
 
 
 @dataclass(frozen=True)
@@ -68,6 +69,8 @@ PHRASES = {
     "upprepat. Jag tror de uppmanar oss att gå till ytan.",
     "sonar.breakup": lambda d: f"Brytningsljud i bäring {fmt_course(d['bearing'])}{_src(d)}. "
     "Skott som ger vika. Ett fartyg sjunker, kapten.",
+    "sonar.ice": lambda d: f"Knakande isljud i bäring {fmt_course(d['bearing'])}"
+    + (", starkt. Isen skruvar sig nära." if d.get("near") else ". Isen skruvar sig."),
     "sonar.active.none": lambda d: "Aktiv sonar: inga ekon.",
     "sonar.active.echo": lambda d: f"Aktiv sonar: eko {d['designation']} i bäring "
     f"{fmt_course(d['bearing'])}, avstånd {nm(d['range'])} sjömil.",
@@ -115,7 +118,7 @@ class SonarRoom(Station):
         o = own.state
         world.emit(Transient("ping", o.x, o.y, o.depth, acoustics.PING_LEVEL_OWN, own.id, self.now))
         world.mission["own_pings"] = world.mission.get("own_pings", 0) + 1
-        noise = acoustics.power_sum(world.env.background_noise, own.self_noise())
+        noise = acoustics.power_sum(world.background_at_own(), own.self_noise())
         own_xy = self.game.own_position_estimate()
         rng = self.sensor.rng
         echoes = []
@@ -191,7 +194,7 @@ class SonarRoom(Station):
 
     def idle_proposals(self) -> list[Proposal]:
         st, env = self.own.state, self.game.world.env
-        held = any(t.held for t in self.game.knowledge.tracks.values())
+        held = self.game.knowledge.threat_held()
         out = []
         if held and env.layer_depth is not None and st.ordered_depth < env.layer_depth:
             d = env.layer_depth + 60
@@ -254,6 +257,10 @@ class SonarRoom(Station):
             elif self._dedupe("explosion", 10):
                 self.say("sonar.explosion", {**d, "practice": ev.practice, "near": ev.se > 110},
                          kind="contact", alarm=not ev.practice)
+        elif ev.kind == "ice":
+            if self._dedupe("ice", ICE_REPORT_S):
+                self.say("sonar.ice", {**d, "near": ev.se > 25}, kind="contact",
+                         quality=Quality.GOD if ev.se > 10 else Quality.OSAKER)
         elif ev.kind == "uwt":
             if self._dedupe("uwt", 120):
                 self.say("sonar.uwt", d, kind="contact")

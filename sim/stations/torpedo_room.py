@@ -402,7 +402,7 @@ class TorpedoRoom(Station):
     def _readiness(self) -> None:
         for tr in self.game.knowledge.tracks.values():
             sol = tr.solution
-            if not tr.held or sol is None or sol.quality < Quality.GOD:
+            if not tr.threat or sol is None or sol.quality < Quality.GOD:
                 continue
             if self._ready_said.get(tr.designation, Quality.DALIG) >= sol.quality:
                 continue

@@ -27,6 +27,17 @@ class ContactTrack:
     tma_from_t: int = -10**9       # plottlaget använder bara bäringar efter denna tid
 
     @property
+    def benign(self) -> bool:
+        """Säkert klassad som isljud: inget fartyg, inget hot."""
+        c = self.classification
+        return self.class_quality >= Quality.GOD and ("isljud" in c or "isskruvning" in c)
+
+    @property
+    def threat(self) -> bool:
+        """En hållen kontakt som kan vara ett fartyg."""
+        return self.held and not self.benign
+
+    @property
     def last_bearing(self) -> float | None:
         return self.observations[-1].bearing if self.observations else None
 
@@ -79,6 +90,9 @@ class Knowledge:
         return tr
 
     # --- frågor ---------------------------------------------------------------
+    def threat_held(self) -> bool:
+        return any(t.threat for t in self.tracks.values())
+
     def track(self, designation: str) -> ContactTrack | None:
         return self.tracks.get(_normalize(designation))
 

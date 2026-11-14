@@ -492,7 +492,7 @@ class NavigationStation(Station):
     def _quiet_contact_picture(self) -> bool:
         """Ingen kontakt hålls och ingen har hörts på SEARCH_LEG_S sekunder."""
         tracks = self.game.knowledge.tracks.values()
-        if any(t.held for t in tracks):
+        if any(t.threat for t in tracks):
             return False
         last = max((t.observations[-1].t for t in tracks if t.observations), default=-10**9)
         return self.now - last >= SEARCH_LEG_S
@@ -508,7 +508,7 @@ class NavigationStation(Station):
             c = bearing_to(self.est_x, self.est_y, size / 2, size / 2)
             out.append(Proposal(3, "idle_area", "nav.suggest.area", f"kurs {fmt_course(c)}",
                                 {"course": c, "area": self.game.area_name}, cooldown=900))
-        held = any(t.held for t in self.game.knowledge.tracks.values())
+        held = self.game.knowledge.threat_held()
         sigma = self.uncertainty()
         if not held and sigma > IDLE_FIX_SIGMA_NM and self.fix_done_t is None and \
                 self.icemap.soundings:

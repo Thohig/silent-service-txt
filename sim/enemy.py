@@ -82,7 +82,8 @@ class DestroyerAI:
         return self.state in ("prosecute", "attack")
 
     def _noise(self, world: World) -> float:
-        return acoustics.power_sum(world.env.background_noise,
+        s = self.vessel.state
+        return acoustics.power_sum(world.env.noise_at(s.x, s.y),
                                    acoustics.hull_sonar_self_noise(self.vessel.state.speed))
 
     def _tl(self, world: World, x: float, y: float, depth: float) -> float:

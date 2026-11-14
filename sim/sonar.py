@@ -35,6 +35,8 @@ _CLASS_STAGES = {
                  "handelsfartyg, diesel, en axel"],
     "submarine": ["okänd kontakt", "möjlig undervattenskontakt", "trolig ubåt",
                   "ubåt, atomdriven"],
+    "ice": ["okänd kontakt", "bredbandigt brus, ingen tydlig maskin", "trolig isskruvning",
+            "isljud, ingen maskin"],
 }
 _CLASS_THRESHOLDS = [0.0, 40.0, 250.0, 900.0]
 
@@ -252,7 +254,7 @@ class SonarStation:
 
     def _transients(self, world: World, own_xy) -> list[SonarEvent]:
         out: list[SonarEvent] = []
-        noise = acoustics.power_sum(world.env.background_noise, world.own.self_noise())
+        noise = acoustics.power_sum(world.background_at_own(), world.own.self_noise())
         dt = self.threshold(world)
         o = world.own.state
         for tr in world.transients:
