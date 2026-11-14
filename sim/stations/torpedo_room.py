@@ -21,6 +21,7 @@ from ..chart import Ray
 from ..crew import Role
 from ..events import OwnSoundMade, OwnTorpedoHeard, SoundHeard
 from ..fmt import fmt_course, nm
+from .. import russian as R
 from ..russian import ru
 from ..firecontrol import intercept
 from ..orders import DESIG, NUM, CommandSpec, Order, Unknown, desig, num
@@ -204,6 +205,46 @@ PHRASES = {
     "hört någon detonation. Trolig miss.",
 }
 phrases.register(PHRASES)
+
+
+def _ru_tube(d: dict) -> str:
+    return f"Аппарат {d['tube']}"
+
+
+RU_PHRASES = {
+    "torp.fired": lambda d: f"Торпеда вышла! {_ru_tube(d)}, {R.weapon(d['type'])}, курс "
+    f"{R.course(d['course'])}"
+    + (f", расчётное время хода {R.mmss(d['run_s'])}" if d.get("run_s") else "")
+    + (". Решение было плохое, возможен промах." if d.get("quality") == Quality.DALIG else "."),
+    "torp.time": lambda d: f"Время торпеды из аппарата {d['tube']}"
+    + (f" по {R.contact(d['designation'], True)}" if d.get("designation") else "") + "!",
+    "torp.loading": lambda d: f"Есть, заряжаем аппарат {d['tube']}, {R.weapon(d['type'])}. "
+    "Пять минут.",
+    "torp.loaded": lambda d: f"{_ru_tube(d)} заряжен, {R.weapon(d['type'])}.",
+    "torp.decoy": lambda d: f"Есть, имитатор выпущен. Осталось {d['left']}.",
+    "torp.ready": lambda d: f"{R.CAPTAIN}, минёр. Есть решение по {R.contact(d['designation'], True)}: "
+    f"аппарат {d['tube']}, {R.weapon(d['type'])}, время хода {R.mmss(d['run_s'])}. Ждём команды.",
+    "torp.suggest.reload": lambda d: f"{R.CAPTAIN}, минёр. Аппарат {d['tube']} пуст. "
+    f"Предлагаю зарядить {R.weapon(d['type'])}.",
+    "torp.suggest.decoy": lambda d: f"{R.CAPTAIN}, минёр. Предлагаю выпустить имитатор, "
+    "чтобы отвлечь их гидролокатор.",
+    "torp.run.running": lambda d: f"{_ru_tube(d)}: акустик слышит торпеду, пеленг "
+    f"{R.course(d['bearing'])}, идёт нормально.",
+    "torp.run.turned": lambda d: f"{_ru_tube(d)}: торпеда поворачивает, пеленг "
+    f"{R.course(d['bearing'])}. Головка самонаведения, видимо, что-то захватила.",
+    "torp.run.lost": lambda d: f"{_ru_tube(d)}: торпеда потеряна"
+    + (f", последний пеленг {R.course(d['bearing'])}" if d.get("bearing") is not None else "") + ".",
+    "torp.run.hit": lambda d: (
+        f"{_ru_tube(d)}: ядерный заряд взорвался, пеленг {R.course(d['bearing'])}."
+        if d.get("nuclear") else
+        f"{_ru_tube(d)}: взрыв, пеленг {R.course(d['bearing'])}. Это наша торпеда!"),
+    "torp.run.silent": lambda d: f"{_ru_tube(d)}: торпеда затихла"
+    + (f", пеленг {R.course(d['bearing'])}" if d.get("bearing") is not None else "")
+    + ", взрыва не было. Промах, товарищ командир.",
+    "torp.run.timeout": lambda d: f"{_ru_tube(d)}: запас хода торпеды кончился, взрыва не "
+    "слышали. Вероятно, промах.",
+}
+phrases.register_ru(RU_PHRASES)
 
 
 class TorpedoRoom(Station):

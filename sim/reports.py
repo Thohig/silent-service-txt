@@ -45,6 +45,7 @@ class Report:
     kind: str = "info"                 # ack, done, contact, solution, plot, suggest, info, system
     # fylls i av phrases.render() vid leverans:
     text: str = ""
+    speech: str = ""                   # samma rapport på ryska, för den ryska rösten
     table: list[list[str]] | None = None
     table_header: list[str] | None = None
 

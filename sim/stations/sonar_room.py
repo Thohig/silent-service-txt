@@ -15,6 +15,7 @@ from ..entities import Transient
 from ..events import (BearingObserved, ClassificationChanged, ContactDetected, HuntSigns,
                       ContactLost, OwnSoundMade, OwnTorpedoHeard, SoundHeard)
 from ..fmt import fmt_course, nm
+from .. import russian as R
 from ..russian import ru
 from ..geo import angle_diff, circular_mean, norm360
 from ..orders import CommandSpec, Order
@@ -101,6 +102,73 @@ PHRASES = {
     "Föreslår fart 4.",
 }
 phrases.register(PHRASES)
+
+
+STRENGTH_RU = {"svag": "слабый", "tydlig": "чёткий", "stark": "сильный"}
+
+
+def _ru_src(d: dict) -> str:
+    return f" от {R.contact(d['designation'], True)}" if d.get("designation") else ""
+
+
+def _ru_cap(s: str) -> str:
+    return s[:1].upper() + s[1:]
+
+
+RU_PHRASES = {
+    "sonar.new_contact": lambda d: f"{R.CAPTAIN}, акустик! Новый контакт, пеленг "
+    f"{R.course(d['bearing'])}, {R.contact(d['designation'])}. "
+    f"{_ru_cap(R.classification(d['classification']))}.",
+    "sonar.classified": lambda d: f"{_ru_cap(R.contact(d['designation']))}: "
+    f"{R.classification(d['classification'])}.",
+    "sonar.bearing": lambda d: f"{_ru_cap(R.contact(d['designation']))}, пеленг "
+    f"{R.course(d['bearing'])}, сигнал {STRENGTH_RU.get(d['strength'], '')}"
+    + {1: ", пеленг смещается вправо", -1: ", пеленг смещается влево"}.get(d.get("drift", 0), "")
+    + ".",
+    "sonar.lost": lambda d: f"{R.CAPTAIN}, акустик. {_ru_cap(R.contact(d['designation']))} потеряна"
+    + (f", последний пеленг {R.course(d['last_bearing'])}" if d.get("last_bearing") is not None
+       else "") + ".",
+    "sonar.regained": lambda d: f"{_ru_cap(R.contact(d['designation']))} снова слышна, пеленг "
+    f"{R.course(d['bearing'])}.",
+    "sonar.ping.first": lambda d: f"{R.CAPTAIN}, акустик! Работа гидролокатора, пеленг "
+    f"{R.course(d['bearing'])}{_ru_src(d)}. Нас ищут.",
+    "sonar.ping.fast": lambda d: f"{R.CAPTAIN}, акустик! Темп посылок{_ru_src(d)} резко возрос. "
+    "Видимо, они нас обнаружили!",
+    "sonar.ping.slow": lambda d: f"Темп посылок{_ru_src(d)} снова снизился.",
+    "sonar.ping.close": lambda d: f"Посылки{_ru_src(d)} очень сильные, товарищ командир. "
+    "Слышно через корпус.",
+    "sonar.splash": lambda d: f"{R.CAPTAIN}, акустик! Всплески, пеленг {R.course(d['bearing'])}"
+    + (", близко!" if d.get("near") else ".") + " Глубинные бомбы!",
+    "sonar.explosion": lambda d: (
+        f"Слабые взрывы, пеленг {R.course(d['bearing'])}. Видимо, сигнальные заряды."
+        if d.get("practice") else
+        f"Взрыв, пеленг {R.course(d['bearing'])}" + (", очень близко!" if d.get("near") else "!")),
+    "sonar.nuclear": lambda d: f"{R.CAPTAIN}! Мощнейший взрыв, пеленг {R.course(d['bearing'])}. "
+    "Гидрофоны забиты.",
+    "sonar.uwt": lambda d: f"Звукоподводная связь, пеленг {R.course(d['bearing'])}. Морзе, "
+    "повторяют. Думаю, требуют всплыть.",
+    "sonar.breakup": lambda d: f"Шумы разрушения корпуса, пеленг {R.course(d['bearing'])}"
+    f"{_ru_src(d)}. Переборки не выдерживают. Судно тонет, товарищ командир.",
+    "sonar.buoy": lambda d: f"{R.CAPTAIN}, акустик. Слабые всплески, пеленг "
+    f"{R.course(d['bearing'])}, шума винтов нет. Видимо, самолёт ставит буи. Нас слушают.",
+    "sonar.buoy_ping": lambda d: f"{R.CAPTAIN}, акустик! Короткие высокие посылки, пеленг "
+    f"{R.course(d['bearing'])}, из неподвижной точки. Активный буй.",
+    "sonar.suggest.quiet": lambda d: f"{R.CAPTAIN}, акустик. Предлагаю перейти на электромотор, "
+    "тогда буи нас хуже услышат.",
+    "sonar.ice": lambda d: f"Треск льда, пеленг {R.course(d['bearing'])}"
+    + (", сильный. Лёд торосится рядом." if d.get("near") else ". Лёд торосится."),
+    "sonar.active.none": lambda d: "Активный поиск: эха нет.",
+    "sonar.active.echo": lambda d: f"Активный поиск: эхо от {R.contact(d['designation'], True)}, "
+    f"пеленг {R.course(d['bearing'])}, дистанция {R.dec(d['range'], R.MILE)}.",
+    "sonar.suggest.layer": lambda d: f"{R.CAPTAIN}, акустик. Мы над слоем скачка, он на глубине "
+    f"{R.count(d['layer'], R.METER)}. Предлагаю глубину {R.count(d['depth'], R.METER)}, "
+    "под слоем нас хуже слышно.",
+    "sonar.suggest.depth_change": lambda d: f"Предлагаю сменить глубину на "
+    f"{R.count(d['depth'], R.METER)}, чтобы бомбы были установлены на неверную глубину!",
+    "sonar.suggest.slow": lambda d: f"{R.CAPTAIN}, акустик. На ходу {R.count(d['speed'], R.KNOT)} "
+    "слышим плохо. Предлагаю ход четыре узла.",
+}
+phrases.register_ru(RU_PHRASES)
 
 
 class SonarRoom(Station):

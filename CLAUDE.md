@@ -108,6 +108,11 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   `RU_VOICE` (Milena) och resten med Alva. Ordlistan visas i `hjälp`. Stridslarm (`off.battle_stations`,
   revun) när jakttecken kommer efter 30 min lugn; avdelningarna rapporterar (`eng.inspected`)
   60 s efter haverilarm eller kraftig tryckvåg.
+- **Ryskt tal**: varje station registrerar `RU_PHRASES` med `phrases.register_ru()` ur samma `data`;
+  `render()` fyller `Report.speech` (kyrilliskt), annars `russian.fallback()` (vem som rapporterar).
+  Hjälp i `russian.py`: `course` (siffra för siffra), `count`/`dec` med rätt böjning, `contact`
+  (S-1 → цель 1), `CLASS_RU`. Inget latinskt i talet (testas). `SoundBoard.language` ("ru" som
+  standard, `tal ryska`/`tal svenska`); utan Milena svenskt tal. Ny fras ⇒ lägg till rysk fras.
 - **Händelsebussen** (`events.py`) är synkron. `Knowledge` registreras före
   stationerna så att stationer alltid ser uppdaterad kunskap.
 - **Utbyggnadskrokar:** rapportfilter (`ReportQueue.filters`, ändrar `data`) för

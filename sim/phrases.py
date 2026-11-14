@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from . import russian
 from .fmt import fmt_course, kn, nm
 from .geo import angle_diff
 from .reports import Quality, Report
@@ -116,9 +117,66 @@ PHRASES: dict[str, Phrase] = {
 }
 
 
+# --- plott på ryska (tal) ------------------------------------------------------
+def ru_solution(sol: Data) -> str:
+    """Plottlagets lösning på ryska. Säger lika mycket som den svenska, inte mer."""
+    R = russian
+    q = Quality(sol["quality"])
+    if q >= Quality.GOD:
+        rng = f"дистанция {R.dec(sol['range_nm'], R.MILE)}"
+    else:
+        lo = max(0.2, sol["range_nm"] - 1.5 * sol["range_sigma"])
+        hi = sol["range_nm"] + 1.5 * sol["range_sigma"]
+        rng = (f"дистанция около {R.dec(sol['range_nm'], R.MILE)}, "
+               f"где-то от {R.dec(lo, R.MILE)} до {R.dec(hi, R.MILE)}")
+    if sol["course_sigma"] > 40 or sol["speed_sigma"] > 8:
+        motion = "курс и скорость пока определить не можем"
+    elif q >= Quality.GOD:
+        motion = f"курс {R.course(sol['course'])}, скорость {R.count(sol['speed'], R.KNOT)}"
+    else:
+        motion = (f"курс около {R.course(round(sol['course'] / 5) * 5)}, "
+                  f"скорость около {R.count(sol['speed'], R.KNOT)}")
+    return f"пеленг {R.course(sol['bearing'])}, {rng}, {motion}."
+
+
+def _ru_plot(d: Data) -> str:
+    return f"{russian.CAPTAIN}, планшет"
+
+
+RU_PLOT: dict[str, Phrase] = {
+    "plot.improved": lambda d: f"{_ru_plot(d)}. Решение по {russian.contact(d['designation'], True)} "
+    f"теперь {russian.QUALITY_RU[d['solution']['quality']]}. {_cap(ru_solution(d['solution']))}",
+    "plot.suggest": lambda d: (
+        f"{_ru_plot(d)}. Решение по {russian.contact(d['designation'], True)} "
+        f"{russian.QUALITY_RU[d['quality']]}, на прямом курсе дистанцию не получим. "
+        f"Предлагаю отворот на курс {russian.course(d['course'])}." if d["first"] else
+        f"{_ru_plot(d)}. Решение по {russian.contact(d['designation'], True)} всё ещё "
+        f"{russian.QUALITY_RU[d['quality']]}. Нужен новый галс. "
+        f"Предлагаю курс {russian.course(d['course'])}."),
+    "plot.solution": lambda d: f"{_cap(russian.contact(d['designation']))}: "
+    f"{ru_solution(d['solution'])} Решение {russian.QUALITY_RU[d['solution']['quality']]}.",
+    "plot.maneuver": lambda d: f"{_ru_plot(d)}! {_cap(russian.contact(d['designation']))}, видимо, "
+    "изменила курс или скорость, пеленги больше не сходятся. Начинаем решение заново.",
+    "plot.few_bearings": lambda d: f"Мало пеленгов на {russian.contact(d['designation'])}, "
+    "товарищ командир.",
+    "plot.no_contacts": lambda d: "Контактов нет, товарищ командир.",
+    "order.no_suggestion": lambda d: "Предложений нет, товарищ командир.",
+    "order.declined": lambda d: "Есть, ждём.",
+}
+
+
 def register(phrases: dict[str, Phrase]) -> None:
     """Stationer registrerar sina egna fraser."""
     PHRASES.update(phrases)
+
+
+# Ryskt tal: samma rapport på ryska (kyrilliskt), bara för den ryska rösten.
+RU_PHRASES: dict[str, Phrase] = dict(RU_PLOT)
+
+
+def register_ru(phrases: dict[str, Phrase]) -> None:
+    """Stationer registrerar sina ryska talfraser (sim/russian.py har hjälpen)."""
+    RU_PHRASES.update(phrases)
 
 
 def _plot_rows(d: Data, clock: Callable[[int], str]) -> list[list[str]]:
@@ -138,6 +196,8 @@ def render(report: Report, clock: Callable[[int], str]) -> Report:
     """Fyll i text (och tabell) från rapportens typ och data."""
     phrase = PHRASES.get(report.type)
     report.text = phrase(report.data) if phrase else f"[{report.type}] {report.data}"
+    ru_phrase = RU_PHRASES.get(report.type)
+    report.speech = ru_phrase(report.data) if ru_phrase else russian.fallback(report.role, report.kind)
     if report.data.get("order"):
         report.text += f" [ja: {report.data['order']}]"
     if report.type == "plot.table":

@@ -32,6 +32,10 @@ Besättningen talar som i den sovjetiska flottan, med några fasta ryska fraser:
 lämnat tuben). Betydelsen framgår alltid av den svenska texten bredvid, och `hjälp`
 har en ordlista. Siffror och bedömningar är alltid på svenska. `jest` fungerar som `ja`.
 Efter ett haverilarm rapporterar avdelningarna inom en minut vad de har inspekterat.
+
+Med ljudet på talar besättningen ryska (macOS-rösten Milena), medan loggen alltid är
+på svenska. `tal svenska` byter till svenskt tal, `tal ryska` tillbaka. Saknas Milena
+talar besättningen svenska.
 Ger du själv en order om samma sak (till exempel `fart 6` när besättningen
 föreslagit `fart 4`) släpps förslaget, och besättningen föreslår aldrig en
 kurs, fart, framdrivning eller ett djup som redan är beordrat.

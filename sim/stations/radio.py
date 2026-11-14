@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .. import phrases
+from .. import russian as R
 from ..crew import Role
 from ..entities import Emission
 from ..events import PositionReported
@@ -62,6 +63,20 @@ PHRASES = {
     + (f" Senaste: {d['last']}" if d.get("last") else ""),
 }
 phrases.register(PHRASES)
+
+RU_PHRASES = {
+    "radio.prewarn": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}. Нужна глубина "
+    f"под антенну, {R.count(ANTENNA_DEPTH, R.METER)} или меньше.",
+    "radio.window_open": lambda d: "Сеанс связи начался. Слушаем.",
+    "radio.message": lambda d: f"{R.CAPTAIN}, радист. Радиограмма из Главного штаба.",
+    "radio.nothing": lambda d: "Сеанс связи: новых радиограмм для нас нет.",
+    "radio.missed": lambda d: f"{R.CAPTAIN}, мы пропустили сеанс связи. Радиограммы могли "
+    "пропасть до следующего.",
+    "radio.sending": lambda d: "Есть, передаём донесение на коротких волнах. Тридцать секунд.",
+    "radio.sent": lambda d: "Донесение передано, квитанция получена.",
+    "radio.aborted": lambda d: "Передача прервана, антенна ушла под воду.",
+}
+phrases.register_ru(RU_PHRASES)
 
 
 class RadioStation(Station):

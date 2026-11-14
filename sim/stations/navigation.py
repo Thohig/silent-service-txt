@@ -23,6 +23,7 @@ from ..crew import Role
 from ..entities import Transient
 from ..events import IceSounded, OpeningNotFound
 from ..fmt import clock, fmt_course, kn, nm
+from .. import russian as R
 from ..russian import ru
 from ..geo import angle_diff, bearing_to, distance, norm360, velocity
 from ..ice import SAIL_TOP_M, masts_clear
@@ -348,6 +349,91 @@ def _ice_report(d: dict) -> str:
         txt += " Ingen användbar öppning loggad."
     return txt
 phrases.register(PHRASES)
+
+
+def _ru_depth_ack(d: dict) -> str:
+    txt = ("Есть, всплывать в надводное положение." if d["depth"] == 0 else
+           f"Есть, глубина {R.count(d['depth'], R.METER)}.")
+    if d.get("below_test"):
+        txt += " Это ниже рабочей глубины, товарищ командир."
+    if d.get("ice_ceiling"):
+        txt += f" Над нами лёд, выше {R.count(d['ice_ceiling'], R.METER)} не поднимемся."
+    elif d.get("ice_masts"):
+        txt += " Над нами лёд, мачты здесь не поднять."
+    if d.get("shoal"):
+        txt += f" По карте глубина здесь около {R.count(d['shoal'], R.METER)}."
+    return txt
+
+
+def _ru_ahead(d: dict) -> str:
+    return "здесь" if d["dist"] < 0.15 else f"в {R.dec(d['dist'], R.MILE)} впереди"
+
+
+RU_PHRASES = {
+    "nav.course.ack": lambda d: f"Есть, курс {R.course(d['course'])}."
+    + (" Уже на курсе." if d.get("already") else ""),
+    "nav.speed.ack": lambda d: "Есть, стоп машина." if d["speed"] == 0
+    else f"Есть, ход {R.count(d['speed'], R.KNOT)}.",
+    "nav.depth.ack": _ru_depth_ack,
+    "nav.course.done": lambda d: f"{R.CAPTAIN}, легли на курс {R.course(d['course'])}.",
+    "nav.speed.done": lambda d: f"Ход {R.count(d['speed'], R.KNOT)}.",
+    "nav.depth.done": lambda d: "Мы в надводном положении, товарищ командир." if d["depth"] < 1
+    else f"Глубина {R.count(d['depth'], R.METER)}, товарищ командир.",
+    "nav.limit": lambda d: f"{R.CAPTAIN}, предельный ход сейчас {R.count(d['limit'], R.KNOT)}."
+    if d["what"] == "speed" else f"{R.CAPTAIN}, предельная глубина {R.count(d['limit'], R.METER)}.",
+    "nav.settle.ack": lambda d: f"Есть, ложимся на грунт. Глубина около {R.count(d['depth'], R.METER)}. "
+    "Ход один узел, погружаемся.",
+    "nav.settle.already": lambda d: "Мы уже лежим на грунте, товарищ командир.",
+    "nav.settle.lift": lambda d: "Отрываемся от грунта.",
+    "nav.bfix.start": lambda d: f"Есть, определяемся по глубинам. {d['n']} промеров за "
+    f"{R.count(d['minutes'], R.MINUTE)}. Держите курс и ход, эхолот слышно.",
+    "nav.fix.start": lambda d: "Есть, определяемся по перископу.",
+    "nav.fix.aborted": lambda d: "Определение прервано, мы ушли с перископной глубины.",
+    "nav.fix.done": lambda d: f"Место определено. Поправка {R.dec(d['error'], R.MILE)} "
+    f"по пеленгу {R.course(d['bearing'])}.",
+    "nav.suggest.shoal": lambda d: f"{R.CAPTAIN}, штурман. "
+    + (f"Эхолот показал {R.count(d['shoal'], R.METER)} до грунта" if d.get("sounded") else
+       f"По карте {R.count(d['shoal'], R.METER)} {_ru_ahead(d)}")
+    + f". Предлагаю глубину {R.count(d['depth'], R.METER)}.",
+    "nav.suggest.land": lambda d: f"{R.CAPTAIN}, штурман! "
+    + ("Земля" if d["shoal"] <= 0 else f"Всего {R.count(d['shoal'], R.METER)} воды")
+    + f" {_ru_ahead(d)} по карте. Предлагаю курс {R.course(d['course'])}.",
+    "nav.follow": lambda d: f"Есть, идём в кильватер {R.contact(d['designation'], True)}, "
+    f"курс {R.course(d['course'])}.",
+    "nav.follow.lost": lambda d: f"{R.CAPTAIN}, мы потеряли {R.contact(d['designation'])}. "
+    "Прекращаем следование.",
+    "nav.suggest.fix": lambda d: f"{R.CAPTAIN}, штурман. Ошибка счисления {R.dec(d['sigma'], R.MILE)}. "
+    "Предлагаю определиться на перископной глубине.",
+    "nav.suggest.fix_now": lambda d: f"{R.CAPTAIN}, мы на перископной глубине. Ошибка счисления "
+    f"{R.dec(d['sigma'], R.MILE)}. Предлагаю определиться сейчас.",
+    "nav.suggest.search": lambda d: f"{R.CAPTAIN}, штурман. Контактов давно нет. "
+    f"Предлагаю новый галс поиска, курс {R.course(d['course'])}.",
+    "nav.suggest.area": lambda d: f"{R.CAPTAIN}, мы выходим из района. "
+    f"Предлагаю курс {R.course(d['course'])}.",
+    "nav.suggest.exit": lambda d: f"{R.CAPTAIN}, штурман. Ближайший выход из района "
+    + (f"в обход земли, {R.dec(d['dist'], R.MILE)}" if d.get("via") else
+       f"курсом {R.course(d['course'])}, {R.dec(d['dist'], R.MILE)}")
+    + (", в сторону от контактов." if d.get("clear") else ".")
+    + f" Предлагаю курс {R.course(d['course'])}.",
+    "nav.exit.out": lambda d: f"{R.CAPTAIN}, по счислению мы вышли из района.",
+    "nav.suggest.settle": lambda d: f"{R.CAPTAIN}, штурман. Мы над мелководьем, по карте около "
+    f"{R.count(d['depth'], R.METER)}. Если ляжем на грунт, наше эхо утонет в донном. "
+    "Предлагаю лечь на грунт.",
+    "nav.suggest.test_depth": lambda d: f"{R.CAPTAIN}, мы на глубине {R.count(d['depth'], R.METER)}, "
+    "ниже рабочей глубины. Предлагаю глубину 280 метров.",
+    "nav.ice.passed": lambda d: f"Эхоледомер: прошли полынью, около {R.count(d['length'], R.METER)}. "
+    f"Записана под номером {d['no']}.",
+    "nav.suggest.ice_closing": lambda d: f"{R.CAPTAIN}! Эхоледомер показывает толстый лёд, лёд "
+    f"надвигается на нас. Предлагаю глубину {R.count(d['depth'], R.METER)}.",
+    "nav.vak.ack": lambda d: f"Есть, идём к полынье {d['no']}, пеленг {R.course(d['bearing'])}, "
+    f"около {R.count(d['range'], R.METER)}. Ход {R.count(d['speed'], R.KNOT)}.",
+    "nav.vak.here": lambda d: "Мы под полыньёй. Стоп.",
+    "nav.suggest.up": lambda d: f"{R.CAPTAIN}, мы стоим под полыньёй. "
+    + ("Мы у станции Северный полюс семь. Предлагаю всплыть." if d.get("station") else
+       "Предлагаю перископную глубину." if d["open"] else
+       "Предлагаю всплыть, проломим молодой лёд."),
+}
+phrases.register_ru(RU_PHRASES)
 
 
 class NavigationStation(Station):

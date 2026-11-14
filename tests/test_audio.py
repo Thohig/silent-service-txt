@@ -260,3 +260,25 @@ def test_battle_stations_sounds_the_revun():
     assert p.cues == ["revun"]
     revun = synth_cues()["revun"]
     assert 2.0 < len(revun) / RATE < 3.5 and np.max(np.abs(revun)) <= 1.0
+
+
+def test_russian_mode_speaks_the_russian_report():
+    bus, p = EventBus(), RecordingPlayer(cue_len=0.0)
+    board = SoundBoard(bus, p, ru_voice="Milena")
+    _deliver(bus, text="Jest, kurs 090.", speech="Есть, курс ноль девять ноль.", role="navigator")
+    board.update(0.0)
+    assert p.said[-1][0] == "Есть, курс ноль девять ноль." and p.voices[-1] == "Milena"
+    assert not board.set_language("sv")
+    p.busy_until = 0.0
+    _deliver(bus, text="Kapten, plottet.", speech="Товарищ командир, планшет.", role="plot")
+    board.update(1.0)
+    assert p.said[-1][0] == "Kapten, plottet." and p.voices[-1] is None
+
+
+def test_russian_mode_without_milena_falls_back_to_swedish():
+    bus, p = EventBus(), RecordingPlayer(cue_len=0.0)
+    board = SoundBoard(bus, p)
+    assert not board.speaks_russian
+    _deliver(bus, text="Kapten, plottet.", speech="Товарищ командир, планшет.", role="plot")
+    board.update(0.0)
+    assert p.said[-1][0] == "Kapten, plottet."

@@ -35,6 +35,7 @@ SYSTEM_WORDS = {"system", "systemtavla", "systemtavlan", "tavla", "tavlan"}
 VIEWS = (ChartScreen, ProfileScreen, SystemScreen)     # Tab-ordningen efter loggen
 GAUGE_EVERY_S = 0.5
 SOUND_WORDS = {"ljud", "ljud av", "ljud på", "ljud pa"}
+SPEECH_WORDS = {"tal ryska": "ru", "tal svenska": "sv"}
 SOUND_KEY = "ctrl+t"                   # t som i tal
 
 
@@ -161,6 +162,9 @@ class SubApp(App):
             want = {"ljud av": False, "ljud på": True, "ljud pa": True}.get(text.lower())
             self.action_sound(want)
             return
+        if text.lower() in SPEECH_WORDS:
+            self.action_speech(SPEECH_WORDS[text.lower()])
+            return
         self.query_one(ReportLog).add_captain(self.game.clock_str(), text)
         self.game.command(text)
 
@@ -173,6 +177,9 @@ class SubApp(App):
                        f"Du har befälet. Ubåten går kurs {fmt_course(st.course)}, "
                        f"fart {kn(st.speed)} knop, djup {st.depth:.0f} meter.")
         log.add_system(self.game.clock_str(), "Skriv hjälp för en lista över order. Besättningens förslag godkänns med ja, avslås med nej.")
+        if self.sound is not None and self.sound.enabled and self.sound.speaks_russian:
+            log.add_system(self.game.clock_str(), "Besättningen talar ryska, loggen är på svenska. "
+                           "tal svenska byter språk.")
         log.add_system(self.game.clock_str(), "Tab växlar mellan logg, sjökort, djupprofil och systemtavla.")
         if self._sound_note:
             log.add_system(self.game.clock_str(), self._sound_note)
@@ -228,6 +235,19 @@ class SubApp(App):
             self.sound.toggle()
         self.query_one(ReportLog).add_system(
             self.game.clock_str(), "Ljudet på." if self.sound.enabled else "Ljudet av.")
+
+    def action_speech(self, language: str) -> None:
+        """"tal ryska" / "tal svenska": vilket språk besättningen talar. Loggen är alltid svensk."""
+        if self.sound is None:
+            return
+        russian = self.sound.set_language(language)
+        if language == "ru" and not russian:
+            msg = ("Rösten Milena saknas, besättningen talar svenska. Lägg till den under "
+                   "Systeminställningar › Hjälpmedel › Talat innehåll › Systemröst.")
+        else:
+            msg = "Besättningen talar ryska. Loggen är på svenska." if russian \
+                else "Besättningen talar svenska."
+        self.query_one(ReportLog).add_system(self.game.clock_str(), msg)
 
     # ------------------------------------------------------------------ realtid
     def _pump(self) -> None:

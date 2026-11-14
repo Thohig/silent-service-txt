@@ -216,6 +216,7 @@ class SoundBoard:
     enabled: bool = True
     heading: Callable[[], float] | None = None
     ru_voice: str | None = None    # rysk röst, annars läser den svenska rösten translittereringen
+    language: str = "ru"           # "ru": allt tal på ryska (kräver ru_voice), "sv": svenska
     ambience: Ambience | None = None
     out: AmbientOut | None = None
     queue: list[Line] = field(default_factory=list)
@@ -274,7 +275,11 @@ class SoundBoard:
             self._cue_until = max(self._cue_until, self._now + delay)
         if not self.speech or not spoken(r):
             return
-        line = Line(speech_parts(r.text, self.ru_voice), ROLE_RATE.get(r.role, DEFAULT_RATE),
+        if self.speaks_russian and r.speech:
+            parts: list[tuple[str | None, str]] = [(self.ru_voice, r.speech)]
+        else:
+            parts = speech_parts(r.text, self.ru_voice)
+        line = Line(parts, ROLE_RATE.get(r.role, DEFAULT_RATE),
                     urgent=r.alarm or r.kind == "suggest", queued_at=self._now,
                     not_before=self._now + delay)
         self.queue.append(line)
@@ -309,6 +314,15 @@ class SoundBoard:
         (voice, text), *self._parts = line.parts
         self._rate = line.rate
         self.player.speak(text, line.rate, voice)
+
+    @property
+    def speaks_russian(self) -> bool:
+        return self.language == "ru" and self.ru_voice is not None
+
+    def set_language(self, language: str) -> bool:
+        """'ru' eller 'sv'. Returnerar om besättningen nu talar ryska."""
+        self.language = language
+        return self.speaks_russian
 
     @property
     def available(self) -> bool:

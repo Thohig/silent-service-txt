@@ -131,6 +131,14 @@ PHRASES = {
 phrases.register(PHRASES)
 
 
+RU_PHRASES = {
+    "off.battle_stations": lambda d: "Боевая тревога! Боевая тревога! Противник, видимо, "
+    "обнаружил нас.",
+    "off.periscope.up": lambda d: "Есть, поднять перископ.",
+}
+phrases.register_ru(RU_PHRASES)
+
+
 class OfficerStation(Station):
     role = Role.OFFICER
     COMMANDS = [

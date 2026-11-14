@@ -74,3 +74,53 @@ def test_battle_stations_once_when_hunted():
     calls = [r for r in reports if r.type == "off.battle_stations"]
     assert len(calls) == 1 and calls[0].alarm
     assert calls[0].text.startswith("Boevaja trevoga! Stridslarm")
+
+
+# --- ryskt tal ------------------------------------------------------------------
+from sim import russian as R  # noqa: E402
+from sim.phrases import RU_PHRASES  # noqa: E402
+
+
+def test_russian_numbers_read_like_at_sea():
+    assert R.course(90) == "ноль девять ноль"
+    assert R.course(360) == "ноль ноль ноль"
+    assert [R.count(n, R.MILE) for n in (1, 3, 5, 11, 21, 22)] == [
+        "1 миля", "3 мили", "5 миль", "11 миль", "21 миля", "22 мили"]
+    assert R.dec(3.24, R.MILE) == "3 и две десятых мили"
+    assert R.dec(0.5, R.MILE) == "пять десятых мили"
+    assert R.dec(2.0, R.MILE) == "2 мили"
+    assert R.dec(1.1, R.MILE) == "1 и одна десятая мили"
+    assert R.mmss(273) == "4 минуты 33 секунды"
+    assert R.contact("S-12") == "цель 12" and R.contact("S-2", genitive=True) == "цели 2"
+
+
+def test_every_classification_has_russian():
+    from sim.sonar import _CLASS_STAGES
+    for stages in _CLASS_STAGES.values():
+        for c in stages:
+            assert c in R.CLASS_RU, c
+
+
+def test_report_without_russian_phrase_says_who_reports():
+    assert R.fallback("navigator", "ack") == "Есть."
+    assert R.fallback("sonar", "info") == "Товарищ командир, акустик."
+    assert R.fallback("plot", "suggest").endswith("Есть предложение.")
+
+
+def test_russian_speech_is_pure_cyrillic_over_a_patrol():
+    """Över en patrull med ja-bot: allt tal har rysk text, och inget latinskt läcker in."""
+    import re
+    from sim.scenario import build_scenario
+    for key, seed in (("kuba", 2), ("jagad", 3)):
+        g = Game(build_scenario(key, random.Random(seed)), seed=seed)
+        reports = []
+        g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+        for _ in range(3600):
+            g.tick()
+            if any(r.kind == "suggest" and r.data.get("order") for r in reports[-3:]):
+                g.command("ja")
+        spoken = [r for r in reports if r.role and r.kind != "system"]
+        assert len(spoken) > 20
+        assert sum(r.type in RU_PHRASES for r in spoken) > 0.8 * len(spoken), key
+        for r in spoken:
+            assert r.speech and not re.search(r"[A-Za-zÅÄÖåäö]", r.speech), (r.type, r.speech)

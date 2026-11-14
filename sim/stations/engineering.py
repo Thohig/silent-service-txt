@@ -7,6 +7,7 @@ from .. import acoustics, phrases
 from ..crew import Role
 from ..events import OwnSoundMade
 from ..fmt import fmt_course, kn, nm
+from .. import russian as R
 from ..russian import ru
 from ..orders import CommandSpec, Order
 from ..ice import masts_clear
@@ -213,6 +214,110 @@ PHRASES = {
     "smygmotor, det sänker vårt ljud kraftigt.",
 }
 phrases.register(PHRASES)
+
+
+COMPONENT_RU = {"sonar": "гидроакустика", "planes": "рули", "propulsion": "движение",
+                "tubes": "торпедные аппараты", "periscope": "перископ", "radio": "радиосвязь"}
+SEVERITY_RU = {"lätta": "Лёгкие", "svåra": "Тяжёлые"}
+SMOKE_RU = {"lätt": "лёгкое", "besvärande": "заметное", "tät": "сильное",
+            "mycket tät": "очень сильное", "livsfarlig": "смертельно опасное"}
+ORDINAL_RU = {1: "первый", 2: "второй", 3: "третий", 4: "четвёртый", 5: "пятый", 6: "шестой",
+              7: "седьмой", 8: "восьмой", 9: "девятый"}
+NOTE_RU = {"snabbstopp": "аварийная защита реактора", "startar": "реактор вводится",
+           "ångläcka": "течь парогенератора", "BRAND": "пожар", "skada": "повреждения",
+           "lågt": "батарея разряжена", "rök": "задымление"}
+
+
+def _ru_damage_list(d: dict) -> str:
+    comps = ", ".join(COMPONENT_RU[c] for c in d["components"])
+    return f"{SEVERITY_RU.get(d['severity'], 'Есть')} повреждения" + (f": {comps}" if comps else "")
+
+
+def _ru_leak(d: dict) -> str:
+    return ". Поступление воды, откачиваем." if d.get("leak") else "."
+
+
+def _ru_inspected(d: dict) -> str:
+    remarks: dict[str, list[int]] = {}
+    for n, note in d["remarks"]:
+        remarks.setdefault(note, []).append(n)
+    if not remarks:
+        txt = "Отсеки осмотрены, замечаний нет."
+    else:
+        txt = "Отсеки осмотрены."
+        for note, nos in remarks.items():
+            where = "во всех отсеках" if len(nos) == len(ORDINAL_RU) else \
+                ", ".join(ORDINAL_RU[n] for n in nos) + (" отсек" if len(nos) == 1 else " отсеки")
+            txt += f" {where[:1].upper()}{where[1:]}: {NOTE_RU.get(note, 'замечания')}."
+    if d.get("leak"):
+        txt += " Поступление воды, откачиваем."
+    return txt
+
+
+RU_PHRASES = {
+    "eng.propulsion": lambda d: "Есть, турбина." if d["mode"] == "turbine"
+    else "Есть, электромотор. Максимальный ход пять узлов.",
+    "eng.reactor.stopping": lambda d: "Есть, глушим реактор. Идём на аккумуляторной батарее, "
+    "максимальный ход пять узлов.",
+    "eng.reactor.starting": lambda d: "Есть, вводим реактор. Около двадцати минут.",
+    "eng.blow": lambda d: "Аварийное продувание! Продуть все цистерны!",
+    "eng.inspected": _ru_inspected,
+    "reactor.scram": lambda d: f"{R.CAPTAIN}, пульт! Сработала аварийная защита реактора. "
+    "Идём на батарее и электромоторе, максимальный ход пять узлов.",
+    "reactor.online": lambda d: "Реактор снова в работе.",
+    "reactor.leak": lambda d: f"{R.CAPTAIN}, пульт. Течь парогенератора, повышенная радиация в "
+    "реакторном отсеке. Ограничиваем ход шестнадцатью узлами, пока устраняем.",
+    "reactor.leak_fixed": lambda d: "Течь парогенератора устранена. Полная мощность.",
+    "battery": lambda d: "Батарея разряжена, товарищ командир!" if d["level"] == 0
+    else f"Заряд батареи {round(d['level'] * 100)} процентов, товарищ командир.",
+    "surfaced": lambda d: "Мы в надводном положении!",
+    "leak_stopped": lambda d: "Течь заделана.",
+    "hull.creak": lambda d: f"Корпус трещит, товарищ командир. {R.count(d['depth'], R.METER)}, "
+    "ниже рабочей глубины.",
+    "damage": lambda d: f"Аварийная тревога! {_ru_damage_list(d)}{_ru_leak(d)}",
+    "ice.collision": lambda d: f"Аварийная тревога! Мы ударились о лёд! {_ru_damage_list(d)}"
+    f"{_ru_leak(d)} Машина остановлена.",
+    "bottom.collision": lambda d: f"Аварийная тревога! Мы сели на грунт! {_ru_damage_list(d)}"
+    f"{_ru_leak(d)} Машина остановлена. Всплываем на {R.count(d['back_to'], R.METER)}.",
+    "bottom.touch": lambda d: f"Коснулись грунта, товарищ командир. Малый ход, повреждений нет. "
+    f"Всплываем на {R.count(d['back_to'], R.METER)}.",
+    "ice.touch": lambda d: "Коснулись ледового киля, товарищ командир. Малый ход, повреждений нет.",
+    "shock": lambda d: ("Взрывы рядом, повреждений нет. Малые заряды." if d.get("practice")
+                        else "Сильный гидроудар! Повреждений нет." if d["strength"] == "kraftig"
+                        else "Взрыв на удалении. Повреждений нет."),
+    "fire": lambda d: "Аварийная тревога! Пожар в турбинном отсеке! Отсек покинут и "
+    "загерметизирован. Турбина остановлена, идём на электромоторе.",
+    "fire.out": lambda d: f"{R.CAPTAIN}, пожар в турбинном отсеке потушен. Но изоляция тлеет, "
+    "дым расходится. Нужно вентилироваться, а для этого нужен воздух.",
+    "smoke": lambda d: f"{R.CAPTAIN}, пульт. Задымление теперь {SMOKE_RU[_smoke_word(d['level'])]}."
+    + (" Людям трудно дышать." if d["level"] >= 0.7 else "")
+    + (" Времени у нас мало!" if d["level"] >= 0.85 else ""),
+    "vent.stopped": lambda d: "Вентиляция прервана, шахта под водой или подо льдом.",
+    "eng.vent.start": lambda d: "Есть, вентилируемся через шахту. Это займёт время."
+    if not d.get("surface") else "Есть, люки открыты, вентилируемся.",
+    "eng.suggest.vent": lambda d: f"{R.CAPTAIN}, пульт. Задымление {SMOKE_RU[_smoke_word(d['smoke'])]}, "
+    "а над нами открытый воздух. Предлагаю провентилироваться.",
+    "eng.smoke_no_opening": lambda d: f"{R.CAPTAIN}, пульт. Задымление "
+    f"{SMOKE_RU[_smoke_word(d['smoke'])]}, нужно вентилироваться, но полыньи у нас нет. "
+    "Надо искать чистую воду.",
+    "repaired": lambda d: f"Ремонт закончен: {COMPONENT_RU[d['component']]}.",
+    "bottom.settled": lambda d: f"Лежим на грунте, {R.count(d['depth'], R.METER)}, товарищ командир. "
+    + ("Скальный грунт, корпус поцарапали. " if d["kind"] == "klippa" else
+       "Мягкий грунт, повреждений нет. ")
+    + "Машина остановлена, насосы на малых оборотах.",
+    "vent.done": lambda d: f"{R.CAPTAIN}, воздух снова чистый. Вентиляция закрыта.",
+    "eng.suggest.cavitation": lambda d: f"{R.CAPTAIN}, пульт. Кавитируем, нас слышно далеко. "
+    f"Предлагаю ход {R.count(d['speed'], R.KNOT)}.",
+    "eng.suggest.restart": lambda d: f"{R.CAPTAIN}, пульт. Предлагаю ввести реактор.",
+    "eng.suggest.blow": lambda d: f"{R.CAPTAIN}, пульт! Принимаем воду и тонем, "
+    f"{round(d['flooding'])} тонн внутри. Предлагаю аварийное продувание!",
+    "eng.suggest.sprint": lambda d: f"{R.CAPTAIN}, пульт. Нас уже держат гидролокатором, тишина "
+    f"не поможет. Предлагаю турбину и ход {R.count(d['speed'], R.KNOT)} на глубине "
+    f"{R.count(d['depth'], R.METER)}, там не кавитируем. Уходим глубоко и быстро.",
+    "eng.suggest.creep": lambda d: f"{R.CAPTAIN}, пульт. Рядом контакт, предлагаю электромотор, "
+    "это сильно снизит наш шум.",
+}
+phrases.register_ru(RU_PHRASES)
 
 SPRINT_DEPTH = 220          # upptäckta: så djupt vi vill springa (under skiktet, över provdjup)
 SPRINT_MIN_DEPTH = 100
