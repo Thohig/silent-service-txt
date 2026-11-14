@@ -99,6 +99,15 @@ def desig(s: str | None) -> str | None:
     return f"S-{int(re.sub(r'[^0-9]', '', s))}"
 
 
+# Flera order på en rad: "kurs 090, fart 5; djup 100" eller "kurs 090 och fart 5".
+# Komma följt av en siffra är decimalkomma ("fart 5,5") och delar inte.
+_ORDER_SEP = re.compile(r"\s*;\s*|\s*,(?!\d)\s*|\s+och\s+", re.IGNORECASE)
+
+
+def split_orders(text: str) -> list[str]:
+    return [p for p in (part.strip() for part in _ORDER_SEP.split(text)) if p]
+
+
 def normalize(text: str) -> str:
     return " ".join(text.strip().lower().split())
 
@@ -135,7 +144,8 @@ class CommandRegistry:
         return Unknown(text)
 
     def help_text(self) -> str:
-        return "Order: " + " · ".join(s.help for s in self._specs if s.help)
+        return ("Order: " + " · ".join(s.help for s in self._specs if s.help)
+                + ". Flera order på en rad: kurs 090, fart 5; djup 100 (eller \"och\").")
 
 
 def _time_scale(m: re.Match) -> Order:

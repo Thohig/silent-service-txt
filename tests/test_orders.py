@@ -39,3 +39,58 @@ def test_help_lists_every_station_command():
     for word in ("kurs 090", "fart 5", "djup 100", "tid 1|2|5|10", "läge S-1", "plot S-1"):
         assert word in h
     assert h.rstrip().endswith("hjälp")
+
+
+# --- flera order på en rad -----------------------------------------------------------
+from sim.orders import split_orders
+
+
+def test_split_orders_separators_and_decimal_comma():
+    assert split_orders("kurs 090, fart 5; djup 100") == ["kurs 090", "fart 5", "djup 100"]
+    assert split_orders("kurs 090 och fart 5") == ["kurs 090", "fart 5"]
+    assert split_orders("fart 5,5") == ["fart 5,5"]
+    assert split_orders("fart 5,5, kurs 180") == ["fart 5,5", "kurs 180"]
+    assert split_orders("kurs 090,fart 5") == ["kurs 090", "fart 5"]
+    assert split_orders("  ;; kurs 090 ; ") == ["kurs 090"]
+
+
+def _multi_game():
+    import random
+    from sim.events import ReportDelivered
+    from sim.game import Game
+    from sim.scenario import default_scenario
+    g = Game(default_scenario(random.Random(3)), seed=3)
+    g.world.ais.clear()
+    reports = []
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    return g, reports
+
+
+def test_several_orders_on_one_line_are_all_executed():
+    g, _ = _multi_game()
+    g.command("kurs 090, fart 5; djup 100")
+    s = g.world.own.state
+    assert (s.ordered_course, s.ordered_speed, s.ordered_depth) == (90, 5, 100)
+
+
+def test_unknown_part_is_named_and_the_rest_still_runs():
+    g, reports = _multi_game()
+    g.command("kurs 045 och flyg till månen, fart 4")
+    for _ in range(20):
+        g.tick()
+    s = g.world.own.state
+    assert (s.ordered_course, s.ordered_speed) == (45, 4)
+    unknown = [r.text for r in reports if r.type == "order.unknown"]
+    assert unknown and 'förstod inte "flyg till månen"' in unknown[0]
+
+
+def test_ja_inside_a_line():
+    g, _ = _multi_game()
+    from sim.stations import EngineeringStation
+    g.station(EngineeringStation).suggest("x", "eng.suggest.cavitation", {"speed": 6},
+                                          order="fart 6")
+    for _ in range(20):
+        g.tick()
+    g.command("ja, kurs 270")
+    s = g.world.own.state
+    assert (s.ordered_course, s.ordered_speed) == (270, 6)

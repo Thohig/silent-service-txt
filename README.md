@@ -49,6 +49,11 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
 | Övrigt | `hjälp` · `ctrl+q` avslutar |
 
+Flera order kan ges på en rad, åtskilda med komma, semikolon eller "och":
+`kurs 090, fart 5; djup 100`. De verkställs i tur och ordning. Ett komma
+följt av en siffra är decimalkomma (`fart 5,5`). Förstår besättningen inte
+en del säger de vilken, och resten verkställs ändå.
+
 ## System ombord
 
 | System | Spelmässig betydelse |

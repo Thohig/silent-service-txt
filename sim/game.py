@@ -29,6 +29,7 @@ from .fmt import clock
 from .knowledge import Knowledge
 from .orders import (HELP_COMMAND, SUGGESTION_COMMANDS, TIME_COMMAND, AcceptSuggestion,
                      AskSuggestion, CommandRegistry, DeclineSuggestion, Help, Order,
+                     split_orders,
                      SetTimeScale, Unknown)
 from .ownship import PERISCOPE_DEPTH
 from .reports import Quality, Report, ReportQueue
@@ -188,10 +189,24 @@ class Game:
 
     # ------------------------------------------------------------------ order
     def command(self, text: str) -> None:
+        """Kaptenens inmatning. Flera order kan ges på en rad, åtskilda med
+        komma, semikolon eller "och"; de verkställs i tur och ordning."""
+        parts = split_orders(text)
+        if len(parts) <= 1:
+            self._command_one(text)
+            return
+        for part in parts:
+            self._command_one(part, many=True)
+
+    def _command_one(self, text: str, many: bool = False) -> None:
         if self.over:
             return
         self.last_command_t = self.now
         order = self.registry.parse(text)
+        if many and isinstance(order, Unknown):
+            # säg vilken del av raden som inte gick att förstå
+            order = Unknown(text, f"förstod inte \"{text}\"" + (f", {order.reason}"
+                                                                   if order.reason else ""))
         self.log(f"ORDER {text!r} -> {order}")
         match order:
             case AcceptSuggestion():
