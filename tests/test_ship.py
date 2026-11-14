@@ -53,3 +53,8 @@ def test_orders_are_clamped():
     s.order_depth(-5)
     assert s.ordered_speed == 28
     assert s.ordered_depth == 0
+
+
+def test_circular_mean_wraps():
+    from sim.geo import circular_mean
+    assert circular_mean([358, 2]) == pytest.approx(0, abs=1e-9) or circular_mean([358, 2]) == pytest.approx(360)

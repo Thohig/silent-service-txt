@@ -43,7 +43,7 @@ class CrewMember:
     # --- härledda egenskaper ---------------------------------------------
     def bearing_sigma(self) -> float:
         """Grundbrus i bäring (grader, 1σ) vid god signal."""
-        return 0.5 + 3.0 * (1.0 - self.effective_skill())
+        return 0.4 + 2.0 * (1.0 - self.effective_skill())
 
     def detection_threshold(self) -> float:
         """DT i dB: hur tydlig signalen måste vara för att uppfattas."""

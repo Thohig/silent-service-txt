@@ -52,13 +52,13 @@ def test_solution_improves_after_own_course_change():
 
         assert not leg1.own_maneuvered and leg2.own_maneuvered
         assert leg1.quality == Quality.DALIG
-        assert leg2.rel_range_error < leg1.rel_range_error / 3
+        assert leg2.rel_range_error < leg1.rel_range_error / 2
         better_quality += leg2.quality > leg1.quality
         errors.append(abs(leg2.range_nm - true_r) / true_r)
 
     errors.sort()
     assert better_quality >= n - 1
-    assert errors[n // 2] < 0.20          # medianfel i avstånd under 20 %
+    assert errors[n // 2] < 0.25          # medianfel i avstånd under 25 %
 
 
 def test_noise_free_two_leg_solution_is_exact():

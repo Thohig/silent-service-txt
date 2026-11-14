@@ -15,7 +15,7 @@ from .reports import Quality
 from .tma import BearingObs
 from .world import Vessel, World
 
-OBS_INTERVAL = 10          # sekunder mellan loggade bäringar till plottet
+OBS_INTERVAL = 5           # sekunder mellan loggade bäringar till plottet
 LOSE_AFTER = 60            # sekunder utan hörbar signal innan kontakten förloras
 
 # Klassificeringsstadier per typ: (ackumulerad lyssning, text)
@@ -78,7 +78,7 @@ class SonarStation:
         return world.raw_signal_excess(v) - self.operator.detection_threshold() + t.fluct
 
     def bearing_sigma(self, se: float) -> float:
-        return self.operator.bearing_sigma() * (1.0 + 3.0 / (1.0 + max(se, 0.0)))
+        return self.operator.bearing_sigma() * (1.0 + 1.5 / (1.0 + max(se, 0.0)))
 
     def update(self, world: World, own_xy: tuple[float, float]) -> list[SonarEvent]:
         events: list[SonarEvent] = []

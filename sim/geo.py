@@ -44,3 +44,10 @@ def velocity(course: float, speed_kn: float) -> tuple[float, float]:
 def fmt_course(angle: float) -> str:
     """Tresiffrig kurs/bäring, t.ex. 045."""
     return f"{round(norm360(angle)) % 360:03d}"
+
+
+def circular_mean(angles: list[float]) -> float:
+    """Medelvärde av vinklar i grader (hanterar 359/001)."""
+    sx = sum(math.sin(math.radians(a)) for a in angles)
+    cy = sum(math.cos(math.radians(a)) for a in angles)
+    return norm360(math.degrees(math.atan2(sx, cy)))

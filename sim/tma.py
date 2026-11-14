@@ -11,8 +11,13 @@ den egna båten inte har manövrerat är avståndet i princip omöjligt att
 bestämma ur bäringar. Matrisen blir då nästan singulär, osäkerheten
 stor och kvaliteten dålig, utan att någon specialregel behövs.
 
-En svag apriorifördelning på målets fart (σ = 30 kn) håller numeriken
-stabil när problemet är obestämt.
+Plottlaget använder två svaga antaganden (apriorifördelningar) som håller
+numeriken stabil när problemet är obestämt:
+- målets fart kring 0 med σ = 30 kn,
+- avståndet log-normalfördelat kring ett typiskt upptäcktsavstånd
+  (faktor e i spridning). Det motverkar den kända dragningen mot orimligt
+  korta avstånd vid brusiga bäringar, men är för svagt för att ensamt ge
+  bättre kvalitet än "dålig".
 """
 from __future__ import annotations
 
@@ -26,7 +31,10 @@ from .geo import angle_diff, norm360
 from .reports import Quality
 
 VELOCITY_PRIOR_KN = 30.0
-MAX_OBS = 150                     # använd de senaste N bäringarna
+RANGE_PRIOR_NM = 6.0
+RANGE_PRIOR_LOG_SIGMA = 1.0
+MAX_SPAN_S = 1800                 # använd bäringar från de senaste 30 min
+MAX_OBS = 400
 MIN_OBS = 6
 MIN_SPAN_S = 60
 _START_RANGES_NM = (1.0, 2.0, 3.5, 5.0, 7.0, 10.0, 14.0)
@@ -103,6 +111,18 @@ class _Problem:
         self.meas = np.radians([o.bearing for o in obs])
         self.w = 1.0 / np.radians([max(o.sigma, 0.05) for o in obs]) ** 2
         self.prior_w = 1.0 / VELOCITY_PRIOR_KN ** 2
+        last = obs[-1]
+        self.ref_x, self.ref_y = last.own_x, last.own_y
+        self.range_w = 1.0 / RANGE_PRIOR_LOG_SIGMA ** 2
+        self.log_r0 = math.log(RANGE_PRIOR_NM)
+
+    def _range_prior(self, s: np.ndarray):
+        """Residual och gradient för log-avståndsantagandet vid t_ref."""
+        dx, dy = s[0] - self.ref_x, s[1] - self.ref_y
+        r2 = max(dx * dx + dy * dy, 1e-6)
+        e = self.log_r0 - 0.5 * math.log(r2)
+        grad = np.array([dx / r2, dy / r2, 0.0, 0.0])   # d log r / ds
+        return e, grad
 
     def residuals_and_jacobian(self, s: np.ndarray):
         x, y, vx, vy = s
@@ -118,7 +138,9 @@ class _Problem:
 
     def cost(self, s: np.ndarray) -> float:
         e, _ = self.residuals_and_jacobian(s)
-        return float(np.sum(self.w * e * e) + self.prior_w * (s[2] ** 2 + s[3] ** 2))
+        er, _ = self._range_prior(s)
+        return float(np.sum(self.w * e * e) + self.prior_w * (s[2] ** 2 + s[3] ** 2)
+                     + self.range_w * er * er)
 
     def normal_equations(self, s: np.ndarray):
         e, J = self.residuals_and_jacobian(s)
@@ -129,6 +151,9 @@ class _Problem:
         H[3, 3] += self.prior_w
         g[2] -= self.prior_w * s[2]
         g[3] -= self.prior_w * s[3]
+        er, gr = self._range_prior(s)
+        H += self.range_w * np.outer(gr, gr)
+        g += self.range_w * er * gr
         return H, g
 
 
@@ -163,6 +188,8 @@ def solve(observations: Sequence[BearingObs], t_now: int | None = None,
           own_now: tuple[float, float] | None = None) -> Solution | None:
     """Lös målrörelsen. own_now är egen position vid t_now (för avstånd/bäring)."""
     obs = list(observations)[-MAX_OBS:]
+    if obs:
+        obs = [o for o in obs if o.t >= obs[-1].t - MAX_SPAN_S]
     if len(obs) < 3:
         return None
     last = obs[-1]
