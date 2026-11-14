@@ -24,7 +24,7 @@ from ..firecontrol import intercept
 from ..orders import DESIG, NUM, CommandSpec, Order, Unknown, desig, num
 from ..reports import Quality
 from ..weapons import TORPEDO_TYPES, launch_decoy, launch_torpedo
-from .base import Station
+from .base import Proposal, Station
 
 N_TUBES = 8
 RELOAD_S = 300
@@ -174,6 +174,8 @@ PHRASES = {
     "torp.decoy": lambda d: f"Skenmål ute. {d['left']} kvar.",
     "torp.ready": lambda d: f"Kapten, torped. Vi har skjutlösning på {d['designation']}: "
     f"tub {d['tube']} med {d['type']}, gångtid {_mmss(d['run_s'])}. Inväntar order.",
+    "torp.suggest.reload": lambda d: f"Kapten, torped. Tub {d['tube']} är tom. "
+    f"Föreslår att vi laddar {d['type']}.",
     "torp.suggest.decoy": lambda d: "Kapten, torped. Föreslår skenmål för att dra deras sonar.",
     "torp.in_water": _in_water,
     "torp.run.running": lambda d: f"Tub {d['tube']}: sonar hör torpeden i bäring "
@@ -413,6 +415,19 @@ class TorpedoRoom(Station):
                                   "type": tube.load, "run_s": aim[1]},
                                  quality=sol.quality, cooldown=0)
                     break
+
+    # --- initiativ vid tystnad -------------------------------------------------------
+    def idle_proposals(self) -> list[Proposal]:
+        # konventionella vapen; kärnladdningen laddas bara på uttrycklig order
+        stock = [k for k in ("SET-53", "53-61") if self.inventory.get(k, 0) > 0]
+        if not stock:
+            return []
+        for t in self.tubes:
+            if t.load is None and t.loading is None:
+                typ = max(stock, key=lambda k: self.inventory[k])
+                return [Proposal(5, f"idle_reload{t.n}", "torp.suggest.reload",
+                                 f"ladda tub {t.n} {typ}", {"tube": t.n, "type": typ})]
+        return []
 
     # --- torpeder i vattnet ---------------------------------------------------------
     def _report_in_water(self) -> None:

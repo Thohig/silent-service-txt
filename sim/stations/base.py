@@ -6,13 +6,16 @@ En station är ett system ombord med en ansvarig besättningsmedlem. Den
 - uppdateras en gång per simsekund (update),
 - rapporterar via say() med strukturerad data, aldrig färdig text,
 - föreslår åtgärder via suggest(): en rapport med en färdig order som
-  kaptenen kan godkänna med "ja".
+  kaptenen kan godkänna med "ja",
+- kan lämna förslag när kaptenen varit tyst länge (idle_proposals);
+  vakthavande officer väljer det viktigaste.
 
 Nya system (torpedrum, reaktor, radio, periskop …) läggs till som nya
 stationer utan att Game behöver ändras.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from ..crew import CrewMember, Role
@@ -22,6 +25,22 @@ from ..reports import Quality
 
 if TYPE_CHECKING:
     from ..game import Game
+
+
+@dataclass(frozen=True)
+class Proposal:
+    """Ett förslag en station kan ge när kaptenen varit tyst en längre stund.
+
+    priority: 1 är viktigast (säkerhet), högre tal är rutin. Avfyring får
+    aldrig vara ett Proposal.
+    """
+    priority: int
+    key: str
+    type: str                      # frastyp
+    order: str
+    data: dict[str, Any] = field(default_factory=dict)
+    quality: Quality | None = None
+    cooldown: int = 1800
 
 
 class Station:
@@ -42,6 +61,14 @@ class Station:
 
     def update(self) -> None:
         """Anropas en gång per simsekund, efter att världen tickat."""
+
+    def idle_proposals(self) -> list[Proposal]:
+        """Förslag att ge om kaptenen varit tyst länge. Bara ur kunskap och eget läge."""
+        return []
+
+    def propose(self, p: Proposal) -> bool:
+        return self.suggest(p.key, p.type, p.data, order=p.order, cooldown=p.cooldown,
+                            quality=p.quality)
 
     # --- hjälp --------------------------------------------------------------
     @property

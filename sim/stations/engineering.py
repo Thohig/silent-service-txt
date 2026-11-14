@@ -8,7 +8,7 @@ from ..crew import Role
 from ..fmt import kn, nm
 from ..orders import CommandSpec, Order
 from ..ownship import COMPONENT_LABEL, TEST_DEPTH, TRIM_RESERVE_T
-from .base import Station
+from .base import Proposal, Station
 
 
 @dataclass(frozen=True)
@@ -155,6 +155,15 @@ class EngineeringStation(Station):
                     "max_speed": own.max_speed(), "battery": s.battery,
                     "steam_leak": s.steam_leak, "hull": s.hull, "flooding": s.flooding,
                     "co2": s.co2, "health": dict(s.health)})
+
+    def idle_proposals(self) -> list[Proposal]:
+        s = self.own.sys
+        out = []
+        if s.reactor in ("scram", "off") and s.battery < 0.5:
+            out.append(Proposal(1, "idle_restart", "eng.suggest.restart", "starta reaktorn"))
+        if s.propulsion == "turbine" and any(t.held for t in self.game.knowledge.tracks.values()):
+            out.append(Proposal(2, "idle_creep", "eng.suggest.creep", "smygmotor"))
+        return out
 
     def update(self) -> None:
         own, s = self.own, self.own.sys

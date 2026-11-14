@@ -9,12 +9,14 @@ from .. import acoustics, phrases
 from ..crew import Role
 from ..entities import Transient
 from ..fmt import clock, fmt_course, kn, nm
-from ..geo import bearing_to, distance, velocity
+from ..geo import angle_diff, bearing_to, distance, norm360, velocity
 from ..orders import NUM, CommandSpec, Order, Unknown, num
 from ..ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH, TEST_DEPTH
-from .base import Station
+from .base import Proposal, Station
 
 FIX_TIME_S = 120
+IDLE_FIX_SIGMA_NM = 0.5     # vid tystnad: föreslå fix redan vid denna osäkerhet
+SEARCH_LEG_S = 1800         # utan kontakt: nytt sökben efter så här lång rak kurs
 DR_GROWTH_NM_PER_H = 0.5
 
 
@@ -85,6 +87,8 @@ PHRASES = {
     f"{nm(d['sigma'])} sjömil. Föreslår fix på periskopdjup.",
     "nav.suggest.fix_now": lambda d: f"Kapten, vi är på periskopdjup. Bestickets osäkerhet är "
     f"{nm(d['sigma'])} sjömil. Föreslår att vi tar en fix nu.",
+    "nav.suggest.search": lambda d: "Kapten, navigatören. Inga kontakter på länge. "
+    f"Föreslår nytt sökben, kurs {fmt_course(d['course'])}.",
     "nav.suggest.area": lambda d: f"Kapten, vi är på väg ut ur kvadrat 7. "
     f"Föreslår kurs {fmt_course(d['course'])}.",
     "nav.suggest.test_depth": lambda d: f"Kapten, vi är på {d['depth']:.0f} meter, under "
@@ -119,6 +123,7 @@ class NavigationStation(Station):
         self.gyro_err = rng.gauss(0, 0.3)
         self.log_bias = rng.gauss(0, 0.01 + 0.02 * (1 - skill))
         self.last_fix_t = 0
+        self.course_set_t = 0
         self.fix_done_t: int | None = None
 
     @property
@@ -147,6 +152,7 @@ class NavigationStation(Station):
         s = self.ship
         match order:
             case SetCourse(course=c):
+                self.course_set_t = self.now
                 s.order_course(c)
                 self._ack("course", {"course": c}, s.course == s.ordered_course)
             case SetSpeed(speed=v):
@@ -198,6 +204,37 @@ class NavigationStation(Station):
         own.sys.periscope_until = max(own.sys.periscope_until, self.now + FIX_TIME_S)
         self.fix_done_t = self.now + FIX_TIME_S
         self.say("nav.fix.start", kind="ack")
+
+    # --- initiativ vid tystnad -----------------------------------------------------
+    def _quiet_contact_picture(self) -> bool:
+        """Ingen kontakt hålls och ingen har hörts på SEARCH_LEG_S sekunder."""
+        tracks = self.game.knowledge.tracks.values()
+        if any(t.held for t in tracks):
+            return False
+        last = max((t.observations[-1].t for t in tracks if t.observations), default=-10**9)
+        return self.now - last >= SEARCH_LEG_S
+
+    def idle_proposals(self) -> list[Proposal]:
+        s = self.ship
+        out = []
+        held = any(t.held for t in self.game.knowledge.tracks.values())
+        sigma = self.uncertainty()
+        if not held and sigma > IDLE_FIX_SIGMA_NM and self.fix_done_t is None:
+            if s.depth <= PERISCOPE_DEPTH and s.speed <= 7:
+                out.append(Proposal(4, "idle_fix_now", "nav.suggest.fix_now", "fix",
+                                    {"sigma": sigma}, cooldown=900))
+            elif s.depth > PERISCOPE_DEPTH:
+                out.append(Proposal(4, "idle_fix", "nav.suggest.fix", "periskopdjup",
+                                    {"sigma": sigma}))
+        if self._quiet_contact_picture() and self.now - self.course_set_t >= SEARCH_LEG_S:
+            # gir 90° åt den sida som pekar mest mot kvadratens mitt
+            size = self.game.world.size_nm
+            to_mid = bearing_to(self.est_x, self.est_y, size / 2, size / 2)
+            c = min((norm360(s.ordered_course + 90), norm360(s.ordered_course - 90)),
+                    key=lambda k: abs(angle_diff(k, to_mid)))
+            out.append(Proposal(6, "idle_search", "nav.suggest.search",
+                                f"kurs {fmt_course(c)}", {"course": c}))
+        return out
 
     # --- löpande -----------------------------------------------------------------
     def update(self) -> None:

@@ -27,6 +27,9 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
 4. **`sim/` importerar aldrig Textual.** Gränssnittet bor i `ui/`.
 5. **Besättningen föreslår åtgärder** via `Station.suggest(..., order="…")`;
    kaptenen svarar `ja`/`nej`. **Vapenavfyring föreslås aldrig som ja-order.**
+   Förslag om sådant kaptenen redan beordrat släpps (`Game.suggestion_redundant`,
+   `Order.STANDING`). Vid tystnad (10 min) tar vakthavande initiativ ur
+   stationernas `idle_proposals()`.
 6. Fast tidssteg 1 s. All slump via seedade `random.Random` – inga globala `random.*`.
 
 ## Arkitektur i korthet

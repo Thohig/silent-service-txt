@@ -99,6 +99,9 @@ class Game:
         # senaste order av varje typ: typ -> (order, tid). Används för att inte
         # föreslå eller hålla kvar förslag om sådant kaptenen redan beslutat.
         self._ordered: dict[type[Order], tuple[Order, int]] = {}
+        self.last_command_t = 0                  # senaste inmatning från kaptenen
+        self.last_suggestion_t = 0               # senaste levererade förslag
+        self.suggested_at: dict[str, int] = {}   # order -> senast föreslagen
 
         self.bus = EventBus()
         self.queue = ReportQueue()
@@ -162,6 +165,8 @@ class Game:
         phrases.render(r, self.clock_str)
         if r.kind == "suggest" and r.data.get("order"):
             self.suggestion = (r.data["order"], r.text, self.now)
+            self.last_suggestion_t = self.now
+            self.suggested_at[r.data["order"]] = self.now
         self.bus.publish(ReportDelivered(self.now, r))
 
     def _system(self, type: str, data: dict[str, Any]) -> None:
@@ -185,6 +190,7 @@ class Game:
     def command(self, text: str) -> None:
         if self.over:
             return
+        self.last_command_t = self.now
         order = self.registry.parse(text)
         self.log(f"ORDER {text!r} -> {order}")
         match order:

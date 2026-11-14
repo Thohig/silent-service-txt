@@ -77,3 +77,7 @@ class ReportQueue:
 
     def __len__(self) -> int:
         return len(self._heap)
+
+    def has_kind(self, kind: str) -> bool:
+        """Finns en rapport av detta slag i kön (ännu inte levererad)?"""
+        return any(r.kind == kind for _, _, r in self._heap)

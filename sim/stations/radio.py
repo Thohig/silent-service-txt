@@ -12,7 +12,7 @@ from ..crew import Role
 from ..entities import Emission
 from ..orders import CommandSpec, Order
 from ..ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH
-from .base import Station
+from .base import Proposal, Station
 
 RECEIVE_S = 60
 TRANSMIT_S = 30
@@ -95,6 +95,17 @@ class RadioStation(Station):
                     "next": self.game.clock_str(nxt) if nxt is not None else None,
                     "received": len(self.delivered),
                     "last": self.delivered[-1] if self.delivered else None})
+
+    def idle_proposals(self) -> list[Proposal]:
+        if self.own.state.depth <= ANTENNA_DEPTH:
+            return []
+        for i, w0 in enumerate(self.windows):
+            # påminnelse: förvarningen är redan given men vi är kvar på djupet
+            if i in self._prewarned and i not in self._handled \
+                    and self.now < w0 + self.window_len:
+                return [Proposal(3, f"idle_window{i}", "radio.prewarn", "antenndjup",
+                                 {"clock": self.game.clock_str(w0)[:5]}, cooldown=900)]
+        return []
 
     def update(self) -> None:
         st = self.own.state

@@ -21,7 +21,7 @@ from ..reports import Quality
 from ..sonar import (ClassificationUpdate, Detection, Lost, OwnTorpedo, SonarStation,
                      TransientHeard)
 from ..tma import BearingObs
-from .base import Station
+from .base import Proposal, Station
 
 BEARING_REPORT_DELTA = 5.0
 BEARING_REPORT_MAX_AGE = 300
@@ -188,6 +188,19 @@ class SonarRoom(Station):
                     # Torpedrummet rapporterar egna torpeder med tubnummer.
                     q = Quality.GOD if ev.se >= 6 else Quality.OSAKER
                     bus.publish(OwnTorpedoHeard(self.now, ev.no, ev.kind, ev.bearing, q))
+
+    def idle_proposals(self) -> list[Proposal]:
+        st, env = self.own.state, self.game.world.env
+        held = any(t.held for t in self.game.knowledge.tracks.values())
+        out = []
+        if held and st.ordered_depth < env.layer_depth:
+            d = env.layer_depth + 60
+            out.append(Proposal(2, "idle_layer", "sonar.suggest.layer",
+                                f"djup {d:.0f}", {"layer": env.layer_depth, "depth": d}))
+        if not held and st.ordered_speed > 6:
+            out.append(Proposal(4, "idle_slow", "sonar.suggest.slow", "fart 4",
+                                {"speed": st.ordered_speed}))
+        return out
 
     def _suggest_layer(self) -> None:
         env, st = self.game.world.env, self.own.state

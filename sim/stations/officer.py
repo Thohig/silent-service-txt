@@ -2,6 +2,12 @@
 
 Allt här kräver periskopdjup och exponerar ubåten: periskop och radar kan
 upptäckas av jagarens radar och utkik, och radarsändning pejlas på långt håll.
+
+Vakthavande håller också vakten när kaptenen är tyst: efter QUIET_S sekunder
+utan inmatning och utan att någon annan föreslagit något samlar han
+stationernas idle_proposals() och låter den station som har det viktigaste
+förslaget säga det. Högst ett sådant förslag per QUIET_S, inget medan ett
+annat förslag väntar, och ingen order som redan föreslagits inom REPEAT_S.
 """
 from __future__ import annotations
 
@@ -17,12 +23,16 @@ from ..orders import CommandSpec, Order
 from ..ownship import PERISCOPE_DEPTH
 from ..reports import Quality
 from ..tma import BearingObs
-from .base import Station
+from .base import Proposal, Station
 from .sonar_room import SonarRoom
 
 LOOK_S = 15
 RADAR_S = 10
 RADAR_RANGE_NM = 12.0
+QUIET_S = 600              # tystnad från kaptenen innan besättningen tar initiativ
+IDLE_RETRY_S = 60          # om ingen station hade något att föreslå
+REPEAT_S = 1200            # samma order föreslås inte igen inom denna tid
+LOOK_INTERVAL_S = 900      # på periskopdjup utan kontakt: titta så här ofta
 
 
 @dataclass(frozen=True)
@@ -55,6 +65,8 @@ PHRASES = {
     f"signal {d['strength']}." + (" De kan se våra master!" if d['strength'] == "mycket stark" else ""),
     "off.suggest.down": lambda d: f"Kapten, vakthavande. {d['reason']} Föreslår djup "
     f"{d['depth']:.0f}.",
+    "off.suggest.look": lambda d: "Kapten, vakthavande. Vi är på periskopdjup och har inte "
+    "tittat på en stund. Föreslår ett periskopsvep.",
 }
 phrases.register(PHRASES)
 
@@ -72,6 +84,8 @@ class OfficerStation(Station):
         self.radar_done_t: int | None = None
         self._esm_last: dict[str, tuple[str, int]] = {}
         self._next_esm = 0
+        self._last_look_t = -10**9
+        self._idle_t = -10**9       # senaste initiativ (eller försök) vid tystnad
 
     @property
     def own(self):
@@ -97,6 +111,7 @@ class OfficerStation(Station):
                 if reason := self._check_mast("periskopet"):
                     self.say("off.refused", {"reason": reason})
                     return
+                self._last_look_t = self.now
                 sys.periscope_until = max(sys.periscope_until, self.now + LOOK_S)
                 self.look_done_t = self.now + LOOK_S
                 self.say("off.periscope.up", kind="ack")
@@ -109,6 +124,33 @@ class OfficerStation(Station):
                 self.game.world.emit_em(Emission("radar", o.x, o.y, self.own.id, self.now))
                 self.radar_done_t = self.now + RADAR_S
                 self.say("off.radar.start", kind="ack")
+
+    # --- initiativ när kaptenen är tyst ------------------------------------------
+    def _idle_watch(self) -> None:
+        g = self.game
+        since = max(g.last_command_t, g.last_suggestion_t, self._idle_t)
+        if self.now - since < QUIET_S:
+            return
+        if g.active_suggestion() is not None or g.queue.has_kind("suggest"):
+            return
+        candidates = [(p.priority, i, st, p) for i, st in enumerate(g.stations)
+                      for p in st.idle_proposals()]
+        for _, _, st, p in sorted(candidates, key=lambda c: (c[0], c[1])):
+            if self.now - g.suggested_at.get(p.order, -10**9) < REPEAT_S:
+                continue
+            if st.propose(p):
+                self._idle_t = self.now
+                g.log(f"INITIATIV efter tystnad: {p.key} -> {p.order!r}")
+                return
+        self._idle_t = self.now - QUIET_S + IDLE_RETRY_S
+
+    def idle_proposals(self) -> list[Proposal]:
+        st = self.own.state
+        held = any(t.held for t in self.game.knowledge.tracks.values())
+        if st.depth <= PERISCOPE_DEPTH + 1 and not held and st.speed <= 7 and \
+                self.now - self._last_look_t >= LOOK_INTERVAL_S and self.look_done_t is None:
+            return [Proposal(5, "idle_look", "off.suggest.look", "periskop", cooldown=900)]
+        return []
 
     def _observe(self, v, bearing_sigma: float, range_sigma: float, source: str,
                  label: str) -> dict:
@@ -132,6 +174,7 @@ class OfficerStation(Station):
 
     def update(self) -> None:
         world, st, rng = self.game.world, self.own.state, self.game.rng
+        self._idle_watch()
         if self.look_done_t is not None and self.now >= self.look_done_t:
             self.look_done_t = None
             if st.depth > PERISCOPE_DEPTH + 1:

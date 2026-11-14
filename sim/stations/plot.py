@@ -11,7 +11,7 @@ from ..knowledge import ContactTrack
 from ..orders import DESIG, CommandSpec, Order, desig
 from ..reports import Quality
 from ..tma import MANEUVER_CHI2, Solution, own_maneuvered, predicted_bearing
-from .base import Station
+from .base import Proposal, Station
 
 PLOT_INTERVAL = 30              # sekunder mellan omräkningar
 SUGGEST_COOLDOWN = 420
@@ -145,6 +145,22 @@ class PlotTeam(Station):
                               "course": course, "first": not sol.own_maneuvered},
                              order=f"kurs {round(course) % 360:03d}", cooldown=0,
                              quality=sol.quality)
+
+    def idle_proposals(self) -> list[Proposal]:
+        out = []
+        for tr in self.game.knowledge.tracks.values():
+            sol = tr.solution
+            if not tr.held or sol is None or sol.quality >= Quality.GOD:
+                continue
+            if self._maneuvered_recently(tr):
+                continue
+            course = self._suggest_course(sol, tr)
+            out.append(Proposal(3, f"idle_turn{tr.designation}", "plot.suggest",
+                                f"kurs {round(course) % 360:03d}",
+                                {"designation": tr.designation, "quality": sol.quality,
+                                 "course": course, "first": not sol.own_maneuvered},
+                                quality=sol.quality, cooldown=SUGGEST_COOLDOWN))
+        return out
 
     def _maneuvered_recently(self, tr: ContactTrack) -> bool:
         recent = [o for o in tr.observations if o.t >= self.now - SUGGEST_MIN_LEG_S]

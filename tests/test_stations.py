@@ -138,20 +138,25 @@ def test_reload_and_decoy():
 
 
 def test_dead_reckoning_drifts_and_fix_corrects():
-    g, reports = _game()
-    nav = g.station(NavigationStation)
-    _run(g, 3600)
-    s = g.world.own.state
-    drift = distance(nav.est_x, nav.est_y, s.x, s.y)
-    assert drift > 0.2
-    s.depth = 15
-    s.order_depth(15)
-    s.order_speed(3)
-    s.speed = 3
-    g.command("fix")
-    _run(g, 130)
-    assert distance(nav.est_x, nav.est_y, s.x, s.y) < drift / 2
-    assert "nav.fix.done" in _types(reports)
+    drifts, afters = [], []
+    for seed in range(1, 6):
+        g, reports = _game(seed)
+        nav = g.station(NavigationStation)
+        _run(g, 3600)
+        s = g.world.own.state
+        drift = distance(nav.est_x, nav.est_y, s.x, s.y)
+        assert drift > 0.2
+        s.depth = 15
+        s.order_depth(15)
+        s.order_speed(3)
+        s.speed = 3
+        g.command("fix")
+        _run(g, 130)
+        drifts.append(drift)
+        afters.append(distance(nav.est_x, nav.est_y, s.x, s.y))
+        assert "nav.fix.done" in _types(reports)
+    # fixen har eget brus (σ 0,08 nm per axel); i medel ska felet mer än halveras
+    assert sum(afters) < sum(drifts) / 2
 
 
 def test_active_sonar_gives_range_but_reveals_us():

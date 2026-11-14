@@ -24,6 +24,13 @@ Ger du själv en order om samma sak (till exempel `fart 6` när besättningen
 föreslagit `fart 4`) släpps förslaget, och besättningen föreslår aldrig en
 kurs, fart, framdrivning eller ett djup som redan är beordrat.
 
+Är kaptenen tyst i tio minuter (simtid) och ingen annan har föreslagit något,
+tar vakthavande initiativ och låter den station som har det viktigaste
+förslaget säga det: omstart av reaktorn, gå under skiktet, smygmotor, nytt
+ben för plottet, påminnelse om sambandstillfälle, lägre fart för att lyssna,
+fix, ladda tom tub, periskopsvep eller nytt sökben. Samma order föreslås
+inte igen inom tjugo minuter.
+
 | Område | Order |
 |---|---|
 | Manöver | `kurs 090` · `fart 5` · `stopp` · `djup 100` · `periskopdjup` · `antenndjup` · `ytläge` |
@@ -102,6 +109,8 @@ ui/                  Textual
 4. Rapportera med `self.say("system.händelse", {...data...})` och registrera
    fraser med `phrases.register({...})` i stationens modul. Föreslå åtgärder
    med `self.suggest(nyckel, typ, data, order="…")`.
+5. Vill stationen ta initiativ när kaptenen är tyst: returnera `Proposal`
+   från `idle_proposals()` (prioritet 1 = viktigast). Vakthavande väljer.
 5. Lägg klassen i `DEFAULT_STATIONS`. Game behöver inte ändras.
 
 Stationer pratar med varandra via händelsebussen. Kunskapslagret
