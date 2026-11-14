@@ -118,7 +118,8 @@ class SubApp(App):
         game.bus.subscribe(ReportDelivered, self._on_report)
         game.bus.subscribe(TimeScaleChanged, self._on_time_scale)
         game.bus.subscribe(GameEnded, self._on_game_ended)
-        self.sound, self._sound_note = make_soundboard(game.bus, self.sound_wanted)
+        self.sound, self._sound_note = make_soundboard(
+            game.bus, self.sound_wanted, heading=lambda: game.status().course)
         self.query_one("#order", Input).focus()
         tt = self.query_one(Teletype)
         tt.full_text = game.secret_order

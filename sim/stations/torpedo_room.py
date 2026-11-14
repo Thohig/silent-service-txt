@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from .. import phrases
 from ..chart import Ray
 from ..crew import Role
-from ..events import OwnTorpedoHeard, SoundHeard
+from ..events import OwnSoundMade, OwnTorpedoHeard, SoundHeard
 from ..fmt import fmt_course, nm
 from ..firecontrol import intercept
 from ..orders import DESIG, NUM, CommandSpec, Order, Unknown, desig, num
@@ -290,6 +290,7 @@ class TorpedoRoom(Station):
                     return
                 self.decoys -= 1
                 launch_decoy(self.game.world)
+                self.game.bus.publish(OwnSoundMade(self.now, "decoy"))
                 self.say("torp.decoy", {"left": self.decoys}, kind="ack")
 
     def _tube(self, n: int) -> Tube | None:
@@ -346,6 +347,7 @@ class TorpedoRoom(Station):
         else:
             course = o.course
         launch_torpedo(self.game.world, spec, course, detonate_at)
+        self.game.bus.publish(OwnSoundMade(self.now, "launch"))
         self.game.world.mission["hostile_act"] = True
         tube.load = None
         self._launches += 1

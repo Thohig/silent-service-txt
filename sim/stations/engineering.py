@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from .. import acoustics, phrases
 from ..crew import Role
+from ..events import OwnSoundMade
 from ..fmt import fmt_course, kn, nm
 from ..orders import CommandSpec, Order
 from ..ice import masts_clear
@@ -205,6 +206,7 @@ class EngineeringStation(Station):
                     self.say("eng.refused", {"reason": "reaktorn är redan i drift eller startar"})
             case EmergencyBlow():
                 if own.emergency_blow():
+                    self.game.bus.publish(OwnSoundMade(self.now, "blow"))
                     self.say("eng.blow", kind="ack", alarm=True)
                 else:
                     self.say("eng.refused", {"reason": "högtrycksluften är förbrukad"})

@@ -83,6 +83,13 @@ class SoundHeard(Event):
     designation: str | None = None
     practice: bool = False
     detail: str = ""        # t.ex. "fast" för tät pingtakt
+    se: float = 0.0         # signalöverskott i dB: hur starkt det hördes
+
+
+@dataclass(frozen=True)
+class OwnSoundMade(Event):
+    """Egen båt gav ifrån sig ett ljud som hela besättningen hör: ping, launch, blow."""
+    kind: str
 
 
 @dataclass(frozen=True)

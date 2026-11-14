@@ -4,26 +4,28 @@ import random
 
 import numpy as np
 
-from sim.events import EventBus, ReportDelivered
+from sim.events import EventBus, OwnSoundMade, ReportDelivered, SoundHeard
 from sim.game import Game
 from sim.reports import Report
 from sim.scenario import build_scenario
 from ui.app import SubApp
-from ui.audio import (MAX_QUEUE, STALE_S, SoundBoard, cue_for, speech_text, synth_cues,
-                      write_wav)
+from ui.audio import (MAX_QUEUE, MIN_VOLUME, STALE_S, SoundBoard, cue_for, pan_of_bearing,
+                      speech_text, stereo, synth_cues, synth_transients, write_wav)
 
 
 class RecordingPlayer:
     def __init__(self, cue_len: float = 1.0):
         self.cues: list[str] = []
+        self.played: list[tuple[str, float, float]] = []
         self.said: list[tuple[str, int]] = []
         self.busy_until = 0.0
         self.now = 0.0
         self.cue_len = cue_len
         self.stopped = 0
 
-    def play(self, cue):
+    def play(self, cue, pan=0.0, volume=1.0):
         self.cues.append(cue)
+        self.played.append((cue, pan, volume))
         return self.cue_len
 
     def speak(self, text, rate):
@@ -153,3 +155,77 @@ def test_app_is_silent_by_default(tmp_path):
             assert not app.sound.enabled
 
     asyncio.run(run())
+
+
+# --- steg 2: hydrofonen -------------------------------------------------------
+def test_heard_ping_is_panned_by_relative_bearing_and_scaled_by_strength():
+    bus = EventBus()
+    p = RecordingPlayer()
+    board = SoundBoard(bus, p, heading=lambda: 90.0)
+    bus.publish(SoundHeard(0, "ping", 0.0, se=5.0))       # rakt babord, svag
+    board.update(1.0)
+    bus.publish(SoundHeard(1, "ping", 180.0, se=200.0))   # rakt styrbord, stark
+    (c1, pan1, v1), (c2, pan2, v2) = p.played
+    assert c1 == c2 == "ping"
+    assert pan1 < -0.99 and pan2 > 0.99
+    assert MIN_VOLUME <= v1 < 0.4 and v2 == 1.0
+
+
+def test_nuclear_explosion_and_own_sounds():
+    bus, p, board = _board()
+    bus.publish(SoundHeard(0, "explosion", 10.0, se=40.0))
+    board.update(1.0)
+    bus.publish(SoundHeard(1, "explosion", 10.0, se=190.0))
+    bus.publish(OwnSoundMade(1, "launch"))
+    bus.publish(OwnSoundMade(1, "ping"))
+    bus.publish(SoundHeard(1, "echosounder", 10.0, se=40.0))   # inget ljud för det
+    assert p.cues == ["explosion", "nuclear", "launch", "own_ping"]
+
+
+def test_same_sound_in_quick_succession_plays_once():
+    bus, p, board = _board()
+    for _ in range(5):                                    # tidskomprimering
+        bus.publish(SoundHeard(0, "ping", 0.0, se=30.0))
+    board.update(1.0)
+    bus.publish(SoundHeard(1, "ping", 0.0, se=30.0))
+    assert p.cues == ["ping", "ping"]
+
+
+def test_silenced_board_ignores_sounds():
+    bus, p, board = _board()
+    board.toggle()
+    bus.publish(SoundHeard(0, "ping", 0.0, se=30.0))
+    bus.publish(OwnSoundMade(0, "blow"))
+    assert p.cues == []
+
+
+def test_pan_follows_port_and_starboard():
+    assert pan_of_bearing(-90) == -1.0 and pan_of_bearing(90) == 1.0
+    assert abs(pan_of_bearing(0)) < 1e-9 and abs(pan_of_bearing(180)) < 1e-9
+    left = stereo(np.ones(4), -1.0)
+    assert left[0, 0] > 0.9 and abs(left[0, 1]) < 1e-9
+
+
+def test_transients_synthesize_to_valid_stereo_wav(tmp_path):
+    for name, s in synth_transients().items():
+        assert 0.1 < len(s) / 22050 < 6.0, name
+        assert np.isfinite(s).all() and 0.3 < np.max(np.abs(s)) <= 1.0, name
+        write_wav(tmp_path / f"{name}.wav", stereo(s, 0.5))
+
+
+def test_sonar_publishes_heard_strength_in_a_real_game():
+    """SoundHeard bär signalöverskottet från sensorn; ljudet behöver inget ur världen."""
+    g = Game(build_scenario("kuba", random.Random(4)), seed=4)
+    p = RecordingPlayer(cue_len=0.0)
+    SoundBoard(g.bus, p, heading=lambda: g.status().course)
+    heard = []
+    g.bus.subscribe(SoundHeard, heard.append)
+    g.command("aktiv sonar")
+    for _ in range(3 * 3600):
+        g.tick()
+        if any(e.kind == "ping" for e in heard) or g.over:
+            break
+    assert "own_ping" in p.cues
+    pings = [e for e in heard if e.kind == "ping"]
+    assert pings and all(e.se > 0 for e in pings)
+    assert "ping" in p.cues

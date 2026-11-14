@@ -4,11 +4,17 @@ Ljudet hör till gränssnittet och styrs enbart av levererade rapporter
 (ReportDelivered) – samma sak som spelaren läser i loggen. Inget ljud
 får avslöja något som besättningen inte har rapporterat.
 
-Uppspelningen sker med macOS egna verktyg (`say` för tal, `afplay` för
-larmljud) i egna processer, så att spelet aldrig väntar på ljudet. Larmljuden
-syntetiseras med numpy vid start och sparas som wav i en cachekatalog.
+Dessutom hörs det sonaren hör (SoundHeard): pingar, bojar, sprängningar,
+sönderbrytning. Styrkan sätter volymen och den relativa bäringen
+panorerar ljudet i stereo – babord till vänster. Egna ljud (aktiv ping,
+avfyring, skenmål, nödblåsning) kommer från OwnSoundMade.
 
-    SoundBoard(bus, player)   prenumererar på rapporterna och köar ljud
+Uppspelningen sker med macOS egna verktyg (`say` för tal, `afplay` för
+ljud) i egna processer, så att spelet aldrig väntar på ljudet. Ljuden
+syntetiseras med numpy och sparas som wav i en cachekatalog, ett per
+panoreringsläge.
+
+    SoundBoard(bus, player)   prenumererar på rapporter och ljud och köar tal
     SoundBoard.update(t)      anropas varje bildruta: startar nästa replik
     MacPlayer / NullPlayer    uppspelning resp. tystnad
 """
@@ -21,11 +27,11 @@ import tempfile
 import wave
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol
+from typing import Callable, Protocol
 
 import numpy as np
 
-from sim.events import EventBus, ReportDelivered
+from sim.events import EventBus, OwnSoundMade, ReportDelivered, SoundHeard
 from sim.reports import Report
 
 RATE = 22050
@@ -60,14 +66,33 @@ CUE_BY_TYPE = {
     "fire": "fire",
 }
 
+# Hydrofonljud: SoundHeard.kind -> (ljud, signalöverskott i dB som ger full volym).
+TRANSIENT_SOUND = {
+    "ping": ("ping", 60.0),
+    "buoy_ping": ("buoy_ping", 40.0),
+    "buoy": ("splash", 30.0),
+    "splash": ("splash", 40.0),
+    "explosion": ("explosion", 120.0),
+    "breakup": ("breakup", 40.0),
+    "uwt": ("uwt", 30.0),
+    "ice": ("ice", 25.0),
+    "launch": ("launch", 30.0),
+}
+NUCLEAR_SE = 160.0                 # som sonarrummet: starkare än så är en kärnladdning
+OWN_SOUND = {"ping": "own_ping", "launch": "launch", "decoy": "decoy", "blow": "blow"}
+MIN_VOLUME = 0.2                   # svagaste hörbara transient
+PAN_STEPS = 9                      # stereolägen från vänster till höger
+SAME_SOUND_S = 0.3                 # samma ljud tätare än så spelas en gång (tidskomprimering)
+
 MAX_QUEUE = 4                      # fler väntande repliker än så: släpp de oviktiga
 STALE_S = 12.0                     # oviktiga repliker som väntat längre släpps
 
 
 # --------------------------------------------------------------------------- uppspelning
 class Player(Protocol):
-    def play(self, cue: str) -> float:
-        """Spela ett larmljud utan att vänta. Returnerar längden i sekunder."""
+    def play(self, cue: str, pan: float = 0.0, volume: float = 1.0) -> float:
+        """Spela ett ljud utan att vänta. pan -1 (vänster) … 1 (höger), volume 0 … 1.
+        Returnerar längden i sekunder."""
 
     def speak(self, text: str, rate: int) -> None:
         """Börja läsa upp text utan att vänta."""
@@ -80,7 +105,7 @@ class Player(Protocol):
 class NullPlayer:
     """Tystnad (--tyst, eller utan macOS-verktygen)."""
 
-    def play(self, cue: str) -> float:
+    def play(self, cue: str, pan: float = 0.0, volume: float = 1.0) -> float:
         return 0.0
 
     def speak(self, text: str, rate: int) -> None:
@@ -94,18 +119,18 @@ class NullPlayer:
 
 
 class MacPlayer:
-    """Spelar med afplay och say. Larmljuden syntetiseras till wav vid start."""
+    """Spelar med afplay och say. Ljuden syntetiseras vid start; stereofilerna
+    skrivs första gången ett panoreringsläge behövs."""
+
+    MAX_SOUNDS = 6                 # samtidiga ljud
 
     def __init__(self, cache_dir: Path | None = None, voice: str = VOICE,
                  volume: float = 0.6):
         self.cache_dir = cache_dir or Path(tempfile.gettempdir()) / "k114-ljud"
         self.voice = voice
         self.volume = volume
-        self.cues: dict[str, tuple[Path, float]] = {}
-        for name, samples in synth_cues().items():
-            path = self.cache_dir / f"{name}.wav"
-            write_wav(path, samples)
-            self.cues[name] = (path, len(samples) / RATE)
+        self.samples = {**synth_cues(), **synth_transients()}
+        self._files: dict[tuple[str, int], Path] = {}
         self._speech: subprocess.Popen | None = None
         self._sounds: list[subprocess.Popen] = []
 
@@ -122,15 +147,25 @@ class MacPlayer:
             return False
         return any(line.split()[:1] == [voice] for line in out.splitlines())
 
-    def play(self, cue: str) -> float:
-        if cue not in self.cues:
+    def _file(self, cue: str, step: int) -> Path:
+        key = (cue, step)
+        if key not in self._files:
+            path = self.cache_dir / f"{cue}-{step}.wav"
+            write_wav(path, stereo(self.samples[cue], pan_of_step(step)))
+            self._files[key] = path
+        return self._files[key]
+
+    def play(self, cue: str, pan: float = 0.0, volume: float = 1.0) -> float:
+        if cue not in self.samples:
             return 0.0
-        path, length = self.cues[cue]
         self._sounds = [p for p in self._sounds if p.poll() is None]
+        if len(self._sounds) >= self.MAX_SOUNDS:
+            return 0.0
+        path = self._file(cue, pan_step(pan))
         self._sounds.append(subprocess.Popen(
-            ["afplay", "-v", f"{self.volume:.2f}", str(path)],
+            ["afplay", "-v", f"{self.volume * volume:.2f}", str(path)],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
-        return length
+        return len(self.samples[cue]) / RATE
 
     def speak(self, text: str, rate: int) -> None:
         self._speech = subprocess.Popen(
@@ -160,17 +195,45 @@ class Line:
 
 @dataclass
 class SoundBoard:
-    """Gör ljud av besättningens rapporter."""
+    """Gör ljud av besättningens rapporter och det sonaren hör.
+
+    heading: egen kurs (gyrot) för att räkna relativ bäring; utan den
+    spelas alla ljud mitt i.
+    """
     bus: EventBus
     player: Player
     speech: bool = True
     enabled: bool = True
+    heading: Callable[[], float] | None = None
     queue: list[Line] = field(default_factory=list)
     _now: float = 0.0
     _cue_until: float = 0.0
+    _last_played: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.bus.subscribe(ReportDelivered, self._on_report)
+        self.bus.subscribe(SoundHeard, self._on_sound)
+        self.bus.subscribe(OwnSoundMade, self._on_own_sound)
+
+    # -- hydrofonen ----------------------------------------------------------
+    def _play_once(self, cue: str, pan: float = 0.0, volume: float = 1.0) -> None:
+        if self._now - self._last_played.get(cue, -1e9) < SAME_SOUND_S:
+            return
+        self._last_played[cue] = self._now
+        self.player.play(cue, pan, volume)
+
+    def _on_sound(self, e: SoundHeard) -> None:
+        if not self.enabled or e.kind not in TRANSIENT_SOUND:
+            return
+        cue, full_se = TRANSIENT_SOUND[e.kind]
+        if e.kind == "explosion" and e.se > NUCLEAR_SE:
+            cue = "nuclear"
+        rel = e.bearing - self.heading() if self.heading else 0.0
+        self._play_once(cue, pan_of_bearing(rel), volume_of(e.se, full_se))
+
+    def _on_own_sound(self, e: OwnSoundMade) -> None:
+        if self.enabled and e.kind in OWN_SOUND:
+            self._play_once(OWN_SOUND[e.kind])
 
     # -- rapporter -----------------------------------------------------------
     def _on_report(self, e: ReportDelivered) -> None:
@@ -229,6 +292,29 @@ class SoundBoard:
     def close(self) -> None:
         self.queue.clear()
         self.player.stop()
+
+
+def pan_of_bearing(relative: float) -> float:
+    """Relativ bäring -> stereoläge. Rakt för/akter i mitten, babord till vänster."""
+    return float(np.sin(np.radians(relative)))
+
+
+def pan_step(pan: float) -> int:
+    return int(round((max(-1.0, min(1.0, pan)) + 1) / 2 * (PAN_STEPS - 1)))
+
+
+def pan_of_step(step: int) -> float:
+    return step / (PAN_STEPS - 1) * 2 - 1
+
+
+def volume_of(se: float, full_se: float) -> float:
+    return MIN_VOLUME + (1 - MIN_VOLUME) * max(0.0, min(1.0, se / full_se))
+
+
+def stereo(mono: np.ndarray, pan: float) -> np.ndarray:
+    """Panorering med konstant effekt: (n, 2)."""
+    a = (pan + 1) * np.pi / 4
+    return np.stack([mono * np.cos(a), mono * np.sin(a)], axis=1) * np.sqrt(2) / 2 * 1.4
 
 
 def cue_for(r: Report) -> str | None:
@@ -342,16 +428,199 @@ def synth_cues() -> dict[str, np.ndarray]:
 
 
 def write_wav(path: Path, samples: np.ndarray) -> None:
+    """Mono (n,) eller stereo (n, 2)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     pcm = (np.clip(samples, -1.0, 1.0) * 32767).astype("<i2")
     with wave.open(str(path), "wb") as w:
-        w.setnchannels(1)
+        w.setnchannels(1 if samples.ndim == 1 else samples.shape[1])
         w.setsampwidth(2)
         w.setframerate(RATE)
         w.writeframes(pcm.tobytes())
 
 
-def make_soundboard(bus: EventBus, enabled: bool) -> tuple[SoundBoard, str | None]:
+# -- hydrofonljud -------------------------------------------------------------
+# Brus ur en fast seedad generator: samma ljud varje gång, ingen spelslump.
+def _noise(seconds: float, seed: int) -> np.ndarray:
+    return np.random.default_rng(seed).standard_normal(int(RATE * seconds))
+
+
+def _lowpass(x: np.ndarray, cutoff: float) -> np.ndarray:
+    """Enpoligt lågpassfilter."""
+    a = np.exp(-2 * np.pi * cutoff / RATE)
+    y = np.empty_like(x)
+    acc = 0.0
+    for i, v in enumerate(x):
+        acc = (1 - a) * v + a * acc
+        y[i] = acc
+    return y
+
+
+def _norm(x: np.ndarray, peak: float) -> np.ndarray:
+    return peak * x / max(1e-9, float(np.max(np.abs(x))))
+
+
+def _fade(x: np.ndarray, fade_in: float = 0.005, fade_out: float = 0.05) -> np.ndarray:
+    n = len(x)
+    t = np.arange(n) / RATE
+    return x * np.minimum(1.0, t / fade_in) * np.minimum(1.0, (n / RATE - t) / fade_out)
+
+
+def _reverb(dry: np.ndarray, seconds: float, decay: float, cutoff: float, seed: int,
+            mix: float = 0.35) -> np.ndarray:
+    """Havets efterklang: avklingande, filtrerat brus format efter ljudet."""
+    tail = _lowpass(_noise(seconds, seed), cutoff) * np.exp(-_t(seconds) * decay)
+    wet = np.convolve(dry, tail)[: len(dry) + len(tail)]
+    out = np.zeros(len(wet))
+    out[: len(dry)] += dry
+    return out + mix * _norm(wet, float(np.max(np.abs(dry))))
+
+
+def synth_ping() -> np.ndarray:
+    """Jagarens sonar: en lång, ren ton som ekar ut."""
+    t = _t(0.55)
+    tone = np.sin(2 * np.pi * 3500 * t) * np.minimum(1.0, t / 0.01) * np.minimum(1.0, (0.55 - t) / 0.08)
+    out = _reverb(tone, 1.8, 2.2, 3800, seed=1)
+    return _fade(_norm(out, 0.7), fade_out=0.3)
+
+
+def synth_own_ping() -> np.ndarray:
+    """Vår egen ping: kortare, lägre, med en smäll i skrovet."""
+    t = _t(0.35)
+    tone = np.sin(2 * np.pi * 2600 * t) * np.minimum(1.0, t / 0.005) * np.exp(-t * 3)
+    thump = np.sin(2 * np.pi * 90 * t) * np.exp(-t * 25)
+    out = _reverb(tone + 0.6 * thump, 1.2, 3.0, 3000, seed=2)
+    return _fade(_norm(out, 0.8), fade_out=0.2)
+
+
+def synth_buoy_ping() -> np.ndarray:
+    """Aktiv boj: tunt och metalliskt."""
+    t = _t(0.16)
+    tone = (np.sin(2 * np.pi * 8200 * t) + 0.4 * np.sin(2 * np.pi * 11300 * t)) * np.exp(-t * 12)
+    out = _reverb(tone, 0.9, 4.0, 7000, seed=3, mix=0.25)
+    return _fade(_norm(out, 0.6), fade_out=0.15)
+
+
+def synth_splash() -> np.ndarray:
+    """Något slår i vattnet ovanför: plask och bubbel."""
+    n = _noise(0.9, 4)
+    t = _t(0.9)
+    body = _lowpass(n, 1800) * np.exp(-t * 6)
+    bubbles = sum(np.sin(2 * np.pi * f * t) * np.exp(-((t - d) * 30) ** 2)
+                  for f, d in ((420, 0.15), (610, 0.22), (350, 0.31), (520, 0.4)))
+    return _fade(_norm(body + 0.3 * bubbles, 0.7))
+
+
+def _boom(seconds: float, seed: int, decay: float, cutoff: float) -> np.ndarray:
+    t = _t(seconds)
+    rumble = _lowpass(_lowpass(_noise(seconds, seed), cutoff), cutoff)
+    rumble = _norm(rumble, 1.0) * np.exp(-t * decay)
+    thud = np.sin(2 * np.pi * (55 - 20 * np.minimum(t, 1.0)) * t) * np.exp(-t * decay * 1.5)
+    attack = _lowpass(_noise(seconds, seed + 1), 2500) * np.exp(-t * 40)
+    return rumble + 0.8 * thud + 0.5 * _norm(attack, 1.0)
+
+
+def synth_explosion() -> np.ndarray:
+    """Sjunkbomb eller torped: dov smäll som mullrar ut."""
+    return _fade(_speaker(_boom(2.8, 5, 1.6, 300), 1.8) * 0.9, fade_out=0.4)
+
+
+def synth_nuclear() -> np.ndarray:
+    """Kärnladdning: ett tryck som aldrig tar slut."""
+    return _fade(_speaker(_boom(5.5, 7, 0.7, 180), 2.5) * 1.0, fade_out=1.0)
+
+
+def synth_breakup() -> np.ndarray:
+    """Ett skrov som går sönder: knak, gnissel och dova smällar."""
+    secs = 4.0
+    t = _t(secs)
+    rng = np.random.default_rng(9)
+    out = np.zeros(len(t))
+    for _ in range(14):                          # gnisslande plåt
+        start, dur = rng.uniform(0, 3.2), rng.uniform(0.2, 0.7)
+        f0, f1 = rng.uniform(80, 220), rng.uniform(40, 160)
+        seg = _t(dur)
+        f = f0 + (f1 - f0) * seg / dur
+        groan = np.sign(np.sin(2 * np.pi * np.cumsum(f) / RATE)) * np.sin(np.pi * seg / dur)
+        a = int(start * RATE)
+        out[a:a + len(seg)] += groan[: len(out) - a] * rng.uniform(0.3, 0.8)
+    for _ in range(5):                           # skott inne i skrovet
+        a = int(rng.uniform(0, 3.5) * RATE)
+        bang = _boom(0.4, int(rng.integers(100, 200)), 10, 400)
+        out[a:a + len(bang)] += bang[: len(out) - a] * 0.8
+    return _fade(_norm(_lowpass(out, 1200), 0.7), fade_out=0.6)
+
+
+def synth_uwt() -> np.ndarray:
+    """Undervattenstelefon: morse på en darrig bärare."""
+    pattern = "-.-.  --.-"                       # bara ett mönster, inget meddelande
+    dot = 0.08
+    parts = []
+    for c in pattern:
+        n = {".": 1, "-": 3, " ": 0}[c]
+        if n:
+            t = _t(dot * n)
+            f = 1500 + 30 * np.sin(2 * np.pi * 6 * t)
+            parts.append(np.sin(2 * np.pi * np.cumsum(f) / RATE) * np.minimum(1.0, t / 0.005))
+        parts.append(np.zeros(int(RATE * dot * (1 if n else 2))))
+    tone = np.concatenate(parts)
+    out = tone + 0.15 * _lowpass(_noise(len(tone) / RATE, 10), 3000)
+    return _fade(_norm(out, 0.5))
+
+
+def synth_ice() -> np.ndarray:
+    """Isen knakar."""
+    t = _t(0.7)
+    rng = np.random.default_rng(11)
+    out = np.zeros(len(t))
+    for _ in range(9):
+        a = int(rng.uniform(0, 0.55) * RATE)
+        click = _noise(0.03, int(rng.integers(20, 90))) * np.exp(-_t(0.03) * 120)
+        out[a:a + len(click)] += click * rng.uniform(0.3, 1.0)
+    return _fade(_norm(_reverb(_lowpass(out, 2500), 0.5, 6, 2000, seed=12), 0.6))
+
+
+def _air(seconds: float, seed: int, cutoff: float) -> np.ndarray:
+    t = _t(seconds)
+    return _lowpass(_noise(seconds, seed), cutoff) * np.minimum(1.0, t / 0.03)
+
+
+def synth_launch() -> np.ndarray:
+    """Avfyring: tryckluftsstöt, ett väsande och torpeden som drar iväg."""
+    secs = 2.0
+    t = _t(secs)
+    thump = np.sin(2 * np.pi * 45 * t) * np.exp(-t * 8)
+    whoosh = _air(secs, 13, 1500) * np.exp(-t * 2.2)
+    motor = np.sin(2 * np.pi * (180 + 60 * t) * t) * np.minimum(1.0, t / 0.6) * np.exp(-t * 1.5)
+    return _fade(_norm(1.2 * thump + _norm(whoosh, 1.0) + 0.25 * motor, 0.8), fade_out=0.4)
+
+
+def synth_decoy() -> np.ndarray:
+    """Skenmål: en liten stöt och bubbel."""
+    t = _t(1.0)
+    thump = np.sin(2 * np.pi * 70 * t) * np.exp(-t * 14)
+    fizz = _air(1.0, 14, 4000) * np.exp(-t * 3)
+    return _fade(_norm(thump + 0.5 * _norm(fizz, 1.0), 0.6), fade_out=0.3)
+
+
+def synth_blow() -> np.ndarray:
+    """Nödblåsning: högtrycksluft vräker in i tankarna."""
+    secs = 3.5
+    t = _t(secs)
+    roar = _air(secs, 15, 900) * np.minimum(1.0, (secs - t) / 1.2)
+    hiss = _air(secs, 16, 5000) * 0.4 * np.exp(-t * 0.5)
+    return _fade(_norm(_norm(roar, 1.0) + hiss, 0.8), fade_out=0.6)
+
+
+def synth_transients() -> dict[str, np.ndarray]:
+    return {"ping": synth_ping(), "own_ping": synth_own_ping(),
+            "buoy_ping": synth_buoy_ping(), "splash": synth_splash(),
+            "explosion": synth_explosion(), "nuclear": synth_nuclear(),
+            "breakup": synth_breakup(), "uwt": synth_uwt(), "ice": synth_ice(),
+            "launch": synth_launch(), "decoy": synth_decoy(), "blow": synth_blow()}
+
+
+def make_soundboard(bus: EventBus, enabled: bool,
+                    heading: Callable[[], float] | None = None) -> tuple[SoundBoard, str | None]:
     """Koppla ljud till spelet. Returnerar (ljudbord, meddelande till kaptenen eller None)."""
     if not enabled:
         return SoundBoard(bus, NullPlayer(), enabled=False), None
@@ -359,7 +628,7 @@ def make_soundboard(bus: EventBus, enabled: bool) -> tuple[SoundBoard, str | Non
         return SoundBoard(bus, NullPlayer(), enabled=False), \
             "Ljud saknas: kräver macOS (say och afplay)."
     if not MacPlayer.has_voice():
-        return SoundBoard(bus, MacPlayer(), speech=False), \
+        return SoundBoard(bus, MacPlayer(), speech=False, heading=heading), \
             (f"Rösten {VOICE} saknas, besättningen hörs inte. Lägg till den under "
              "Systeminställningar › Hjälpmedel › Talat innehåll › Systemröst.")
-    return SoundBoard(bus, MacPlayer()), None
+    return SoundBoard(bus, MacPlayer(), heading=heading), None

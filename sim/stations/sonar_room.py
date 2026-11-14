@@ -13,7 +13,7 @@ from .. import acoustics, phrases
 from ..crew import Role
 from ..entities import Transient
 from ..events import (BearingObserved, ClassificationChanged, ContactDetected,
-                      ContactLost, OwnTorpedoHeard, SoundHeard)
+                      ContactLost, OwnSoundMade, OwnTorpedoHeard, SoundHeard)
 from ..fmt import fmt_course, nm
 from ..geo import angle_diff, circular_mean, norm360
 from ..orders import CommandSpec, Order
@@ -122,6 +122,7 @@ class SonarRoom(Station):
             return
         o = own.state
         world.emit(Transient("ping", o.x, o.y, o.depth, acoustics.PING_LEVEL_OWN, own.id, self.now))
+        self.game.bus.publish(OwnSoundMade(self.now, "ping"))
         world.mission["own_pings"] = world.mission.get("own_pings", 0) + 1
         noise = acoustics.power_sum(world.background_at_own(), own.self_noise())
         own_xy = self.game.own_position_estimate()
@@ -282,7 +283,8 @@ class SonarRoom(Station):
             if self._dedupe(f"breakup{ev.designation}", 60):
                 # brytningsljudet följer på detonationen; rapportera det efter den
                 self.say("sonar.breakup", d, kind="contact", alarm=True, extra_delay=6)
-        bus.publish(SoundHeard(self.now, ev.kind, ev.bearing, ev.designation, ev.practice, detail))
+        bus.publish(SoundHeard(self.now, ev.kind, ev.bearing, ev.designation, ev.practice, detail,
+                               se=ev.se))
 
     def _evasive_depth(self, cooldown: int = 300) -> None:
         st = self.own.state
