@@ -49,6 +49,7 @@ class ChartScreen(Screen):
         Binding("left", "pan(-1,0)", show=False),
         Binding("right", "pan(1,0)", show=False),
         Binding("c", "center", "Centrera"),
+        Binding("tab", "profile", "Djupprofilen"),
     ]
 
     def __init__(self) -> None:
@@ -75,6 +76,10 @@ class ChartScreen(Screen):
     # --- tangenter ----------------------------------------------------------------
     def action_close(self) -> None:
         self.app.pop_screen()
+
+    def action_profile(self) -> None:
+        self.app.pop_screen()
+        self.app.action_profile()
 
     def action_zoom(self, step: int) -> None:
         self.zoom = min(max(self.zoom + step, 0), len(ZOOM) - 1)
@@ -119,7 +124,7 @@ class ChartScreen(Screen):
         t.append("\n")
         t.append(f" 1 tecken = {_nm(self.scale)} nm · rutnät {fmt_grid(grid_step(self.scale))} nm"
                  f" · N↑", style="dim")
-        t.append("   +/− zoom · pilar flyttar · c centrerar · Esc tillbaka"
+        t.append("   +/− zoom · pilar flyttar · c centrerar · Tab djupprofil · Esc tillbaka"
                  + ("" if self.follow else " · (ej centrerat)"), style="dim")
         head.update(t)
 

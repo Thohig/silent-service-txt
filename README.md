@@ -51,6 +51,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
 | Ljud | `F8` eller `ljud` / `ljud av` / `ljud på`: besättningen talar (macOS-rösten Alva), larmen går det sonaren hör spelas i stereo (babord till vänster) och båten låter: reaktor, turbin, skrov, is, brand och kontakternas propellrar |
 | Sjökort | `§` eller `sjökort` visar navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, `c` centrerar, `Esc` tillbaka |
+| Djupprofil | `F7` eller `profil` visar ubåten från sidan över tid: vårt djup, beordrat djup, ytan, periskopdjup, språngskiktet, prov- och krossdjup, isen ovanför, botten där ekolodet lodat och det sonar hört; `+`/`-` djupskala, pilarna tidsskala, `a` automatisk skala, `Tab` växlar till sjökortet, `Esc` tillbaka. Djupmätaren till höger om loggen visar samma sak i kort form |
 | Övrigt | `hjälp` · `avsluta` (avbryter patrullen med slutrapport) · `ctrl+q` stänger programmet |
 
 Flera order kan ges på en rad, åtskilda med komma, semikolon eller "och":
@@ -125,6 +126,7 @@ sim/                 ren Python, ingen Textual
   weapons.py         torpeder, sjunkbomber, skenmål
   firecontrol.py     skjutlösning (ren matematik på kunskap)
   chart.py           sjökortets ritelement; stationerna bidrar via chart_items()
+  profile.py         djupprofilens element; stationerna bidrar via profile_items()
   stations/          ett system ombord per modul
     base.py          Station: COMMANDS, on_order, update, say, suggest
     navigation.py    kurs, fart, djup, bestick, fix, ekolod, isekolod, vak
@@ -139,6 +141,8 @@ ui/                  Textual
   ambience.py        bakgrundsljud: mixer och slingor (sounddevice)
   chart.py           sjökortet i helskärm (§)
   chart_render.py    rastrering av sjökortet till tecken
+  profile.py         djupprofilen i helskärm (F7)
+  profile_render.py  rastrering av djupprofilen och djupmätaren
 ```
 
 ### Lägga till ett system
@@ -154,6 +158,8 @@ ui/                  Textual
    från `idle_proposals()` (prioritet 1 = viktigast). Vakthavande väljer.
 5. Ska systemet synas på sjökortet: returnera element (`sim/chart.py`) från
    `chart_items()`, i beräknade koordinater och bara ur kunskap.
+5. Ska systemet synas i djupprofilen: returnera element (`sim/profile.py`)
+   från `profile_items()`, bara ur kunskap.
 5. Lägg klassen i `DEFAULT_STATIONS`. Game behöver inte ändras.
 
 Stationer pratar med varandra via händelsebussen. Kunskapslagret

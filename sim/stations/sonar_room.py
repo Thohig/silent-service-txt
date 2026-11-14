@@ -17,6 +17,7 @@ from ..events import (BearingObserved, ClassificationChanged, ContactDetected,
 from ..fmt import fmt_course, nm
 from ..geo import angle_diff, circular_mean, norm360
 from ..orders import CommandSpec, Order
+from ..profile import HeardEvent, Level
 from ..reports import Quality
 from ..sonar import (ClassificationUpdate, Detection, Lost, OwnTorpedo, SonarStation,
                      TransientHeard)
@@ -28,6 +29,16 @@ BEARING_REPORT_MAX_AGE = 300
 SMOOTH_OBS = 6
 FAST_PING_S = 13
 ICE_REPORT_S = 1800          # knakande is rapporteras inte oftare
+PROFILE_KEEP_S = 3 * 3600    # djupprofilen minns hörda ljud så här länge
+# Djupprofilens symboler för hörda ljud (och våra egna): (symbol, stil)
+HEARD_SYMBOL = {
+    "ping": ("◦", "heard_ping"), "splash": ("↓", "heard_splash"),
+    "explosion": ("✱", "heard_explosion"), "practice": ("*", "heard_practice"),
+    "buoy": ("⊥", "heard_buoy"), "buoy_ping": ("◎", "heard_buoy"),
+    "uwt": ("~", "heard_other"), "breakup": ("×", "heard_explosion"),
+}
+OWN_SYMBOL = {"ping": ("!", "own_sound"), "launch": ("»", "own_sound"),
+              "decoy": ("o", "own_sound"), "blow": ("↑", "own_sound")}
 
 
 @dataclass(frozen=True)
@@ -102,6 +113,39 @@ class SonarRoom(Station):
         self._last_called: dict[str, tuple[float, int]] = {}
         self._pings: dict[str, dict] = {}
         self._last_sound: dict[str, int] = {}
+        self.heard: list[HeardEvent] = []          # för djupprofilen
+
+    def attach(self, bus) -> None:
+        super().attach(bus)
+        bus.subscribe(SoundHeard, self._note_heard)
+        bus.subscribe(OwnSoundMade, self._note_own)
+
+    # --- djupprofilen ------------------------------------------------------------
+    def _note(self, e: HeardEvent) -> None:
+        self.heard.append(e)
+        cutoff = self.now - PROFILE_KEEP_S
+        if self.heard[0].t < cutoff:
+            self.heard = [h for h in self.heard if h.t >= cutoff]
+
+    def _note_heard(self, e: SoundHeard) -> None:
+        kind = "practice" if e.kind == "explosion" and e.practice else e.kind
+        if kind not in HEARD_SYMBOL:
+            return
+        sym, style = HEARD_SYMBOL[kind]
+        near = e.se > (110 if kind == "explosion" else 45 if kind == "splash" else 75)
+        self._note(HeardEvent(e.t, kind, sym, style, near))
+
+    def _note_own(self, e: OwnSoundMade) -> None:
+        if e.kind in OWN_SYMBOL:
+            sym, style = OWN_SYMBOL[e.kind]
+            self._note(HeardEvent(e.t, "own_" + e.kind, sym, style))
+
+    def profile_items(self) -> list:
+        items: list = list(self.heard)
+        layer = self.game.world.env.layer_depth
+        if layer is not None:
+            items.append(Level(layer, "språngskikt", "layer", "─"))
+        return items
 
     def held_designations(self) -> list[str]:
         return self.sensor.held_designations()

@@ -8,7 +8,10 @@ from textual.widgets import RichLog, Static
 from sim.fmt import kn
 from sim.game import StatusSnapshot
 from sim.geo import fmt_course
+from sim.profile import ProfileView
 from sim.reports import Quality, Report
+
+from .profile_render import render_gauge
 
 QUALITY_STYLE = {
     Quality.DALIG: "bold red",
@@ -172,3 +175,10 @@ class ReportLog(RichLog):
                     self.write(line)
         self.write(Text("═" * 60, style="dim"))
         self.write(Text("  Avsluta med ctrl+q.", style="dim italic"))
+
+
+class DepthGauge(Static):
+    """Liten djupmätare bredvid loggen: vårt djup mot ytan, skiktet, gränserna och botten."""
+
+    def show(self, view: ProfileView) -> None:
+        self.update(Text("\n").join(render_gauge(view)))

@@ -23,6 +23,7 @@ from typing import Any, TypeVar
 
 from . import phrases
 from .chart import ChartView
+from .profile import ProfileView
 from .crew import CrewMember, Role
 from .events import (EventBus, GameEnded, OrderIssued, PositionReported, ReportDelivered,
                      Tick, TimeScaleChanged)
@@ -317,6 +318,16 @@ class Game:
                          self.own_position_estimate())
         for st in self.stations:
             view.items.extend(st.chart_items())
+        return view
+
+    # ------------------------------------------------------------------ djupprofil
+    def profile(self) -> ProfileView:
+        """Djupprofilen: stationernas element ur kunskapen, längs tidsaxeln."""
+        s = self.world.own.state
+        view = ProfileView(self.clock_str(), self.now, self.start_clock, s.depth,
+                           s.ordered_depth, s.speed, s.course)
+        for st in self.stations:
+            view.items.extend(st.profile_items())
         return view
 
     # ------------------------------------------------------------------ status

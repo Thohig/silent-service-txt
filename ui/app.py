@@ -9,7 +9,7 @@ from pathlib import Path
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical
+from textual.containers import Horizontal, Vertical
 from textual.css.query import NoMatches
 from textual.widgets import Input, OptionList, Static
 from textual.widgets.option_list import Option
@@ -22,12 +22,16 @@ from sim.truthlog import TruthLog
 
 from .audio import SoundBoard, make_soundboard
 from .chart import ChartScreen
+from .profile import ProfileScreen
 from .teletype import Teletype
-from .widgets import ReportLog, StatusBar
+from .widgets import DepthGauge, ReportLog, StatusBar
 
 MAX_TICKS_PER_FRAME = 20
 CHART_WORDS = {"sjökort", "sjokort", "kort", "karta"}
 CHART_KEY = "§"
+PROFILE_WORDS = {"profil", "djupprofil", "sidovy"}
+PROFILE_KEY = "f7"
+GAUGE_EVERY_S = 0.5
 SOUND_WORDS = {"ljud", "ljud av", "ljud på", "ljud pa"}
 SOUND_KEY = "f8"
 
@@ -50,12 +54,15 @@ class SubApp(App):
     #picker { height: 1fr; padding: 2 6; }
     #picker-title { color: #c8d0b0; text-style: bold; margin-bottom: 1; }
     #scenarios { background: #0b0f0c; border: none; color: #c8d0b0; }
-    #log    { height: 1fr; padding: 0 1; background: #0b0f0c; scrollbar-size-vertical: 1; }
+    #main   { height: 1fr; }
+    #log    { width: 1fr; padding: 0 1; background: #0b0f0c; scrollbar-size-vertical: 1; }
+    #gauge  { width: 24; padding: 1 1 0 1; background: #0f1611; color: #7f9a80; }
     #order  { border: tall #2f4a36; background: #0f1611; }
     #order:focus { border: tall #5f8a66; }
     """
     BINDINGS = [Binding("ctrl+q", "quit", "Avsluta", priority=True),
                 Binding("section_sign", "chart", "Sjökort", priority=True),
+                Binding(PROFILE_KEY, "profile", "Djupprofil", priority=True),
                 Binding(SOUND_KEY, "sound", "Ljud", priority=True)]
 
     def __init__(self, seed: int | None = None, log_dir: Path | str = "logs",
@@ -73,6 +80,7 @@ class SubApp(App):
         self.sound_wanted = sound
         self.sound: SoundBoard | None = None
         self._sound_note: str | None = None
+        self._gauge_t = 0.0
         if scenario is not None:
             self._create_game(scenario)
 
@@ -90,11 +98,13 @@ class SubApp(App):
             yield OptionList(*[Option(_scenario_label(sd), id=sd.key)
                                for sd in SCENARIOS.values()], id="scenarios")
         yield Teletype("", id="intro")
-        yield ReportLog(id="log", wrap=True, markup=False, max_lines=2000)
+        with Horizontal(id="main"):
+            yield ReportLog(id="log", wrap=True, markup=False, max_lines=2000)
+            yield DepthGauge(id="gauge")
         yield OrderInput(placeholder="Order …   (skriv hjälp för en lista)", id="order")
 
     def on_mount(self) -> None:
-        self.query_one("#log").display = False
+        self.query_one("#main").display = False
         if self.game is None:
             self.query_one("#intro").display = False
             self.query_one("#order").display = False
@@ -146,6 +156,9 @@ class SubApp(App):
         if text.lower() in CHART_WORDS:
             self.action_chart()
             return
+        if text.lower() in PROFILE_WORDS:
+            self.action_profile()
+            return
         if text.lower() in SOUND_WORDS:
             want = {"ljud av": False, "ljud på": True, "ljud pa": True}.get(text.lower())
             self.action_sound(want)
@@ -155,14 +168,15 @@ class SubApp(App):
 
     def _start(self) -> None:
         self.query_one(Teletype).display = False
+        self.query_one("#main").display = True
         log = self.query_one(ReportLog)
-        log.display = True
         st = self.game.world.own.state
         log.add_system(self.game.clock_str(),
                        f"Du har befälet. Ubåten går kurs {fmt_course(st.course)}, "
                        f"fart {kn(st.speed)} knop, djup {st.depth:.0f} meter.")
         log.add_system(self.game.clock_str(), "Skriv hjälp för en lista över order. Besättningens förslag godkänns med ja, avslås med nej.")
-        log.add_system(self.game.clock_str(), f"{CHART_KEY} visar navigatörens sjökort.")
+        log.add_system(self.game.clock_str(), f"{CHART_KEY} visar navigatörens sjökort, "
+                       "F7 djupprofilen (Tab växlar mellan dem).")
         if self._sound_note:
             log.add_system(self.game.clock_str(), self._sound_note)
         elif self.sound and self.sound.enabled:
@@ -179,7 +193,20 @@ class SubApp(App):
         if isinstance(self.screen, ChartScreen):
             self.pop_screen()
         else:
+            if isinstance(self.screen, ProfileScreen):
+                self.pop_screen()
             self.push_screen(ChartScreen())
+
+    def action_profile(self) -> None:
+        """F7: visa eller stäng djupprofilen. Spelet går vidare under tiden."""
+        if not self.running or self.game is None:
+            return
+        if isinstance(self.screen, ProfileScreen):
+            self.pop_screen()
+        else:
+            if isinstance(self.screen, ChartScreen):
+                self.pop_screen()
+            self.push_screen(ProfileScreen())
 
     # ------------------------------------------------------------------ ljud
     def action_sound(self, want: bool | None = None) -> None:
@@ -223,13 +250,16 @@ class SubApp(App):
             self.sound.ambient(status, self.game.knowledge.tracks.values())
         try:
             self.query_one(StatusBar).show(status)
+            if now - self._gauge_t >= GAUGE_EVERY_S:
+                self._gauge_t = now
+                self.query_one(DepthGauge).show(self.game.profile())
         except NoMatches:
             pass
 
     # ------------------------------------------------------------------ händelser
     def _on_report(self, e: ReportDelivered) -> None:
         self.query_one(ReportLog).add_report(self.game.clock_str(), e.report)
-        if isinstance(self.screen, ChartScreen):
+        if isinstance(self.screen, (ChartScreen, ProfileScreen)):
             self.screen.add_report(self.game.clock_str(), e.report)
 
     def _on_time_scale(self, e: TimeScaleChanged) -> None:
@@ -241,7 +271,7 @@ class SubApp(App):
         self.query_one(StatusBar).show(self.game.status())
 
     def _on_game_ended(self, e: GameEnded) -> None:
-        if isinstance(self.screen, ChartScreen):
+        if isinstance(self.screen, (ChartScreen, ProfileScreen)):
             self.pop_screen()               # slutrapporten visas i loggen
         self.query_one(ReportLog).add_ending(e.summary)
         inp = self.query_one("#order", Input)

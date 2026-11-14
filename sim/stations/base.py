@@ -76,6 +76,10 @@ class Station:
         """Sjökortselement (sim.chart) ur stationens kunskap. Aldrig ur World."""
         return []
 
+    def profile_items(self) -> list:
+        """Djupprofilens element (sim.profile) ur stationens kunskap. Aldrig ur World."""
+        return []
+
     def propose(self, p: Proposal) -> bool:
         return self.suggest(p.key, p.type, p.data, order=p.order, cooldown=p.cooldown,
                             quality=p.quality)

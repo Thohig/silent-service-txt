@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from .. import acoustics, phrases
 from ..chart import LAYER_ICE, LAYER_OWN, Mark, Note, Ray, Ring, Track
+from ..profile import BottomSounding, DepthTrace, IceSounding, Level
 from ..crew import Role
 from ..entities import Transient
 from ..events import IceSounded, OpeningNotFound
@@ -22,7 +23,7 @@ from ..ice import SAIL_TOP_M, masts_clear
 from ..icemap import (MIN_SURFACE_LEN_M, OPEN_M, IceMap, IceSoundingObs, Opening,
                       describe_opening, round_m, thickness_words)
 from ..orders import NUM, CommandSpec, Order, Unknown, num
-from ..ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH, TEST_DEPTH
+from ..ownship import ANTENNA_DEPTH, CRUSH_DEPTH, PERISCOPE_DEPTH, TEST_DEPTH
 from .base import Proposal, Station
 
 FIX_TIME_S = 120
@@ -50,6 +51,8 @@ STATION_SEARCH_MAX_NM = 1.2
 STATION_SEARCH_SPEED = 4.0
 DR_TRACK_INTERVAL_S = 60    # navigatören prickar in besticket på kortet så här ofta
 OWN_VECTOR_S = 360          # egen fartvektor på kortet: sex minuters gång
+DEPTH_LOG_INTERVAL_S = 10   # djupprofilen: djupmätaren noteras så här ofta
+PROFILE_KEEP_S = 3 * 3600   # så långt bakåt minns profilen
 
 
 @dataclass(frozen=True)
@@ -271,6 +274,9 @@ class NavigationStation(Station):
         self._circle_t = 0
         self._touching = False
         self._goal_src = ""
+        # djupprofilen: djupmätaren (t, djup) och ekolodets bottenlodningar
+        self.depth_log: list[tuple[int, float]] = [(0, s.depth)]
+        self.bottom_soundings: list[BottomSounding] = []
 
     @property
     def own(self):
@@ -320,6 +326,29 @@ class NavigationStation(Station):
                              "own_vector"))
         items.append(Mark(self.est_x, self.est_y, "@", "own", layer=LAYER_OWN))
         return items
+
+    # --- djupprofilen ------------------------------------------------------------
+    def profile_items(self) -> list:
+        items: list = [
+            Level(0.0, "yta", "surface", "≈"),
+            Level(PERISCOPE_DEPTH, "periskopdjup", "periscope", "┄"),
+            Level(TEST_DEPTH, "provdjup", "test", "╌"),
+            Level(CRUSH_DEPTH, "krossdjup", "crush", "━"),
+            DepthTrace(tuple(self.depth_log) + ((self.now, self.ship.depth),)),
+        ]
+        items.extend(self.bottom_soundings)
+        items.extend(IceSounding(o.t, o.thickness, o.draft, o.open, o.usable)
+                     for o in self.icemap.soundings)
+        return items
+
+    def _log_depth(self) -> None:
+        if self.now % DEPTH_LOG_INTERVAL_S:
+            return
+        self.depth_log.append((self.now, round(self.ship.depth, 1)))
+        cutoff = self.now - PROFILE_KEEP_S
+        if self.depth_log[0][0] < cutoff:
+            self.depth_log = [p for p in self.depth_log if p[0] >= cutoff]
+            self.bottom_soundings = [b for b in self.bottom_soundings if b.t >= cutoff]
 
     @property
     def icemap(self) -> IceMap:
@@ -393,8 +422,9 @@ class NavigationStation(Station):
                 world = self.game.world
                 world.emit(Transient("echosounder", s.x, s.y, s.depth,
                                      acoustics.ECHO_SOUNDER_LEVEL, world.own.id, self.now))
-                depth = world.env.bottom_depth - s.depth + self.game.rng.gauss(0, 15)
-                self.say("nav.echo", {"under_keel": round(depth, -1)})
+                depth = round(world.env.bottom_depth - s.depth + self.game.rng.gauss(0, 15), -1)
+                self.bottom_soundings.append(BottomSounding(self.now, s.depth + depth))
+                self.say("nav.echo", {"under_keel": depth})
             case IceReport():
                 self._ice_report()
             case GoToOpening():
@@ -780,6 +810,7 @@ class NavigationStation(Station):
     # --- löpande -----------------------------------------------------------------
     def update(self) -> None:
         self._dead_reckon()
+        self._log_depth()
         if self.now % DR_TRACK_INTERVAL_S == 0:
             self.dr_track[-1].append((self.est_x, self.est_y))
         self._sound_ice()
