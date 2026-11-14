@@ -45,35 +45,16 @@ def _basis(sol: Data) -> str:
     return f"({sol['n_obs']} bäringar under {sol['span_s'] // 60} min.)"
 
 
-# --- navigation ---------------------------------------------------------------
-def _course_ack(d: Data) -> str:
-    return f"Kurs {fmt_course(d['course'])}, aye." + (" Vi ligger på den." if d.get("already") else "")
 
 
-def _speed_ack(d: Data) -> str:
-    return "Stopp i maskin, aye." if d["speed"] == 0 else f"Fart {kn(d['speed'])} knop, aye."
 
 
-def _limit(d: Data) -> str:
-    if d["what"] == "speed":
-        return f"Kapten, högsta fart är {kn(d['limit'])} knop."
-    return f"Kapten, största djup är {d['limit']:.0f} meter."
 
 
-# --- sonar --------------------------------------------------------------------
-def _new_contact(d: Data) -> str:
-    return (f"Kapten, sonar! Ny kontakt i bäring {fmt_course(d['bearing'])}. "
-            f"Betecknas {d['designation']}. {_cap(d['classification'])}.")
 
 
-def _bearing(d: Data) -> str:
-    drift = {1: ", bäringen drar höger", -1: ", bäringen drar vänster"}.get(d.get("drift", 0), "")
-    return f"{d['designation']}, bäring {fmt_course(d['bearing'])}, {d['strength']} signal{drift}."
 
 
-def _lost(d: Data) -> str:
-    last = f", sista bäring {fmt_course(d['last_bearing'])}" if d.get("last_bearing") is not None else ""
-    return f"Kapten, sonar. Har tappat {d['designation']}{last}."
 
 
 # --- plott ----------------------------------------------------------------------
@@ -112,26 +93,20 @@ def _table_summary(d: Data) -> str:
 
 
 PHRASES: dict[str, Phrase] = {
-    # navigation
-    "nav.course.ack": _course_ack,
-    "nav.speed.ack": _speed_ack,
-    "nav.depth.ack": lambda d: f"Djup {d['depth']:.0f} meter, aye.",
-    "nav.course.done": lambda d: f"Kapten, kurs {fmt_course(d['course'])} påkommen.",
-    "nav.speed.done": lambda d: f"Fart {kn(d['speed'])} knop uppnådd.",
-    "nav.depth.done": lambda d: f"Djup {d['depth']:.0f} meter, kapten.",
-    "nav.limit": _limit,
     # allmänt
     "order.unknown": lambda d: f"Kapten, {d['reason']}." if d.get("reason") else "Kapten?",
     "system.help": lambda d: d["text"],
-    # sonar
-    "sonar.new_contact": _new_contact,
-    "sonar.classified": lambda d: f"{d['designation']} klassas som {d['classification']}.",
-    "sonar.bearing": _bearing,
-    "sonar.lost": _lost,
+    "order.executing": lambda d: f"Verkställer: {d['what']}.",
+    "order.no_suggestion": lambda d: "Det finns inget förslag att verkställa, kapten.",
+    "order.declined": lambda d: "Uppfattat, vi avvaktar.",
+    "order.suggestion_repeat": lambda d: f"Senaste förslaget: {d['text']}",
+    "system.text": lambda d: d["text"],
     # plott
     "plot.improved": _improved,
     "plot.suggest": _suggest,
     "plot.solution": _solution,
+    "plot.maneuver": lambda d: f"Kapten, plottet! {d['designation']} har troligen ändrat kurs eller "
+    f"fart, bäringarna stämmer inte längre. Vi börjar om lösningen.",
     "plot.few_bearings": lambda d: f"För få bäringar på {d['designation']} ännu, kapten.",
     "plot.no_contacts": lambda d: "Vi har inga kontakter, kapten.",
     "plot.which": lambda d: "Vilken kontakt, kapten? " + ", ".join(d["options"]) + ".",
@@ -139,6 +114,11 @@ PHRASES: dict[str, Phrase] = {
     "plot.no_bearings": lambda d: f"Inga bäringar loggade på {d['designation']}.",
     "plot.table": _table_summary,
 }
+
+
+def register(phrases: dict[str, Phrase]) -> None:
+    """Stationer registrerar sina egna fraser."""
+    PHRASES.update(phrases)
 
 
 def _plot_rows(d: Data, clock: Callable[[int], str]) -> list[list[str]]:
@@ -158,6 +138,8 @@ def render(report: Report, clock: Callable[[int], str]) -> Report:
     """Fyll i text (och tabell) från rapportens typ och data."""
     phrase = PHRASES.get(report.type)
     report.text = phrase(report.data) if phrase else f"[{report.type}] {report.data}"
+    if report.data.get("order"):
+        report.text += f" [ja: {report.data['order']}]"
     if report.type == "plot.table":
         report.table = _plot_rows(report.data, clock)
         report.table_header = ["Tid", "Bäring", "Egen kurs", "Lösning", "Avvikelse"]

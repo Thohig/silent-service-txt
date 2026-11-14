@@ -23,6 +23,7 @@ class ContactTrack:
     observations: list[BearingObs] = field(default_factory=list)
     solution: Solution | None = None
     held: bool = True
+    tma_from_t: int = -10**9       # plottlaget använder bara bäringar efter denna tid
 
     @property
     def last_bearing(self) -> float | None:
@@ -41,8 +42,10 @@ class Knowledge:
 
     # --- händelser ------------------------------------------------------------
     def _on_detected(self, e: ContactDetected) -> None:
+        known = e.designation in self.tracks
         tr = self.on_detection(e.designation, e.t)
-        tr.classification, tr.class_quality = e.classification, e.quality
+        if not known or e.quality > tr.class_quality:
+            tr.classification, tr.class_quality = e.classification, e.quality
 
     def _on_classified(self, e: ClassificationChanged) -> None:
         if tr := self.tracks.get(e.designation):
@@ -75,7 +78,8 @@ class Knowledge:
         tr = self.tracks.get(_normalize(designation))
         if tr is None:
             return None
-        tr.solution = solve(tr.observations, t_now=t_now, own_now=own_now)
+        obs = [o for o in tr.observations if o.t >= tr.tma_from_t]
+        tr.solution = solve(obs, t_now=t_now, own_now=own_now)
         return tr.solution
 
 

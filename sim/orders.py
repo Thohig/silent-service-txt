@@ -39,6 +39,21 @@ class SetTimeScale(Order):
     scale: int
 
 
+@dataclass(frozen=True)
+class AcceptSuggestion(Order):
+    pass
+
+
+@dataclass(frozen=True)
+class DeclineSuggestion(Order):
+    pass
+
+
+@dataclass(frozen=True)
+class RepeatSuggestion(Order):
+    pass
+
+
 def num(s: str) -> float:
     return float(s.replace(",", "."))
 
@@ -97,3 +112,10 @@ def _time_scale(m: re.Match) -> Order:
 
 TIME_COMMAND = CommandSpec(r"(?:tid|tidskomprimering)\s+(\d+)\s*x?", _time_scale, "tid 1|2|5|10")
 HELP_COMMAND = CommandSpec(r"hjälp|hjalp|\?|order", lambda m: Help(), "hjälp")
+
+SUGGESTION_COMMANDS = [
+    CommandSpec(r"ja|verkställ|verkstall|gör så|gor sa|utför|utfor|aye",
+                lambda m: AcceptSuggestion(), "ja"),
+    CommandSpec(r"nej|avslå|avsla|avvakta", lambda m: DeclineSuggestion(), "nej"),
+    CommandSpec(r"förslag|forslag", lambda m: RepeatSuggestion(), "förslag"),
+]

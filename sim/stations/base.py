@@ -4,7 +4,9 @@ En station är ett system ombord med en ansvarig besättningsmedlem. Den
 - registrerar sina order (COMMANDS),
 - tar emot order via händelsebussen (on_order),
 - uppdateras en gång per simsekund (update),
-- rapporterar via say() med strukturerad data, aldrig färdig text.
+- rapporterar via say() med strukturerad data, aldrig färdig text,
+- föreslår åtgärder via suggest(): en rapport med en färdig order som
+  kaptenen kan godkänna med "ja".
 
 Nya system (torpedrum, reaktor, radio, periskop …) läggs till som nya
 stationer utan att Game behöver ändras.
@@ -28,6 +30,7 @@ class Station:
 
     def __init__(self, game: Game):
         self.game = game
+        self._suggested: dict[str, int] = {}
 
     # --- koppling -----------------------------------------------------------
     def attach(self, bus: EventBus) -> None:
@@ -48,6 +51,22 @@ class Station:
     @property
     def now(self) -> int:
         return self.game.now
+
+    def suggest(self, key: str, type: str, data: dict[str, Any] | None = None, *,
+                order: str | None = None, cooldown: int = 600,
+                quality: Quality | None = None, alarm: bool = False) -> bool:
+        """Föreslå en åtgärd. order är texten som utförs om kaptenen svarar ja.
+
+        Samma förslag (key) upprepas inte inom cooldown sekunder.
+        """
+        if self.now - self._suggested.get(key, -10**9) < cooldown:
+            return False
+        self._suggested[key] = self.now
+        d = dict(data or {})
+        if order:
+            d["order"] = order
+        self.say(type, d, kind="suggest", quality=quality, alarm=alarm)
+        return True
 
     def say(self, type: str, data: dict[str, Any] | None = None, *, kind: str = "info",
             quality: Quality | None = None, alarm: bool = False, extra_delay: int = 0) -> None:

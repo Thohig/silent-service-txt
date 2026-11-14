@@ -74,6 +74,22 @@ class ContactLost(Event):
     designation: str
 
 
+@dataclass(frozen=True)
+class SoundHeard(Event):
+    """Sonaren hörde en transient: ping, plask, detonation, undervattenstelefon …"""
+    kind: str
+    bearing: float
+    designation: str | None = None
+    practice: bool = False
+    detail: str = ""        # t.ex. "fast" för tät pingtakt
+
+
+@dataclass(frozen=True)
+class GameEnded(Event):
+    outcome: str
+    summary: dict
+
+
 E = TypeVar("E", bound=Event)
 Handler = Callable[[Any], None]
 

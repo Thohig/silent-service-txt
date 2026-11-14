@@ -70,3 +70,38 @@ def test_noise_free_two_leg_solution_is_exact():
     sol = solve(obs, t_now=t, own_now=(own.x, own.y))
     assert abs(sol.x - tgt.x) < 0.05 and abs(sol.y - tgt.y) < 0.05
     assert abs(sol.course - 100) < 1 and abs(sol.speed - 15) < 0.3
+
+
+def test_range_measurements_fix_solution_without_maneuver():
+    """En periskop-/radarmätning ger avstånd även på rak kurs."""
+    rng = random.Random(5)
+    own = ShipState(x=10, y=2, course=0, speed=6)
+    tgt = ShipState(x=6, y=7, course=100, speed=15)
+    obs: list[BearingObs] = []
+    t = _run(own, tgt, 600, rng, obs, sigma=0.7)
+    bearings_only = solve(obs, t_now=t, own_now=(own.x, own.y))
+    r = distance(own.x, own.y, tgt.x, tgt.y)
+    b = bearing_to(own.x, own.y, tgt.x, tgt.y)
+    obs.append(BearingObs(t, b, 0.5, own.x, own.y, own.course, range_nm=r * 1.05,
+                          range_sigma=0.08 * r, source="periskop"))
+    with_range = solve(obs, t_now=t, own_now=(own.x, own.y))
+    assert bearings_only.quality == Quality.DALIG
+    assert with_range.rel_range_error < bearings_only.rel_range_error / 3
+    assert abs(with_range.range_nm - r) / r < 0.15
+
+
+def test_target_maneuver_is_detected_by_poor_fit():
+    rng = random.Random(9)
+    own = ShipState(x=10, y=2, course=0, speed=6)
+    tgt = ShipState(x=6, y=7, course=100, speed=15, turn_rate=3, accel=0.5, max_speed=30)
+    obs: list[BearingObs] = []
+    t = _run(own, tgt, 400, rng, obs, sigma=0.7)
+    own.order_course(90)
+    t = _run(own, tgt, 400, rng, obs, sigma=0.7, t0=t)
+    before = solve(obs, t_now=t, own_now=(own.x, own.y))
+    tgt.order_course(280)                       # jagaren vänder och ökar
+    tgt.order_speed(28)
+    t = _run(own, tgt, 300, rng, obs, sigma=0.7, t0=t)
+    after = solve(obs, t_now=t, own_now=(own.x, own.y))
+    assert before.fit < 2.0
+    assert after.fit > 4.0 and after.quality == Quality.DALIG

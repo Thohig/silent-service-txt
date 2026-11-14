@@ -13,7 +13,7 @@ Ett tick:
     1. världen rör sig ett steg (sanning)
     2. varje station uppdateras, i ordning
     3. förfallna rapporter formuleras och levereras (larm -> 1x)
-    4. Tick publiceras
+    4. Tick publiceras; om världen har nått ett slut publiceras GameEnded
 """
 from __future__ import annotations
 
@@ -23,16 +23,21 @@ from typing import Any, TypeVar
 
 from . import phrases
 from .crew import CrewMember, Role
-from .events import EventBus, OrderIssued, ReportDelivered, Tick, TimeScaleChanged
+from .events import (EventBus, GameEnded, OrderIssued, ReportDelivered, Tick,
+                     TimeScaleChanged)
 from .fmt import clock
 from .knowledge import Knowledge
-from .orders import HELP_COMMAND, TIME_COMMAND, CommandRegistry, Help, SetTimeScale, Unknown
+from .orders import (HELP_COMMAND, SUGGESTION_COMMANDS, TIME_COMMAND, AcceptSuggestion,
+                     CommandRegistry, DeclineSuggestion, Help, RepeatSuggestion,
+                     SetTimeScale, Unknown)
+from .ownship import PERISCOPE_DEPTH
 from .reports import Quality, Report, ReportQueue
 from .scenario import Scenario
 from .stations import DEFAULT_STATIONS, NavigationStation, SonarRoom, Station
 from .truthlog import TruthLog
 
 S = TypeVar("S", bound=Station)
+SUGGESTION_TTL = 300
 
 
 @dataclass(frozen=True)
@@ -48,14 +53,33 @@ class StatusSnapshot:
     changing: frozenset[str]
     time_scale: int
     contacts_held: tuple[str, ...]
+    reactor: str = "online"
+    propulsion: str = "turbine"
+    battery: float = 1.0
+    hull: float = 1.0
+    flooding: float = 0.0
+    periscope_depth: bool = False
+    masts_up: bool = False
+    cavitating: bool = False
+    suggestion: str | None = None
+    over: bool = False
 
 
 def build_registry(station_classes: list[type[Station]]) -> CommandRegistry:
-    reg = CommandRegistry([TIME_COMMAND])
+    reg = CommandRegistry([TIME_COMMAND, *SUGGESTION_COMMANDS])
     for cls in station_classes:
         reg.register(*cls.COMMANDS)
     reg.register(HELP_COMMAND)
     return reg
+
+
+OUTCOME_TEXT = {
+    "lost": "K-114 är förlorad med hela besättningen.",
+    "forced": "K-114 har tvingats till ytan under amerikansk bevakning. Uppdraget har misslyckats, "
+              "men besättningen lever.",
+    "sank": "Den amerikanska jagaren är sänkt. Vad som händer nu avgörs inte längre i Kvadrat 7.",
+    "patrol_end": "Patrullen är slut. K-114 lämnar Kvadrat 7.",
+}
 
 
 class Game:
@@ -63,12 +87,15 @@ class Game:
                  truth_log: TruthLog | None = None,
                  stations: list[type[Station]] | None = None):
         self.rng = random.Random(seed)
+        self.scenario = scenario
         self.world = scenario.world
         self.crew: dict[Role, CrewMember] = scenario.crew
         self.start_clock = scenario.start_clock
         self.secret_order = scenario.secret_order
         self.truth_log = truth_log
         self.time_scale = 1
+        self.over = False
+        self.suggestion: tuple[str, str, int] | None = None   # (order, text, t)
 
         self.bus = EventBus()
         self.queue = ReportQueue()
@@ -93,7 +120,11 @@ class Game:
         raise KeyError(cls.__name__)
 
     def own_position_estimate(self) -> tuple[float, float]:
-        return self.station(NavigationStation).position_estimate()
+        try:
+            return self.station(NavigationStation).position_estimate()
+        except KeyError:
+            s = self.world.own.state
+            return s.x, s.y
 
     def clock_str(self, sim_t: int | None = None) -> str:
         return clock(self.start_clock + (self.now if sim_t is None else sim_t))
@@ -109,7 +140,12 @@ class Game:
 
     def _deliver(self, r: Report) -> None:
         phrases.render(r, self.clock_str)
+        if r.kind == "suggest" and r.data.get("order"):
+            self.suggestion = (r.data["order"], r.text, self.now)
         self.bus.publish(ReportDelivered(self.now, r))
+
+    def _system(self, type: str, data: dict[str, Any]) -> None:
+        self._deliver(Report(self.now, "", type, data, kind="system"))
 
     def log(self, text: str) -> None:
         if self.truth_log:
@@ -120,22 +156,51 @@ class Game:
             self.time_scale = scale
             self.bus.publish(TimeScaleChanged(self.now, scale, reason))
 
+    def active_suggestion(self) -> tuple[str, str, int] | None:
+        if self.suggestion and self.now - self.suggestion[2] <= SUGGESTION_TTL:
+            return self.suggestion
+        return None
+
     # ------------------------------------------------------------------ order
     def command(self, text: str) -> None:
+        if self.over:
+            return
         order = self.registry.parse(text)
         self.log(f"ORDER {text!r} -> {order}")
+        match order:
+            case AcceptSuggestion():
+                sug = self.active_suggestion()
+                if sug is None:
+                    self.say(Role.NAVIGATOR, "order.no_suggestion", {})
+                    return
+                self.suggestion = None
+                self._system("order.executing", {"what": sug[0]})
+                self.command(sug[0])
+                return
+            case DeclineSuggestion():
+                self.suggestion = None
+                self.say(Role.NAVIGATOR, "order.declined", {})
+                return
+            case RepeatSuggestion():
+                sug = self.active_suggestion()
+                if sug is None:
+                    self.say(Role.NAVIGATOR, "order.no_suggestion", {})
+                else:
+                    self._system("order.suggestion_repeat", {"text": sug[1]})
+                return
         self.bus.publish(OrderIssued(self.now, text, order))
         match order:
             case SetTimeScale(scale=n):
                 self.set_time_scale(n, "order")
             case Help():
-                self._deliver(Report(self.now, "", "system.help",
-                                     {"text": self.registry.help_text()}, kind="system"))
+                self._system("system.help", {"text": self.registry.help_text()})
             case Unknown(reason=reason):
                 self.say(Role.NAVIGATOR, "order.unknown", {"reason": reason})
 
     # ------------------------------------------------------------------ tick
     def tick(self) -> list[Report]:
+        if self.over:
+            return []
         self.world.tick(1)
         if self.truth_log:
             self.truth_log.tick(self.world)
@@ -149,15 +214,40 @@ class Game:
             if r.alarm and self.time_scale > 1:
                 self.set_time_scale(1, "larm")
         self.bus.publish(Tick(self.now))
+
+        if self.world.outcome is not None:
+            self._end()
         return delivered
+
+    def _end(self) -> None:
+        self.over = True
+        o = self.world.outcome
+        m = self.world.mission
+        summary = {
+            "outcome": o["outcome"],
+            "text": OUTCOME_TEXT.get(o["outcome"], o["outcome"]),
+            "cause": o.get("cause"),
+            "clock": self.clock_str(),
+            "detected": m.get("enemy_contacts", 0),
+            "charges": m.get("charges_exploded", 0),
+            "reports_sent": m.get("reports_sent", 0),
+            "torpedoes": m.get("torpedoes_fired", 0),
+            "nuclear": bool(m.get("nuclear_used")),
+            "hull": self.world.own.sys.hull,
+        }
+        self.log(f"SLUT {summary}")
+        self.bus.publish(GameEnded(self.now, o["outcome"], summary))
 
     # ------------------------------------------------------------------ status
     def status(self) -> StatusSnapshot:
-        s = self.world.own.state
+        own = self.world.own
+        s, sy = own.state, own.sys
         try:
             held = tuple(self.station(SonarRoom).held_designations())
         except KeyError:
             held = ()
+        from .acoustics import cavitation_speed
+        sug = self.active_suggestion()
         return StatusSnapshot(
             clock=(self.start_clock + self.now) % 86400, sim_time=self.now,
             course=s.course, ordered_course=s.ordered_course,
@@ -165,4 +255,9 @@ class Game:
             depth=s.depth, ordered_depth=s.ordered_depth,
             changing=frozenset(s.changing()), time_scale=self.time_scale,
             contacts_held=held,
+            reactor=sy.reactor, propulsion=sy.propulsion, battery=sy.battery,
+            hull=sy.hull, flooding=sy.flooding,
+            periscope_depth=s.depth <= PERISCOPE_DEPTH, masts_up=own.masts_up(self.now),
+            cavitating=s.speed > cavitation_speed(s.depth),
+            suggestion=sug[0] if sug else None, over=self.over,
         )

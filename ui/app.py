@@ -8,9 +8,10 @@ from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.css.query import NoMatches
 from textual.widgets import Input
 
-from sim.events import ReportDelivered, TimeScaleChanged
+from sim.events import GameEnded, ReportDelivered, TimeScaleChanged
 from sim.game import Game
 from sim.scenario import default_scenario
 from sim.truthlog import TruthLog
@@ -26,7 +27,7 @@ class SubApp(App):
     TITLE = "K-114"
     CSS = """
     Screen { background: #0b0f0c; }
-    #status { height: 1; background: #1c2a20; color: #c8d0b0; }
+    #status { height: 2; background: #1c2a20; color: #c8d0b0; }
     #intro  { height: 1fr; padding: 2 6; }
     #log    { height: 1fr; padding: 0 1; background: #0b0f0c; scrollbar-size-vertical: 1; }
     #order  { border: tall #2f4a36; background: #0f1611; }
@@ -57,6 +58,7 @@ class SubApp(App):
         self.query_one(StatusBar).show(self.game.status())
         self.game.bus.subscribe(ReportDelivered, self._on_report)
         self.game.bus.subscribe(TimeScaleChanged, self._on_time_scale)
+        self.game.bus.subscribe(GameEnded, self._on_game_ended)
         self.query_one("#order", Input).focus()
         self.query_one(Teletype).start()
 
@@ -85,13 +87,15 @@ class SubApp(App):
         log.display = True
         log.add_system(self.game.clock_str(),
                        "Du har befälet. Ubåten går kurs 000, fart 5 knop, djup 100 meter.")
-        log.add_system(self.game.clock_str(), "Skriv hjälp för en lista över order.")
+        log.add_system(self.game.clock_str(), "Skriv hjälp för en lista över order. Besättningens förslag godkänns med ja, avslås med nej.")
         self.running = True
         self._last = time.monotonic()
         self.set_interval(FRAME_S, self._pump)
 
     # ------------------------------------------------------------------ realtid
     def _pump(self) -> None:
+        if not self.is_running or self.game.over:
+            return
         now = time.monotonic()
         self._acc += (now - self._last) * self.game.time_scale
         self._last = now
@@ -105,7 +109,10 @@ class SubApp(App):
                 self._acc = 0.0      # larm: släpp resterande komprimerad tid
                 break
         self._acc = min(self._acc, 2.0)
-        self.query_one(StatusBar).show(self.game.status())
+        try:
+            self.query_one(StatusBar).show(self.game.status())
+        except NoMatches:
+            pass
 
     # ------------------------------------------------------------------ händelser
     def _on_report(self, e: ReportDelivered) -> None:
@@ -117,6 +124,13 @@ class SubApp(App):
             log.add_system(self.game.clock_str(), "Tidskomprimering avbruten – 1×.", "bold red")
         else:
             log.add_system(self.game.clock_str(), f"Tidskomprimering {e.scale}×.")
+        self.query_one(StatusBar).show(self.game.status())
+
+    def _on_game_ended(self, e: GameEnded) -> None:
+        self.query_one(ReportLog).add_ending(e.summary)
+        inp = self.query_one("#order", Input)
+        inp.placeholder = "Spelet är slut – ctrl+q avslutar"
+        inp.disabled = True
         self.query_one(StatusBar).show(self.game.status())
 
     def on_unmount(self) -> None:

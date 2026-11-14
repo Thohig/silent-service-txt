@@ -22,7 +22,7 @@ from .entities import Vessel
 from .world import World
 
 OBS_INTERVAL = 5           # sekunder mellan loggade bäringar till plottet
-LOSE_AFTER = 60            # sekunder utan hörbar signal innan kontakten förloras
+LOSE_AFTER = 120           # sekunder utan hörbar signal innan kontakten förloras
 
 # Klassificeringsstadier per typ: (ackumulerad lyssning, text)
 _CLASS_STAGES = {
@@ -131,14 +131,16 @@ class SonarStation:
             if not t.held:
                 if t.audible_for >= self.operator.detection_time():
                     t.held = True
+                    first = t.designation is None
                     self.designate(v.id)
-                    t.listening = 0.0
-                    t.class_stage = 0
+                    if first:
+                        t.listening = 0.0
+                        t.class_stage = 0
                     events.append(Detection(
                         designation=t.designation,
                         bearing=self._noisy_bearing(world, v, se),
-                        classification=_CLASS_STAGES.get(v.kind, ["okänd kontakt"])[0],
-                        quality=Quality.DALIG,
+                        classification=_CLASS_STAGES.get(v.kind, ["okänd kontakt"])[t.class_stage],
+                        quality=Quality(t.class_stage),
                     ))
                 continue
 
@@ -165,13 +167,13 @@ class SonarStation:
         return events
 
     def _obs(self, world: World, v: Vessel, se: float, own_xy, designation: str,
-             sigma: float | None = None) -> BearingObs:
+             sigma: float | None = None, source: str = "sonar") -> BearingObs:
         sig = self.bearing_sigma(se) if sigma is None else sigma
         return BearingObs(
             t=world.time,
             bearing=norm360(world.true_bearing(v) + self.rng.gauss(0.0, sig)),
             sigma=sig, own_x=own_xy[0], own_y=own_xy[1],
-            own_course=world.own.state.course, se=se, designation=designation)
+            own_course=world.own.state.course, se=se, designation=designation, source=source)
 
     def _transients(self, world: World, own_xy) -> list[SonarEvent]:
         out: list[SonarEvent] = []
@@ -195,7 +197,7 @@ class SonarStation:
                 src = next((v for v in world.contacts if v.id == tr.source_id), None)
                 if src is not None:
                     out.append(self._obs(world, src, se, own_xy, desig,
-                                         sigma=self.operator.bearing_sigma() * 0.5))
+                                         sigma=self.operator.bearing_sigma() * 0.5, source="ping"))
         return out
 
     def _noisy_bearing(self, world: World, v: Vessel, se: float) -> float:

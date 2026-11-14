@@ -10,7 +10,7 @@ from ..geo import angle_diff, norm360
 from ..knowledge import ContactTrack
 from ..orders import DESIG, CommandSpec, Order, desig
 from ..reports import Quality
-from ..tma import Solution, own_maneuvered, predicted_bearing
+from ..tma import MANEUVER_CHI2, Solution, own_maneuvered, predicted_bearing
 from .base import Station
 
 PLOT_INTERVAL = 30              # sekunder mellan omräkningar
@@ -122,6 +122,13 @@ class PlotTeam(Station):
             sol = self._resolve(tr)
             if sol is None:
                 continue
+            if sol.fit > MANEUVER_CHI2 and sol.n_obs >= 12:
+                tr.tma_from_t = self.now - 120
+                self.say("plot.maneuver", {"designation": tr.designation},
+                         kind="solution", quality=Quality.DALIG, alarm=True)
+                sol = self._resolve(tr)
+                if sol is None:
+                    continue
             self.game.log(f"TMA {tr.designation} r={sol.range_nm:.2f}±{sol.range_sigma:.2f} "
                           f"k={sol.course:.0f} v={sol.speed:.1f} q={sol.quality.label} n={sol.n_obs}")
             if sol.quality >= Quality.GOD and (prev_q is None or sol.quality > prev_q):
@@ -132,11 +139,12 @@ class PlotTeam(Station):
                   and not self._maneuvered_recently(tr)
                   and self.now - self._last_suggest.get(tr.designation, -10**9) >= SUGGEST_COOLDOWN):
                 self._last_suggest[tr.designation] = self.now
-                self.say("plot.suggest",
-                         {"designation": tr.designation, "quality": sol.quality,
-                          "course": self._suggest_course(sol, tr),
-                          "first": not sol.own_maneuvered},
-                         kind="suggest", quality=sol.quality)
+                course = self._suggest_course(sol, tr)
+                self.suggest(f"turn{tr.designation}", "plot.suggest",
+                             {"designation": tr.designation, "quality": sol.quality,
+                              "course": course, "first": not sol.own_maneuvered},
+                             order=f"kurs {round(course) % 360:03d}", cooldown=0,
+                             quality=sol.quality)
 
     def _maneuvered_recently(self, tr: ContactTrack) -> bool:
         recent = [o for o in tr.observations if o.t >= self.now - SUGGEST_MIN_LEG_S]

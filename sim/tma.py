@@ -37,6 +37,7 @@ MAX_SPAN_S = 1800                 # använd bäringar från de senaste 30 min
 MAX_OBS = 400
 MIN_OBS = 6
 MIN_SPAN_S = 60
+MANEUVER_CHI2 = 4.0     # över detta passar rak-kurs-modellen inte datan
 _START_RANGES_NM = (1.0, 2.0, 3.5, 5.0, 7.0, 10.0, 14.0)
 
 
@@ -50,6 +51,9 @@ class BearingObs:
     own_course: float
     se: float = 0.0
     designation: str = ""
+    range_nm: float | None = None    # avståndsmätning (periskop, radar, aktiv sonar)
+    range_sigma: float = 0.0
+    source: str = "sonar"            # sonar, ping, periskop, radar, aktiv
 
 
 @dataclass(frozen=True)
@@ -71,6 +75,7 @@ class Solution:
     span_s: int
     own_maneuvered: bool
     rms_residual: float     # grader
+    fit: float = 1.0        # normaliserad chi²: ~1 = modellen passar, >>1 = målet har manövrerat
 
     @property
     def rel_range_error(self) -> float:
@@ -105,11 +110,17 @@ def own_maneuvered(obs: Sequence[BearingObs], threshold_deg: float = 20.0) -> bo
 
 class _Problem:
     def __init__(self, obs: Sequence[BearingObs], t_ref: int):
+        self.n_b = len(obs)
         self.tau = np.array([(o.t - t_ref) / 3600.0 for o in obs])
         self.ox = np.array([o.own_x for o in obs])
         self.oy = np.array([o.own_y for o in obs])
         self.meas = np.radians([o.bearing for o in obs])
-        self.w = 1.0 / np.radians([max(o.sigma, 0.05) for o in obs]) ** 2
+        w_b = 1.0 / np.radians([max(o.sigma, 0.05) for o in obs]) ** 2
+        ranged = [i for i, o in enumerate(obs) if o.range_nm is not None]
+        self.r_idx = np.array(ranged, dtype=int)
+        self.r_meas = np.array([obs[i].range_nm for i in ranged])
+        w_r = np.array([1.0 / max(obs[i].range_sigma, 0.01) ** 2 for i in ranged])
+        self.w = np.concatenate([w_b, w_r])
         self.prior_w = 1.0 / VELOCITY_PRIOR_KN ** 2
         last = obs[-1]
         self.ref_x, self.ref_y = last.own_x, last.own_y
@@ -134,6 +145,14 @@ class _Problem:
         db_dx = dy / r2
         db_dy = -dx / r2
         J = np.column_stack([db_dx, db_dy, db_dx * self.tau, db_dy * self.tau])
+        if len(self.r_idx):
+            i = self.r_idx
+            r = np.sqrt(r2[i])
+            er = self.r_meas - r
+            ux, uy = dx[i] / r, dy[i] / r
+            Jr = np.column_stack([ux, uy, ux * self.tau[i], uy * self.tau[i]])
+            e = np.concatenate([e, er])
+            J = np.vstack([J, Jr])
         return e, J
 
     def cost(self, s: np.ndarray) -> float:
@@ -236,7 +255,9 @@ def solve(observations: Sequence[BearingObs], t_now: int | None = None,
     course_sigma = min(course_sigma, 180.0)
 
     e, _ = p.residuals_and_jacobian(s)
-    rms = math.degrees(math.sqrt(float(np.mean(e * e))))
+    eb = e[: p.n_b]
+    rms = math.degrees(math.sqrt(float(np.mean(eb * eb))))
+    fit = float(np.mean(p.w * e * e))
     span = obs[-1].t - obs[0].t
     rel = range_sigma / max(rng, 1e-6)
 
@@ -245,7 +266,7 @@ def solve(observations: Sequence[BearingObs], t_now: int | None = None,
         course=course, speed=speed, range_nm=rng,
         bearing=norm360(math.degrees(math.atan2(dx, dy))),
         range_sigma=range_sigma, course_sigma=course_sigma, speed_sigma=speed_sigma,
-        quality=quality_from(rel, len(obs), span),
+        quality=Quality.DALIG if fit > MANEUVER_CHI2 else quality_from(rel, len(obs), span),
         n_obs=len(obs), span_s=span, own_maneuvered=own_maneuvered(obs),
-        rms_residual=rms,
+        rms_residual=rms, fit=fit,
     )
