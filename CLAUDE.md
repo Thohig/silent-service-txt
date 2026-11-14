@@ -65,12 +65,12 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
 - **Sjökortet**: `Station.chart_items()` ger ritelement (`sim/chart.py`) ur
   kunskapen i beräknade koordinater; `Game.chart()` samlar, `ui/chart_render.py`
   rastrerar (en rad = två kolumner i höjd). Nytt system ritar sig självt.
-- **Djupprofilen** (`°`, `profil`): `Station.profile_items()` ger element (`sim/profile.py`):
+- **Djupprofilen** (`profil`): `Station.profile_items()` ger element (`sim/profile.py`):
   fasta djup (`Level`), navigatörens djuplogg (var 10:e s), ekolodets bottenlodningar
   (bara efter `ekolod`), isekolodets lodningar och sonarrummets hörda ljud. `Game.profile()`
   samlar, `ui/profile_render.py` ritar sidovyn (tid vågrätt, botten i eget band under
   bruten axel) och djupmätaren bredvid loggen. Tab växlar logg → sjökort → profil → logg.
-- **Tangenter:** `§` sjökort, `°` (skift+§) djupprofil, `ctrl+t` ljud. Undvik F-tangenter
+- **Tangenter:** `Tab` växlar vy, `Esc` tillbaka, `ctrl+t` ljud. Undvik F-tangenter
   (medietangenter på Mac) och ctrl-tangenter som orderraden (`Input`) redan använder.
 - **Ljud** (`ui/audio.py`): `SoundBoard` lyssnar bara på bussen – `ReportDelivered` ger tal
   (`say`, takt per roll) och larm (`CUE_BY_TYPE`); `SoundHeard` (med sensorns `se`) ger

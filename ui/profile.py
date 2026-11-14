@@ -1,4 +1,4 @@
-"""Djupprofilen i helskärm (° eller "profil"). Spelet går vidare medan den visas."""
+"""Djupprofilen i helskärm (Tab eller "profil"). Spelet går vidare medan den visas."""
 from __future__ import annotations
 
 from rich.text import Text
@@ -97,7 +97,7 @@ class ProfileScreen(Screen):
         t.append(f" 1 tecken = {spc} s · djup "
                  + ("automatiskt" if self.depth_zoom is None
                     else f"till {DEPTH_ZOOM[self.depth_zoom]} m"), style="dim")
-        t.append("   +/− djup · ←/→ tid · a automatiskt · § sjökortet · Tab/Esc tillbaka",
+        t.append("   +/− djup · ←/→ tid · a automatiskt · Tab loggen · Esc tillbaka",
                  style="dim")
         head.update(t)
 

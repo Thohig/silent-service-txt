@@ -1,4 +1,4 @@
-"""Sjökortet i helskärm (§). Spelet går vidare medan kortet visas."""
+"""Sjökortet i helskärm (Tab eller "sjökort"). Spelet går vidare medan kortet visas."""
 from __future__ import annotations
 
 from rich.text import Text
@@ -119,7 +119,7 @@ class ChartScreen(Screen):
         t.append("\n")
         t.append(f" 1 tecken = {_nm(self.scale)} nm · rutnät {fmt_grid(grid_step(self.scale))} nm"
                  f" · N↑", style="dim")
-        t.append("   +/− zoom · pilar flyttar · c centrerar · ° eller Tab djupprofil · Esc tillbaka"
+        t.append("   +/− zoom · pilar flyttar · c centrerar · Tab djupprofil · Esc tillbaka"
                  + ("" if self.follow else " · (ej centrerat)"), style="dim")
         head.update(t)
 

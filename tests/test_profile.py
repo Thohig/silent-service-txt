@@ -122,7 +122,7 @@ def test_gauge_is_ordered_by_depth():
     assert order == sorted(order)
 
 
-def test_degree_key_shows_the_profile_and_tab_cycles_the_views(tmp_path):
+def test_tab_cycles_the_views(tmp_path):
     from ui.app import SubApp
     from ui.chart import ChartScreen
     from ui.profile import ProfileScreen
@@ -136,8 +136,8 @@ def test_degree_key_shows_the_profile_and_tab_cycles_the_views(tmp_path):
                 app.game.tick()
             await pilot.pause(0.7)
             assert "DJUPMÄTARE" in str(app.query_one(DepthGauge).render())
-            await pilot.press(*"kurs 0")          # ° skrivs inte in i orderraden
-            await pilot.press("°")
+            await pilot.press(*"kurs 0")          # orderraden behåller texten
+            await pilot.press("tab", "tab")
             assert isinstance(app.screen, ProfileScreen)
             await pilot.pause(0.3)
             assert "▬▬▶" in str(app.screen.query_one("#profile-body").render())
@@ -146,10 +146,6 @@ def test_degree_key_shows_the_profile_and_tab_cycles_the_views(tmp_path):
             await pilot.press("a")
             assert app.screen.depth_zoom is None
             app.save_screenshot(str(tmp_path / "profil.svg"))
-            await pilot.press("§")
-            assert isinstance(app.screen, ChartScreen)
-            await pilot.press("°")
-            assert isinstance(app.screen, ProfileScreen)
             await pilot.press("escape")
             assert app.query_one("#order").value == "kurs 0"
             await pilot.press("tab")                 # logg → sjökort → profil → logg
@@ -160,7 +156,7 @@ def test_degree_key_shows_the_profile_and_tab_cycles_the_views(tmp_path):
             assert not isinstance(app.screen, (ChartScreen, ProfileScreen))
             await pilot.press("ctrl+u", *"profil", "enter")
             assert isinstance(app.screen, ProfileScreen)
-            await pilot.press("°")
+            await pilot.press("tab")
             assert not isinstance(app.screen, ProfileScreen)
 
     asyncio.run(run())
