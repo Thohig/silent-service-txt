@@ -64,6 +64,9 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   (`say`, takt per roll) och larm (`CUE_BY_TYPE`); `SoundHeard` (med sensorns `se`) ger
   hydrofonljud panorerade efter relativ bäring (`TRANSIENT_SOUND`); `OwnSoundMade` ger egna
   ljud (ping, avfyring, skenmål, nödblåsning). Syntetiserade wav. Av som standard i `SubApp`.
+  Bakgrundsljud (`ui/ambience.py`): `ambient_targets(status, tracks)` ur `StatusSnapshot`
+  (inkl. `sea_noise`, `fire`, `smoke`, `ventilating`) och hållna kontaktspår; `Ambience`
+  mixar sömlösa slingor i en sounddevice-ström. Kontaktljudet följer klassificeringen.
 - **Händelsebussen** (`events.py`) är synkron. `Knowledge` registreras före
   stationerna så att stationer alltid ser uppdaterad kunskap.
 - **Utbyggnadskrokar:** rapportfilter (`ReportQueue.filters`, ändrar `data`) för

@@ -34,6 +34,8 @@ import numpy as np
 from sim.events import EventBus, OwnSoundMade, ReportDelivered, SoundHeard
 from sim.reports import Report
 
+from .ambience import Ambience, AmbientOut, ambient_targets
+
 RATE = 22050
 VOICE = "Alva"                     # svensk röst i macOS
 
@@ -205,6 +207,8 @@ class SoundBoard:
     speech: bool = True
     enabled: bool = True
     heading: Callable[[], float] | None = None
+    ambience: Ambience | None = None
+    out: AmbientOut | None = None
     queue: list[Line] = field(default_factory=list)
     _now: float = 0.0
     _cue_until: float = 0.0
@@ -214,6 +218,16 @@ class SoundBoard:
         self.bus.subscribe(ReportDelivered, self._on_report)
         self.bus.subscribe(SoundHeard, self._on_sound)
         self.bus.subscribe(OwnSoundMade, self._on_own_sound)
+
+    # -- bakgrundsljud --------------------------------------------------------
+    def ambient(self, status, tracks=()) -> None:
+        """Uppdatera bakgrundsljudet ur statusraden och kontaktspåren (kunskap)."""
+        if self.ambience is None:
+            return
+        if status is None or status.over:
+            self.ambience.set_targets({})
+        else:
+            self.ambience.set_targets(ambient_targets(status, tracks))
 
     # -- hydrofonen ----------------------------------------------------------
     def _play_once(self, cue: str, pan: float = 0.0, volume: float = 1.0) -> None:
@@ -284,6 +298,8 @@ class SoundBoard:
     def toggle(self) -> bool:
         """Slå av eller på ljudet. Returnerar det nya läget."""
         self.enabled = not self.enabled
+        if self.ambience is not None:
+            self.ambience.enabled = self.enabled
         if not self.enabled:
             self.queue.clear()
             self.player.stop()
@@ -292,6 +308,8 @@ class SoundBoard:
     def close(self) -> None:
         self.queue.clear()
         self.player.stop()
+        if self.out is not None:
+            self.out.close()
 
 
 def pan_of_bearing(relative: float) -> float:
@@ -627,8 +645,15 @@ def make_soundboard(bus: EventBus, enabled: bool,
     if not MacPlayer.available():
         return SoundBoard(bus, NullPlayer(), enabled=False), \
             "Ljud saknas: kräver macOS (say och afplay)."
-    if not MacPlayer.has_voice():
-        return SoundBoard(bus, MacPlayer(), speech=False, heading=heading), \
-            (f"Rösten {VOICE} saknas, besättningen hörs inte. Lägg till den under "
-             "Systeminställningar › Hjälpmedel › Talat innehåll › Systemröst.")
-    return SoundBoard(bus, MacPlayer(), heading=heading), None
+    ambience = Ambience()
+    out = AmbientOut(ambience)
+    notes = []
+    if out.error:
+        notes.append("Bakgrundsljudet kunde inte startas.")
+    speech = MacPlayer.has_voice()
+    if not speech:
+        notes.append(f"Rösten {VOICE} saknas, besättningen hörs inte. Lägg till den under "
+                     "Systeminställningar › Hjälpmedel › Talat innehåll › Systemröst.")
+    board = SoundBoard(bus, MacPlayer(), speech=speech, heading=heading,
+                       ambience=ambience, out=out)
+    return board, " ".join(notes) or None

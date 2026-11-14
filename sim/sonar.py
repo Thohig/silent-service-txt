@@ -126,6 +126,8 @@ class SonarStation:
     _next_number: int = 1
     _own: dict[str, _OwnTrack] = field(default_factory=dict)
     _own_count: int = 0
+    background: float = 0.0       # senast hörda bakgrundsbrus, dB
+    under_ice: bool = False       # bruset kommer från isen
 
     def threshold(self, world: World) -> float:
         """Operatörens tröskel, sämre om sonaren är skadad."""
@@ -152,6 +154,9 @@ class SonarStation:
 
     def update(self, world: World, own_xy: tuple[float, float]) -> list[SonarEvent]:
         events: list[SonarEvent] = []
+        # Bakgrundsbruset operatören hör i lurarna (havet eller isen).
+        self.background = world.background_at_own()
+        self.under_ice = world.env.ice is not None
         for v in world.contacts:
             if v.side == "own":
                 if v.kind == "torpedo":

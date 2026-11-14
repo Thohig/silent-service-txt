@@ -49,7 +49,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Vakthavande | `periskop` · `radar` (periskopdjup; radarvarnaren är automatisk) |
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
-| Ljud | `F8` eller `ljud` / `ljud av` / `ljud på`: besättningen talar (macOS-rösten Alva), larmen går och det sonaren hör spelas i stereo (babord till vänster) |
+| Ljud | `F8` eller `ljud` / `ljud av` / `ljud på`: besättningen talar (macOS-rösten Alva), larmen går det sonaren hör spelas i stereo (babord till vänster) och båten låter: reaktor, turbin, skrov, is, brand och kontakternas propellrar |
 | Sjökort | `§` eller `sjökort` visar navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, `c` centrerar, `Esc` tillbaka |
 | Övrigt | `hjälp` · `avsluta` (avbryter patrullen med slutrapport) · `ctrl+q` stänger programmet |
 
@@ -136,6 +136,7 @@ sim/                 ren Python, ingen Textual
     torpedo_room.py  torpedrum och eldledning
 ui/                  Textual
   audio.py           tal, larm och hydrofonljud (say/afplay)
+  ambience.py        bakgrundsljud: mixer och slingor (sounddevice)
   chart.py           sjökortet i helskärm (§)
   chart_render.py    rastrering av sjökortet till tecken
 ```

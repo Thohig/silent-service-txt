@@ -203,6 +203,8 @@ class SubApp(App):
         if self.sound:
             self.sound.update(now)          # slutrapporten läses upp även när spelet är slut
         if self.game.over:
+            if self.sound:
+                self.sound.ambient(None)
             return
         self._acc += (now - self._last) * self.game.time_scale
         self._last = now
@@ -216,8 +218,11 @@ class SubApp(App):
                 self._acc = 0.0      # larm: släpp resterande komprimerad tid
                 break
         self._acc = min(self._acc, 2.0)
+        status = self.game.status()
+        if self.sound:
+            self.sound.ambient(status, self.game.knowledge.tracks.values())
         try:
-            self.query_one(StatusBar).show(self.game.status())
+            self.query_one(StatusBar).show(status)
         except NoMatches:
             pass
 

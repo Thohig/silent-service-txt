@@ -106,6 +106,10 @@ class SonarRoom(Station):
     def held_designations(self) -> list[str]:
         return self.sensor.held_designations()
 
+    def background(self) -> tuple[float, bool]:
+        """Bakgrundsbruset i lurarna: (dB, kommer från isen)."""
+        return self.sensor.background, self.sensor.under_ice
+
     @property
     def own(self):
         return self.game.world.own

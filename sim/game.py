@@ -67,6 +67,11 @@ class StatusSnapshot:
     cavitating: bool = False
     suggestion: str | None = None
     over: bool = False
+    sea_noise: float = 0.0          # bakgrundsbrus sonaren hör, dB
+    under_ice: bool = False
+    fire: bool = False
+    smoke: float = 0.0
+    ventilating: bool = False
 
 
 def build_registry(station_classes: list[type[Station]]) -> CommandRegistry:
@@ -319,9 +324,11 @@ class Game:
         own = self.world.own
         s, sy = own.state, own.sys
         try:
-            held = tuple(self.station(SonarRoom).held_designations())
+            sonar = self.station(SonarRoom)
+            held = tuple(sonar.held_designations())
+            sea_noise, under_ice = sonar.background()
         except KeyError:
-            held = ()
+            held, sea_noise, under_ice = (), 0.0, False
         from .acoustics import cavitation_speed
         sug = self.active_suggestion()
         return StatusSnapshot(
@@ -336,4 +343,6 @@ class Game:
             periscope_depth=s.depth <= PERISCOPE_DEPTH, masts_up=own.masts_up(self.now),
             cavitating=s.speed > cavitation_speed(s.depth),
             suggestion=sug[0] if sug else None, over=self.over,
+            sea_noise=sea_noise, under_ice=under_ice,
+            fire=sy.fire, smoke=sy.smoke, ventilating=sy.ventilating,
         )
