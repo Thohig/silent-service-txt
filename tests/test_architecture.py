@@ -106,5 +106,5 @@ def test_captain_hears_limits_from_crew():
     g, reports = _game()
     g.command("djup 900")
     _run(g, 10)
-    assert any(r.text == "Kapten, största djup är 300 meter." for r in reports)
+    assert any(r.text == "Kapten, största djup är 400 meter." for r in reports)
     assert g.world.own.state.ordered_depth == 100

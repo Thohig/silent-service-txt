@@ -15,12 +15,20 @@ class Role(StrEnum):
     SONAR = "sonar"
     NAVIGATOR = "navigator"
     PLOT = "plot"
+    ENGINEER = "engineer"
+    TORPEDO = "torpedo"
+    OFFICER = "officer"
+    RADIO = "radio"
 
 
 ROLE_LABEL = {
     Role.SONAR: "Sonar",
     Role.NAVIGATOR: "Navigatör",
     Role.PLOT: "Plottet",
+    Role.ENGINEER: "Maskin",
+    Role.TORPEDO: "Torped",
+    Role.OFFICER: "Vakthavande",
+    Role.RADIO: "Radio",
 }
 
 

@@ -1,7 +1,11 @@
 """Passiv sonar: sonaroperatören är bryggan mellan sanning och kunskap.
 
 Operatören "lyssnar" på världen (sanning) men lämnar bara ifrån sig brusiga
-bäringar, upptäckter, klassificeringar och förluster. Aldrig avstånd.
+bäringar, upptäckter, klassificeringar, förluster och hörda transienter
+(pingar, plask, detonationer, undervattenstelefon). Aldrig avstånd.
+
+Sensorn håller också reda på beteckningar (S-1, S-2 …), så att periskop,
+radar och aktiv sonar kan knyta sina observationer till samma kontakt.
 """
 from __future__ import annotations
 
@@ -10,10 +14,12 @@ import random
 from dataclasses import dataclass, field
 
 from .crew import CrewMember
-from .geo import norm360
+from . import acoustics
+from .geo import bearing_to, norm360
 from .reports import Quality
 from .tma import BearingObs
-from .world import Vessel, World
+from .entities import Vessel
+from .world import World
 
 OBS_INTERVAL = 5           # sekunder mellan loggade bäringar till plottet
 LOSE_AFTER = 60            # sekunder utan hörbar signal innan kontakten förloras
@@ -44,13 +50,22 @@ class Lost:
 
 
 @dataclass
+class TransientHeard:
+    kind: str                 # ping, splash, explosion, uwt, breakup, launch, echosounder
+    bearing: float
+    se: float
+    designation: str | None   # om källan är en känd kontakt
+    practice: bool = False
+
+
+@dataclass
 class ClassificationUpdate:
     designation: str
     classification: str
     quality: Quality
 
 
-SonarEvent = Detection | Lost | ClassificationUpdate | BearingObs
+SonarEvent = Detection | Lost | ClassificationUpdate | BearingObs | TransientHeard
 
 
 @dataclass
@@ -73,16 +88,34 @@ class SonarStation:
     _tracks: dict[str, _Tracking] = field(default_factory=dict)
     _next_number: int = 1
 
+    def threshold(self, world: World) -> float:
+        """Operatörens tröskel, sämre om sonaren är skadad."""
+        return self.operator.detection_threshold() + (1.0 - world.own.sys.health["sonar"]) * 15.0
+
     def signal_excess(self, world: World, v: Vessel, t: _Tracking) -> float:
         """SE inkl. operatörens tröskel och långsam fluktuation."""
-        return world.raw_signal_excess(v) - self.operator.detection_threshold() + t.fluct
+        return world.raw_signal_excess(v) - self.threshold(world) + t.fluct
 
     def bearing_sigma(self, se: float) -> float:
         return self.operator.bearing_sigma() * (1.0 + 1.5 / (1.0 + max(se, 0.0)))
 
+    def designate(self, vessel_id: str) -> str:
+        """Ge (eller hämta) beteckning för en ljudkälla."""
+        t = self._tracks.setdefault(vessel_id, _Tracking())
+        if t.designation is None:
+            t.designation = f"S-{self._next_number}"
+            self._next_number += 1
+        return t.designation
+
+    def designation_of(self, vessel_id: str) -> str | None:
+        t = self._tracks.get(vessel_id)
+        return t.designation if t else None
+
     def update(self, world: World, own_xy: tuple[float, float]) -> list[SonarEvent]:
         events: list[SonarEvent] = []
         for v in world.contacts:
+            if v.side == "own":
+                continue
             t = self._tracks.setdefault(v.id, _Tracking())
             t.fluct = 0.95 * t.fluct + self.rng.gauss(0.0, 0.5)
             se = self.signal_excess(world, v, t)
@@ -98,9 +131,7 @@ class SonarStation:
             if not t.held:
                 if t.audible_for >= self.operator.detection_time():
                     t.held = True
-                    if t.designation is None:
-                        t.designation = f"S-{self._next_number}"
-                        self._next_number += 1
+                    self.designate(v.id)
                     t.listening = 0.0
                     t.class_stage = 0
                     events.append(Detection(
@@ -111,7 +142,6 @@ class SonarStation:
                     ))
                 continue
 
-            # kontakt hålls
             if t.silent_for >= LOSE_AFTER:
                 t.held = False
                 events.append(Lost(t.designation))
@@ -129,17 +159,44 @@ class SonarStation:
 
                 if world.time - t.last_obs_t >= OBS_INTERVAL:
                     t.last_obs_t = world.time
-                    events.append(BearingObs(
-                        t=world.time,
-                        bearing=self._noisy_bearing(world, v, se),
-                        sigma=self.bearing_sigma(se),
-                        own_x=own_xy[0],
-                        own_y=own_xy[1],
-                        own_course=world.own.state.course,
-                        se=se,
-                        designation=t.designation,
-                    ))
+                    events.append(self._obs(world, v, se, own_xy, t.designation))
+
+        events += self._transients(world, own_xy)
         return events
+
+    def _obs(self, world: World, v: Vessel, se: float, own_xy, designation: str,
+             sigma: float | None = None) -> BearingObs:
+        sig = self.bearing_sigma(se) if sigma is None else sigma
+        return BearingObs(
+            t=world.time,
+            bearing=norm360(world.true_bearing(v) + self.rng.gauss(0.0, sig)),
+            sigma=sig, own_x=own_xy[0], own_y=own_xy[1],
+            own_course=world.own.state.course, se=se, designation=designation)
+
+    def _transients(self, world: World, own_xy) -> list[SonarEvent]:
+        out: list[SonarEvent] = []
+        noise = acoustics.power_sum(world.env.background_noise, world.own.self_noise())
+        dt = self.threshold(world)
+        o = world.own.state
+        for tr in world.transients:
+            if tr.source_id == world.own.id:
+                continue
+            se = tr.level - world.tl_to_own(tr.x, tr.y, tr.depth) - noise - dt
+            if se <= 0:
+                continue
+            true_b = bearing_to(o.x, o.y, tr.x, tr.y)
+            sig = self.bearing_sigma(se)
+            desig = self.designation_of(tr.source_id)
+            track = self._tracks.get(tr.source_id)
+            out.append(TransientHeard(tr.kind, norm360(true_b + self.rng.gauss(0, sig)), se,
+                                      desig if track and track.held else None, tr.practice))
+            # en ping ger en skarp bäring på en känd kontakt
+            if tr.kind == "ping" and track is not None and track.held and desig:
+                src = next((v for v in world.contacts if v.id == tr.source_id), None)
+                if src is not None:
+                    out.append(self._obs(world, src, se, own_xy, desig,
+                                         sigma=self.operator.bearing_sigma() * 0.5))
+        return out
 
     def _noisy_bearing(self, world: World, v: Vessel, se: float) -> float:
         return norm360(world.true_bearing(v) + self.rng.gauss(0.0, self.bearing_sigma(se)))

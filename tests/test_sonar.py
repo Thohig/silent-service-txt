@@ -6,11 +6,13 @@ from sim.geo import angle_diff
 from sim.ship import ShipState
 from sim.sonar import Detection, SonarStation
 from sim.tma import BearingObs
-from sim.world import Vessel, World
+from sim.entities import Vessel
+from sim.ownship import OwnShip
+from sim.world import World
 
 
 def _world(dd_x, dd_y, own_speed=4):
-    own = Vessel("OWN", "submarine", ShipState(x=10, y=10, course=0, speed=own_speed))
+    own = OwnShip(ShipState(x=10, y=10, course=0, speed=own_speed, depth=40))
     dd = Vessel("DD1", "destroyer", ShipState(x=dd_x, y=dd_y, course=90, speed=15))
     return World(own=own, contacts=[dd])
 

@@ -1,9 +1,9 @@
-"""Enkel bredbandsakustik för passiv sonar.
+"""Enkel bredbandsakustik för passiv och aktiv sonar.
 
-Signalöverskott:
-    SE = SL - TL - (NL_bakgrund ⊕ NL_egen) - DT
-där ⊕ är effektsumma av två brusnivåer i dB och DT är operatörens
-detektionströskel.
+Passiv:  SE = SL - TL - (NL_bakgrund ⊕ NL_egen) - DT
+Aktiv:   SE = SL_ping - 2·TL + TS - NL - DT
+där ⊕ är effektsumma av brusnivåer i dB. Språngskiktet lägger till
+extra dämpning när källa och mottagare ligger på var sin sida om det.
 """
 from __future__ import annotations
 
@@ -11,15 +11,32 @@ import math
 
 from .geo import NM_IN_M
 
-BACKGROUND_NOISE_DB = 60.0      # havsbrus, måttlig sjö
-ABSORPTION_DB_PER_NM = 0.5      # förenklad absorption, lågfrekvent bredband
+BACKGROUND_NOISE_DB = 60.0
+ABSORPTION_DB_PER_NM = 0.5
 
-# Källnivå: bas + lutning * fart (dB re 1 µPa @ 1 m, förenklat)
+# Källnivå för främmande fartyg: bas + lutning * fart
 _SOURCE = {
-    "destroyer": (135.0, 1.25),
+    "destroyer": (137.0, 1.25),
     "merchant": (140.0, 1.0),
-    "submarine": (100.0, 1.5),
+    "submarine": (110.0, 1.5),
 }
+
+# Målstyrka (ekostyrka) för aktiv sonar
+TARGET_STRENGTH = {"destroyer": 25.0, "merchant": 28.0, "submarine": 15.0, "decoy": 15.0}
+
+# Transienter (momentana ljud)
+PING_LEVEL_SHIP = 230.0
+PING_LEVEL_OWN = 225.0
+SPLASH_LEVEL = 140.0
+EXPLOSION_REAL = 230.0
+EXPLOSION_PRACTICE = 195.0
+EXPLOSION_TORPEDO = 235.0
+EXPLOSION_NUCLEAR = 270.0
+LAUNCH_LEVEL = 150.0
+UWT_LEVEL = 180.0
+BREAKUP_LEVEL = 165.0
+ECHO_SOUNDER_LEVEL = 175.0
+BLOW_LEVEL = 165.0
 
 
 def source_level(kind: str, speed: float) -> float:
@@ -28,13 +45,28 @@ def source_level(kind: str, speed: float) -> float:
 
 
 def own_noise(speed: float) -> float:
-    """Egenbrus vid sonarns hydrofoner som funktion av egen fart."""
+    """Flödesbrus vid hydrofonerna som funktion av egen fart."""
     return 50.0 + 2.5 * max(speed, 0.0)
 
 
-def transmission_loss(range_nm: float) -> float:
+def hull_sonar_self_noise(speed: float) -> float:
+    """Egenbrus för ett ytfartygs skrovsonar."""
+    return 55.0 + 1.5 * max(speed, 0.0)
+
+
+def cavitation_speed(depth: float) -> float:
+    """Fart (knop) över vilken propellern kaviterar. Ökar med djupet."""
+    return 6.0 + max(depth, 0.0) / 25.0
+
+
+def transmission_loss(range_nm: float, depth_a: float | None = None,
+                      depth_b: float | None = None, env=None) -> float:
     r_m = max(range_nm * NM_IN_M, 1.0)
-    return 20.0 * math.log10(r_m) + ABSORPTION_DB_PER_NM * range_nm
+    tl = 20.0 * math.log10(r_m) + ABSORPTION_DB_PER_NM * range_nm
+    if env is not None and depth_a is not None and depth_b is not None:
+        if env.layer_between(depth_a, depth_b):
+            tl += env.layer_loss
+    return tl
 
 
 def power_sum(*levels_db: float) -> float:
@@ -48,3 +80,8 @@ def total_noise(background: float, own_speed: float) -> float:
 
 def signal_excess(sl: float, tl: float, noise: float, dt: float = 0.0) -> float:
     return sl - tl - noise - dt
+
+
+def active_excess(ping_level: float, tl_one_way: float, ts: float,
+                  noise: float, dt: float = 0.0) -> float:
+    return ping_level - 2.0 * tl_one_way + ts - noise - dt
