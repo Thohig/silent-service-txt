@@ -16,6 +16,7 @@ from ..icemap import thickness_words
 from ..ice import masts_clear
 from ..orders import CommandSpec, Order
 from ..ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH
+from ..systems import INFO, OK, WARN, Gauge
 from .base import Proposal, Station
 from .navigation import NavigationStation
 
@@ -129,6 +130,25 @@ class RadioStation(Station):
         if d and d["range"] > RADIO_VAK_MAX_M:
             d = {}                      # för långt bort för att hinna dit
         return True, d
+
+    def system_items(self) -> list:
+        items: list = []
+        if self.tx_done_t is not None:
+            items.append(Gauge("SAMBAND", "Sändning", f"pågår, {self.tx_done_t - self.now} s kvar",
+                               WARN))
+        i = self.window_pending()
+        if i is not None and self.windows[i] <= self.now:
+            got = self._listen >= RECEIVE_S
+            items.append(Gauge("SAMBAND", "Samband", "öppet nu, " + (
+                "mottaget" if got else "lyssnar" if self._listen else f"antenndjup ≤ {ANTENNA_DEPTH:.0f} m"),
+                OK if self._listen else WARN))
+        else:
+            nxt = next((w for w in self.windows if w + self.window_len > self.now), None)
+            items.append(Gauge("SAMBAND", "Nästa samband",
+                               self.game.clock_str(nxt)[:5] if nxt is not None else "inget planerat",
+                               WARN if i is not None else INFO))
+        items.append(Gauge("SAMBAND", "Mottaget", f"{len(self.delivered)} meddelanden", INFO))
+        return items
 
     def window_pending(self) -> int | None:
         """Ett sambandstillfälle som snart börjar eller pågår och inte är avklarat."""

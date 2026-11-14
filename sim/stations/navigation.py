@@ -28,6 +28,7 @@ from ..icemap import (MIN_SURFACE_LEN_M, OPEN_M, IceMap, IceSoundingObs, Opening
                       describe_opening, round_m, thickness_words)
 from ..orders import NUM, CommandSpec, Order, Unknown, num
 from ..ownship import ANTENNA_DEPTH, CRUSH_DEPTH, PERISCOPE_DEPTH, TEST_DEPTH
+from ..systems import DANGER, INFO, OK, WARN, Gauge
 from .base import Proposal, Station
 
 FIX_TIME_S = 120
@@ -375,6 +376,49 @@ class NavigationStation(Station):
 
     def uncertainty(self) -> float:
         return self.fix_sigma + DR_GROWTH_NM_PER_H * (self.now - self.last_fix_t) / 3600.0
+
+    # --- systemtavlan ------------------------------------------------------------
+    def system_items(self) -> list:
+        s, sys = self.ship, self.own.sys
+        items: list = []
+        g = lambda label, text, state=OK, level=None: \
+            items.append(Gauge("NAVIGATION", label, text, state, level))
+        txt = f"{s.depth:.0f} m"
+        if abs(s.ordered_depth - s.depth) >= 1:
+            txt += f" ▸ {s.ordered_depth:.0f} m"
+        g("Djup", txt, DANGER if s.depth > TEST_DEPTH else
+          WARN if s.depth > TEST_DEPTH - 30 else OK, min(1.0, s.depth / CRUSH_DEPTH))
+        txt = fmt_course(s.course)
+        if abs(angle_diff(s.ordered_course, s.course)) >= 1:
+            txt += f" ▸ {fmt_course(s.ordered_course)}"
+        g("Kurs", txt, INFO)
+        txt = f"{kn(s.speed)} kn"
+        if abs(s.ordered_speed - s.speed) >= 0.1:
+            txt += f" ▸ {kn(s.ordered_speed)} kn"
+        cav = s.speed > acoustics.cavitation_speed(s.depth) + 0.2
+        g("Fart", txt + (", kaviterar" if cav else ""), WARN if cav else INFO)
+        sigma = self.uncertainty()
+        g("Bestick", f"± {nm(sigma)} nm, fix {clock(self.game.start_clock + self.last_fix_t)[:5]}",
+          WARN if sigma >= 1.0 else OK)
+        bh = self.bottom_here()
+        if sys.on_bottom:
+            g("Botten", f"vi ligger på botten, {s.depth:.0f} m", INFO)
+        elif bh is not None:
+            depth, kind, sounded = bh
+            under = depth - s.depth
+            txt = f"{depth:.0f} m " + ("lodat" if sounded else "enligt kortet")
+            if kind:
+                txt += f", {kind}"
+            g("Botten", txt, WARN if under < 60 else OK)
+        else:
+            g("Botten", "okänd", INFO)
+        if self.under_ice():
+            g("Is", "is ovanför" + (", på väg mot öppning" if self.vak is not None else ""), INFO)
+        if self.own.masts_up(self.now):
+            g("Master", "uppe", WARN)
+        elif s.depth <= PERISCOPE_DEPTH:
+            g("Master", "periskopdjup, nere", INFO)
+        return items
 
     # --- sjökortet -------------------------------------------------------------
     def chart_items(self) -> list:

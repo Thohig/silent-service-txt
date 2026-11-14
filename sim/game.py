@@ -24,6 +24,7 @@ from typing import Any, TypeVar
 from . import phrases
 from .chart import ChartView
 from .profile import ProfileView
+from .systems import SystemsView
 from .crew import CrewMember, Role
 from .events import (EventBus, GameEnded, OrderIssued, PositionReported, ReportDelivered,
                      Tick, TimeScaleChanged)
@@ -329,6 +330,14 @@ class Game:
                            s.ordered_depth, s.speed, s.course)
         for st in self.stations:
             view.items.extend(st.profile_items())
+        return view
+
+    # ------------------------------------------------------------------ systemtavla
+    def systems(self) -> SystemsView:
+        """Systemtavlan: stationernas element ur egna instrument."""
+        view = SystemsView(self.clock_str())
+        for st in self.stations:
+            view.items.extend(st.system_items())
         return view
 
     # ------------------------------------------------------------------ status

@@ -11,6 +11,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.css.query import NoMatches
+from textual.screen import Screen
 from textual.widgets import Input, OptionList, Static
 from textual.widgets.option_list import Option
 
@@ -23,12 +24,15 @@ from sim.truthlog import TruthLog
 from .audio import SoundBoard, make_soundboard
 from .chart import ChartScreen
 from .profile import ProfileScreen
+from .systems import SystemScreen
 from .teletype import Teletype
 from .widgets import DepthGauge, ReportLog, StatusBar
 
 MAX_TICKS_PER_FRAME = 20
 CHART_WORDS = {"sjökort", "sjokort", "kort", "karta"}
 PROFILE_WORDS = {"profil", "djupprofil", "sidovy"}
+SYSTEM_WORDS = {"system", "systemtavla", "systemtavlan", "tavla", "tavlan"}
+VIEWS = (ChartScreen, ProfileScreen, SystemScreen)     # Tab-ordningen efter loggen
 GAUGE_EVERY_S = 0.5
 SOUND_WORDS = {"ljud", "ljud av", "ljud på", "ljud pa"}
 SOUND_KEY = "ctrl+t"                   # t som i tal
@@ -150,6 +154,9 @@ class SubApp(App):
         if text.lower() in PROFILE_WORDS:
             self.action_profile()
             return
+        if text.lower() in SYSTEM_WORDS:
+            self.action_systems()
+            return
         if text.lower() in SOUND_WORDS:
             want = {"ljud av": False, "ljud på": True, "ljud pa": True}.get(text.lower())
             self.action_sound(want)
@@ -166,7 +173,7 @@ class SubApp(App):
                        f"Du har befälet. Ubåten går kurs {fmt_course(st.course)}, "
                        f"fart {kn(st.speed)} knop, djup {st.depth:.0f} meter.")
         log.add_system(self.game.clock_str(), "Skriv hjälp för en lista över order. Besättningens förslag godkänns med ja, avslås med nej.")
-        log.add_system(self.game.clock_str(), "Tab växlar mellan logg, sjökort och djupprofil.")
+        log.add_system(self.game.clock_str(), "Tab växlar mellan logg, sjökort, djupprofil och systemtavla.")
         if self._sound_note:
             log.add_system(self.game.clock_str(), self._sound_note)
         elif self.sound and self.sound.enabled:
@@ -175,37 +182,38 @@ class SubApp(App):
         self._last = time.monotonic()
         self.set_interval(FRAME_S, self._pump)
 
-    # ------------------------------------------------------------------ sjökort
-    def action_chart(self) -> None:
-        """Visa eller stäng sjökortet. Spelet går vidare under tiden."""
+    # ------------------------------------------------------------------ vyer
+    def _toggle_view(self, cls: type[Screen]) -> None:
+        """Visa eller stäng en helskärmsvy. Spelet går vidare under tiden."""
         if not self.running or self.game is None:
             return
-        if isinstance(self.screen, ChartScreen):
+        if isinstance(self.screen, cls):
             self.pop_screen()
-        else:
-            if isinstance(self.screen, ProfileScreen):
-                self.pop_screen()
-            self.push_screen(ChartScreen())
+            return
+        if isinstance(self.screen, VIEWS):
+            self.pop_screen()
+        self.push_screen(cls())
 
-    def action_cycle(self) -> None:
-        """Tab: logg → sjökort → djupprofil → logg."""
-        if isinstance(self.screen, ChartScreen):
-            self.action_profile()
-        elif isinstance(self.screen, ProfileScreen):
-            self.pop_screen()
-        else:
-            self.action_chart()
+    def action_chart(self) -> None:
+        self._toggle_view(ChartScreen)
 
     def action_profile(self) -> None:
-        """Visa eller stäng djupprofilen. Spelet går vidare under tiden."""
+        self._toggle_view(ProfileScreen)
+
+    def action_systems(self) -> None:
+        self._toggle_view(SystemScreen)
+
+    def action_cycle(self) -> None:
+        """Tab: logg → sjökort → djupprofil → systemtavla → logg."""
         if not self.running or self.game is None:
             return
-        if isinstance(self.screen, ProfileScreen):
-            self.pop_screen()
+        cur = next((i for i, cls in enumerate(VIEWS) if isinstance(self.screen, cls)), None)
+        if cur is None:
+            self._toggle_view(VIEWS[0])
+        elif cur + 1 < len(VIEWS):
+            self._toggle_view(VIEWS[cur + 1])
         else:
-            if isinstance(self.screen, ChartScreen):
-                self.pop_screen()
-            self.push_screen(ProfileScreen())
+            self.pop_screen()
 
     # ------------------------------------------------------------------ ljud
     def action_sound(self, want: bool | None = None) -> None:
@@ -258,7 +266,7 @@ class SubApp(App):
     # ------------------------------------------------------------------ händelser
     def _on_report(self, e: ReportDelivered) -> None:
         self.query_one(ReportLog).add_report(self.game.clock_str(), e.report)
-        if isinstance(self.screen, (ChartScreen, ProfileScreen)):
+        if isinstance(self.screen, VIEWS):
             self.screen.add_report(self.game.clock_str(), e.report)
 
     def _on_time_scale(self, e: TimeScaleChanged) -> None:
@@ -270,7 +278,7 @@ class SubApp(App):
         self.query_one(StatusBar).show(self.game.status())
 
     def _on_game_ended(self, e: GameEnded) -> None:
-        if isinstance(self.screen, (ChartScreen, ProfileScreen)):
+        if isinstance(self.screen, VIEWS):
             self.pop_screen()               # slutrapporten visas i loggen
         self.query_one(ReportLog).add_ending(e.summary)
         inp = self.query_one("#order", Input)

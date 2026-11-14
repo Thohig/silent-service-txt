@@ -24,6 +24,7 @@ from ..fmt import fmt_course, nm
 from ..firecontrol import intercept
 from ..orders import DESIG, NUM, CommandSpec, Order, Unknown, desig, num
 from ..reports import Quality
+from ..systems import INFO, OK, WARN, Gauge, TubeRack
 from ..weapons import TORPEDO_TYPES, launch_decoy, launch_torpedo
 from .base import Proposal, Station
 
@@ -447,6 +448,22 @@ class TorpedoRoom(Station):
         return []
 
     # --- sjökortet -------------------------------------------------------------------
+    def system_items(self) -> list:
+        rack = TubeRack(tuple((t.n, t.load, t.loading,
+                               max(0, t.ready_t - self.now) if t.loading else 0)
+                              for t in self.tubes))
+        stock = ", ".join(f"{k} {n}" for k, n in self.inventory.items())
+        items: list = [rack,
+                       Gauge("VAPEN", "Reserv", stock or "slut",
+                             WARN if not any(self.inventory.values()) else OK),
+                       Gauge("VAPEN", "Skenmål", f"{self.decoys} kvar",
+                             WARN if self.decoys == 0 else OK)]
+        if self.in_water:
+            items.append(Gauge("VAPEN", "I vattnet", ", ".join(
+                f"tub {r.tube}" + (f" mot {r.designation}" if r.designation else "")
+                for r in self.in_water), INFO))
+        return items
+
     def chart_items(self) -> list:
         """Egna torpeder: senast hörda bäring, utritad så långt torpeden har gått."""
         x, y = self.game.own_position_estimate()

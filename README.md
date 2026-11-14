@@ -50,8 +50,9 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
 | Ljud | `ctrl+t` eller `ljud` / `ljud av` / `ljud på`: besättningen talar (macOS-rösten Alva), larmen går det sonaren hör spelas i stereo (babord till vänster) och båten låter: reaktor, turbin, skrov, is, brand och kontakternas propellrar |
-| Vyer | `Tab` växlar logg → sjökort → djupprofil → logg; `Esc` går tillbaka till loggen. Orden `sjökort` och `profil` öppnar en vy direkt |
+| Vyer | `Tab` växlar logg → sjökort → djupprofil → systemtavla → logg; `Esc` går tillbaka till loggen. Orden `sjökort`, `profil` och `system` öppnar en vy direkt |
 | Sjökort | Navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, `c` centrerar |
+| Systemtavla | Ubåtens system på en tavla: genomskärning av de nio avdelningarna (brand, rök, skador, reaktorns läge, vatten i kölsvinet), maskin (reaktor, framdrivning, batteri, tryckluft, skrov, vatten, koldioxid, rök), skador och reparationer per komponent, navigation, torpedtuberna med laddning, sonar och samband. Allt ur besättningens egna instrument; ▲ varning, ■ fara |
 | Djupprofil | Visar ubåten från sidan över tid: vårt djup, beordrat djup, ytan, periskopdjup, språngskiktet, prov- och krossdjup, isen ovanför, botten där ekolodet lodat och det sonar hört; `+`/`-` djupskala, pilarna tidsskala, `a` automatisk skala. Djupmätaren till höger om loggen visar samma sak i kort form |
 | Övrigt | `hjälp` · `avsluta` (avbryter patrullen med slutrapport) · `ctrl+q` stänger programmet |
 
@@ -130,6 +131,7 @@ sim/                 ren Python, ingen Textual
   chart.py           sjökortets ritelement; stationerna bidrar via chart_items()
   seabed.py          SANNING: bottentopografi; chart_copy() ger sjökortets bild (kunskap)
   profile.py         djupprofilens element; stationerna bidrar via profile_items()
+  systems.py         systemtavlans element; stationerna bidrar via system_items()
   stations/          ett system ombord per modul
     base.py          Station: COMMANDS, on_order, update, say, suggest
     navigation.py    kurs, fart, djup, bestick, fix, ekolod, isekolod, vak
@@ -146,6 +148,8 @@ ui/                  Textual
   chart_render.py    rastrering av sjökortet till tecken
   profile.py         djupprofilen i helskärm
   profile_render.py  rastrering av djupprofilen och djupmätaren
+  systems.py         systemtavlan i helskärm
+  systems_render.py  genomskärning och paneler till tecken
 ```
 
 ### Lägga till ett system
@@ -163,6 +167,8 @@ ui/                  Textual
    `chart_items()`, i beräknade koordinater och bara ur kunskap.
 5. Ska systemet synas i djupprofilen: returnera element (`sim/profile.py`)
    från `profile_items()`, bara ur kunskap.
+5. Har systemet egna instrument ombord: returnera element (`sim/systems.py`) från
+   `system_items()`; en ny panel dyker upp på systemtavlan av sig själv.
 5. Lägg klassen i `DEFAULT_STATIONS`. Game behöver inte ändras.
 
 Stationer pratar med varandra via händelsebussen. Kunskapslagret

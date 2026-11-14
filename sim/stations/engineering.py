@@ -9,7 +9,10 @@ from ..events import OwnSoundMade
 from ..fmt import fmt_course, kn, nm
 from ..orders import CommandSpec, Order
 from ..ice import masts_clear
-from ..ownship import COMPONENT_LABEL, PERISCOPE_DEPTH, TEST_DEPTH, TRIM_RESERVE_T
+from ..ownship import (COMPONENT_LABEL, COMPONENTS, FLOOD_LOSS_T, PERISCOPE_DEPTH, SMOKE_LEVELS,
+                       TEST_DEPTH, TRIM_RESERVE_T)
+from ..systems import (DANGER, INFO, OFF, OK, SEVERITY, WARN, Compartment, Flooding, Gauge,
+                       health_state, health_word)
 from .base import Proposal, Station
 
 
@@ -64,6 +67,19 @@ def _status(d: dict) -> str:
     if damaged:
         parts.append("skadat: " + ", ".join(damaged))
     return "Maskinrapport: " + ", ".join(parts) + "."
+
+
+# Avdelningarna i Projekt 627A, från fören. Komponenterna bor i en avdelning var.
+COMPARTMENTS = ((1, "torped"), (2, "batteri"), (3, "central"), (4, "diesel"), (5, "reaktor"),
+                (6, "turbin"), (7, "el"), (8, "bostad"), (9, "akter"))
+COMPONENT_COMPARTMENT = {"tubes": 1, "sonar": 1, "periscope": 3, "radio": 3,
+                         "propulsion": 6, "planes": 9}
+COMPONENT_NAME = {"sonar": "Sonar", "planes": "Roder", "propulsion": "Framdrivning",
+                  "tubes": "Torpedtuber", "periscope": "Periskop", "radio": "Radio"}
+
+
+def _pct(v: float) -> str:
+    return f"{round(v * 100)} %"
 
 
 def _smoke_word(v: float) -> str:
@@ -227,6 +243,81 @@ class EngineeringStation(Station):
                     "max_speed": own.max_speed(), "battery": s.battery,
                     "steam_leak": s.steam_leak, "hull": s.hull, "flooding": s.flooding,
                     "co2": s.co2, "health": dict(s.health), "fire": s.fire, "smoke": s.smoke})
+
+    # --- systemtavlan ---------------------------------------------------------------
+    def system_items(self) -> list:
+        own, s = self.own, self.own.sys
+        items: list = []
+        g = lambda label, text, state=OK, level=None, panel="MASKIN": \
+            items.append(Gauge(panel, label, text, state, level))
+
+        reactor_state = {"online": OK, "starting": WARN, "off": OFF, "scram": DANGER}[s.reactor]
+        txt = REACTOR_LABEL[s.reactor]
+        if s.reactor == "starting":
+            txt += f", klar om {max(0, s.reactor_ready_t - self.now) // 60 + 1} min"
+        if s.steam_leak:
+            txt += ", ångläcka"
+            reactor_state = max(reactor_state, WARN, key=SEVERITY.get)
+        g("Reaktor", txt, reactor_state)
+        prop = "turbin" if s.propulsion == "turbine" else "elmotor (smyg)"
+        g("Framdrivning", f"{prop}, högst {kn(own.max_speed())} kn",
+          WARN if own.max_speed() <= 0 else INFO)
+        g("Batteri", _pct(s.battery), DANGER if s.battery <= 0.1 else
+          WARN if s.battery < 0.3 else OK, s.battery)
+        g("Tryckluft", "full" if s.hp_air >= 1 else "förbrukad" if s.hp_air <= 0
+          else _pct(s.hp_air), WARN if s.hp_air <= 0 else OK, s.hp_air)
+        g("Skrov", _pct(s.hull), DANGER if s.hull < 0.5 else WARN if s.hull < 0.9 else OK,
+          s.hull)
+        if s.flooding > 0.5 or s.leak_rate > 0:
+            txt = f"{s.flooding:.0f} ton ombord"
+            if s.leak_rate > 0:
+                txt += ", läcker"
+            g("Vatten", txt, DANGER if s.flooding > TRIM_RESERVE_T else WARN,
+              min(1.0, s.flooding / FLOOD_LOSS_T))
+        else:
+            g("Vatten", "torrt")
+        g("Koldioxid", f"{nm(s.co2)} %", DANGER if s.co2 > 3 else WARN if s.co2 > 0.8 else OK)
+        if s.fire:
+            g("Brand", "i turbinrummet", DANGER)
+        if s.smoke > 0.0:
+            txt = _smoke_word(s.smoke) + (", ventilerar" if s.ventilating else "")
+            g("Rök", txt, DANGER if s.smoke >= 0.7 else WARN if s.smoke >= 0.15 else INFO,
+              s.smoke)
+        if s.blowing:
+            g("Nödblåsning", "pågår", WARN)
+
+        repairing = next((c for c in COMPONENTS if s.health[c] < 1.0), None)
+        for c in COMPONENTS:
+            h = s.health[c]
+            txt = health_word(h) + (", lagas" if c == repairing else "")
+            g(COMPONENT_NAME[c], txt, health_state(h), h if h < 1.0 else None, panel="SKADOR")
+
+        notes: dict[int, list[tuple[str, str]]] = {n: [] for n, _ in COMPARTMENTS}
+        for c in COMPONENTS:
+            if s.health[c] < 1.0:
+                notes[COMPONENT_COMPARTMENT[c]].append((health_state(s.health[c]), "skada"))
+        if s.reactor == "scram":
+            notes[5].append((DANGER, "snabbstopp"))
+        elif s.reactor == "off":
+            notes[5].append((OFF, "avställd"))
+        elif s.reactor == "starting":
+            notes[5].append((WARN, "startar"))
+        if s.steam_leak:
+            notes[5].append((WARN, "ångläcka"))
+        if s.fire:
+            notes[6].append((DANGER, "BRAND"))
+        elif s.propulsion == "electric" or s.reactor != "online":
+            notes[6].append((OFF, "stoppad"))
+        if s.battery < 0.3:
+            notes[2].append((WARN, "lågt"))
+        if s.smoke >= SMOKE_LEVELS[0]:              # röken sprider sig i hela båten
+            for n in notes:
+                notes[n].append((DANGER if s.smoke >= 0.7 else WARN, "rök"))
+        for n, name in COMPARTMENTS:
+            state, note = max(notes[n], key=lambda x: SEVERITY[x[0]], default=(OK, ""))
+            items.append(Compartment(n, name, state, note))
+        items.append(Flooding(s.flooding, FLOOD_LOSS_T, s.leak_rate > 0))
+        return items
 
     def idle_proposals(self) -> list[Proposal]:
         s, st = self.own.sys, self.own.state

@@ -80,6 +80,10 @@ class Station:
         """Djupprofilens element (sim.profile) ur stationens kunskap. Aldrig ur World."""
         return []
 
+    def system_items(self) -> list:
+        """Systemtavlans element (sim.systems) ur stationens egna instrument."""
+        return []
+
     def propose(self, p: Proposal) -> bool:
         return self.suggest(p.key, p.type, p.data, order=p.order, cooldown=p.cooldown,
                             quality=p.quality)

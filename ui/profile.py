@@ -97,7 +97,7 @@ class ProfileScreen(Screen):
         t.append(f" 1 tecken = {spc} s · djup "
                  + ("automatiskt" if self.depth_zoom is None
                     else f"till {DEPTH_ZOOM[self.depth_zoom]} m"), style="dim")
-        t.append("   +/− djup · ←/→ tid · a automatiskt · Tab loggen · Esc tillbaka",
+        t.append("   +/− djup · ←/→ tid · a automatiskt · Tab systemtavla · Esc tillbaka",
                  style="dim")
         head.update(t)
 

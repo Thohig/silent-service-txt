@@ -19,6 +19,7 @@ from ..geo import angle_diff, circular_mean, norm360
 from ..orders import CommandSpec, Order
 from ..profile import HeardEvent, Level
 from ..reports import Quality
+from ..systems import INFO, OK, WARN, Gauge
 from ..sonar import (ClassificationUpdate, Detection, Lost, OwnTorpedo, SonarStation,
                      TransientHeard)
 from ..tma import BearingObs
@@ -145,6 +146,19 @@ class SonarRoom(Station):
         layer = self.game.world.env.layer_depth
         if layer is not None:
             items.append(Level(layer, "språngskikt", "layer", "─"))
+        return items
+
+    # --- systemtavlan ------------------------------------------------------------
+    def system_items(self) -> list:
+        held = self.held_designations()
+        k = self.game.knowledge
+        threats = [d for d in held if (tr := k.track(d)) is not None and tr.threat]
+        noise, ice = self.background()
+        items = [Gauge("SONAR", "Kontakter", ", ".join(held) if held else "inga",
+                       WARN if threats else INFO if held else OK),
+                 Gauge("SONAR", "Bakgrund", f"{noise:.0f} dB" + (", isbrus" if ice else ""), INFO)]
+        if self.game.world.own.sys.health["sonar"] < 0.5:
+            items.append(Gauge("SONAR", "Aktiv sonar", "ur bruk, skadad", WARN))
         return items
 
     def held_designations(self) -> list[str]:
