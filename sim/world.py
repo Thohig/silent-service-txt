@@ -19,6 +19,7 @@ from .entities import Emission, Transient, Vessel
 from .environment import Environment
 from .geo import angle_diff, bearing_to, distance
 from .ice import ice_contact, ice_sounds
+from .seabed import bottom_contact
 from .ownship import OwnShip
 from .weapons import Torpedo, step_weapons
 
@@ -103,6 +104,7 @@ class World:
             self.env.ice.advance(dt)
             ice_contact(self, prev, dt)
             ice_sounds(self)
+        bottom_contact(self, prev)
 
         self.own.update(self, dt)
         step_weapons(self, dt)

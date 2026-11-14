@@ -87,3 +87,82 @@ def test_chart_shows_contours_and_soundings():
     assert any(isinstance(i, Track) and i.style == "contour" for i in view.drawables)
     assert any(isinstance(i, Mark) and i.style == "sounding" for i in view.drawables)
     assert g.profile().chart_bottom
+
+
+# --- steg 2: grundstötning och varning ------------------------------------------------
+def _toward_bank(seed=4, speed=10.0, depth=250.0, offset=3.0):
+    """Ubåten i djupt vatten tre sjömil från bankens kant, på väg in över den."""
+    from sim.events import ReportDelivered
+    from sim.seabed import Bank
+    from sim.stations import NavigationStation
+    g = _game(seed=seed)
+    bank = next(f for f in g.world.env.seabed.features if isinstance(f, Bank))
+    west = bank.bearing == 90.0
+    edge_x = bank.edge if west else -bank.edge
+    s = g.world.own.state
+    s.x, s.y = (edge_x + offset if west else edge_x - offset), 10.0
+    s.course = s.ordered_course = 270.0 if west else 90.0
+    s.speed = s.ordered_speed = speed
+    s.depth = s.ordered_depth = depth
+    g.world.env.current_kn = 0.0
+    nav = g.station(NavigationStation)
+    nav.est_x, nav.est_y = s.x, s.y
+    reports = []
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    return g, reports
+
+
+def test_running_onto_the_bank_damages_the_hull():
+    g, reports = _toward_bank()
+    for _ in range(3600):
+        g.tick()
+        if g.world.own.sys.bottom_contact:
+            break
+    own = g.world.own
+    assert own.sys.bottom_contact and own.sys.hull < 1.0
+    assert own.state.speed == 0.0
+    s = own.state
+    assert s.depth < g.world.env.bottom_at(s.x, s.y)
+    for _ in range(20):
+        g.tick()
+    assert any(r.type == "bottom.collision" and "på grund" in r.text for r in reports)
+
+
+def test_slow_touch_does_no_damage():
+    g, reports = _toward_bank(speed=1.5, offset=0.0)
+    for _ in range(6000):
+        g.tick()
+        if g.world.own.sys.bottom_contact:
+            break
+    assert g.world.own.sys.bottom_contact and g.world.own.sys.hull == 1.0
+    for _ in range(20):
+        g.tick()
+    assert any(r.type == "bottom.touch" for r in reports)
+
+
+def test_navigator_warns_and_yes_keeps_us_off_the_bank():
+    for seed in (1, 4, 7):
+        g, reports = _toward_bank(seed=seed)
+        from sim.events import ReportDelivered
+        g.bus.subscribe(ReportDelivered, lambda e: e.report.kind == "suggest"
+                        and e.report.type == "nav.suggest.shoal" and g.command("ja"))
+        for _ in range(3600):
+            g.tick()
+        assert any(r.type == "nav.suggest.shoal" for r in reports)
+        assert g.world.own.sys.hull == 1.0, seed
+        assert not any(r.type.startswith("bottom.") for r in reports), seed
+
+
+def test_sonar_never_suggests_a_depth_below_the_known_bottom():
+    from sim.stations import NavigationStation, SonarRoom
+    g, _ = _toward_bank(depth=40.0, speed=8.0)
+    s = g.world.own.state
+    nav = g.station(NavigationStation)
+    for _ in range(2700):                      # in över banken
+        g.tick()
+    lim = nav.depth_limit()
+    assert lim is not None and lim < 200
+    sonar = g.station(SonarRoom)
+    d = sonar._below_layer(g.world.env.layer_depth)
+    assert d is None or d <= lim
+    assert s.depth < g.world.env.bottom_at(s.x, s.y)

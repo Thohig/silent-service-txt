@@ -262,7 +262,7 @@ def ice_contact(world: World, prev: tuple[float, float, float], dt: int = 1) -> 
             leak = speed > 6
             if leak:
                 sys.leak_rate += 0.05 * speed
-            own.alert("ice.collision", severity="svår" if speed > 6 else "lätt",
+            own.alert("ice.collision", severity="svåra" if speed > 6 else "lätta",
                       components=hit, leak=leak)
         else:
             own.alert("ice.touch")
@@ -277,7 +277,7 @@ def ice_contact(world: World, prev: tuple[float, float, float], dt: int = 1) -> 
     if sys.blowing and not sys.ice_contact:
         sys.hull -= 0.05
         sys.health["periscope"] = max(0.0, sys.health["periscope"] - 0.5)
-        own.alert("ice.collision", severity="svår", components=["periscope"], leak=False)
+        own.alert("ice.collision", severity="svåra", components=["periscope"], leak=False)
     if wants_up and thickest <= BREAK_MAX_M and st.speed <= BREAK_MAX_SPEED:
         if not sys.ice_contact:
             own.alert("ice.pressing", thin=True)

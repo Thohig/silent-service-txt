@@ -250,8 +250,8 @@ class SonarRoom(Station):
         st, env = self.own.state, self.game.world.env
         held = self.game.knowledge.threat_held()
         out = []
-        if held and env.layer_depth is not None and st.ordered_depth < env.layer_depth:
-            d = env.layer_depth + 60
+        d = self._below_layer(env.layer_depth) if env.layer_depth is not None else None
+        if held and d is not None and st.ordered_depth < env.layer_depth:
             out.append(Proposal(2, "idle_layer", "sonar.suggest.layer",
                                 f"djup {d:.0f}", {"layer": env.layer_depth, "depth": d}))
         if not held and st.ordered_speed > 6:
@@ -259,10 +259,28 @@ class SonarRoom(Station):
                                 {"speed": st.ordered_speed}))
         return out
 
+    def _depth_limit(self) -> float | None:
+        """Navigatörens gräns mot botten (sjökortet och ekolodet), om den finns."""
+        from .navigation import NavigationStation
+        try:
+            return self.game.station(NavigationStation).depth_limit()
+        except KeyError:
+            return None
+
+    def _below_layer(self, layer: float) -> float | None:
+        """Djup under skiktet som botten tillåter, eller None om det inte finns plats."""
+        d = layer + 60
+        lim = self._depth_limit()
+        if lim is not None:
+            d = min(d, lim)
+        return d if d >= layer + 20 else None
+
     def _suggest_layer(self) -> None:
         env, st = self.game.world.env, self.own.state
         if env.layer_depth is not None and st.ordered_depth < env.layer_depth:
-            d = env.layer_depth + 60
+            d = self._below_layer(env.layer_depth)
+            if d is None:
+                return
             self.suggest("layer", "sonar.suggest.layer", {"layer": env.layer_depth, "depth": d},
                          order=f"djup {d:.0f}", cooldown=1800)
 
@@ -343,6 +361,11 @@ class SonarRoom(Station):
             d = min(st.ordered_depth + 80, 280)
         else:
             d = st.ordered_depth - 80
+        lim = self._depth_limit()
+        if lim is not None and d > lim:
+            d = lim
+            if abs(d - st.ordered_depth) < 20:
+                return                      # botten ger inget utrymme att byta djup
         self.suggest("evade_depth", "sonar.suggest.depth_change", {"depth": d},
                      order=f"djup {d:.0f}", cooldown=cooldown, alarm=True)
 

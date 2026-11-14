@@ -106,6 +106,12 @@ PHRASES = {
     + (": " + ", ".join(COMPONENT_LABEL[c] for c in d["components"]) if d["components"] else "")
     + (". Vatteninträngning, länsning pågår." if d.get("leak") else ".")
     + " Maskinen stoppad.",
+    "bottom.collision": lambda d: f"Kapten! Vi har gått på grund med {d['where']}! "
+    f"{d['severity'].capitalize()} skador: " + ", ".join(COMPONENT_LABEL[c] for c in d["components"])
+    + (". Vatteninträngning, länsning pågår." if d.get("leak") else ".")
+    + f" Maskinen stoppad. Går upp till {d['back_to']} meter.",
+    "bottom.touch": lambda d: f"Vi tog i botten med {d['where']}, kapten. Låg fart, inga skador. "
+    f"Går upp till {d['back_to']} meter.",
     "ice.touch": lambda d: "Vi tog i en isköl, kapten. Långsam fart, inga skador. Maskinen stoppad.",
     "ice.bump": lambda d: ("Vi stöter i isen ovanför, kapten. "
                            + ("Den är tunn, men vi har för hög fart för att bryta igenom. "
@@ -267,6 +273,7 @@ class EngineeringStation(Station):
                     continue
                 self._last_shock = self.now
             alarm = type in ("reactor.scram", "damage", "surfaced", "ice.collision", "ice.bump",
+                             "bottom.collision", "bottom.touch",
                              "fire") or (type == "smoke" and data["level"] >= 0.7) or \
                 (type == "battery" and data["level"] <= 0.1)
             self.say(type, data, kind="info", alarm=alarm)

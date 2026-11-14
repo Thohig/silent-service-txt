@@ -11,7 +11,12 @@ Samma klass beskriver sjökortets bild (`chart_copy`): formerna flyttade och
 utjämnade, utan ojämnhet, ibland utan ett berg. Sjökortet hör till
 kunskapen (`Knowledge.bathymetry`) och har ingen referens till sanningen.
 
-Bara ekolodet (navigation.py) läser sanningens botten.
+Bara ekolodet (navigation.py) och bottenkontakten (`bottom_contact`, anropas
+av World efter förflyttningen) läser sanningens botten:
+  - i låg fart (≤ TOUCH_MAX_KN) sätter sig kölen lätt i botten; trimmen tar
+    oss upp igen, inga skador,
+  - i högre fart går vi på grund: ubåten stannar, skrov och sonar/roder tar
+    skada efter farten, över LEAK_KN blir det läckor.
 """
 from __future__ import annotations
 
@@ -19,10 +24,22 @@ import math
 import random
 from dataclasses import dataclass, field, replace
 
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+from .geo import NM_IN_M
+
+if TYPE_CHECKING:
+    from .world import World
 
 CONTOUR_LEVELS = (200, 500, 1000, 2000, 3000)
 CONTOUR_STEP_NM = 0.2
+HULL_HALF_NM = 50.0 / NM_IN_M   # för- och akterskeppet från tornet
+TOUCH_MAX_KN = 2.0              # så sakta: kölen sätter sig, inga skador
+LEAK_KN = 5.0                   # fortare: läckor
+CLEAR_M = 2.0                   # så här långt över botten räknas kontakten som släppt
+BACKOFF_M = 15.0                # trimmen tar oss upp så här mycket efter kontakt
 
 
 def _line_coords(x, y, px: float, py: float, bearing: float):
@@ -231,3 +248,56 @@ def contours(seabed: Seabed, x0: float, y0: float, x1: float, y1: float,
         if segs:
             out[lv] = segs
     return out
+
+
+# --- bottenkontakt (sanning) --------------------------------------------------------
+def keel_points(x: float, y: float, course: float) -> list[tuple[str, float, float]]:
+    dx = math.sin(math.radians(course)) * HULL_HALF_NM
+    dy = math.cos(math.radians(course)) * HULL_HALF_NM
+    return [("midskepps", x, y), ("förskeppet", x + dx, y + dy), ("akterskeppet", x - dx, y - dy)]
+
+
+def keel_clearance(seabed: Seabed, x: float, y: float, course: float, depth: float) -> float:
+    """Minsta frigång (m) mellan kölen och botten. < 0 = kontakt."""
+    return min(seabed.depth_at(px, py) - depth for _, px, py in keel_points(x, y, course))
+
+
+def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
+    seabed = world.env.seabed
+    own = world.own
+    if seabed is None or own.sunk:
+        return
+    st, sys = own.state, own.sys
+    gap = keel_clearance(seabed, st.x, st.y, st.course, st.depth)
+    if gap >= 0:
+        if gap > CLEAR_M:
+            sys.bottom_contact = False
+        return
+    px, py, pdepth = prev
+    where = min(keel_points(st.x, st.y, st.course),
+                key=lambda p: seabed.depth_at(p[1], p[2]))[0]
+    speed = st.speed
+    # tillbaka till förra läget, men aldrig under botten
+    st.x, st.y = px, py
+    floor = min(seabed.depth_at(p[1], p[2]) for p in keel_points(px, py, st.course))
+    st.depth = min(pdepth, floor - 0.5)
+    st.ordered_depth = min(st.ordered_depth, max(0.0, round(floor - BACKOFF_M)))
+    if sys.bottom_contact:
+        return
+    sys.bottom_contact = True
+    if speed <= TOUCH_MAX_KN:
+        own.alert("bottom.touch", where=where, back_to=round(st.ordered_depth))
+        return
+    st.speed = st.ordered_speed = 0.0
+    sys.hull -= 0.015 * speed
+    hit = ["sonar"] if where == "förskeppet" else ["planes"] if where == "akterskeppet" \
+        else [world.rng.choice(["sonar", "planes"])]
+    if speed > 8:
+        hit.append(world.rng.choice(["propulsion", "tubes"]))
+    for c in hit:
+        sys.health[c] = max(0.0, sys.health[c] - 0.05 * speed)
+    leak = speed > LEAK_KN
+    if leak:
+        sys.leak_rate += 0.08 * speed
+    own.alert("bottom.collision", severity="svåra" if speed > 8 else "lätta", where=where,
+              components=hit, leak=leak, back_to=round(st.ordered_depth))

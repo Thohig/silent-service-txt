@@ -53,6 +53,7 @@ class OwnSystems:
     health: dict[str, float] = field(default_factory=lambda: {c: 1.0 for c in COMPONENTS})
     blowing: bool = False
     ice_contact: bool = False        # ubåten ligger an mot isen ovanför
+    bottom_contact: bool = False     # kölen tar i botten
     fire: bool = False               # brand ombord
     fire_out_t: int = 0
     fire_done: bool = False

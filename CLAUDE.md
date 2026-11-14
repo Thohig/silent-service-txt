@@ -62,6 +62,11 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   formerna flyttade, ingen ojämnhet, ibland utan berg) som blir `Knowledge.bathymetry`.
   Navigatören ritar djupkurvor ur den och loggar kortets djup längs besticket.
   Botten dras sist i scenariot så att övriga slumpdragningar inte flyttas.
+  Bottenkontakt (`seabed.bottom_contact`, efter förflyttningen): ≤ 2 kn sätter sig kölen
+  utan skador, annars grundstötning (skrov −0,015·fart, sonar/roder efter var, läcka > 5 kn);
+  trimmen tar oss 15 m upp. Navigatören (`_shoal_watch`, var 20:e s) ser på kortet 6 min
+  framåt (minst 1 nm) ± bestickets σ åt sidorna, och en färsk lodning; föreslår djup
+  30 m över botten. `NavigationStation.depth_limit()` begränsar sonarens djupförslag.
 - **Sjökortet**: `Station.chart_items()` ger ritelement (`sim/chart.py`) ur
   kunskapen i beräknade koordinater; `Game.chart()` samlar, `ui/chart_render.py`
   rastrerar (en rad = två kolumner i höjd). Nytt system ritar sig självt.

@@ -9,11 +9,14 @@ from __future__ import annotations
 
 import math
 import re
+
+import numpy as np
 from dataclasses import dataclass
 
 from .. import acoustics, phrases
 from ..chart import LAYER_CONTOUR, LAYER_ICE, LAYER_OWN, Mark, Note, Ray, Ring, Track
 from ..profile import BottomSounding, ChartBottom, DepthTrace, IceSounding, Level
+from ..reports import Quality
 from ..seabed import contours
 from ..crew import Role
 from ..entities import Transient
@@ -54,6 +57,11 @@ DR_TRACK_INTERVAL_S = 60    # navigatören prickar in besticket på kortet så h
 OWN_VECTOR_S = 360          # egen fartvektor på kortet: sex minuters gång
 DEPTH_LOG_INTERVAL_S = 10   # djupprofilen: djupmätaren noteras så här ofta
 PROFILE_KEEP_S = 3 * 3600   # så långt bakåt minns profilen
+SHOAL_MARGIN_M = 30         # håll så här långt över botten enligt kortet
+SHOAL_LOOK_MIN = 6          # navigatören tittar så många minuters gång framåt
+SHOAL_LOOK_MIN_NM = 1.0     # men minst så långt
+SHOAL_CHECK_S = 20
+SOUNDING_TRUST_S = 600      # en lodning räknas så här länge
 CONTOUR_MARGIN_NM = 4.0     # djupkurvor så här långt utanför kvadraten
 CONTOUR_LABEL_SPOTS = ((5, 5), (15, 5), (5, 15), (15, 15), (10, 10))   # andelar av kvadraten ×20
 
@@ -123,7 +131,13 @@ PHRASES = {
     + (" Det är under provdjup, kapten." if d.get("below_test") else "")
     + (f" Det är is ovanför, kapten, vi kommer inte högre än cirka {d['ice_ceiling']:.0f} meter."
        if d.get("ice_ceiling") else
-       " Det är is ovanför, kapten, masterna kommer inte upp här." if d.get("ice_masts") else ""),
+       " Det är is ovanför, kapten, masterna kommer inte upp här." if d.get("ice_masts") else "")
+    + (f" Kortet visar botten på cirka {d['shoal']:.0f} meter här, kapten." if d.get("shoal") else ""),
+    "nav.suggest.shoal": lambda d: "Kapten, navigatören. "
+    + (f"Ekolodet visade {d['shoal']:.0f} meter till botten här" if d.get("sounded") else
+       f"Sjökortet visar {d['shoal']:.0f} meter "
+       + ("här" if d["dist"] < 0.15 else f"inom {nm(d['dist'])} sjömil framåt"))
+    + f". Föreslår djup {d['depth']:.0f}.",
     "nav.course.done": lambda d: f"Kapten, kurs {fmt_course(d['course'])} påkommen.",
     "nav.speed.done": lambda d: f"Fart {kn(d['speed'])} knop uppnådd.",
     "nav.depth.done": lambda d: "Vi är i ytläge, kapten." if d["depth"] < 1
@@ -365,6 +379,65 @@ class NavigationStation(Station):
         chart = self.game.knowledge.bathymetry
         return None if chart is None else chart.depth_at(x, y)
 
+    # --- grunt vatten -------------------------------------------------------------
+    def chart_ahead(self) -> tuple[float, float] | None:
+        """Grundaste kortdjup framåt längs kursen, med bestickets osäkerhet åt sidorna:
+        (djup, avstånd nm). None om kortet saknar djup."""
+        chart = self.game.knowledge.bathymetry
+        if chart is None:
+            return None
+        s, sigma = self.ship, self.uncertainty()
+        reach = max(SHOAL_LOOK_MIN_NM, s.speed * SHOAL_LOOK_MIN / 60)
+        dist = np.arange(0.0, reach + 0.05, 0.1)
+        side = np.array([-sigma, 0.0, sigma])
+        b = math.radians(s.course)
+        ux, uy = math.sin(b), math.cos(b)
+        dd, ss = np.meshgrid(dist, side)
+        xs = self.est_x + dd * ux + ss * uy
+        ys = self.est_y + dd * uy - ss * ux
+        z = chart.depths(xs, ys)
+        i = np.unravel_index(np.argmin(z), z.shape)
+        return float(z[i]), float(dd[i])
+
+    def known_bottom(self) -> tuple[float, float, bool] | None:
+        """Grundaste botten vi känner till här och framåt: (djup, avstånd nm, lodat).
+        Kortet framåt, och senaste lodning om den är färsk och grundare."""
+        ahead = self.chart_ahead()
+        recent = [b for b in self.bottom_soundings if self.now - b.t <= SOUNDING_TRUST_S]
+        best = (ahead[0], ahead[1], False) if ahead else None
+        if recent and (best is None or recent[-1].depth < best[0]):
+            best = (recent[-1].depth, 0.0, True)
+        return best
+
+    def depth_limit(self) -> float | None:
+        """Djupaste djup navigatören går med på här, eller None om botten är okänd."""
+        kb = self.known_bottom()
+        if kb is None:
+            return None
+        return max(PERISCOPE_DEPTH, math.floor((kb[0] - SHOAL_MARGIN_M) / 10) * 10)
+
+    def _shoal_quality(self) -> Quality:
+        sigma = self.uncertainty()
+        return Quality.GOD if sigma < 0.25 else Quality.OSAKER if sigma < 0.6 else Quality.DALIG
+
+    def _shoal_watch(self) -> None:
+        if self.now % SHOAL_CHECK_S:
+            return
+        kb = self.known_bottom()
+        if kb is None:
+            return
+        shoal, dist, sounded = kb
+        s = self.ship
+        limit = self.depth_limit()
+        if max(s.depth, s.ordered_depth) <= limit:
+            return
+        minutes = dist * 60 / max(s.speed, 0.5)
+        self.suggest("shoal", "nav.suggest.shoal",
+                     {"shoal": round(shoal, -1), "dist": dist, "depth": limit, "sounded": sounded},
+                     order=f"djup {limit:.0f}", cooldown=300,
+                     quality=Quality.SAKER if sounded else self._shoal_quality(),
+                     alarm=minutes < 3)
+
     # --- djupprofilen ------------------------------------------------------------
     def profile_items(self) -> list:
         items: list = [
@@ -455,6 +528,9 @@ class NavigationStation(Station):
                     data["ice_ceiling"] = latest.draft + SAIL_TOP_M
                 elif latest is not None and not latest.open and d <= ANTENNA_DEPTH:
                     data["ice_masts"] = True
+                shoal = self.known_bottom()
+                if shoal is not None and d > shoal[0] - SHOAL_MARGIN_M:
+                    data["shoal"] = round(shoal[0], -1)
                 self._ack("depth", data, s.depth == s.ordered_depth)
             case TakeFix():
                 self._start_fix()
@@ -860,6 +936,7 @@ class NavigationStation(Station):
         if self.now % DR_TRACK_INTERVAL_S == 0:
             self.dr_track[-1].append((self.est_x, self.est_y))
         self._sound_ice()
+        self._shoal_watch()
         self._steer_to_opening()
         self._steer_to_station()
         self._ice_advice()
