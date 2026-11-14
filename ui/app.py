@@ -20,6 +20,7 @@ from sim.fmt import fmt_course, kn
 from sim.scenario import SCENARIOS, build_scenario
 from sim.truthlog import TruthLog
 
+from .audio import SoundBoard, make_soundboard
 from .chart import ChartScreen
 from .teletype import Teletype
 from .widgets import ReportLog, StatusBar
@@ -27,6 +28,8 @@ from .widgets import ReportLog, StatusBar
 MAX_TICKS_PER_FRAME = 20
 CHART_WORDS = {"sjökort", "sjokort", "kort", "karta"}
 CHART_KEY = "§"
+SOUND_WORDS = {"ljud", "ljud av", "ljud på", "ljud pa"}
+SOUND_KEY = "f8"
 
 
 class OrderInput(Input):
@@ -52,11 +55,13 @@ class SubApp(App):
     #order:focus { border: tall #5f8a66; }
     """
     BINDINGS = [Binding("ctrl+q", "quit", "Avsluta", priority=True),
-                Binding("section_sign", "chart", "Sjökort", priority=True)]
+                Binding("section_sign", "chart", "Sjökort", priority=True),
+                Binding(SOUND_KEY, "sound", "Ljud", priority=True)]
 
     def __init__(self, seed: int | None = None, log_dir: Path | str = "logs",
-                 scenario: str | None = None):
-        """scenario: nyckel i SCENARIOS. Utan scenario börjar spelet med en väljare."""
+                 scenario: str | None = None, sound: bool = False):
+        """scenario: nyckel i SCENARIOS. Utan scenario börjar spelet med en väljare.
+        sound: tal och larm (macOS). Av som standard så att testerna är tysta."""
         super().__init__()
         self.seed = seed if seed is not None else random.randrange(1_000_000)
         self.log_dir = Path(log_dir)
@@ -65,6 +70,9 @@ class SubApp(App):
         self.running = False
         self._acc = 0.0
         self._last = 0.0
+        self.sound_wanted = sound
+        self.sound: SoundBoard | None = None
+        self._sound_note: str | None = None
         if scenario is not None:
             self._create_game(scenario)
 
@@ -110,6 +118,7 @@ class SubApp(App):
         game.bus.subscribe(ReportDelivered, self._on_report)
         game.bus.subscribe(TimeScaleChanged, self._on_time_scale)
         game.bus.subscribe(GameEnded, self._on_game_ended)
+        self.sound, self._sound_note = make_soundboard(game.bus, self.sound_wanted)
         self.query_one("#order", Input).focus()
         tt = self.query_one(Teletype)
         tt.full_text = game.secret_order
@@ -136,6 +145,10 @@ class SubApp(App):
         if text.lower() in CHART_WORDS:
             self.action_chart()
             return
+        if text.lower() in SOUND_WORDS:
+            want = {"ljud av": False, "ljud på": True, "ljud pa": True}.get(text.lower())
+            self.action_sound(want)
+            return
         self.query_one(ReportLog).add_captain(self.game.clock_str(), text)
         self.game.command(text)
 
@@ -149,6 +162,10 @@ class SubApp(App):
                        f"fart {kn(st.speed)} knop, djup {st.depth:.0f} meter.")
         log.add_system(self.game.clock_str(), "Skriv hjälp för en lista över order. Besättningens förslag godkänns med ja, avslås med nej.")
         log.add_system(self.game.clock_str(), f"{CHART_KEY} visar navigatörens sjökort.")
+        if self._sound_note:
+            log.add_system(self.game.clock_str(), self._sound_note)
+        elif self.sound and self.sound.enabled:
+            log.add_system(self.game.clock_str(), "F8 slår av och på ljudet.")
         self.running = True
         self._last = time.monotonic()
         self.set_interval(FRAME_S, self._pump)
@@ -163,11 +180,29 @@ class SubApp(App):
         else:
             self.push_screen(ChartScreen())
 
+    # ------------------------------------------------------------------ ljud
+    def action_sound(self, want: bool | None = None) -> None:
+        """F8 eller "ljud": slå av och på tal och larm."""
+        if not self.running or self.sound is None:
+            return
+        if not self.sound.available:
+            self.query_one(ReportLog).add_system(
+                self.game.clock_str(), self._sound_note or "Ljudet är avstängt (--tyst).")
+            return
+        if want is None or want != self.sound.enabled:
+            self.sound.toggle()
+        self.query_one(ReportLog).add_system(
+            self.game.clock_str(), "Ljudet på." if self.sound.enabled else "Ljudet av.")
+
     # ------------------------------------------------------------------ realtid
     def _pump(self) -> None:
-        if not self.is_running or self.game is None or self.game.over:
+        if not self.is_running or self.game is None:
             return
         now = time.monotonic()
+        if self.sound:
+            self.sound.update(now)          # slutrapporten läses upp även när spelet är slut
+        if self.game.over:
+            return
         self._acc += (now - self._last) * self.game.time_scale
         self._last = now
         n = 0
@@ -209,6 +244,8 @@ class SubApp(App):
         self.query_one(StatusBar).show(self.game.status())
 
     def on_unmount(self) -> None:
+        if self.sound:
+            self.sound.close()
         if self.truth_log:
             self.truth_log.close()
 

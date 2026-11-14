@@ -10,6 +10,7 @@ och plottlagets målrörelseanalys.
 uv run main.py                     # scenarioväljare, slumpat frö
 uv run main.py --scenario kuba     # hoppa över väljaren
 uv run main.py --seed 4            # reproducerbart scenario
+uv run main.py --tyst              # utan ljud
 uv run pytest             # tester
 ```
 
@@ -48,6 +49,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Vakthavande | `periskop` · `radar` (periskopdjup; radarvarnaren är automatisk) |
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
+| Ljud | `F8` eller `ljud` / `ljud av` / `ljud på`: besättningen talar (macOS-rösten Alva) och larmen går |
 | Sjökort | `§` eller `sjökort` visar navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, `c` centrerar, `Esc` tillbaka |
 | Övrigt | `hjälp` · `avsluta` (avbryter patrullen med slutrapport) · `ctrl+q` stänger programmet |
 
@@ -133,6 +135,7 @@ sim/                 ren Python, ingen Textual
     plot.py          plottlaget
     torpedo_room.py  torpedrum och eldledning
 ui/                  Textual
+  audio.py           tal och larm ur levererade rapporter (say/afplay)
   chart.py           sjökortet i helskärm (§)
   chart_render.py    rastrering av sjökortet till tecken
 ```
