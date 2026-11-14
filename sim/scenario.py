@@ -389,9 +389,9 @@ def strait_scenario(rng: random.Random) -> Scenario:
     own = OwnShip(ShipState(x=cx + rng.uniform(-3.0, 3.0), y=1.5, course=0, speed=5, depth=100,
                             max_depth=400))
     world = World(own=own, env=env, rng=random.Random(rng.random()), size_nm=size,
-                  patrol_end=5 * 3600)
+                  patrol_end=7 * 3600)
 
-    # skyddet: nät i farledens mynning, hydrofoner en sjömil ut, patrullbåt däremellan
+    # skyddet: nät i farledens mynning, hydrofoner en halv sjömil ut, patrullbåtens skärm längre ut
     net_y = shore_c + 0.5
     half = coast.channel_w / 2 + 0.05
     net = Net(y=net_y, x0=cx - half, x1=cx + half, gate_x=cx)
@@ -407,7 +407,8 @@ def strait_scenario(rng: random.Random) -> Scenario:
                 side="enemy", has_radar=True)
     world.contacts.append(pb)
     boat = PatrolBoatAI(pb, random.Random(rng.random()), area=size,
-                        patrol_speed=HARBOR_PATROL_SPEED, box=box, leash_nm=0.8)
+                        patrol_speed=HARBOR_PATROL_SPEED, box=box, leash_nm=0.8,
+                        gate=(cx, net_y))
     world.ais.append(boat)
     harbor = HarborDefense(hydrophones=phones, net=net, boats=[boat])
     world.spawners.append(harbor)
@@ -428,14 +429,15 @@ def strait_scenario(rng: random.Random) -> Scenario:
                                      side="enemy", has_radar=False))
 
     # hamntrafik genom grinden
+    gate_in = ((cx, net_y - 0.8), (cx, net_y - 0.15), (cx, net_y + 0.3))
     lanes = (Lane("in", start=(cx, -2.0), end=(cx, coast.bay_y - 0.2), per_hour=0.6,
-                  speed=(8.0, 11.0), moor=True),
-             Lane("ut", start=(cx, coast.bay_y - 0.4), end=(cx, -3.0), per_hour=0.4,
-                  speed=(8.0, 11.0)))
+                  speed=(6.0, 7.5), moor=True, via=gate_in),    # lotsfart in mot hamnen
+             Lane("ut", start=(cx, coast.bay_y - 0.4), end=(cx, -3.0), per_hour=0.6,
+                  speed=(6.0, 8.0), via=tuple(reversed(gate_in))))
     traffic = TrafficGenerator(TrafficDef(lanes=lanes, initial=1, width_nm=0.03),
                                random.Random(rng.random()))
     traffic.populate(world)
-    traffic.next_t[0] = rng.randint(60 * 60, 90 * 60)   # ett fartyg in genom grinden efter gryningen
+    traffic.next_t[0] = rng.randint(45 * 60, 75 * 60)   # ett fartyg in genom grinden efter gryningen
     world.spawners.append(traffic)
 
     world.mission["nuclear_authorized"] = False

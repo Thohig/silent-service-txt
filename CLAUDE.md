@@ -158,15 +158,22 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   Vägen ut (`exit_route`) går aldrig över land; finns ingen rak väg söker den på kortets rutnät.
   Efterklang på grunt vatten (`seabed.shallow_reverb`): aktiv sonar −15 dB vid 0 m, 0 vid 100 m.
   Navigatören tittar 6 min framåt, minst 0,6 nm (förut 1 nm).
-- Hamnskydd (`harbor.py`): hydrofoner DT 10, kustbrus 64 dB (smygmotor 3 kn hörs < 0,15 nm,
-  turbin 5 kn ~0,5 nm); nät med grind ±0,06 nm som är öppen 4 min efter att ett fartyg varit inom
-  1 nm. Patrullbåt (`PatrolBoatAI`): ping 196 dB (~0,5 nm under skiktet, ~1 nm över), 6 kn,
-  ping var 45:e s i patrull, master inom 2 nm med 1 %/s. Jägare tar aldrig emot ett datum utanför
-  `leash_nm` (gäller även Jagade).
-- Sundet (`sundet`, `strait_scenario`): KALIBRERINGEN ÄR INTE KLAR. Med skärmen 1,5–2,5 nm ut
-  klarar inte ens en bot som läser sanningen (väntar tills patrullbåten är > 2,2 nm bort, korsar
-  i 5 kn på 120 m) uppdraget i något av 8 frön: den upptäcks i skärmen, av hydrofonerna eller när
-  navigatören tar upp den grunt för tidigt. Botarna ligger i scratchpad (`strait_bot.py`).
+- Hamnskydd (`harbor.py`): hydrofoner DT 10, rundstrålande: kustbrus 64 dB plus alla fartyg inom
+  5 nm (smygmotor 3 kn hörs < 0,15 nm, turbin 5 kn ~0,5 nm; ett fartyg nära dränker oss). Nät med
+  grind ±0,1 nm som är öppen 4 min efter att ett fartyg varit inom 1 nm; hamnlederna har brytpunkter
+  (`Lane.via`) så att fartygen går genom grindens mitt. Patrullbåt (`PatrolBoatAI`): ping 196 dB
+  (~0,5 nm under skiktet, ~1 nm över), 6 kn, ping var 45:e s i patrull, master inom 2 nm med 1 %/s,
+  skärm 1,5–2,5 nm ut. Ett fartyg på väg in inom 6 nm från grinden eskorteras (`escort`, 0,4 nm
+  framför) till grinden. Jägare tar aldrig emot ett datum utanför `leash_nm` (gäller även Jagade).
+  Förtöjda fartyg (`moored`) driver inte.
+- Navigatören `följ S-3`: styr på kontaktens bäring var 15:e s och håller plottets fart (tills
+  kaptenen sätter farten själv); `kurs` avbryter.
+- Sundet (`sundet`, `strait_scenario`), 7 h, ett fartyg in efter 45–75 min, sedan 0,6/h in och ut
+  i lotsfart (6–8 kn). Grindtricket: vänta söder om grinden, `turbin, djup 40, följ S-x` när
+  fartyget passerat 0,2–0,45 nm, foto innanför, följ ett utgående fartyg ut. 8 frön: bot med bara
+  besättningens verktyg klarar 3 (goda bilder i 6), bot som läser sanningen 5 (bilder i 8);
+  ja-boten och den som försöker smyga genom skärmen utan fartyg klarar 0. Botarna i scratchpad
+  (`follow_bot.py`, `strait_bot.py`).
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m.
 - Packis (`ice.py`): rutor 0,05 nm, flerårsis 2–4,5 m, kölar 8–25 m (6 % 30–45 m),
   170 råkar, 28 polynyor ⇒ ~4–5 % öppet vatten, en öppning ungefär var 30:e minut

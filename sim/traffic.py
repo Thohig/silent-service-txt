@@ -23,6 +23,7 @@ from .ship import ShipState
 if TYPE_CHECKING:
     from .world import World
 
+VIA_ARRIVE_NM = 0.08        # en brytpunkt (grind) passeras så här nära
 ARRIVE_NM = 0.5             # framme vid ledens slut: gå vidare rakt fram
 STOP_NM = 3.0               # sovjetiskt fraktfartyg stoppar när en jagare är så nära
 STOP_S = (15 * 60, 35 * 60) # så länge det ligger stilla innan det vänder hem
@@ -39,6 +40,7 @@ class Lane:
     speed: tuple[float, float] = (9.0, 14.0)
     soviet: float = 0.0          # andel sovjetiska fraktfartyg (stoppar vid karantänlinjen)
     moor: bool = False           # ankrar vid ledens slut (in i en hamn) i stället för att gå vidare
+    via: tuple[tuple[float, float], ...] = ()   # brytpunkter före slutet, t.ex. en grind
 
 
 @dataclass(frozen=True)
@@ -55,7 +57,8 @@ class MerchantAI:
     roe = "-"
 
     def __init__(self, vessel: Vessel, rng: random.Random, target: tuple[float, float],
-                 home: tuple[float, float], soviet: bool, speed: float, moor: bool = False):
+                 home: tuple[float, float], soviet: bool, speed: float, moor: bool = False,
+                 via: tuple[tuple[float, float], ...] = ()):
         self.vessel = vessel
         self.rng = rng
         self.target = target
@@ -63,6 +66,7 @@ class MerchantAI:
         self.soviet = soviet
         self.speed = speed
         self.moor = moor
+        self.via = list(via)
         self.state = "transit"
         self.resume_t = 0
 
@@ -85,6 +89,13 @@ class MerchantAI:
             self.state = "stopped"
             self.resume_t = world.time + self.rng.randint(*STOP_S)
             s.order_speed(0)
+            return
+        if self.via:
+            vx, vy = self.via[0]
+            if distance(s.x, s.y, vx, vy) < VIA_ARRIVE_NM:
+                self.via.pop(0)
+            elif world.time % 15 == 0:
+                s.order_course(bearing_to(s.x, s.y, vx, vy))
             return
         if self.target is not None:
             tx, ty = self.target
@@ -150,6 +161,8 @@ class TrafficGenerator:
         world.contacts.append(v)
         world.ais.append(MerchantAI(v, random.Random(rng.random()), (tx, ty),
                                     (x0 + nx * off, y0 + ny * off), soviet, speed,
-                                    moor=lane.moor))
+                                    moor=lane.moor,
+                                    via=tuple(p for p in lane.via
+                                              if (p[1] - y) * (y1 - y0) > 0)))
         return v
 

@@ -9,7 +9,10 @@
   utanför en öppen grind fastnar vi: ubåten stoppas, propellern skadas och nätets
   larmbojar ger patrullbåten ett fix.
 - `PatrolBoatAI`: en liten ubåtsjaktbåt; samma beteende som jagaren men svagare sonar,
-  lägre fart och färre sjunkbomber. Håller sig i sitt patrullområde (`box`).
+  lägre fart och färre sjunkbomber. Håller en skärm i sitt patrullområde (`box`), men när
+  ett fartyg är på väg in lämnar den skärmen och eskorterar det, en bit framför, fram till
+  grinden. Då öppnas luckor i skärmen, och den som följer tätt efter fartyget göms i dess
+  brus och kölvatten.
 
 `HarborDefense` samlar delarna och stegas som en spawner (efter förflyttningen).
 Periskopet ser nätets bojar (`periscope_view`), med grindens läge.
@@ -34,9 +37,13 @@ HYDROPHONE_DEPTH = 40.0
 HYDROPHONE_INTERVAL = 10
 HYDROPHONE_SIGMA_BASE = 0.25     # datumets osäkerhet: bas + andel av avståndet
 HYDROPHONE_SIGMA_PER_NM = 0.6
+SHIP_NOISE_NM = 5.0              # fartyg närmare än så höjer hydrofonens brus
+ESCORT_NM = 6.0                  # ett fartyg så nära grinden på väg in eskorteras
+ESCORT_AHEAD_NM = 0.4            # patrullbåten går så här långt framför
+ESCORT_DONE_NM = 0.25            # fartyget så nära grinden: eskorten klar
 COASTAL_NOISE_DB = 64.0          # bränning och knäppande räkor nära kusten
 
-GATE_HALF_NM = 0.06              # grindens halva bredd (~110 m)
+GATE_HALF_NM = 0.1               # grindens halva bredd (~185 m)
 GATE_OPEN_NM = 1.0               # ett fartyg så nära: grinden öppnas
 GATE_CLOSE_S = 240               # och stängs så här länge efter att det passerat
 NET_SOUND_LEVEL = 150.0
@@ -64,10 +71,7 @@ class HydrophoneLine:
         noise = max(world.env.background_noise, COASTAL_NOISE_DB)
         for hx, hy in self.points:
             r = max(0.02, distance(hx, hy, o.x, o.y))
-            n = noise
-            mask = world.masking_noise(hx, hy, HYDROPHONE_DEPTH, o.x, o.y)
-            if mask is not None:
-                n = acoustics.power_sum(n, mask)
+            n = self._noise(world, hx, hy, noise)
             se = lvl - world.env.transmission_loss(r, HYDROPHONE_DEPTH, o.depth) - n - HYDROPHONE_DT
             if se + self.rng.gauss(0, 2) > 0:
                 alarm(world, o.x, o.y, o.depth, HYDROPHONE_SIGMA_BASE + HYDROPHONE_SIGMA_PER_NM * r,
@@ -79,11 +83,25 @@ class HydrophoneLine:
             for hx, hy in self.points:
                 r = max(0.02, distance(hx, hy, tr.x, tr.y))
                 se = tr.level - world.env.transmission_loss(r, HYDROPHONE_DEPTH, tr.depth) \
-                    - noise - HYDROPHONE_DT
+                    - self._noise(world, hx, hy, noise) - HYDROPHONE_DT
                 if se > 0:
                     alarm(world, tr.x, tr.y, tr.depth,
                           HYDROPHONE_SIGMA_BASE + 0.3 * HYDROPHONE_SIGMA_PER_NM * r, "hydrofon")
                     return
+
+
+    @staticmethod
+    def _noise(world: World, hx: float, hy: float, base: float) -> float:
+        """Rundstrålande hydrofon: alla fartyg i närheten höjer brusgolvet, åt alla håll."""
+        levels = [base]
+        for v in world.contacts:
+            if not v.is_ship or v.sunk or v is world.own:
+                continue
+            r = distance(hx, hy, v.state.x, v.state.y)
+            if r < SHIP_NOISE_NM:
+                levels.append(v.radiated_level(world.env)
+                              - world.env.transmission_loss(max(r, 0.02), HYDROPHONE_DEPTH, 5.0))
+        return acoustics.power_sum(*levels)
 
 
 @dataclass
@@ -147,7 +165,53 @@ class PatrolBoatAI(DestroyerAI):
     SPEED_EVADE = 22
     CHARGES = (2, 6)
     PATROL_MARGIN = 0.1
-    PING_INTERVAL = {"patrol": 45, "prosecute": 15, "attack": 8, "evade": 30}
+    PING_INTERVAL = {"patrol": 45, "prosecute": 15, "attack": 8, "evade": 30, "escort": 45}
+
+    def __init__(self, *args, gate: tuple[float, float] | None = None, **kw):
+        super().__init__(*args, **kw)
+        self.gate = gate                      # grinden: dit eskorterar den fartyg
+        self.escorting: str | None = None
+
+    def _escort_target(self, world: World):
+        gx, gy = self.gate
+        if self.escorting is not None:
+            v = next((c for c in world.contacts if c.id == self.escorting), None)
+            if v is not None and not v.sunk and v.state.y < gy - ESCORT_DONE_NM:
+                return v
+            self.escorting = None
+        best = None
+        for v in world.contacts:
+            if v.kind != "merchant" or v.sunk or v.side != "neutral":
+                continue
+            st = v.state
+            r = distance(st.x, st.y, gx, gy)
+            if st.y >= gy - ESCORT_DONE_NM or r > ESCORT_NM:
+                continue
+            if abs((bearing_to(st.x, st.y, gx, gy) - st.course + 180) % 360 - 180) > 40:
+                continue                      # inte på väg in
+            if best is None or r < best[0]:
+                best = (r, v)
+        if best is None:
+            return None
+        self.escorting = best[1].id
+        return best[1]
+
+    def _decide(self, world: World) -> None:
+        if self.gate is not None and self.datum is None and world.time >= self.evade_until:
+            ship = self._escort_target(world)
+            if ship is not None:
+                self.state = "escort"
+                st, s = ship.state, self.vessel.state
+                b = math.radians(st.course)
+                tx = st.x + ESCORT_AHEAD_NM * math.sin(b)
+                ty = st.y + ESCORT_AHEAD_NM * math.cos(b)
+                d = distance(s.x, s.y, tx, ty)
+                s.order_course(bearing_to(s.x, s.y, tx, ty) if d > 0.05 else st.course)
+                s.order_speed(min(self.SPEED_CLOSE, st.speed + min(8.0, d * 12)))
+                return
+        if self.state == "escort":
+            self.state = "patrol"
+        super()._decide(world)
     MAST_NM = 2.0
     MAST_P = 0.01
 

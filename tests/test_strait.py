@@ -143,3 +143,94 @@ def test_harbor_ship_moors_in_the_bay():
         if any(v.kind == "moored" and v.id.startswith("H") for v in w.contacts):
             break
     assert any(v.kind == "moored" and v.id.startswith("H") for v in w.contacts)
+
+
+def _inbound(g):
+    return [v for v in g.world.contacts if v.kind == "merchant" and abs(v.state.course) < 30]
+
+
+def test_patrol_boat_escorts_an_inbound_ship_to_the_gate():
+    from sim.geo import distance
+    from sim.harbor import PatrolBoatAI
+    g = _game(0)
+    w = g.world
+    boat = next(a for a in w.ais if isinstance(a, PatrolBoatAI))
+    best = (0, 0, None)                                  # (framför, nära, fartygets y vid slut)
+    ahead = near = 0
+    ship = None
+    for _ in range(5 * 3600):
+        w.tick()
+        if boat.state == "escort":
+            ship = next(v for v in w.contacts if v.id == boat.escorting)
+            bs, ts = boat.vessel.state, ship.state
+            ahead += bs.y > ts.y
+            near += distance(bs.x, bs.y, ts.x, ts.y) < 0.8
+        elif ship is not None:
+            if ahead > best[0]:
+                best = (ahead, near, ship.state.y)
+            ahead = near = 0
+            ship = None
+    assert best[0] > 300 and best[1] > 300               # en bra stund framför fartyget
+    assert best[2] > net_y(g) - 0.4                      # eskorten slutar vid grinden
+
+
+def net_y(g):
+    return next(sp for sp in g.world.spawners if isinstance(sp, HarborDefense)).net.y
+
+
+def test_moored_ships_do_not_drift():
+    g = _game(0)
+    w = g.world
+    m = _moored(g)[0]
+    x0, y0 = m.state.x, m.state.y
+    for _ in range(1800):
+        w.tick()
+    assert (m.state.x, m.state.y) == (x0, y0)
+
+
+def test_harbor_ships_pass_through_the_gate():
+    g = _game(1)
+    w = g.world
+    net = next(sp for sp in w.spawners if isinstance(sp, HarborDefense)).net
+    prev, crossings = {}, []
+    for _ in range(4 * 3600):
+        w.tick()
+        for v in w.contacts:
+            if v.id.startswith("H"):
+                py = prev.get(v.id)
+                if py is not None and (py - net.y) * (v.state.y - net.y) < 0:
+                    crossings.append(v.state.x - net.gate_x)
+                prev[v.id] = v.state.y
+    assert crossings and all(abs(dx) < 0.05 for dx in crossings)
+
+
+def test_follow_order_steers_on_the_contacts_bearing():
+    from sim.entities import Vessel
+    from sim.ship import ShipState
+    g = _game(0)
+    o = g.world.own.state
+    g.world.contacts.append(Vessel("H99", "merchant", ShipState(x=o.x + 0.8, y=o.y + 1.2, course=10,
+                                                               speed=6), side="neutral"))
+    said = _said(g)
+    g.command("följ S-9")
+    for _ in range(5):
+        g.tick()
+    assert any(x.type == "nav.follow.none" for x in said)
+    held = []
+    for _ in range(600):
+        g.tick()
+        held = [d for d, t in g.knowledge.tracks.items() if t.held and t.last_bearing is not None]
+        if held:
+            break
+    assert held
+    g.command(f"följ {held[0]}")
+    for _ in range(20):
+        g.tick()
+    nav = g.station(NavigationStation)
+    assert nav.goal == "follow"
+    tr = g.knowledge.tracks[held[0]]
+    assert abs(g.world.own.state.ordered_course - round(tr.last_bearing) % 360) <= 15
+    assert any(x.type == "nav.follow" for x in said)
+    g.command("kurs 090")
+    g.tick()
+    assert nav.goal is None

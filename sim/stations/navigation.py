@@ -79,6 +79,7 @@ LANDMARK_NIGHT_NM = 5.0
 LAND_MARK_STEP_NM = 0.25   # land på sjökortet: en prick per ruta
 LAND_CLEAR_M = 21          # grundare än så framåt: inte ens periskopdjup går, gir i stället
 LAND_TURNS = (30, 60, 90, 120, 150, 180)
+FOLLOW_STEP_S = 15         # följ: ny kurs på kontaktens bäring så här ofta
 PATH_STEP_NM = 0.1         # vägsökningens rutnät
 EXIT_RECALC_S = 20         # vägen ut räknas om så här ofta
 TIDE_TABLE_ERR = 0.3        # tidvattentabellen kan ha så här stort fel (andel av farten)
@@ -97,6 +98,11 @@ CONTOUR_LABEL_SPOTS = ((5, 5), (15, 5), (5, 15), (15, 15), (10, 10))   # andelar
 @dataclass(frozen=True)
 class SteerTo(Order):
     name: str
+
+
+@dataclass(frozen=True)
+class FollowContact(Order):
+    designation: str
 
 
 @dataclass(frozen=True)
@@ -215,6 +221,11 @@ PHRASES = {
        f"Sjökortet visar {d['shoal']:.0f} meter "
        + ("här" if d["dist"] < 0.15 else f"inom {nm(d['dist'])} sjömil framåt"))
     + f". Föreslår djup {d['depth']:.0f}.",
+    "nav.follow": lambda d: f"Följer {d['designation']} i kölvattnet, kurs "
+    f"{fmt_course(d['course'])}" + (f", fart {d['speed']} knop" if d.get("speed") else
+                                      ", farten håller vi tills plottet har en lösning") + ".",
+    "nav.follow.none": lambda d: f"Kapten, vi har ingen bäring på {d['designation']}.",
+    "nav.follow.lost": lambda d: f"Kapten, vi har tappat {d['designation']}. Slutar följa.",
     "nav.steer": lambda d: f"Kurs {fmt_course(d['course'])} mot {d['name']}, "
     f"{nm(d['range'])} sjömil, ± {nm(d['sigma'])}.",
     "nav.steer.none": lambda d: f"Kapten, vi har ingen position för {d['name']}. "
@@ -357,6 +368,8 @@ class NavigationStation(Station):
                     lambda m: GoToOpening(), "vak"),
         CommandSpec(r"(?:gå till |ga till |kurs mot |mot )?(?:drivstationen|stationen|nord-?7)",
                     lambda m: GoToStation(), "drivstationen"),
+        CommandSpec(r"följ (s-?\d+)|folj (s-?\d+)",
+                    lambda m: FollowContact(m.group(1) or m.group(2)), "följ S-1"),
         CommandSpec(r"(?:kurs|styr|gå|ga) mot (.+)", lambda m: SteerTo(m.group(1)), "kurs mot <plats>"),
         CommandSpec(r"bottenfix|fix mot botten|djupfix|lodfix", lambda m: BottomFix(), "bottenfix"),
         CommandSpec(r"(?:lägg oss på |lagg oss pa |lägg på |lagg pa |sätt oss på |satt oss pa |"
@@ -391,6 +404,8 @@ class NavigationStation(Station):
         self._prev_usable = False
         self._told_out = False                # har sagt att vi lämnat området
         self.exit_via: str | None = None      # vägen ut går först runt land
+        self.follow: str | None = None        # kontakten vi följer (goal "follow")
+        self.follow_speed = True
         self._water = None                    # sjökortets vattenrutnät för vägsökning
         self._exit_cache: tuple[int, tuple | None, str | None] | None = None
         self.goal: str | None = None         # "station" mot drivstationen, "circle" söker runt den
@@ -788,6 +803,7 @@ class NavigationStation(Station):
                 self._ack("course", {"course": c}, s.course == s.ordered_course)
             case SetSpeed(speed=v):
                 self.vak = None
+                self.follow_speed = False       # kaptenen sätter farten själv
                 if v > 0:
                     self._lift()
                 limit = self.own.max_speed()
@@ -830,6 +846,8 @@ class NavigationStation(Station):
                 self._go_to_station()
             case SteerTo(name=name):
                 self._steer_to(name)
+            case FollowContact(designation=d):
+                self._start_follow(d)
             case SettleOnBottom():
                 self._settle()
 
@@ -1326,6 +1344,37 @@ class NavigationStation(Station):
                                 f"kurs {fmt_course(c)}", {"course": c}))
         return out
 
+    def _start_follow(self, designation: str) -> None:
+        tr = self.game.knowledge.track(designation)
+        if tr is None or not tr.held or tr.last_bearing is None:
+            self.say("nav.follow.none", {"designation": designation.upper()})
+            return
+        self.vak = None
+        self.goal = "follow"
+        self.follow = tr.designation
+        self.follow_speed = True
+        self._follow_step(announce=True)
+
+    def _follow_step(self, announce: bool = False) -> None:
+        """Gå i kontaktens kölvatten: styr på bäringen, håll plottets fart."""
+        tr = self.game.knowledge.tracks.get(self.follow)
+        s = self.ship
+        if tr is None or not tr.held:
+            self.goal = None
+            self.say("nav.follow.lost", {"designation": self.follow}, alarm=True)
+            return
+        c = round(tr.last_bearing) % 360
+        s.order_course(c)
+        sol = tr.solution
+        speed = None
+        if self.follow_speed and sol is not None and sol.quality >= Quality.OSAKER \
+                and self.now - sol.t < 600:
+            speed = max(2, min(round(sol.speed), int(self.own.max_speed())))
+            s.order_speed(speed)
+        if announce:
+            self.say("nav.follow", {"designation": self.follow, "course": c, "speed": speed},
+                     kind="ack")
+
     def _steer_to(self, name: str) -> None:
         wps = self.game.knowledge.waypoints
         key = name.strip().lower()
@@ -1470,6 +1519,8 @@ class NavigationStation(Station):
     # --- löpande -----------------------------------------------------------------
     def update(self) -> None:
         self._dead_reckon()
+        if self.goal == "follow" and self.now % FOLLOW_STEP_S == 0:
+            self._follow_step()
         self._log_depth()
         if self.now % DR_TRACK_INTERVAL_S == 0:
             self.dr_track[-1].append((self.est_x, self.est_y))

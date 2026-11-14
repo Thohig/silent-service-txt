@@ -92,6 +92,8 @@ class World:
                 continue
             if v is self.own and self.own.sys.on_bottom:
                 continue                    # ligger stilla på botten
+            if v.kind == "moored":
+                continue                    # till ankars
             v.state.step(dt)
             if v is self.own and ice is not None and v.state.depth <= 1.0:
                 # i ytläge i en vak eller råk: ubåten ligger fast i isen och driver med den
