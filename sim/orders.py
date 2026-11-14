@@ -166,7 +166,7 @@ QUIT_COMMAND = CommandSpec(r"avsluta(?: spelet| patrullen)?|avbryt patrullen|slu
 HELP_COMMAND = CommandSpec(r"hjälp|hjalp|\?|order", lambda m: Help(), "hjälp")
 
 SUGGESTION_COMMANDS = [
-    CommandSpec(r"ja|verkställ|verkstall|gör så|gor sa|utför|utfor|aye",
+    CommandSpec(r"ja|verkställ|verkstall|gör så|gor sa|utför|utfor|aye|jest|есть",
                 lambda m: AcceptSuggestion(), "ja"),
     CommandSpec(r"nej|avslå|avsla|avvakta", lambda m: DeclineSuggestion(), "nej"),
     CommandSpec(r"(?:förslag|forslag|några förslag|nagra forslag|vad föreslår ni|"

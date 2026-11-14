@@ -20,7 +20,7 @@ def test_app_starts_and_acknowledges_order(tmp_path):
                 app.game.tick()
 
     asyncio.run(run())
-    assert "Kurs 090, aye." in reports
+    assert "Jest, kurs 090." in reports
     assert list(tmp_path.glob("truth-*.log"))
 
 

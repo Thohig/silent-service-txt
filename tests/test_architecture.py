@@ -79,7 +79,7 @@ def test_filter_can_falsify_data_and_text_follows():
     g.command("kurs 045")
     _run(g, 10)
     ack = next(r for r in reports if r.type == "nav.course.ack")
-    assert ack.text == "Kurs 225, aye."
+    assert ack.text == "Jest, kurs 225."
     assert g.world.own.state.ordered_course == 45     # sanningen påverkas inte
 
 

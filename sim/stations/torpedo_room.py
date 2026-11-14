@@ -21,6 +21,7 @@ from ..chart import Ray
 from ..crew import Role
 from ..events import OwnSoundMade, OwnTorpedoHeard, SoundHeard
 from ..fmt import fmt_course, nm
+from ..russian import ru
 from ..firecontrol import intercept
 from ..orders import DESIG, NUM, CommandSpec, Order, Unknown, desig, num
 from ..reports import Quality
@@ -170,7 +171,7 @@ PHRASES = {
         if d["civil"] else
         f"Kapten, {d['designation']} är inte säkert klassad som örlogsfartyg, "
         f"bara {d['classification']}. ") + "Upprepa ordern om vi ska skjuta.",
-    "torp.fired": lambda d: f"Tub {d['tube']} avfyrad! {d['type']}, kurs {fmt_course(d['course'])}"
+    "torp.fired": lambda d: f"{ru('Torpeda vysjla')}! Tub {d['tube']} avfyrad, {d['type']}, kurs {fmt_course(d['course'])}"
     + (f", beräknad gångtid {_mmss(d['run_s'])}" if d.get("run_s") else "")
     + (". Lösningen var dålig, risk för miss." if d.get("quality") == Quality.DALIG else "."),
     "torp.time": lambda d: f"Tid för torpeden från tub {d['tube']}"

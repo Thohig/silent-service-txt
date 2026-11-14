@@ -15,6 +15,7 @@ from ..entities import Transient
 from ..events import (BearingObserved, ClassificationChanged, ContactDetected, HuntSigns,
                       ContactLost, OwnSoundMade, OwnTorpedoHeard, SoundHeard)
 from ..fmt import fmt_course, nm
+from ..russian import ru
 from ..geo import angle_diff, circular_mean, norm360
 from ..orders import CommandSpec, Order
 from ..profile import HeardEvent, Level
@@ -52,7 +53,7 @@ def _src(d: dict) -> str:
 
 
 PHRASES = {
-    "sonar.new_contact": lambda d: f"Kapten, sonar! Ny kontakt i bäring {fmt_course(d['bearing'])}. "
+    "sonar.new_contact": lambda d: f"{ru('Tovarisjtj komandir')}, sonar! Ny kontakt i bäring {fmt_course(d['bearing'])}. "
     f"Betecknas {d['designation']}. {d['classification'][:1].upper()}{d['classification'][1:]}.",
     "sonar.classified": lambda d: f"{d['designation']} klassas som {d['classification']}.",
     "sonar.bearing": lambda d: f"{d['designation']}, bäring {fmt_course(d['bearing'])}, "
@@ -64,7 +65,7 @@ PHRASES = {
     "sonar.regained": lambda d: f"{d['designation']} hörs igen, bäring {fmt_course(d['bearing'])}.",
     "sonar.ping.first": lambda d: f"Kapten, sonar! Aktiv sonar i bäring {fmt_course(d['bearing'])}"
     f"{_src(d)}. Någon söker.",
-    "sonar.ping.fast": lambda d: f"Kapten, sonar! Pingtakten{_src(d)} har ökat kraftigt. "
+    "sonar.ping.fast": lambda d: f"{ru('Tovarisjtj komandir')}, sonar! Pingtakten{_src(d)} har ökat kraftigt. "
     "De har troligen kontakt med oss!",
     "sonar.ping.slow": lambda d: f"Pingtakten{_src(d)} har minskat igen.",
     "sonar.ping.close": lambda d: f"Pingarna{_src(d)} är mycket starka nu, kapten. "

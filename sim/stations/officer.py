@@ -28,6 +28,7 @@ from ..ice import masts_clear
 from ..orders import AskSuggestion, CommandSpec, Order
 from ..ownship import PERISCOPE_DEPTH
 from ..reports import Quality
+from ..russian import ru
 from ..tma import BearingObs
 from .base import Proposal, Station
 from .sonar_room import SonarRoom
@@ -77,8 +78,13 @@ def _contact(d: dict) -> str:
             f"fart cirka {kn(d['speed'])} knop.")
 
 
+BATTLE_CALM_S = 1800        # så länge utan jakttecken innan nytt stridslarm
+BATTLE_DELAY_S = 6          # vakthavande ropar efter sonars rapport
+
 PHRASES = {
     "off.refused": lambda d: f"Kapten, {d['reason']}.",
+    "off.battle_stations": lambda d: f"{ru('Boevaja trevoga')}! Stridslarm, alla man till "
+    "stridsstationerna. Fienden har troligen kontakt med oss.",
     "off.periscope.up": lambda d: "Periskop upp.",
     "off.periscope.contact": lambda d: "Periskop: " + _contact(d),
     "off.periscope.none": lambda d: f"Periskop: inget i sikte. "
@@ -142,6 +148,7 @@ class OfficerStation(Station):
         self._next_esm = 0
         self._last_look_t = -10**9
         self._idle_t = -10**9       # senaste initiativ (eller försök) vid tystnad
+        self._hunt_seen = -10**9    # senaste jakttecken vakthavande har tagit ställning till
 
     @property
     def own(self):
@@ -191,6 +198,15 @@ class OfficerStation(Station):
                 self.game.world.emit_em(Emission("radar", o.x, o.y, self.own.id, self.now))
                 self.radar_done_t = self.now + RADAR_S
                 self.say("off.radar.start", kind="ack")
+
+    def _battle_watch(self) -> None:
+        """Stridslarm när sonar hör att fienden har oss, om det var lugnt en halvtimme."""
+        ht = self.game.knowledge.hunt_t
+        if ht <= self._hunt_seen:
+            return
+        if ht - self._hunt_seen > BATTLE_CALM_S:
+            self.say("off.battle_stations", kind="info", alarm=True, extra_delay=BATTLE_DELAY_S)
+        self._hunt_seen = ht
 
     # --- initiativ när kaptenen är tyst ------------------------------------------
     def _idle_watch(self) -> None:
@@ -355,6 +371,7 @@ class OfficerStation(Station):
     def update(self) -> None:
         world, st, rng = self.game.world, self.own.state, self.game.rng
         self._idle_watch()
+        self._battle_watch()
         if self.look_done_t is not None and self.now >= self.look_done_t:
             self.look_done_t = None
             if st.depth > PERISCOPE_DEPTH + 1:

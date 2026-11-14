@@ -21,7 +21,7 @@ import random
 from dataclasses import dataclass
 from typing import Any, TypeVar
 
-from . import phrases
+from . import phrases, russian
 from .chart import ChartView
 from .profile import ProfileView
 from .systems import SystemsView
@@ -276,7 +276,7 @@ class Game:
             case SetTimeScale(scale=n):
                 self.set_time_scale(n, "order")
             case Help():
-                self._system("system.help", {"text": self.registry.help_text()})
+                self._system("system.help", {"text": self.registry.help_text() + " " + russian.glossary()})
             case Quit():
                 self.world.end("quit")
                 self._end()

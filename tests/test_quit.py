@@ -50,7 +50,7 @@ def test_report_counts_torpedoes_hits_and_contacts():
     assert rows["Torpeder"] == "1 avfyrade, 1 träff, 0 missar"
     assert rows["Kontakter"].startswith("S-1")
     events = [t for _, t in s["session"]["events"]]
-    assert any(t.startswith("Tub 1 avfyrad") for t in events)
+    assert any("Tub 1 avfyrad" in t for t in events)
     assert any("Det var vår torped" in t for t in events)
 
 

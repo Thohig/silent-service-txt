@@ -18,7 +18,7 @@ def test_course_order_is_acknowledged_then_reported_done():
     for _ in range(150):
         g.tick()
     kinds = [(r.kind, r.text) for r in reports if r.kind in ("ack", "done")]
-    assert kinds[0] == ("ack", "Kurs 090, aye.")
+    assert kinds[0] == ("ack", "Jest, kurs 090.")
     assert kinds[1] == ("done", "Kapten, kurs 090 påkommen.")
     assert g.status().course == 90
 

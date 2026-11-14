@@ -23,6 +23,7 @@ from ..crew import Role
 from ..entities import Transient
 from ..events import IceSounded, OpeningNotFound
 from ..fmt import clock, fmt_course, kn, nm
+from ..russian import ru
 from ..geo import angle_diff, bearing_to, distance, norm360, velocity
 from ..ice import SAIL_TOP_M, masts_clear
 from ..icemap import (MIN_SURFACE_LEN_M, OPEN_M, IceMap, IceSoundingObs, Opening,
@@ -171,18 +172,18 @@ def _course(m: re.Match) -> Order:
 
 
 PHRASES = {
-    "nav.course.ack": lambda d: f"Kurs {fmt_course(d['course'])}, aye."
+    "nav.course.ack": lambda d: f"{ru('Jest')}, kurs {fmt_course(d['course'])}."
     + (" Vi ligger på den." if d.get("already") else ""),
-    "nav.speed.ack": lambda d: "Stopp i maskin, aye." if d["speed"] == 0
-    else f"Fart {kn(d['speed'])} knop, aye.",
-    "nav.depth.ack": lambda d: ("Upp till ytan, aye." if d["depth"] == 0 else
-                                f"Djup {d['depth']:.0f} meter, aye.")
+    "nav.speed.ack": lambda d: f"{ru('Jest')}, stopp i maskin." if d["speed"] == 0
+    else f"{ru('Jest')}, fart {kn(d['speed'])} knop.",
+    "nav.depth.ack": lambda d: (f"{ru('Jest')}, upp till ytan." if d["depth"] == 0 else
+                                f"{ru('Jest')}, djup {d['depth']:.0f} meter.")
     + (" Det är under provdjup, kapten." if d.get("below_test") else "")
     + (f" Det är is ovanför, kapten, vi kommer inte högre än cirka {d['ice_ceiling']:.0f} meter."
        if d.get("ice_ceiling") else
        " Det är is ovanför, kapten, masterna kommer inte upp här." if d.get("ice_masts") else "")
     + (f" Kortet visar botten på cirka {d['shoal']:.0f} meter här, kapten." if d.get("shoal") else ""),
-    "nav.settle.ack": lambda d: "Lägger oss på botten, aye. "
+    "nav.settle.ack": lambda d: f"{ru('Jest')}, lägger oss på botten. "
     + (f"Ekolodet gav {d['depth']:.0f} meter" if d.get("sounded") else
        f"Kortet visar cirka {d['depth']:.0f} meter")
     + (f", {BOTTOM_WORDS[d['kind']]} enligt kortet" if d.get("kind") else "")
@@ -195,7 +196,7 @@ PHRASES = {
     "nav.suggest.settle": lambda d: "Kapten, navigatören. Vi är över grunt vatten, kortet visar "
     f"{BOTTOM_WORDS[d['kind']]} på cirka {d['depth']:.0f} meter. Ligger vi stilla på botten "
     "drunknar vårt eko i bottenekot. Föreslår att vi lägger oss på botten.",
-    "nav.bfix.start": lambda d: f"Fix mot botten, aye. Lodar {d['n']} gånger under "
+    "nav.bfix.start": lambda d: f"{ru('Jest')}, fix mot botten. Lodar {d['n']} gånger under "
     f"{d['minutes']} minuter. Håll kurs och fart, ekolodet hörs.",
     "nav.bfix.refused": lambda d: f"Kapten, {d['reason']}.",
     "nav.bfix.aborted": lambda d: "Fixen mot botten avbröts, vi har nästan stannat.",

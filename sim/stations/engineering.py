@@ -7,6 +7,7 @@ from .. import acoustics, phrases
 from ..crew import Role
 from ..events import OwnSoundMade
 from ..fmt import fmt_course, kn, nm
+from ..russian import ru
 from ..orders import CommandSpec, Order
 from ..ice import masts_clear
 from ..ownship import (COMPONENT_LABEL, COMPONENTS, FLOOD_LOSS_T, PERISCOPE_DEPTH, SMOKE_LEVELS,
@@ -87,9 +88,42 @@ def _smoke_word(v: float) -> str:
             else "mycket tät" if v < 0.85 else "livsfarlig")
 
 
+ORDINAL = {1: "första", 2: "andra", 3: "tredje", 4: "fjärde", 5: "femte", 6: "sjätte",
+           7: "sjunde", 8: "åttonde", 9: "nionde"}
+INSPECT_NOTE = {"BRAND": "brand", "skada": "skador", "lågt": "batteriet lågt"}
+INSPECT_AFTER_S = 60         # avdelningarna rapporterar så här länge efter haverilarmet
+INSPECT_ALERTS = ("damage", "ice.collision", "bottom.collision", "fire")
+
+
+def _ordinals(nos: list[int]) -> str:
+    words = [ORDINAL[n] for n in nos]
+    return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " och " + words[-1]
+
+
+def _inspected(d: dict) -> str:
+    """Avdelningarna har inspekterats: anmärkningar per avdelning, som i flottan."""
+    remarks: dict[str, list[int]] = {}
+    for n, note in d["remarks"]:
+        remarks.setdefault(note, []).append(n)
+    if not remarks:
+        txt = "Alla nio avdelningar inspekterade, inga anmärkningar."
+    else:
+        txt = "Avdelningarna inspekterade."
+        clean = [n for n in ORDINAL if all(n not in v for v in remarks.values())]
+        if clean:
+            txt += f" Inga anmärkningar i {_ordinals(clean)}."
+        for note, nos in remarks.items():
+            where = "alla avdelningar" if len(nos) == len(ORDINAL) else \
+                f"{_ordinals(nos)} avdelningen" if len(nos) == 1 else f"{_ordinals(nos)}"
+            txt += f" {where[:1].upper()}{where[1:]}: {INSPECT_NOTE.get(note, note)}."
+    if d.get("leak"):
+        txt += " Vatteninträngning, länsning pågår."
+    return txt
+
+
 def _damage(d: dict) -> str:
     comps = ", ".join(COMPONENT_LABEL[c] for c in d["components"])
-    txt = f"Kapten, maskin! {d['severity'].capitalize()} skador"
+    txt = f"{ru('Avarijnaja trevoga')}! {d['severity'].capitalize()} skador"
     if comps:
         txt += f": {comps}"
     if d.get("leak"):
@@ -99,13 +133,14 @@ def _damage(d: dict) -> str:
 
 PHRASES = {
     "eng.status": _status,
-    "eng.propulsion": lambda d: "Turbindrift, aye." if d["mode"] == "turbine"
-    else "Smygmotor, aye. Högsta fart 5 knop.",
+    "eng.inspected": _inspected,
+    "eng.propulsion": lambda d: f"{ru('Jest')}, turbindrift." if d["mode"] == "turbine"
+    else f"{ru('Jest')}, smygmotor. Högsta fart 5 knop.",
     "eng.refused": lambda d: f"Kapten, {d['reason']}.",
     "eng.reactor.stopping": lambda d: "Ställer av reaktorn. Vi går på batteri, högsta fart 5 knop.",
     "eng.reactor.starting": lambda d: "Startar reaktorn. Cirka tjugo minuter.",
     "eng.blow": lambda d: "Nödblåsning! Alla tankar blåses!",
-    "reactor.scram": lambda d: f"Kapten, maskin! Reaktorn har snabbstoppat ({d['cause']}). "
+    "reactor.scram": lambda d: f"{ru('Tovarisjtj komandir')}, maskin! Reaktorn har snabbstoppat ({d['cause']}). "
     f"Vi går på batteri och elmotor, högsta fart 5 knop.",
     "reactor.online": lambda d: "Reaktorn är i drift igen.",
     "reactor.leak": lambda d: "Kapten, maskin. Läcka i ånggeneratorn, förhöjd strålning i "
@@ -118,11 +153,11 @@ PHRASES = {
     "leak_stopped": lambda d: "Läckan är tätad.",
     "hull.creak": lambda d: f"Skrovet knakar, kapten. {d['depth']:.0f} meter, under provdjup.",
     "damage": _damage,
-    "ice.collision": lambda d: f"Kapten! Vi har gått in i isen! {d['severity'].capitalize()} skador"
+    "ice.collision": lambda d: f"{ru('Avarijnaja trevoga')}! Vi har gått in i isen! {d['severity'].capitalize()} skador"
     + (": " + ", ".join(COMPONENT_LABEL[c] for c in d["components"]) if d["components"] else "")
     + (". Vatteninträngning, länsning pågår." if d.get("leak") else ".")
     + " Maskinen stoppad.",
-    "bottom.collision": lambda d: f"Kapten! Vi har gått på grund med {d['where']}! "
+    "bottom.collision": lambda d: f"{ru('Avarijnaja trevoga')}! Vi har gått på grund med {d['where']}! "
     f"{d['severity'].capitalize()} skador: " + ", ".join(COMPONENT_LABEL[c] for c in d["components"])
     + (". Vatteninträngning, länsning pågår." if d.get("leak") else ".")
     + f" Maskinen stoppad. Går upp till {d['back_to']} meter.",
@@ -148,7 +183,7 @@ PHRASES = {
     "shock": lambda d: ("Smällar nära, inga skador. Små laddningar." if d.get("practice")
                         else "Kraftig tryckvåg! Inga skador." if d["strength"] == "kraftig"
                         else "Detonation på avstånd. Inga skador."),
-    "fire": lambda d: f"BRAND! Brand i {d['compartment']}! Avdelningen utrymd och stängd. "
+    "fire": lambda d: f"{ru('Avarijnaja trevoga')}! Brand i {d['compartment']}! Avdelningen utrymd och stängd. "
     "Turbinen är stoppad, vi går på elmotor. Rökdykare på väg in.",
     "fire.out": lambda d: "Branden i turbinrummet är släckt, kapten. Men det glöder i isoleringen "
     "och röken sprider sig. Vi måste ventilera, och det kräver öppen luft.",
@@ -202,6 +237,7 @@ class EngineeringStation(Station):
     def __init__(self, game):
         super().__init__(game)
         self._last_shock = -10**9
+        self._inspect_t: int | None = None     # avdelningarna rapporterar då
 
     @property
     def own(self):
@@ -300,6 +336,14 @@ class EngineeringStation(Station):
             txt = health_word(h) + (", lagas" if c == repairing else "")
             g(COMPONENT_NAME[c], txt, health_state(h), h if h < 1.0 else None, panel="SKADOR")
 
+        for n, name, state, note in self._compartments():
+            items.append(Compartment(n, name, state, note))
+        items.append(Flooding(s.flooding, FLOOD_LOSS_T, s.leak_rate > 0))
+        return items
+
+    def _compartments(self) -> list[tuple[int, str, str, str]]:
+        """Avdelningarnas läge ur egna instrument: (nummer, namn, tillstånd, anmärkning)."""
+        s = self.own.sys
         notes: dict[int, list[tuple[str, str]]] = {n: [] for n, _ in COMPARTMENTS}
         for c in COMPONENTS:
             if s.health[c] < 1.0:
@@ -321,11 +365,11 @@ class EngineeringStation(Station):
         if s.smoke >= SMOKE_LEVELS[0]:              # röken sprider sig i hela båten
             for n in notes:
                 notes[n].append((DANGER if s.smoke >= 0.7 else WARN, "rök"))
+        out = []
         for n, name in COMPARTMENTS:
             state, note = max(notes[n], key=lambda x: SEVERITY[x[0]], default=(OK, ""))
-            items.append(Compartment(n, name, state, note))
-        items.append(Flooding(s.flooding, FLOOD_LOSS_T, s.leak_rate > 0))
-        return items
+            out.append((n, name, state, note))
+        return out
 
     def idle_proposals(self) -> list[Proposal]:
         s, st = self.own.sys, self.own.state
@@ -412,6 +456,14 @@ class EngineeringStation(Station):
                              "fire") or (type == "smoke" and data["level"] >= 0.7) or \
                 (type == "battery" and data["level"] <= 0.1)
             self.say(type, data, kind="info", alarm=alarm)
+            hard = type == "shock" and data.get("strength") == "kraftig" and not data.get("practice")
+            if (type in INSPECT_ALERTS or hard) and self._inspect_t is None:
+                self._inspect_t = self.now + INSPECT_AFTER_S
+        if self._inspect_t is not None and self.now >= self._inspect_t:
+            self._inspect_t = None
+            remarks = [(n, note) for n, _, state, note in self._compartments()
+                       if state in (WARN, DANGER)]
+            self.say("eng.inspected", {"remarks": remarks, "leak": s.leak_rate > 0})
 
         for m in self.game.crew.values():           # röken påverkar alla ombord
             m.traits["smoke"] = s.smoke
