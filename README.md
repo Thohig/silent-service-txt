@@ -17,15 +17,46 @@ till `logs/truth-*.log`.
 
 ## Order
 
-| Order | Betydelse |
+Besättningen föreslår själv åtgärder. Ett förslag med en färdig order visas
+som `[ja: …]` och på statusraden. Svara `ja` för att verkställa eller `nej`
+för att avslå. Avfyring föreslås aldrig som en ja-order.
+
+| Område | Order |
 |---|---|
-| `kurs 090` | ny kurs (000–359) |
-| `fart 5` / `stopp` | fart i knop |
-| `djup 100` | djup i meter |
-| `tid 1` `tid 2` `tid 5` `tid 10` | tidskomprimering (faller till 1× vid larm) |
-| `läge S-1` | plottlagets lösning: kurs, fart, avstånd och kvalitet |
-| `plot S-1` | loggade bäringar mot aktuell lösning |
-| `hjälp` | orderlista |
+| Manöver | `kurs 090` · `fart 5` · `stopp` · `djup 100` · `periskopdjup` · `antenndjup` · `ytläge` |
+| Förslag | `ja` · `nej` · `förslag` |
+| Tid | `tid 1` `tid 2` `tid 5` `tid 10` (faller till 1× vid larm) |
+| Sonar | `aktiv sonar` (ger avstånd men avslöjar oss) |
+| Plott | `läge S-1` · `plot S-1` |
+| Navigation | `position` · `fix` (periskopdjup) · `ekolod` |
+| Maskin | `smygmotor` · `turbin` · `stäng reaktorn` · `starta reaktorn` · `nödblåsning` · `maskin` |
+| Vakthavande | `periskop` · `radar` (periskopdjup; radarvarnaren är automatisk) |
+| Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
+| Torped | `tuber` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
+| Övrigt | `hjälp` · `ctrl+q` avslutar |
+
+## System ombord
+
+| System | Spelmässig betydelse |
+|---|---|
+| Reaktor, turbin, smygmotor, batteri | Fart mot ljud. Kylpumparna brusar alltid; att stänga reaktorn ger tystnad men tömmer batteriet. Snabbstopp kan inträffa. |
+| Kavitation | Över en viss fart (högre på djupet) hörs ubåten långt. |
+| Språngskikt (60 m) | Skyddar mot jagarens sonar, men vi hör också sämre genom det. |
+| Roder, barlast, skrov | Djupändring kräver fart. Under provdjup (300 m) knakar skrovet; 450 m krossar det. |
+| Skador, läckor, nödblåsning | Sjunkbomber ger skador och vatteninträngning; reparationer tar tid. |
+| Passiv och aktiv sonar | Passiv ger bäringar; aktiv ger avstånd men avslöjar oss. |
+| Periskop, radar, radarvarnare | Avstånd och kurs på periskopdjup, med risk att synas. |
+| Navigering | Besticket driver med ström och loggfel; fix kräver periskopet. |
+| Radio | Sambandstillfällen kl 05:00, 06:30 och 08:00 på antenndjup. Sändning pejlas. |
+| Torpeder | 53-61 (rak, snabb), SET-53 (målsökande), T-5 (kärnladdning, spärrad utan order). |
+| Skenmål | Drar jagarens sonar bort från ubåten. |
+
+Jagaren pingar, söker kring sin bild av var vi är och fäller
+signalsjunkbomber för att tvinga upp oss. Om vi skjuter blir sjunkbomberna
+skarpa.
+
+Spelet slutar om ubåten förloras, tvingas till ytan, sänker jagaren eller
+när patrullen är slut kl 08:00.
 
 ## Arkitektur
 
@@ -40,11 +71,21 @@ sim/                 ren Python, ingen Textual
   reports.py         strukturerade rapporter + rapportfilter
   phrases.py         frasbok: rapportdata -> svensk text
   game.py            tunn samordnare: tick, order, leverans
+  environment.py     språngskikt, ström, dygnsljus
+  entities.py        fartyg, transienter, emissioner
+  ownship.py         egen ubåt: reaktor, batteri, skrov, skador
+  enemy.py           jagarens sensorer och beteende
+  weapons.py         torpeder, sjunkbomber, skenmål
+  firecontrol.py     skjutlösning (ren matematik på kunskap)
   stations/          ett system ombord per modul
-    base.py          Station: COMMANDS, on_order, update, say
-    navigation.py    kurs, fart, djup
-    sonar_room.py    sonaroperatören
+    base.py          Station: COMMANDS, on_order, update, say, suggest
+    navigation.py    kurs, fart, djup, bestick, fix, ekolod
+    engineering.py   maskin och skadekontroll
+    sonar_room.py    sonar, transienter, aktiv sonar
+    officer.py       periskop, radar, radarvarnare
+    radio.py         sambandstillfällen och rapporter
     plot.py          plottlaget
+    torpedo_room.py  torpedrum och eldledning
 ui/                  Textual
 ```
 
@@ -54,8 +95,9 @@ ui/                  Textual
 2. Definiera ordertyper (`Order`-dataklasser) och `COMMANDS` med
    `CommandSpec(mönster, bygg, hjälptext)`.
 3. Hantera dina order i `on_order` och kör löpande logik i `update`.
-4. Rapportera med `self.say("system.händelse", {...data...})` och lägg till
-   en fras i `phrases.PHRASES`.
+4. Rapportera med `self.say("system.händelse", {...data...})` och registrera
+   fraser med `phrases.register({...})` i stationens modul. Föreslå åtgärder
+   med `self.suggest(nyckel, typ, data, order="…")`.
 5. Lägg klassen i `DEFAULT_STATIONS`. Game behöver inte ändras.
 
 Stationer pratar med varandra via händelsebussen. Kunskapslagret
