@@ -12,9 +12,12 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from .geo import NM_IN_M, velocity
+
+if TYPE_CHECKING:
+    from .ice import IceField
 
 ABSORPTION_DB_PER_NM = 0.5
 
@@ -81,6 +84,7 @@ class Environment:
     day_visibility_nm: float = 10.0
     night_visibility_nm: float = 2.5
     clock_start: int = 0             # sekunder efter midnatt vid simtid 0
+    ice: IceField | None = None      # packis ovanför, se ice.py
 
     @property
     def layer_depth(self) -> float | None:

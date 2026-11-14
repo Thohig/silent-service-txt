@@ -2,7 +2,7 @@
 
 Ett tick:
   1. transienter/emissioner från förra steget blir hörbara nu
-  2. alla fartyg rör sig (plus ström)
+  2. alla fartyg rör sig (plus ström); isen driver och ubåten kan stöta i den
   3. egen ubåts system (reaktor, batteri, läckor, skrov)
   4. vapen (torpeder, sjunkbomber, skenmål)
   5. fiendens beteende
@@ -18,6 +18,7 @@ from . import acoustics
 from .entities import Emission, Transient, Vessel
 from .environment import Environment
 from .geo import bearing_to, distance
+from .ice import ice_contact
 from .ownship import OwnShip
 from .weapons import Torpedo, step_weapons
 
@@ -64,6 +65,8 @@ class World:
         self.transients, self._pending_t = self._pending_t, []
         self.emissions, self._pending_e = self._pending_e, []
 
+        o = self.own.state
+        prev = (o.x, o.y, o.depth)
         cvx, cvy = self.env.current_velocity()
         for v in [self.own, *self.contacts]:
             if v.sunk or isinstance(v, Torpedo):
@@ -73,6 +76,9 @@ class World:
             v.state.y += cvy * dt
             if v.state.depth <= 0 and v is self.own:
                 v.state.depth = 0.0
+        if self.env.ice is not None:
+            self.env.ice.advance(dt)
+            ice_contact(self, prev, dt)
 
         self.own.update(self, dt)
         step_weapons(self, dt)

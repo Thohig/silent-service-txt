@@ -33,7 +33,7 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
 6. Fast tidssteg 1 s. All slump via seedade `random.Random` – inga globala `random.*`.
 
 ## Arkitektur i korthet
-- **Sanningslager:** `world.py` (tick-ordning dokumenterad där), `ownship.py`,
+- **Sanningslager:** `world.py` (tick-ordning dokumenterad där), `ownship.py`, `ice.py`,
   `enemy.py`, `weapons.py`, `environment.py`, `acoustics.py`, `entities.py`.
   Transienter/emissioner som skapas under ett tick blir hörbara nästa tick.
 - **Stationer** (`sim/stations/`): en per system, ärver `Station`. Har `COMMANDS`
@@ -63,6 +63,10 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   fönster, kvalitet ur σ_r/r (10/25/50 %), manöverdetektering vid chi² > 4.
   Två ben i sicksack ska normalt ge god/säker lösning på ~20 min.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m.
+- Packis (`ice.py`): rutor 0,05 nm, flerårsis 2–4,5 m, kölar 8–25 m (6 % 30–45 m),
+  170 råkar, 28 polynyor ⇒ ~4–5 % öppet vatten, en öppning ungefär var 30:e minut
+  i 5 kn. Tornets topp 13 m och skrovets 8 m över kölen. Tunn is ≤ 1 m bryts i
+  ≤ 2 kn på 40 s. Isdrift 0,25 kn mot 200°.
 
 ## Arbetssätt
 - Bygg i steg och **committa efter varje steg** (användaren vill det). Vid större

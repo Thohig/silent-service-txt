@@ -10,6 +10,7 @@ from ..crew import Role
 from ..entities import Transient
 from ..fmt import clock, fmt_course, kn, nm
 from ..geo import angle_diff, bearing_to, distance, norm360, velocity
+from ..ice import masts_clear
 from ..orders import NUM, CommandSpec, Order, Unknown, num
 from ..ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH, TEST_DEPTH
 from .base import Proposal, Station
@@ -198,6 +199,8 @@ class NavigationStation(Station):
             reason = "farten är för hög för periskopet"
         elif own.sys.health["periscope"] < 0.3:
             reason = "periskopet är skadat"
+        elif not masts_clear(self.game.world):
+            reason = "det är is ovanför, periskopet kommer inte upp"
         if reason:
             self.say("nav.fix.refused", {"reason": reason})
             return

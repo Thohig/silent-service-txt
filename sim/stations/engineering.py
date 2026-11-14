@@ -86,6 +86,20 @@ PHRASES = {
     "leak_stopped": lambda d: "Läckan är tätad.",
     "hull.creak": lambda d: f"Skrovet knakar, kapten. {d['depth']:.0f} meter, under provdjup.",
     "damage": _damage,
+    "ice.collision": lambda d: f"Kapten! Vi har gått in i isen! {d['severity'].capitalize()} skador"
+    + (": " + ", ".join(COMPONENT_LABEL[c] for c in d["components"]) if d["components"] else "")
+    + (". Vatteninträngning, länsning pågår." if d.get("leak") else ".")
+    + " Maskinen stoppad.",
+    "ice.touch": lambda d: "Vi tog i en isköl, kapten. Långsam fart, inga skador. Maskinen stoppad.",
+    "ice.bump": lambda d: ("Vi stöter i isen ovanför, kapten. "
+                           + ("Den är tunn, men vi har för hög fart för att bryta igenom. "
+                              if d.get("thin") and d.get("too_fast")
+                              else "Den är för tjock att bryta igenom. " if not d.get("thin")
+                              else "")
+                           + f"Går ned till {d['back_to']} meter."),
+    "ice.pressing": lambda d: "Tornet ligger an mot tunn is. Vi trycker på, cirka fyrtio sekunder.",
+    "ice.broke_through": lambda d: "Vi har brutit igenom isen!"
+    + (" Periskopet fick en smäll." if d.get("damaged") else " Inga skador."),
     "repaired": lambda d: f"{COMPONENT_LABEL[d['component']].capitalize()} är reparerad.",
     "shock": lambda d: ("Smällar nära, inga skador. Små laddningar." if d.get("practice")
                         else "Kraftig tryckvåg! Inga skador." if d["strength"] == "kraftig"
@@ -180,7 +194,7 @@ class EngineeringStation(Station):
                 if self.now - self._last_shock < 15:
                     continue
                 self._last_shock = self.now
-            alarm = type in ("reactor.scram", "damage", "surfaced") or \
+            alarm = type in ("reactor.scram", "damage", "surfaced", "ice.collision", "ice.bump") or \
                 (type == "battery" and data["level"] <= 0.1)
             self.say(type, data, kind="info", alarm=alarm)
 

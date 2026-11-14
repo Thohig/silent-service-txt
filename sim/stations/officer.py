@@ -22,6 +22,7 @@ from ..entities import Emission
 from ..events import BearingObserved, ContactDetected
 from ..fmt import fmt_course, kn, nm
 from ..geo import angle_diff, norm360
+from ..ice import masts_clear
 from ..orders import AskSuggestion, CommandSpec, Order
 from ..ownship import PERISCOPE_DEPTH
 from ..reports import Quality
@@ -109,6 +110,8 @@ class OfficerStation(Station):
             return "farten är för hög, periskopet vibrerar och ger svall"
         if sys.health["periscope"] < 0.3:
             return "periskopet och masterna är skadade"
+        if not masts_clear(self.game.world):
+            return "det är is ovanför, masterna kommer inte upp"
         return None
 
     def on_order(self, order: Order) -> None:

@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from .. import phrases
 from ..crew import Role
 from ..entities import Emission
+from ..ice import masts_clear
 from ..orders import CommandSpec, Order
 from ..ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH
 from .base import Proposal, Station
@@ -41,6 +42,8 @@ PHRASES = {
     "radio.sending": lambda d: "Sänder rapport på kortvåg. Trettio sekunder.",
     "radio.sent": lambda d: f"Rapport sänd och kvitterad. {d['contacts']} kontakter rapporterade.",
     "radio.aborted": lambda d: "Sändningen avbröts, antennen kom under ytan.",
+    "radio.ice": lambda d: "Kapten, radio. Antennen är under isen, vi får ingen mottagning. "
+    "Vi behöver öppet vatten ovanför.",
     "radio.status": lambda d: (f"Nästa sambandstillfälle kl {d['next']}. " if d.get("next")
                                else "Inga fler sambandstillfällen inplanerade. ")
     + f"{d['received']} meddelanden mottagna."
@@ -68,6 +71,7 @@ class RadioStation(Station):
         self._handled: set[int] = set()
         self._prewarned: set[int] = set()
         self._opened: set[int] = set()
+        self._ice_warned: set[int] = set()
         self.tx_done_t: int | None = None
 
     @property
@@ -82,6 +86,8 @@ class RadioStation(Station):
                     self.say("radio.refused", {"reason": "vi måste upp på periskopdjup för att sända"})
                 elif sys.health["radio"] < 0.3:
                     self.say("radio.refused", {"reason": "radion är skadad"})
+                elif not masts_clear(self.game.world):
+                    self.say("radio.refused", {"reason": "det är is ovanför, antennen kommer inte upp"})
                 elif self.tx_done_t is not None:
                     self.say("radio.refused", {"reason": "vi sänder redan"})
                 else:
@@ -134,7 +140,11 @@ class RadioStation(Station):
                     self._opened.add(i)
                     self._listen = 0
                     self.say("radio.window_open")
-                if st.depth <= ANTENNA_DEPTH and self.own.sys.health["radio"] >= 0.3:
+                if st.depth <= ANTENNA_DEPTH and not masts_clear(self.game.world):
+                    if i not in self._ice_warned:
+                        self._ice_warned.add(i)
+                        self.say("radio.ice")
+                elif st.depth <= ANTENNA_DEPTH and self.own.sys.health["radio"] >= 0.3:
                     self._listen += 1
                     if self._listen >= RECEIVE_S:
                         self._handled.add(i)

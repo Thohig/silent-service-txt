@@ -47,6 +47,8 @@ class OwnSystems:
     leak_rate: float = 0.0           # ton/min
     health: dict[str, float] = field(default_factory=lambda: {c: 1.0 for c in COMPONENTS})
     blowing: bool = False
+    ice_contact: bool = False        # ubåten ligger an mot isen ovanför
+    ice_press: int = 0               # sekunder ubåten tryckt mot tunn is
     hp_air: float = 1.0
     periscope_until: int = -1
     radar_until: int = -1

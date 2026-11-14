@@ -23,6 +23,10 @@ class TruthLog:
                  f"k={o.course:5.1f} v={o.speed:4.1f} d={o.depth:5.1f} "
                  f"rx={sy.reactor} prop={sy.propulsion} bat={sy.battery:.2f} "
                  f"hull={sy.hull:.2f} flood={sy.flooding:.1f}"]
+        ice = world.env.ice
+        if ice is not None:
+            parts.append(f"IS tjock={ice.thickness_at(o.x, o.y):.1f} köl={ice.draft_at(o.x, o.y):.1f} "
+                         f"kontakt={sy.ice_contact}")
         for v in world.contacts:
             if v.sunk and v.kind != "destroyer":
                 continue
