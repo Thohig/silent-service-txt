@@ -16,6 +16,7 @@ from .ice import IceField, clearance
 from .ownship import OwnShip
 from .ship import ShipState
 from .geo import bearing_to, distance
+from .air import AirDef, AirPatrol
 from .traffic import Lane, TrafficDef, TrafficGenerator
 from .world import World
 
@@ -91,6 +92,10 @@ KUBA_TRAFFIC = TrafficDef(lanes=(
 ), initial=3)
 
 
+# Ubåtsjaktflyg från Key West (västnordväst om kvadraten).
+KUBA_AIR = AirDef()
+
+
 def default_scenario(rng: random.Random) -> Scenario:
     start_clock = 4 * 3600 + 30 * 60
     env = Environment(clock_start=start_clock)
@@ -104,8 +109,10 @@ def default_scenario(rng: random.Random) -> Scenario:
                   patrol_end=int(3.5 * 3600))
     world.ais.append(DestroyerAI(dd, random.Random(rng.random()), area=world.size_nm))
     world.mission["nuclear_authorized"] = False
-    world.traffic = TrafficGenerator(KUBA_TRAFFIC, random.Random(rng.random()))
-    world.traffic.populate(world)
+    traffic = TrafficGenerator(KUBA_TRAFFIC, random.Random(rng.random()))
+    traffic.populate(world)
+    world.spawners.append(traffic)
+    world.spawners.append(AirPatrol(KUBA_AIR, random.Random(rng.random()), area=world.size_nm))
 
     crew = _crew()
     # sambandstillfällen kl 05:00, 06:30 och 08:00

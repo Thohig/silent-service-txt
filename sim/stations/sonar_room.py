@@ -69,6 +69,11 @@ PHRASES = {
     "upprepat. Jag tror de uppmanar oss att gå till ytan.",
     "sonar.breakup": lambda d: f"Brytningsljud i bäring {fmt_course(d['bearing'])}{_src(d)}. "
     "Skott som ger vika. Ett fartyg sjunker, kapten.",
+    "sonar.buoy": lambda d: f"Kapten, sonar. Små plask i bäring {fmt_course(d['bearing'])}, "
+    "inget motorljud. Troligen sonobojar från ett flygplan. De lyssnar efter oss.",
+    "sonar.buoy_ping": lambda d: f"Kapten, sonar! Korta ljusa pingar i bäring "
+    f"{fmt_course(d['bearing'])}, från en fast punkt. Aktiv sonoboj.",
+    "sonar.suggest.quiet": lambda d: "Kapten, sonar. Föreslår smygmotor, så hör bojarna oss sämre.",
     "sonar.ice": lambda d: f"Knakande isljud i bäring {fmt_course(d['bearing'])}"
     + (", starkt. Isen skruvar sig nära." if d.get("near") else ". Isen skruvar sig."),
     "sonar.active.none": lambda d: "Aktiv sonar: inga ekon.",
@@ -257,6 +262,15 @@ class SonarRoom(Station):
             elif self._dedupe("explosion", 10):
                 self.say("sonar.explosion", {**d, "practice": ev.practice, "near": ev.se > 110},
                          kind="contact", alarm=not ev.practice)
+        elif ev.kind == "buoy":
+            if self._dedupe("buoy", 300):
+                self.say("sonar.buoy", d, kind="contact", alarm=True)
+                if self.own.sys.propulsion == "turbine":
+                    self.suggest("quiet", "sonar.suggest.quiet", order="smygmotor", cooldown=900)
+        elif ev.kind == "buoy_ping":
+            if self._dedupe("buoy_ping", 600):
+                self.say("sonar.buoy_ping", d, kind="contact", alarm=True)
+                self._evasive_depth()
         elif ev.kind == "ice":
             if self._dedupe("ice", ICE_REPORT_S):
                 self.say("sonar.ice", {**d, "near": ev.se > 25}, kind="contact",

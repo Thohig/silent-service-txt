@@ -35,6 +35,7 @@ from .sonar_room import SonarRoom
 LOOK_S = 15
 RADAR_S = 10
 RADAR_RANGE_NM = 12.0
+AIR_ESM_NM = 40.0          # flygradar hörs så här långt
 QUIET_S = 600              # tystnad från kaptenen innan besättningen tar initiativ
 IDLE_RETRY_S = 60          # om ingen station hade något att föreslå
 REPEAT_S = 1200            # samma order föreslås inte igen inom denna tid
@@ -79,6 +80,12 @@ PHRASES = {
     "off.radar.none": lambda d: "Radar: inga ekon inom tolv sjömil.",
     "off.esm": lambda d: f"Radarvarnare: radar i bäring {fmt_course(d['bearing'])}, "
     f"signal {d['strength']}." + (" De kan se våra master!" if d['strength'] == "mycket stark" else ""),
+    "off.esm.air": lambda d: f"Radarvarnare: flygradar i bäring {fmt_course(d['bearing'])}, "
+    f"signal {d['strength']}. Bäringen drar snabbt, det är ett flygplan."
+    + (" Det är nära, kapten!" if d['strength'] == "mycket stark" else ""),
+    "off.periscope.aircraft": lambda d: f"Periskop: flygplan i bäring {fmt_course(d['bearing'])}, "
+    f"cirka {nm(d['range'])} sjömil, " + ("lågt över vattnet" if d["low"] else "på höjd")
+    + ". Tvåmotorigt patrullplan.",
     "off.suggest.down": lambda d: f"Kapten, vakthavande. {d['reason']} Föreslår djup "
     f"{d['depth']:.0f}.",
     "off.suggest.none": lambda d: (
@@ -236,6 +243,29 @@ class OfficerStation(Station):
             designation=desig, range_nm=r_meas, range_sigma=range_sigma, source=source)))
         return {"designation": desig, "bearing": bearing, "range": r_meas}
 
+    def _esm_air(self) -> None:
+        """Flygradar: stark på långt håll, och bäringen drar snabbt."""
+        world, rng = self.game.world, self.game.rng
+        for v in world.contacts:
+            if v.kind != "aircraft" or v.gone:
+                continue
+            r = world.true_range(v)
+            if r > AIR_ESM_NM:
+                continue
+            strength = ("mycket stark" if r < 4 else "stark" if r < 10
+                        else "medel" if r < 20 else "svag")
+            prev = self._esm_last.get(v.id)
+            if prev is None or prev[0] != strength or self.now - prev[1] > 600:
+                self._esm_last[v.id] = (strength, self.now)
+                b = norm360(world.true_bearing(v) + rng.gauss(0, 3))
+                close = strength in ("mycket stark", "stark")
+                self.say("off.esm.air", {"bearing": b, "strength": strength}, kind="contact",
+                         alarm=close)
+                if close:
+                    self.suggest("down_air", "off.suggest.down",
+                                 {"reason": "Flygradar, nära. De kan se våra master.", "depth": 60},
+                                 order="djup 60", cooldown=300, alarm=True)
+
     def _surface_ships(self):
         return [v for v in self.game.world.contacts
                 if v.side != "own" and v.is_ship and not v.sunk and v.depth < 10]
@@ -253,7 +283,17 @@ class OfficerStation(Station):
                         if v.kind == "station" and world.true_range(v) <= STATION_LIGHT_NM]
             for v in stations:
                 self._sight_station(v)
-            if not seen and not stations:
+            planes = [v for v in world.contacts if v.kind == "aircraft" and world.env.is_day(self.now)
+                      and world.true_range(v) <= vis]
+            for v in planes:
+                self.say("off.periscope.aircraft",
+                         {"bearing": norm360(world.true_bearing(v) + rng.gauss(0, 2)),
+                          "range": max(0.2, world.true_range(v) * rng.uniform(0.8, 1.2)),
+                          "low": v.altitude < 150}, kind="contact", alarm=True)
+                self.suggest("down_air", "off.suggest.down",
+                             {"reason": "Flygplan i sikte.", "depth": 60}, order="djup 60",
+                             cooldown=300, alarm=True)
+            if not seen and not stations and not planes:
                 self.say("off.periscope.none", {"day": world.env.is_day(self.now), "visibility": vis})
             for v in seen:
                 r = world.true_range(v)
@@ -281,6 +321,7 @@ class OfficerStation(Station):
         # radarvarnare: automatiskt på periskopdjup
         if st.depth <= PERISCOPE_DEPTH + 1 and self.now >= self._next_esm:
             self._next_esm = self.now + 10
+            self._esm_air()
             for v in self._surface_ships():
                 if not v.has_radar:
                     continue

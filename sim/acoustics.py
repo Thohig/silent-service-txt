@@ -36,6 +36,8 @@ UWT_LEVEL = 180.0
 BREAKUP_LEVEL = 165.0
 ECHO_SOUNDER_LEVEL = 175.0
 BLOW_LEVEL = 165.0
+BUOY_SPLASH_LEVEL = 135.0     # en sonoboj slår i vattnet
+BUOY_PING_LEVEL = 205.0       # aktiv sonoboj
 
 
 def source_level(kind: str, speed: float) -> float:

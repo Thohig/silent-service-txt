@@ -41,7 +41,8 @@ class World:
     mission: dict[str, Any] = field(default_factory=dict)
     outcome: dict[str, Any] | None = None
     patrol_end: int | None = None
-    traffic: Any = None              # TrafficGenerator: nya handelsfartyg under spelet
+    # det som skickar in nya enheter under spelet (civil trafik, flyg); var och en har step(world)
+    spawners: list[Any] = field(default_factory=list)
     _pending_t: list[Transient] = field(default_factory=list)
     _pending_e: list[Emission] = field(default_factory=list)
 
@@ -79,6 +80,9 @@ class World:
         for v in [self.own, *self.contacts]:
             if v.sunk or isinstance(v, Torpedo):
                 continue
+            if v.airborne:
+                v.state.step(dt)            # flyget bryr sig inte om strömmen
+                continue
             if v.drifts_with_ice and ice is not None:
                 ivx, ivy = ice.drift_velocity()
                 v.state.x += ivx * dt
@@ -102,8 +106,8 @@ class World:
 
         self.own.update(self, dt)
         step_weapons(self, dt)
-        if self.traffic is not None:
-            self.traffic.step(self)
+        for sp in self.spawners:
+            sp.step(self)
         for ai in self.ais:
             ai.step(self)
         self.time += dt

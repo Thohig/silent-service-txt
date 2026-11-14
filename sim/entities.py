@@ -16,6 +16,7 @@ class Vessel:
     sunk: bool = False
     has_radar: bool = False
     drifts_with_ice = False      # klassattribut: står på isen och driver med den
+    airborne = False             # klassattribut: flyger (ingen ström, inget ljud i vattnet)
 
     @property
     def depth(self) -> float:
@@ -23,7 +24,7 @@ class Vessel:
 
     @property
     def is_ship(self) -> bool:
-        return self.kind not in ("torpedo", "decoy", "ice", "station")
+        return self.kind not in ("torpedo", "decoy", "ice", "station", "aircraft", "sonobuoy")
 
     def radiated_level(self, env) -> float:
         """Utstrålat bredbandsljud (dB). Sjunkna fartyg är tysta."""

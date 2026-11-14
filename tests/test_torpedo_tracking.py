@@ -25,7 +25,7 @@ def _setup(g, range_nm=2.0, dd_speed=0.0, dd_course=90.0):
     Ingen civil trafik."""
     g.world.ais.clear()
     g.world.contacts = [v for v in g.world.contacts if v.side != "neutral"]
-    g.world.traffic = None
+    g.world.spawners.clear()
     own = g.world.own.state
     own.order_speed(3)
     dd = g.world.contacts[0]

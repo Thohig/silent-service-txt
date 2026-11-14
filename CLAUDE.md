@@ -45,10 +45,14 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
 - **Scenarier** registreras i `sim/scenario.py` (`register(ScenarioDef(...))`) och
   väljs i gränssnittets väljare eller med `--scenario`. Scenariot bär områdesnamn
   och sluttexter; `Game` ska inte känna till enskilda scenarier.
-- **Civil trafik:** `traffic.py` (sanning). `World.traffic` skickar in nya fartyg,
+- **Civil trafik:** `traffic.py` (sanning). `World.spawners` skickar in nya fartyg,
   `MerchantAI` styr dem. Neutrala fartyg (`World.neutral_ships`) är inte fiender; sänks
   ett slutar spelet (`neutral_sunk`). Kunskap: `ContactTrack.civil`/`warship`; civila
   räknas inte som hot men plottas tyst för kortet.
+- **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
+  `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
+  Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen
+  märker flyget via radarvarnaren, periskopet och transienterna `buoy`/`buoy_ping`.
 - **Is:** `ice.py` är sanning (bara isekolodet i `navigation.py` och mastkontrollerna
   `masts_clear` läser den); `icemap.py` är kunskap, byggd av `IceSounded` med
   beräknad position. Öppningars kvalitet = lägesosäkerhet (växer 8 m/min) mot
@@ -79,6 +83,10 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   start, 9–14 kn, källnivå `140 + fart`. Maskering: neutralt fartyg inom 4° av målets
   bäring adderar sitt brus; ubåt < 100 m inom 0,3 nm från ett handelsfartyg får −12 dB eko
   hos jagaren. Jagaren hittar ja-boten i ~5 av 8 frön, som utan trafik.
+- Ubåtsjaktflyg (Kuba, `KUBA_AIR`): första plan efter 40–80 min, 60–90 min över kvadraten,
+  45–75 min mellan. Radar: master 6 nm (6 %/svep), ytläge 25 nm. MAD 250 m snedavstånd
+  från 60 m höjd (säkert under ~190 m). Passiva bojar DT 8; aktiv boj 205 dB var 20:e s.
+  Med flyg: jagaren hittar ja-boten i 9 av 12 frön (7 utan), flyget självt i 8 av 12.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m.
 - Packis (`ice.py`): rutor 0,05 nm, flerårsis 2–4,5 m, kölar 8–25 m (6 % 30–45 m),
   170 råkar, 28 polynyor ⇒ ~4–5 % öppet vatten, en öppning ungefär var 30:e minut
