@@ -10,13 +10,15 @@ from sim.reports import Report
 from sim.scenario import build_scenario
 from ui.app import SubApp
 from ui.audio import (MAX_QUEUE, MIN_VOLUME, STALE_S, SoundBoard, cue_for, pan_of_bearing,
-                      speech_text, stereo, synth_cues, synth_transients, write_wav)
+                      RATE, speech_parts, speech_text, stereo, synth_cues, synth_transients,
+                      write_wav)
 
 
 class RecordingPlayer:
     def __init__(self, cue_len: float = 1.0):
         self.cues: list[str] = []
         self.played: list[tuple[str, float, float]] = []
+        self.voices: list[str | None] = []
         self.said: list[tuple[str, int]] = []
         self.busy_until = 0.0
         self.now = 0.0
@@ -28,8 +30,9 @@ class RecordingPlayer:
         self.played.append((cue, pan, volume))
         return self.cue_len
 
-    def speak(self, text, rate):
+    def speak(self, text, rate, voice=None):
         self.said.append((text, rate))
+        self.voices.append(voice)
         self.busy_until = self.now + 2.0
 
     def speaking(self):
@@ -129,7 +132,7 @@ def test_cues_synthesize_to_valid_wav(tmp_path):
         assert 0.1 < len(s) / 22050 < 4.0, name
         assert np.max(np.abs(s)) <= 1.0 and np.isfinite(s).all(), name
         write_wav(tmp_path / f"{name}.wav", s)
-    assert len(list(tmp_path.glob("*.wav"))) == 5
+    assert len(list(tmp_path.glob("*.wav"))) == 6
 
 
 def test_headless_game_speaks_crew_reports():
@@ -229,3 +232,31 @@ def test_sonar_publishes_heard_strength_in_a_real_game():
     pings = [e for e in heard if e.kind == "ping"]
     assert pings and all(e.se > 0 for e in pings)
     assert "ping" in p.cues
+
+
+def test_russian_phrase_is_spoken_by_russian_voice_only():
+    bus, p = EventBus(), RecordingPlayer(cue_len=0.0)
+    board = SoundBoard(bus, p, ru_voice="Milena")
+    _deliver(bus, text="Jest, kurs 090.", role="navigator")
+    t = 0.0
+    while len(p.said) < 2 and t < 20:
+        p.now = t
+        board.update(t)
+        t += 0.5
+    assert p.said[0][0] == "Есть" and p.voices[0] == "Milena"
+    assert p.said[1][0] == "kurs noll nio noll." and p.voices[1] is None
+
+
+def test_without_russian_voice_swedish_voice_reads_everything():
+    assert speech_parts("Jest, kurs 090.", None) == [(None, "Jest, kurs noll nio noll.")]
+    assert speech_parts("Kapten, plottet.", "Milena") == [(None, "Kapten, plottet.")]
+
+
+def test_battle_stations_sounds_the_revun():
+    bus, p = EventBus(), RecordingPlayer(cue_len=0.0)
+    SoundBoard(bus, p)
+    _deliver(bus, text="Boevaja trevoga! Stridslarm.", type="off.battle_stations",
+            role="officer", alarm=True)
+    assert p.cues == ["revun"]
+    revun = synth_cues()["revun"]
+    assert 2.0 < len(revun) / RATE < 3.5 and np.max(np.abs(revun)) <= 1.0

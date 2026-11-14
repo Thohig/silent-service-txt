@@ -33,11 +33,13 @@ import numpy as np
 
 from sim.events import EventBus, OwnSoundMade, ReportDelivered, SoundHeard
 from sim.reports import Report
+from sim.russian import segments
 
 from .ambience import Ambience, AmbientOut, ambient_targets
 
 RATE = 22050
 VOICE = "Alva"                     # svensk röst i macOS
+RU_VOICE = "Milena"                # rysk röst: läser bara de ryska fraserna (sim/russian.py)
 
 # Talhastighet (ord/min) per roll – alla talar med samma röst men i olika takt.
 ROLE_RATE = {
@@ -53,6 +55,8 @@ DEFAULT_RATE = 180
 
 # Larmljud per rapporttyp. Övriga larmrapporter får "attention".
 CUE_BY_TYPE = {
+    # revun: vakthavande blåser stridslarm (boevaja trevoga)
+    "off.battle_stations": "revun",
     # stridslarm: fienden har gått till anfall
     "sonar.ping.first": "general",
     "sonar.ping.fast": "general",
@@ -96,8 +100,8 @@ class Player(Protocol):
         """Spela ett ljud utan att vänta. pan -1 (vänster) … 1 (höger), volume 0 … 1.
         Returnerar längden i sekunder."""
 
-    def speak(self, text: str, rate: int) -> None:
-        """Börja läsa upp text utan att vänta."""
+    def speak(self, text: str, rate: int, voice: str | None = None) -> None:
+        """Börja läsa upp text utan att vänta. voice None: spelarens svenska röst."""
 
     def speaking(self) -> bool: ...
 
@@ -110,7 +114,7 @@ class NullPlayer:
     def play(self, cue: str, pan: float = 0.0, volume: float = 1.0) -> float:
         return 0.0
 
-    def speak(self, text: str, rate: int) -> None:
+    def speak(self, text: str, rate: int, voice: str | None = None) -> None:
         pass
 
     def speaking(self) -> bool:
@@ -169,9 +173,9 @@ class MacPlayer:
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
         return len(self.samples[cue]) / RATE
 
-    def speak(self, text: str, rate: int) -> None:
+    def speak(self, text: str, rate: int, voice: str | None = None) -> None:
         self._speech = subprocess.Popen(
-            ["say", "-v", self.voice, "-r", str(rate), text],
+            ["say", "-v", voice or self.voice, "-r", str(rate), text],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def speaking(self) -> bool:
@@ -188,11 +192,15 @@ class MacPlayer:
 # --------------------------------------------------------------------------- styrning
 @dataclass
 class Line:
-    text: str
+    parts: list[tuple[str | None, str]]   # (röst, text) i tur och ordning; None = svenska
     rate: int
     urgent: bool
     queued_at: float
     not_before: float = 0.0
+
+    @property
+    def text(self) -> str:
+        return " ".join(t for _, t in self.parts)
 
 
 @dataclass
@@ -207,9 +215,12 @@ class SoundBoard:
     speech: bool = True
     enabled: bool = True
     heading: Callable[[], float] | None = None
+    ru_voice: str | None = None    # rysk röst, annars läser den svenska rösten translittereringen
     ambience: Ambience | None = None
     out: AmbientOut | None = None
     queue: list[Line] = field(default_factory=list)
+    _parts: list[tuple[str | None, str]] = field(default_factory=list)   # resten av repliken
+    _rate: int = DEFAULT_RATE
     _now: float = 0.0
     _cue_until: float = 0.0
     _last_played: dict[str, float] = field(default_factory=dict)
@@ -259,11 +270,11 @@ class SoundBoard:
         if cue:
             length = self.player.play(cue)
             # Talet börjar när larmet nästan har klingat av.
-            delay = length * 0.7 if cue in ("general", "klaxon", "fire") else length * 0.5
+            delay = length * 0.7 if cue in ("general", "klaxon", "fire", "revun") else length * 0.5
             self._cue_until = max(self._cue_until, self._now + delay)
         if not self.speech or not spoken(r):
             return
-        line = Line(speech_text(r.text), ROLE_RATE.get(r.role, DEFAULT_RATE),
+        line = Line(speech_parts(r.text, self.ru_voice), ROLE_RATE.get(r.role, DEFAULT_RATE),
                     urgent=r.alarm or r.kind == "suggest", queued_at=self._now,
                     not_before=self._now + delay)
         self.queue.append(line)
@@ -281,14 +292,23 @@ class SoundBoard:
     def update(self, now: float) -> None:
         """now: monoton realtid i sekunder."""
         self._now = now
-        if not self.enabled or not self.queue:
+        if not self.enabled:
+            return
+        if self._parts:                              # repliken fortsätter med nästa röst
+            if not self.player.speaking():
+                voice, text = self._parts.pop(0)
+                self.player.speak(text, self._rate, voice)
+            return
+        if not self.queue:
             return
         self._trim()
         if not self.queue or self.player.speaking() or \
                 now < max(self.queue[0].not_before, self._cue_until):
             return
         line = self.queue.pop(0)
-        self.player.speak(line.text, line.rate)
+        (voice, text), *self._parts = line.parts
+        self._rate = line.rate
+        self.player.speak(text, line.rate, voice)
 
     @property
     def available(self) -> bool:
@@ -302,11 +322,13 @@ class SoundBoard:
             self.ambience.enabled = self.enabled
         if not self.enabled:
             self.queue.clear()
+            self._parts = []
             self.player.stop()
         return self.enabled
 
     def close(self) -> None:
         self.queue.clear()
+        self._parts = []
         self.player.stop()
         if self.out is not None:
             self.out.close()
@@ -367,6 +389,15 @@ def speech_text(text: str) -> str:
     return t
 
 
+def speech_parts(text: str, ru_voice: str | None) -> list[tuple[str | None, str]]:
+    """Repliken i delar per röst: de ryska fraserna med den ryska rösten (kyrilliskt),
+    resten med den svenska. Utan rysk röst läser den svenska allt."""
+    if ru_voice is None:
+        return [(None, speech_text(text))]
+    return [(ru_voice, t) if lang == "ru" else (None, speech_text(t))
+            for lang, t in segments(text)] or [(None, speech_text(text))]
+
+
 # --------------------------------------------------------------------------- syntes
 def _t(seconds: float) -> np.ndarray:
     return np.arange(int(RATE * seconds)) / RATE
@@ -396,6 +427,24 @@ def synth_general() -> np.ndarray:
             seg = strike[: len(out) - a]
             out[a:a + len(seg)] += seg
     return 0.8 * _speaker(out, 1.2)
+
+
+def synth_revun() -> np.ndarray:
+    """Revun: elektromekanisk tjutsiren. Motorn varvar upp och tonen stiger,
+    membranet surrar; två långa tjut."""
+    blast_s, gap_s = 1.25, 0.2
+    t = _t(blast_s)
+    f = 150 + 95 * (1 - np.exp(-t / 0.3)) - 25 * np.maximum(0.0, t - blast_s + 0.2) / 0.2
+    phase = 2 * np.pi * np.cumsum(f) / RATE
+    saw = sum(np.sin(k * phase) / k for k in range(1, 9))          # rik, hes ton
+    buzz = 1 + 0.25 * np.sin(2 * np.pi * 31 * t)                   # membranet surrar
+    env = np.minimum(1.0, t / 0.12) * np.minimum(1.0, (blast_s - t) / 0.18)
+    blast = saw * buzz * env
+    out = np.zeros(int(RATE * (2 * blast_s + gap_s)))
+    for k in range(2):
+        a = int(RATE * k * (blast_s + gap_s))
+        out[a:a + len(blast)] += blast
+    return 0.75 * _speaker(_lowpass(out, 2600), 1.8)
 
 
 def synth_klaxon() -> np.ndarray:
@@ -442,6 +491,7 @@ def synth_suggest() -> np.ndarray:
 
 def synth_cues() -> dict[str, np.ndarray]:
     return {"general": synth_general(), "klaxon": synth_klaxon(), "fire": synth_fire(),
+            "revun": synth_revun(),
             "attention": synth_attention(), "suggest": synth_suggest()}
 
 
@@ -651,9 +701,10 @@ def make_soundboard(bus: EventBus, enabled: bool,
     if out.error:
         notes.append("Bakgrundsljudet kunde inte startas.")
     speech = MacPlayer.has_voice()
+    ru_voice = RU_VOICE if speech and MacPlayer.has_voice(RU_VOICE) else None
     if not speech:
         notes.append(f"Rösten {VOICE} saknas, besättningen hörs inte. Lägg till den under "
                      "Systeminställningar › Hjälpmedel › Talat innehåll › Systemröst.")
-    board = SoundBoard(bus, MacPlayer(), speech=speech, heading=heading,
+    board = SoundBoard(bus, MacPlayer(), speech=speech, heading=heading, ru_voice=ru_voice,
                        ambience=ambience, out=out)
     return board, " ".join(notes) or None

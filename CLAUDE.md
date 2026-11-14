@@ -102,6 +102,12 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   Bakgrundsljud (`ui/ambience.py`): `ambient_targets(status, tracks)` ur `StatusSnapshot`
   (inkl. `sea_noise`, `fire`, `smoke`, `ventilating`) och hållna kontaktspår; `Ambience`
   mixar sömlösa slingor i en sounddevice-ström. Kontaktljudet följer klassificeringen.
+- **Ryska** (`sim/russian.py`): fasta fraser i `WORDS` (translitterering, kyrilliska, svensk
+  betydelse). Skriv dem med `ru("Jest")` i fraserna; betydelsen ska framgå av svensk text bredvid,
+  aldrig siffror eller bedömningar på ryska. `segments()` delar texten; talet läser ryskan med
+  `RU_VOICE` (Milena) och resten med Alva. Ordlistan visas i `hjälp`. Stridslarm (`off.battle_stations`,
+  revun) när jakttecken kommer efter 30 min lugn; avdelningarna rapporterar (`eng.inspected`)
+  60 s efter haverilarm eller kraftig tryckvåg.
 - **Händelsebussen** (`events.py`) är synkron. `Knowledge` registreras före
   stationerna så att stationer alltid ser uppdaterad kunskap.
 - **Utbyggnadskrokar:** rapportfilter (`ReportQueue.filters`, ändrar `data`) för

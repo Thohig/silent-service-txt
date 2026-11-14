@@ -25,6 +25,13 @@ för att avslå. Du kan också be om förslag: `förslag` upprepar det som
 väntar eller ger besättningens viktigaste förslag just nu, `förslag sonar`
 frågar en viss station och `annat förslag` ger nästa i tur.
 Avfyring föreslås aldrig som en ja-order.
+
+Besättningen talar som i den sovjetiska flottan, med några fasta ryska fraser:
+*Jest* (ska ske), *Tovarisjtj komandir* (kamrat befälhavare), *Boevaja trevoga*
+(stridslarm), *Avarijnaja trevoga* (haverilarm) och *Torpeda vysjla* (torpeden har
+lämnat tuben). Betydelsen framgår alltid av den svenska texten bredvid, och `hjälp`
+har en ordlista. Siffror och bedömningar är alltid på svenska. `jest` fungerar som `ja`.
+Efter ett haverilarm rapporterar avdelningarna inom en minut vad de har inspekterat.
 Ger du själv en order om samma sak (till exempel `fart 6` när besättningen
 föreslagit `fart 4`) släpps förslaget, och besättningen föreslår aldrig en
 kurs, fart, framdrivning eller ett djup som redan är beordrat.
@@ -49,7 +56,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Vakthavande | `periskop` · `radar` (periskopdjup; radarvarnaren är automatisk) · `foto` (periskopfoto av ankarplatsen) |
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
-| Ljud | `ctrl+t` eller `ljud` / `ljud av` / `ljud på`: besättningen talar (macOS-rösten Alva), larmen går det sonaren hör spelas i stereo (babord till vänster) och båten låter: reaktor, turbin, skrov, is, brand och kontakternas propellrar |
+| Ljud | `ctrl+t` eller `ljud` / `ljud av` / `ljud på`: besättningen talar (macOS-rösten Alva, de ryska fraserna med Milena om den finns), larmen går det sonaren hör spelas i stereo (babord till vänster) och båten låter: reaktor, turbin, skrov, is, brand och kontakternas propellrar |
 | Vyer | `Tab` växlar logg → sjökort → djupprofil → systemtavla → logg; `Esc` går tillbaka till loggen. Orden `sjökort`, `profil` och `system` öppnar en vy direkt |
 | Sjökort | Navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, `c` centrerar |
 | Systemtavla | Ubåtens system på en tavla: genomskärning av de nio avdelningarna (brand, rök, skador, reaktorns läge, vatten i kölsvinet), maskin (reaktor, framdrivning, batteri, tryckluft, skrov, vatten, koldioxid, rök), skador och reparationer per komponent, navigation, torpedtuberna med laddning, sonar och samband. Allt ur besättningens egna instrument; ▲ varning, ■ fara |
