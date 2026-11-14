@@ -9,9 +9,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .events import (BearingObserved, ClassificationChanged, ContactDetected,
-                     ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound, PhotoTaken,
-                     PositionReported)
+                     ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound, PeriscopeSighted,
+                     PhotoTaken, PositionReported)
 from .icemap import IceMap
+from .periscope import PeriscopePicture
 from .seabed import Seabed
 from .environment import TidalStream
 from .reports import Quality
@@ -84,6 +85,7 @@ class Knowledge:
     tide_table: TidalStream | None = None   # tidvattentabellen (förutsägelse, inte sanningen)
     best_photo: Quality | None = None    # bästa spaningsfotot hittills
     hunt_t: int = -10**9                 # senast sonar hörde att fienden har oss
+    periscope: PeriscopePicture | None = None   # utkikens senaste bild
 
     def attach(self, bus: EventBus) -> None:
         bus.subscribe(ContactDetected, self._on_detected)
@@ -95,8 +97,12 @@ class Knowledge:
         bus.subscribe(PositionReported, self._on_position)
         bus.subscribe(HuntSigns, self._on_hunt)
         bus.subscribe(PhotoTaken, self._on_photo)
+        bus.subscribe(PeriscopeSighted, self._on_periscope)
 
     # --- händelser ------------------------------------------------------------
+    def _on_periscope(self, e: PeriscopeSighted) -> None:
+        self.periscope = e.picture
+
     def _on_photo(self, e: PhotoTaken) -> None:
         if self.best_photo is None or e.quality > self.best_photo:
             self.best_photo = e.quality

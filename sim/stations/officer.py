@@ -20,13 +20,16 @@ from .. import phrases
 from ..crew import ROLE_LABEL, Role
 from ..entities import Emission
 from ..arctic import STATION_LIGHT_NM
-from ..events import (BearingObserved, ClassificationChanged, ContactDetected, PhotoTaken,
-                      PositionReported)
+from ..events import (BearingObserved, ClassificationChanged, ContactDetected,
+                      PeriscopeSighted, PhotoTaken, PositionReported)
 from ..fmt import fmt_course, kn, nm
 from ..geo import angle_diff, norm360, velocity
 from ..ice import masts_clear
 from ..orders import AskSuggestion, CommandSpec, Order
 from ..ownship import PERISCOPE_DEPTH
+from ..periscope import (AOB_SIGMA, EYE_BRIDGE_M, EYE_PERISCOPE_M, PeriscopePicture,
+                         SightedObject, angle_on_bow, aob_quality, lights, range_quality,
+                         visible_part)
 from ..reports import Quality
 from ..russian import ru
 from ..tma import BearingObs
@@ -70,6 +73,14 @@ SIGHTED = {"destroyer": ("jagare, amerikansk", "jagare"),
            "merchant": ("handelsfartyg", "handelsfartyg"),
            "patrol": ("patrullbåt, amerikansk", "patrullbåt"),
            "moored": ("fartyg till ankars", "fartyg till ankars")}
+
+
+def _view_object(type_: str, d: dict) -> SightedObject | None:
+    """Hamnskyddets nät (spawnarnas periscope_view) som föremål i bilden."""
+    if type_ == "off.periscope.net":
+        return SightedObject("net", "bojrad", d["bearing"], d["range"], Quality.OSAKER,
+                             detail="grinden öppen" if d["gate_open"] else "grinden stängd")
+    return None
 
 
 def _contact(d: dict) -> str:
@@ -262,7 +273,7 @@ class OfficerStation(Station):
             return [Proposal(5, "idle_look", "off.suggest.look", "periskop", cooldown=900)]
         return []
 
-    def _sight_station(self, v) -> None:
+    def _sight_station(self, v) -> SightedObject:
         """Stationens ljus i periskopet: bäring och avstånd, och läget till navigatören."""
         world, rng = self.game.world, self.game.rng
         r = world.true_range(v)
@@ -282,6 +293,8 @@ class OfficerStation(Station):
         if r_meas < 1.4 and self.own.state.depth > 1.0 and room:
             self.suggest("surface_station", "off.suggest.surface_station", {"range": r_meas},
                          order="ytläge", cooldown=300)
+        return SightedObject("station", "drivstation", bearing, r_meas,
+                             range_quality(r_meas, 0.1 * r_meas + 0.03), lights=("ljus",))
 
     def _observe(self, v, bearing_sigma: float, range_sigma: float, source: str,
                  label: str) -> dict:
@@ -385,18 +398,23 @@ class OfficerStation(Station):
             if st.depth > PERISCOPE_DEPTH + 1:
                 return
             vis = world.env.visibility_nm(self.now)
+            day = world.env.is_day(self.now)
+            eye = EYE_BRIDGE_M if self.own.surfaced else EYE_PERISCOPE_M
+            objects: list[SightedObject] = []
             seen = [v for v in self._surface_ships() if world.true_range(v) <= vis]
             stations = [v for v in world.contacts
                         if v.kind == "station" and world.true_range(v) <= STATION_LIGHT_NM]
             for v in stations:
-                self._sight_station(v)
-            planes = [v for v in world.contacts if v.kind == "aircraft" and world.env.is_day(self.now)
+                objects.append(self._sight_station(v))
+            planes = [v for v in world.contacts if v.kind == "aircraft" and day
                       and world.true_range(v) <= vis]
             for v in planes:
-                self.say("off.periscope.aircraft",
-                         {"bearing": norm360(world.true_bearing(v) + rng.gauss(0, 2)),
-                          "range": max(0.2, world.true_range(v) * rng.uniform(0.8, 1.2)),
-                          "low": v.altitude < 150}, kind="contact", alarm=True)
+                d = {"bearing": norm360(world.true_bearing(v) + rng.gauss(0, 2)),
+                     "range": max(0.2, world.true_range(v) * rng.uniform(0.8, 1.2)),
+                     "low": v.altitude < 150}
+                self.say("off.periscope.aircraft", d, kind="contact", alarm=True)
+                objects.append(SightedObject("aircraft", "flygplan", d["bearing"], d["range"],
+                                             Quality.OSAKER, detail="lågt" if d["low"] else ""))
                 self.suggest("down_air", "off.suggest.down",
                              {"reason": "Flygplan i sikte.", "depth": 60}, order="djup 60",
                              cooldown=300, alarm=True)
@@ -404,22 +422,36 @@ class OfficerStation(Station):
                      for v in sp.periscope_view(world, rng)]
             for type_, d in views:
                 self.say(type_, d, kind="contact", alarm=True)
+                if obj := _view_object(type_, d):
+                    objects.append(obj)
             if any(v.kind == PHOTO_TARGET_KIND for v in seen):
                 self._suggest_photo()
             if not seen and not stations and not planes and not views:
-                self.say("off.periscope.none", {"day": world.env.is_day(self.now), "visibility": vis})
+                self.say("off.periscope.none", {"day": day, "visibility": vis})
             for v in seen:
                 r = world.true_range(v)
                 full, short = SIGHTED.get(v.kind, ("ytfartyg", "fartyg"))
-                d = self._observe(v, 0.5, 0.08 * r + 0.03, "periskop", full)
+                r_sigma = 0.08 * r + 0.03
+                d = self._observe(v, 0.5, r_sigma, "periskop", full)
+                part = visible_part(v.kind, r, eye) if day else "ljus"
+                c_sigma = AOB_SIGMA[part]
                 d.update(label=short,
-                         course=norm360(v.state.course + rng.gauss(0, 8)),
+                         course=norm360(v.state.course + rng.gauss(0, c_sigma)),
                          speed=max(0, round(v.state.speed + rng.gauss(0, 2))))
                 self.say("off.periscope.contact", d, kind="contact", quality=Quality.GOD)
+                aob = angle_on_bow(d["bearing"], d["course"])
+                objects.append(SightedObject(
+                    v.kind, short, d["bearing"], d["range"], range_quality(d["range"], r_sigma),
+                    designation=d["designation"], visible=part, aob=aob,
+                    aob_quality=aob_quality(c_sigma), course=d["course"], speed=d["speed"],
+                    lights=() if day else lights(aob)))
                 if r < 3.0 and v.kind == "destroyer":
                     self.suggest("down_close", "off.suggest.down",
                                  {"reason": f"{d['designation']} är nära.", "depth": 100},
                                  order="djup 100", cooldown=300)
+            self.game.bus.publish(PeriscopeSighted(self.now, PeriscopePicture(
+                self.now, day, vis, self.own.state.course,
+                "brygga" if self.own.surfaced else "periskop", tuple(objects))))
 
         if self.photo_done_t is not None and self.now >= self.photo_done_t:
             self.photo_done_t = None

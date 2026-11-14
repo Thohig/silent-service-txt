@@ -18,6 +18,7 @@ from .reports import Quality, Report
 
 if TYPE_CHECKING:
     from .icemap import IceSoundingObs
+    from .periscope import PeriscopePicture
     from .tma import BearingObs
 
 
@@ -63,6 +64,12 @@ class PhotoTaken(Event):
     """Periskopfoto av ett spaningsmål, med bildens kvalitet."""
     quality: Quality
     target: str
+
+
+@dataclass(frozen=True)
+class PeriscopeSighted(Event):
+    """Utkikens bild när periskopsvepet är klart (se sim/periscope.py)."""
+    picture: PeriscopePicture
 
 
 @dataclass(frozen=True)
