@@ -1,4 +1,4 @@
-"""Djupprofilen i helskärm (F7 eller "profil"). Spelet går vidare medan den visas."""
+"""Djupprofilen i helskärm (° eller "profil"). Spelet går vidare medan den visas."""
 from __future__ import annotations
 
 from rich.text import Text
@@ -33,7 +33,6 @@ class ProfileScreen(Screen):
         Binding("left", "time(1)", "Längre tid"),
         Binding("right", "time(-1)", "Kortare tid"),
         Binding("a", "auto", "Automatisk skala"),
-        Binding("tab", "chart", "Sjökortet"),
     ]
 
     def __init__(self) -> None:
@@ -55,10 +54,6 @@ class ProfileScreen(Screen):
     # --- tangenter ----------------------------------------------------------------
     def action_close(self) -> None:
         self.app.pop_screen()
-
-    def action_chart(self) -> None:
-        self.app.pop_screen()
-        self.app.action_chart()
 
     def action_depth(self, step: int) -> None:
         cur = self.depth_zoom if self.depth_zoom is not None else self._auto()
@@ -102,7 +97,7 @@ class ProfileScreen(Screen):
         t.append(f" 1 tecken = {spc} s · djup "
                  + ("automatiskt" if self.depth_zoom is None
                     else f"till {DEPTH_ZOOM[self.depth_zoom]} m"), style="dim")
-        t.append("   +/− djup · ←/→ tid · a automatiskt · Tab sjökortet · Esc tillbaka",
+        t.append("   +/− djup · ←/→ tid · a automatiskt · § sjökortet · Tab/Esc tillbaka",
                  style="dim")
         head.update(t)
 

@@ -151,7 +151,7 @@ def test_app_is_silent_by_default(tmp_path):
             await pilot.press("enter")
             await pilot.press("enter")
             assert app.sound is not None and not app.sound.enabled
-            await pilot.press("f8")                     # inget händer utan ljud
+            await pilot.press("ctrl+t")                     # inget händer utan ljud
             assert not app.sound.enabled
 
     asyncio.run(run())

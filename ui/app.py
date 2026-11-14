@@ -30,10 +30,10 @@ MAX_TICKS_PER_FRAME = 20
 CHART_WORDS = {"sjökort", "sjokort", "kort", "karta"}
 CHART_KEY = "§"
 PROFILE_WORDS = {"profil", "djupprofil", "sidovy"}
-PROFILE_KEY = "f7"
+PROFILE_KEY = "°"                      # skift + § på svenskt Mac-tangentbord
 GAUGE_EVERY_S = 0.5
 SOUND_WORDS = {"ljud", "ljud av", "ljud på", "ljud pa"}
-SOUND_KEY = "f8"
+SOUND_KEY = "ctrl+t"                   # t som i tal
 
 
 class OrderInput(Input):
@@ -41,7 +41,7 @@ class OrderInput(Input):
     (Textual tar annars bort bindningar för tecken som fältet kan skriva)."""
 
     def check_consume_key(self, key: str, character: str | None) -> bool:
-        return character != CHART_KEY and super().check_consume_key(key, character)
+        return character not in (CHART_KEY, PROFILE_KEY) and super().check_consume_key(key, character)
 FRAME_S = 0.05
 
 
@@ -62,7 +62,8 @@ class SubApp(App):
     """
     BINDINGS = [Binding("ctrl+q", "quit", "Avsluta", priority=True),
                 Binding("section_sign", "chart", "Sjökort", priority=True),
-                Binding(PROFILE_KEY, "profile", "Djupprofil", priority=True),
+                Binding("degree_sign", "profile", "Djupprofil", priority=True),
+                Binding("tab", "cycle", "Nästa vy", priority=True),
                 Binding(SOUND_KEY, "sound", "Ljud", priority=True)]
 
     def __init__(self, seed: int | None = None, log_dir: Path | str = "logs",
@@ -176,11 +177,12 @@ class SubApp(App):
                        f"fart {kn(st.speed)} knop, djup {st.depth:.0f} meter.")
         log.add_system(self.game.clock_str(), "Skriv hjälp för en lista över order. Besättningens förslag godkänns med ja, avslås med nej.")
         log.add_system(self.game.clock_str(), f"{CHART_KEY} visar navigatörens sjökort, "
-                       "F7 djupprofilen (Tab växlar mellan dem).")
+                       f"{PROFILE_KEY} (skift+{CHART_KEY}) djupprofilen. Tab växlar mellan "
+                       "logg, sjökort och djupprofil.")
         if self._sound_note:
             log.add_system(self.game.clock_str(), self._sound_note)
         elif self.sound and self.sound.enabled:
-            log.add_system(self.game.clock_str(), "F8 slår av och på ljudet.")
+            log.add_system(self.game.clock_str(), "ctrl+t slår av och på ljudet.")
         self.running = True
         self._last = time.monotonic()
         self.set_interval(FRAME_S, self._pump)
@@ -197,8 +199,17 @@ class SubApp(App):
                 self.pop_screen()
             self.push_screen(ChartScreen())
 
+    def action_cycle(self) -> None:
+        """Tab: logg → sjökort → djupprofil → logg."""
+        if isinstance(self.screen, ChartScreen):
+            self.action_profile()
+        elif isinstance(self.screen, ProfileScreen):
+            self.pop_screen()
+        else:
+            self.action_chart()
+
     def action_profile(self) -> None:
-        """F7: visa eller stäng djupprofilen. Spelet går vidare under tiden."""
+        """°: visa eller stäng djupprofilen. Spelet går vidare under tiden."""
         if not self.running or self.game is None:
             return
         if isinstance(self.screen, ProfileScreen):
@@ -210,7 +221,7 @@ class SubApp(App):
 
     # ------------------------------------------------------------------ ljud
     def action_sound(self, want: bool | None = None) -> None:
-        """F8 eller "ljud": slå av och på tal och larm."""
+        """ctrl+t eller "ljud": slå av och på tal och larm."""
         if not self.running or self.sound is None:
             return
         if not self.sound.available:
