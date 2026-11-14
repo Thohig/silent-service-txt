@@ -38,7 +38,8 @@ def test_help_lists_every_station_command():
     h = reg.help_text()
     for word in ("kurs 090", "fart 5", "djup 100", "tid 1|2|5|10", "läge S-1", "plot S-1"):
         assert word in h
-    assert h.rstrip().endswith("hjälp")
+    assert "· hjälp." in h                       # hjälp registreras sist
+    assert "Flera order på en rad" in h
 
 
 # --- flera order på en rad -----------------------------------------------------------
