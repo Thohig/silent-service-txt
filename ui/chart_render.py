@@ -118,21 +118,38 @@ class Canvas:
             c = max(0, c - len(s) - 3)
         for i, ch in enumerate(s):
             self.put(c + i, r, ch, style, prio)
+        if c > 0 and self.prio[r][c - 1] < LAYER_MARK:
+            self.put(c - 1, r, " ", "", prio)       # luft mellan märke och etikett
 
     # --- primitiver -------------------------------------------------------------
-    def line(self, x0, y0, x1, y1, ch: str, style: str, prio: float,
+    def line(self, x0, y0, x1, y1, ch: str | None, style: str, prio: float,
              skip_start: bool = False) -> tuple[int, int] | None:
-        """Linje genom kortet. Returnerar sista synliga rutan."""
-        n = max(1, math.ceil(math.hypot(x1 - x0, y1 - y0) / (self.scale * 0.5)))
+        """Linje genom kortet, en ruta per steg längs huvudaxeln (tunn linje).
+        Returnerar sista synliga rutan."""
+        fc0 = (x0 - self.cx) / self.scale + self.cols / 2
+        fr0 = (self.cy - y0) / (2 * self.scale) + self.rows / 2
+        fc1 = (x1 - self.cx) / self.scale + self.cols / 2
+        fr1 = (self.cy - y1) / (2 * self.scale) + self.rows / 2
+        n = max(1, math.ceil(max(abs(fc1 - fc0), abs(fr1 - fr0))))
         start = self.cell(x0, y0)
-        last = None
+        diag = "╲" if (fc1 - fc0) * (fr1 - fr0) > 0 else "╱"
+        cells = []
         for i in range(n + 1):
             f = i / n
-            c, r = self.cell(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f)
+            cells.append((math.floor(fc0 + (fc1 - fc0) * f), math.floor(fr0 + (fr1 - fr0) * f)))
+        last = None
+        for i, (c, r) in enumerate(cells):
             if skip_start and (c, r) == start:
                 continue
+            if ch is None:
+                # tecknet efter hur linjen går här: i sidled, i höjdled eller snett
+                pc, pr = cells[i - 1] if i else cells[min(1, len(cells) - 1)]
+                dc, dr = c != pc, r != pr
+                g = diag if dc and dr else "│" if dr else "─"
+            else:
+                g = ch
             if self.inside(c, r):
-                self.put(c, r, ch, style, prio)
+                self.put(c, r, g, style, prio)
                 last = (c, r)
         return last
 
@@ -176,8 +193,7 @@ def render_chart(view: ChartView, cx: float, cy: float, scale: float,
                 b = math.radians(it.bearing)
                 x1, y1 = it.x + it.length * math.sin(b), it.y + it.length * math.cos(b)
                 st = item_style(it.style, it.quality, it.faded)
-                last = cv.line(it.x, it.y, x1, y1, ray_char(it.bearing), st, it.layer,
-                               skip_start=True)
+                last = cv.line(it.x, it.y, x1, y1, None, st, it.layer, skip_start=True)
                 if it.label and last is not None:
                     labels.append((cv.x_of(last[0]) + scale / 2, cv.y_of(last[1]) - scale,
                                    it.label, st, 1))

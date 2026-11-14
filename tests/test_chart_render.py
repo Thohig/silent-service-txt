@@ -1,5 +1,5 @@
 """Rastreringen av sjökortet: rätt ruta, rätt tecken, klippning och etiketter."""
-from sim.chart import ChartView, Mark, Ray, Ring, Track
+from sim.chart import LAYER_ICE, ChartView, Mark, Ray, Ring, Track
 from sim.reports import Quality
 from ui.chart_render import MARGIN, grid_step, ray_char, render_chart
 
@@ -79,3 +79,24 @@ def test_grid_step_follows_zoom():
     assert grid_step(0.01) == 0.1
     assert grid_step(0.1) == 1.0
     assert grid_step(0.4) == 5.0
+
+
+def test_oblique_lines_are_one_cell_thick():
+    rows = _grid(_view(Ray(10.0, 10.0, 300.0, 100.0, "bearing")))
+    per_col = {}
+    for c, r in _find(rows, "╲"):
+        per_col[c] = per_col.get(c, 0) + 1
+    assert per_col and max(per_col.values()) == 1    # grund linje: en ruta per kolumn
+    rows = _grid(_view(Ray(10.0, 10.0, 20.0, 100.0, "bearing")))
+    per_row = {}
+    for c, r in _find(rows, "│"):
+        per_row[r] = per_row.get(r, 0) + 1
+    assert per_row and max(per_row.values()) == 1    # brant linje: en ruta per rad
+
+
+def test_label_is_separated_from_its_mark():
+    rows = _grid(_view(Mark(10.05, 10.0, "#", "ice_thick", layer=LAYER_ICE),
+                       Mark(10.15, 10.0, "#", "ice_thick", layer=LAYER_ICE),
+                       Mark(10.0, 10.0, "Ö", "opening", "Ö1 god", Quality.GOD)))
+    (c, r), = [p for p in _find(rows, "Ö") if rows[p[1]][p[0] + 1] != "1"]
+    assert rows[r][c + 1] == " " and rows[r][c + 2:c + 4] == "Ö1"

@@ -22,6 +22,7 @@ TABLE_ROWS = 15
 BEARING_LINE_NM = 12.0          # bäringslinjer på kortet
 VECTOR_S = 360                  # fartvektor på kortet: sex minuters gång
 FADE_S = 300                    # äldre bäringar ritas bleka
+FORGET_S = 1800                 # tappade kontakter: bäringen tas bort efter så här länge
 
 
 @dataclass(frozen=True)
@@ -138,6 +139,8 @@ class PlotTeam(Station):
             elif tr.observations:
                 o = tr.observations[-1]
                 age = self.now - o.t
+                if not tr.held and age > FORGET_S:
+                    continue
                 label = f"{tr.designation} {fmt_course(o.bearing)}"
                 if age >= 60:
                     label += f" ({age // 60} min)"

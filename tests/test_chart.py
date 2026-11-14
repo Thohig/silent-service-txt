@@ -103,3 +103,18 @@ def test_chart_never_reveals_truth_ids():
                     assert not any(tid in label for tid in TRUTH_IDS), (key, seed, label)
             if g.over:
                 break
+
+
+def test_bearing_of_a_long_lost_contact_is_dropped():
+    from sim.events import ContactLost
+    g = _game()
+    g.bus.publish(ContactDetected(0, "S-4", 120.0, "okänd kontakt"))
+    g.bus.publish(BearingObserved(0, BearingObs(0, 121.0, 1.0, 3.0, 4.0, 0, designation="S-4")))
+    g.bus.publish(ContactLost(0, "S-4"))
+    for _ in range(600):
+        g.tick()
+    bearing = [i for i in g.chart().drawables if isinstance(i, Ray) and i.style == "bearing"]
+    assert bearing and bearing[0].faded
+    for _ in range(1300):
+        g.tick()
+    assert not [i for i in g.chart().drawables if isinstance(i, Ray) and i.style == "bearing"]
