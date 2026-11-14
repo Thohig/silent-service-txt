@@ -130,6 +130,8 @@ PHRASES = {
     + ("Klippbotten, det skrapade i skrovet. " if d["kind"] == "klippa"
        else "Mjuk botten, inga skador. ")
     + "Maskinen stoppad, kylpumparna på lågvarv.",
+    "net.caught": lambda d: "Kapten! Vi har gått in i ett nät! Det drar i skrovet och propellern "
+    "har trasslat in sig, maskinen stoppad. Bojarna på ytan rör sig, de vet var vi är!",
     "bottom.touch": lambda d: f"Vi tog i botten med {d['where']}, kapten. Låg fart, inga skador. "
     f"Går upp till {d['back_to']} meter.",
     "ice.touch": lambda d: "Vi tog i en isköl, kapten. Långsam fart, inga skador. Maskinen stoppad.",
@@ -406,7 +408,7 @@ class EngineeringStation(Station):
                     continue
                 self._last_shock = self.now
             alarm = type in ("reactor.scram", "damage", "surfaced", "ice.collision", "ice.bump",
-                             "bottom.collision", "bottom.touch",
+                             "bottom.collision", "bottom.touch", "net.caught",
                              "fire") or (type == "smoke" and data["level"] >= 0.7) or \
                 (type == "battery" and data["level"] <= 0.1)
             self.say(type, data, kind="info", alarm=alarm)

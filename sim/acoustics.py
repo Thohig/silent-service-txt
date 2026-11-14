@@ -18,10 +18,13 @@ _SOURCE = {
     "destroyer": (137.0, 1.25),
     "merchant": (140.0, 1.0),
     "submarine": (110.0, 1.5),
+    "patrol": (125.0, 1.5),
+    "moored": (100.0, 0.0),          # till ankars: bara hjälpmaskiner
 }
 
 # Målstyrka (ekostyrka) för aktiv sonar
-TARGET_STRENGTH = {"destroyer": 25.0, "merchant": 28.0, "submarine": 15.0, "decoy": 15.0}
+TARGET_STRENGTH = {"destroyer": 25.0, "merchant": 28.0, "submarine": 15.0, "decoy": 15.0,
+                   "patrol": 18.0, "moored": 28.0}
 
 # Transienter (momentana ljud)
 PING_LEVEL_SHIP = 230.0

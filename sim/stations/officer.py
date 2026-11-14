@@ -54,7 +54,9 @@ class RadarSweep(Order):
 
 # vad utkiken ser i periskopet: (klassning till plottet, ord i rapporten)
 SIGHTED = {"destroyer": ("jagare, amerikansk", "jagare"),
-           "merchant": ("handelsfartyg", "handelsfartyg")}
+           "merchant": ("handelsfartyg", "handelsfartyg"),
+           "patrol": ("patrullbåt, amerikansk", "patrullbåt"),
+           "moored": ("fartyg till ankars", "fartyg till ankars")}
 
 
 def _contact(d: dict) -> str:
@@ -74,6 +76,9 @@ PHRASES = {
     "Inga rörelser, inget ljus i fönstren.",
     "off.suggest.surface_station": lambda d: "Kapten, vakthavande. Vi har öppet vatten ovanför och "
     f"Nord-7 på {nm(d['range'])} sjömil, nära nog att gå över isen. Föreslår ytläge.",
+    "off.periscope.net": lambda d: f"Periskop: rad av små bojar tvärs farleden, närmast i bäring "
+    f"{fmt_course(d['bearing'])}, cirka {nm(d['range'])} sjömil. Ett nät! Grinden i bäring "
+    f"{fmt_course(d['gate_bearing'])} är " + ("öppen." if d["gate_open"] else "stängd."),
     "off.radar.start": lambda d: "Radar sänder. Ett svep.",
     "off.radar.contact": lambda d: f"Radar: {d['designation']} i bäring {fmt_course(d['bearing'])}, "
     f"avstånd {nm(d['range'])} sjömil.",
@@ -293,7 +298,11 @@ class OfficerStation(Station):
                 self.suggest("down_air", "off.suggest.down",
                              {"reason": "Flygplan i sikte.", "depth": 60}, order="djup 60",
                              cooldown=300, alarm=True)
-            if not seen and not stations and not planes:
+            views = [v for sp in world.spawners if hasattr(sp, "periscope_view")
+                     for v in sp.periscope_view(world, rng)]
+            for type_, d in views:
+                self.say(type_, d, kind="contact", alarm=True)
+            if not seen and not stations and not planes and not views:
                 self.say("off.periscope.none", {"day": world.env.is_day(self.now), "visibility": vis})
             for v in seen:
                 r = world.true_range(v)

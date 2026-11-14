@@ -74,12 +74,25 @@ class Datum:
 
 
 class DestroyerAI:
+    # fartygets förmåga; PatrolBoatAI (harbor.py) är mindre och svagare
+    PING_LEVEL = acoustics.PING_LEVEL_SHIP
+    SPEED_CLOSE = 22        # mot ett avlägset datum
+    SPEED_SEARCH = 12       # söker kring datum
+    SPEED_OPEN = 18         # efter fällningen
+    SPEED_ATTACK = 15
+    SPEED_EVADE = 30
+    CHARGES = (3, 9)        # signal, skarpa
+    PATROL_MARGIN = 1.0     # så långt utanför patrullområdet innan den vänder
+
     def __init__(self, vessel: Vessel, rng: random.Random, area: float = 20.0,
                  patrol_speed: float = 15.0, escalate_after: int | None = None,
-                 leash_nm: float | None = None):
+                 leash_nm: float | None = None,
+                 box: tuple[float, float, float, float] | None = None):
         self.vessel = vessel
         self.rng = rng
         self.area = area
+        # patrullområdet (x0, y0, x1, y1); kvadraten om inget annat sägs
+        self.box = box if box is not None else (0.0, 0.0, area, area)
         self.patrol_speed = patrol_speed
         self.state = "patrol"
         self.roe = "signal"
@@ -251,7 +264,7 @@ class DestroyerAI:
             self.roe = "lethal"
             self.evade_until = world.time + 180
             s.order_course(bearing_to(t.state.x, t.state.y, s.x, s.y))
-            s.order_speed(30)
+            s.order_speed(self.SPEED_EVADE)
             if t.id not in self.seen_torpedoes:
                 self.seen_torpedoes.add(t.id)
                 lx, ly = t.launch_xy
@@ -261,14 +274,14 @@ class DestroyerAI:
     def _ping(self, world: World, noise: float) -> None:
         s = self.vessel.state
         now = world.time
-        world.emit(Transient("ping", s.x, s.y, 5.0, acoustics.PING_LEVEL_SHIP, self.vessel.id, now))
+        world.emit(Transient("ping", s.x, s.y, 5.0, self.PING_LEVEL, self.vessel.id, now))
         self.next_ping = now + PING_INTERVAL[self.state] + self.rng.randint(0, 3)
         echoes = []
         for tgt in [world.own, *[d for d in world.contacts if isinstance(d, Decoy)]]:
             if tgt.sunk or self._in_dead_zone(tgt):
                 continue
             tl = self._tl(world, tgt.state.x, tgt.state.y, tgt.depth)
-            se = acoustics.active_excess(acoustics.PING_LEVEL_SHIP, tl, tgt.target_strength,
+            se = acoustics.active_excess(self.PING_LEVEL, tl, tgt.target_strength,
                                          self._noise_toward(world, noise, tgt), DT_ACTIVE) \
                 - self._wake_clutter(world, tgt) - bottom_clutter(world, tgt) \
                 + self.rng.gauss(0, 3)
@@ -298,7 +311,8 @@ class DestroyerAI:
             return False
         px, py = self.datum.predict(now)
         m = self.leash_nm
-        return not (-m <= px <= self.area + m and -m <= py <= self.area + m)
+        x0, y0, x1, y1 = self.box
+        return not (x0 - m <= px <= x1 + m and y0 - m <= py <= y1 + m)
 
     # ------------------------------------------------------------------ beslut
     def step(self, world: World) -> None:
@@ -347,10 +361,10 @@ class DestroyerAI:
                 px, py = self.datum.predict(now)
                 d = distance(s.x, s.y, px, py)
                 if d > 1.0:
-                    s.order_speed(22)
+                    s.order_speed(self.SPEED_CLOSE)
                     s.order_course(bearing_to(s.x, s.y, px, py))
                 else:
-                    s.order_speed(12)
+                    s.order_speed(self.SPEED_SEARCH)
                     if now >= self.next_search_turn:
                         self.next_search_turn = now + 120
                         s.order_course(norm360(s.course + 90))
@@ -358,13 +372,13 @@ class DestroyerAI:
 
         if self.state == "attack":
             if now < self.opening_until:
-                s.order_speed(18)
+                s.order_speed(self.SPEED_OPEN)
                 return
             if now - self.last_contact_t > 90:
                 self.state = "prosecute"
                 return
             px, py = self.datum.predict(now)
-            s.order_speed(15)
+            s.order_speed(self.SPEED_ATTACK)
             s.order_course(bearing_to(s.x, s.y, px, py))
             if self.roe == "signal" and now >= self.next_uwt:
                 self.next_uwt = now + UWT_INTERVAL
@@ -372,7 +386,8 @@ class DestroyerAI:
             if distance(s.x, s.y, px, py) < 0.12 and now >= self.attack_ready_t:
                 practice = self.roe == "signal"
                 drop_charges(world, self.vessel, px, py, self.datum.depth,
-                             n=3 if practice else 9, practice=practice)
+                             n=self.CHARGES[0] if practice else self.CHARGES[1],
+                             practice=practice)
                 self.attacks += 1
                 if practice and self.escalate_after is not None \
                         and self.attacks >= self.escalate_after:
@@ -383,8 +398,9 @@ class DestroyerAI:
 
         # patrull
         s.order_speed(self.patrol_speed)
-        m = 1.0
-        if not (-m <= s.x <= self.area + m and -m <= s.y <= self.area + m):
+        m = self.PATROL_MARGIN
+        x0, y0, x1, y1 = self.box
+        if not (x0 - m <= s.x <= x1 + m and y0 - m <= s.y <= y1 + m):
             if "course" not in s.changing():
-                c = bearing_to(s.x, s.y, self.area / 2, self.area / 2)
+                c = bearing_to(s.x, s.y, (x0 + x1) / 2, (y0 + y1) / 2)
                 s.order_course(norm360(c + self.rng.uniform(-40, 40)))
