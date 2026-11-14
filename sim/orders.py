@@ -56,8 +56,37 @@ class DeclineSuggestion(Order):
 
 
 @dataclass(frozen=True)
-class RepeatSuggestion(Order):
-    pass
+class AskSuggestion(Order):
+    """Kaptenen ber om förslag.
+
+    role: besättningsroll (Role-värde) om kaptenen frågar en viss station.
+    other: "annat förslag", dvs. något annat än det som väntar på svar.
+    Utan role och other upprepas ett väntande förslag; annars svarar
+    vakthavande med stationernas bästa förslag just nu.
+    """
+    role: str | None = None
+    other: bool = False
+
+
+# station i "förslag sonar" -> Role-värde (sim.crew.Role)
+STATION_WORDS = {
+    "sonar": "sonar", "sonaren": "sonar",
+    "maskin": "engineer", "maskinen": "engineer",
+    "plott": "plot", "plot": "plot", "plottet": "plot", "plotten": "plot",
+    "navigatör": "navigator", "navigatören": "navigator", "navigator": "navigator",
+    "navigatoren": "navigator", "nav": "navigator",
+    "torped": "torpedo", "torpedrum": "torpedo", "torpedrummet": "torpedo",
+    "radio": "radio", "radion": "radio",
+    "vakthavande": "officer", "officer": "officer", "officeren": "officer",
+}
+
+
+def _ask_station(m: re.Match) -> Order:
+    role = STATION_WORDS.get(m[1])
+    if role is None:
+        return Unknown("", f"vilken station? Sonar, maskin, plott, navigatör, torped, "
+                           f"radio eller vakthavande")
+    return AskSuggestion(role)
 
 
 def num(s: str) -> float:
@@ -123,5 +152,10 @@ SUGGESTION_COMMANDS = [
     CommandSpec(r"ja|verkställ|verkstall|gör så|gor sa|utför|utfor|aye",
                 lambda m: AcceptSuggestion(), "ja"),
     CommandSpec(r"nej|avslå|avsla|avvakta", lambda m: DeclineSuggestion(), "nej"),
-    CommandSpec(r"förslag|forslag", lambda m: RepeatSuggestion(), "förslag"),
+    CommandSpec(r"(?:förslag|forslag|några förslag|nagra forslag|vad föreslår ni|"
+                r"vad foreslar ni)\s*\??", lambda m: AskSuggestion(), "förslag"),
+    CommandSpec(r"(?:annat|nytt|nästa|nasta|fler)\s+(?:förslag|forslag)\s*\??",
+                lambda m: AskSuggestion(other=True), "annat förslag"),
+    CommandSpec(r"(?:förslag|forslag)\s+(?:från\s+|fran\s+)?(\S+?)\s*\??",
+                _ask_station, "förslag sonar"),
 ]

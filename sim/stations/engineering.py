@@ -157,8 +157,15 @@ class EngineeringStation(Station):
                     "co2": s.co2, "health": dict(s.health)})
 
     def idle_proposals(self) -> list[Proposal]:
-        s = self.own.sys
+        s, st = self.own.sys, self.own.state
         out = []
+        if s.flooding > TRIM_RESERVE_T and st.depth > 20 and not s.blowing and s.hp_air > 0:
+            out.append(Proposal(1, "idle_blow", "eng.suggest.blow", "nödblåsning",
+                                {"flooding": s.flooding}, cooldown=120))
+        if st.speed > acoustics.cavitation_speed(st.depth) + 0.2:
+            safe = max(3.0, int(acoustics.cavitation_speed(st.depth)))
+            out.append(Proposal(1, "idle_cavitation", "eng.suggest.cavitation", f"fart {safe}",
+                                {"speed": safe}, cooldown=600))
         if s.reactor in ("scram", "off") and s.battery < 0.5:
             out.append(Proposal(1, "idle_restart", "eng.suggest.restart", "starta reaktorn"))
         if s.propulsion == "turbine" and any(t.held for t in self.game.knowledge.tracks.values()):

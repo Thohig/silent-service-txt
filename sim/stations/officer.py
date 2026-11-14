@@ -8,18 +8,21 @@ utan inmatning och utan att någon annan föreslagit något samlar han
 stationernas idle_proposals() och låter den station som har det viktigaste
 förslaget säga det. Högst ett sådant förslag per QUIET_S, inget medan ett
 annat förslag väntar, och ingen order som redan föreslagits inom REPEAT_S.
+
+Ber kaptenen om förslag ("förslag", "förslag sonar", "annat förslag") svarar
+vakthavande direkt ur samma kandidater, utan att vänta eller spärra upprepning.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 from .. import phrases
-from ..crew import Role
+from ..crew import ROLE_LABEL, Role
 from ..entities import Emission
 from ..events import BearingObserved, ContactDetected
 from ..fmt import fmt_course, kn, nm
 from ..geo import angle_diff, norm360
-from ..orders import CommandSpec, Order
+from ..orders import AskSuggestion, CommandSpec, Order
 from ..ownship import PERISCOPE_DEPTH
 from ..reports import Quality
 from ..tma import BearingObs
@@ -65,6 +68,10 @@ PHRASES = {
     f"signal {d['strength']}." + (" De kan se våra master!" if d['strength'] == "mycket stark" else ""),
     "off.suggest.down": lambda d: f"Kapten, vakthavande. {d['reason']} Föreslår djup "
     f"{d['depth']:.0f}.",
+    "off.suggest.none": lambda d: (
+        f"Kapten, vakthavande. {d['station']} har inget att föreslå just nu." if d.get("station")
+        else "Kapten, vakthavande. Inget annat att föreslå just nu." if d.get("other")
+        else "Kapten, vakthavande. Inga förslag just nu, läget är lugnt."),
     "off.suggest.look": lambda d: "Kapten, vakthavande. Vi är på periskopdjup och har inte "
     "tittat på en stund. Föreslår ett periskopsvep.",
 }
@@ -115,6 +122,8 @@ class OfficerStation(Station):
                 sys.periscope_until = max(sys.periscope_until, self.now + LOOK_S)
                 self.look_done_t = self.now + LOOK_S
                 self.say("off.periscope.up", kind="ack")
+            case AskSuggestion(role=role, other=other):
+                self._answer_request(Role(role) if role else None, other)
             case RadarSweep():
                 if reason := self._check_mast("radarn"):
                     self.say("off.refused", {"reason": reason})
@@ -133,9 +142,7 @@ class OfficerStation(Station):
             return
         if g.active_suggestion() is not None or g.queue.has_kind("suggest"):
             return
-        candidates = [(p.priority, i, st, p) for i, st in enumerate(g.stations)
-                      for p in st.idle_proposals()]
-        for _, _, st, p in sorted(candidates, key=lambda c: (c[0], c[1])):
+        for st, p in self._candidates():
             if self.now - g.suggested_at.get(p.order, -10**9) < REPEAT_S:
                 continue
             if st.propose(p):
@@ -143,6 +150,26 @@ class OfficerStation(Station):
                 g.log(f"INITIATIV efter tystnad: {p.key} -> {p.order!r}")
                 return
         self._idle_t = self.now - QUIET_S + IDLE_RETRY_S
+
+    def _candidates(self, role: Role | None = None) -> list[tuple[Station, Proposal]]:
+        """Alla stationers förslag, viktigast först (lika prioritet: stationsordning)."""
+        out = [(p.priority, i, st, p) for i, st in enumerate(self.game.stations)
+               if role is None or st.role == role for p in st.idle_proposals()]
+        return [(st, p) for _, _, st, p in sorted(out, key=lambda c: (c[0], c[1]))]
+
+    def _answer_request(self, role: Role | None, other: bool) -> None:
+        g = self.game
+        active = g.active_suggestion()
+        skip = active[0] if (other and active) else None
+        for st, p in self._candidates(role):
+            if p.order == skip:
+                continue
+            # kaptenen frågade: ingen väntan och ingen spärr mot upprepning
+            if st.suggest(p.key, p.type, p.data, order=p.order, cooldown=0, quality=p.quality):
+                g.log(f"FÖRSLAG på begäran: {p.key} -> {p.order!r}")
+                return
+        self.say("off.suggest.none",
+                 {"station": ROLE_LABEL[role] if role else None, "other": other})
 
     def idle_proposals(self) -> list[Proposal]:
         st = self.own.state

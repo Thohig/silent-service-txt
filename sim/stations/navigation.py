@@ -217,6 +217,14 @@ class NavigationStation(Station):
     def idle_proposals(self) -> list[Proposal]:
         s = self.ship
         out = []
+        if s.depth > TEST_DEPTH + 5:
+            out.append(Proposal(1, "idle_test_depth", "nav.suggest.test_depth", "djup 280",
+                                {"depth": s.depth}, cooldown=300))
+        size = self.game.world.size_nm
+        if not (0.5 <= self.est_x <= size - 0.5 and 0.5 <= self.est_y <= size - 0.5):
+            c = bearing_to(self.est_x, self.est_y, size / 2, size / 2)
+            out.append(Proposal(3, "idle_area", "nav.suggest.area", f"kurs {fmt_course(c)}",
+                                {"course": c}, cooldown=900))
         held = any(t.held for t in self.game.knowledge.tracks.values())
         sigma = self.uncertainty()
         if not held and sigma > IDLE_FIX_SIGMA_NM and self.fix_done_t is None:

@@ -122,3 +122,66 @@ def test_officer_proposes_periscope_look_when_shallow_and_quiet():
     _run(g, QUIET_S + 300)
     assert s.depth <= 18
     assert "off.suggest.look" in [r.type for r in reports]
+
+
+# --- förslag på begäran ------------------------------------------------------------
+def test_ask_gives_best_proposal_immediately():
+    g, reports = _game()
+    g.command("djup 30")
+    g.command("fart 20")              # kaviterar på 30 m
+    _run(g, 200)
+    reports.clear()
+    g.suggestion = None
+    g.command("förslag")
+    _run(g, 20)
+    sug = [r for r in reports if r.kind == "suggest"]
+    assert sug and sug[0].type == "eng.suggest.cavitation"
+
+
+def test_ask_repeats_waiting_suggestion():
+    g, reports = _game()
+    g.station(EngineeringStation).suggest("x", "eng.suggest.restart", order="starta reaktorn")
+    _run(g, 20)
+    g.command("förslag")
+    assert reports[-1].type == "order.suggestion_repeat"
+
+
+def test_ask_specific_station_and_nothing_to_say():
+    g, reports = _game()
+    g.command("förslag torped")
+    g.command("förslag radio")
+    _run(g, 20)
+    types = [r.type for r in reports]
+    assert "torp.suggest.reload" in types                 # tub 7 och 8 är tomma
+    none = [r.text for r in reports if r.type == "off.suggest.none"]
+    assert any("Radio har inget att föreslå" in t for t in none)
+
+
+def test_ask_other_skips_waiting_suggestion():
+    g, reports = _game()
+    g.command("förslag torped")
+    _run(g, 20)
+    first = g.active_suggestion()[0]
+    g.command("annat förslag")
+    _run(g, 20)
+    later = [r for r in reports if r.kind == "suggest"][1:]
+    assert all(r.data["order"] != first for r in later)
+    if not later:                     # inget annat att föreslå: vakthavande säger det
+        assert any(r.type == "off.suggest.none" and "Inget annat" in r.text for r in reports)
+
+
+def test_ask_unknown_station():
+    g, reports = _game()
+    g.command("förslag kocken")
+    _run(g, 20)
+    assert any(r.type == "order.unknown" and "vilken station" in r.text for r in reports)
+
+
+def test_ask_never_offers_fire():
+    for seed in SEEDS:
+        g, reports = _game(seed)
+        for i in range(0, 3 * 3600, 300):
+            g.command("annat förslag" if i % 600 else "förslag")
+            _run(g, 300)
+        orders = [r.data.get("order", "") for r in reports if r.kind == "suggest"]
+        assert not any(o.startswith(("eld", "avfyra", "skjut")) for o in orders)

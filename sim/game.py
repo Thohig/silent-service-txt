@@ -28,7 +28,7 @@ from .events import (EventBus, GameEnded, OrderIssued, ReportDelivered, Tick,
 from .fmt import clock
 from .knowledge import Knowledge
 from .orders import (HELP_COMMAND, SUGGESTION_COMMANDS, TIME_COMMAND, AcceptSuggestion,
-                     CommandRegistry, DeclineSuggestion, Help, Order, RepeatSuggestion,
+                     AskSuggestion, CommandRegistry, DeclineSuggestion, Help, Order,
                      SetTimeScale, Unknown)
 from .ownship import PERISCOPE_DEPTH
 from .reports import Quality, Report, ReportQueue
@@ -207,14 +207,10 @@ class Game:
                 self.suggestion = None
                 self.say(Role.NAVIGATOR, "order.declined", {})
                 return
-            case RepeatSuggestion():
-                sug = self.active_suggestion()
-                if sug is None:
-                    self.say(Role.NAVIGATOR, "order.no_suggestion", {})
-                else:
-                    self._system("order.suggestion_repeat", {"text": sug[1]})
+            case AskSuggestion(role=None, other=False) if self.active_suggestion():
+                self._system("order.suggestion_repeat", {"text": self.active_suggestion()[1]})
                 return
-        if not isinstance(order, (Unknown, Help, SetTimeScale)):
+        if not isinstance(order, (Unknown, Help, SetTimeScale, AskSuggestion)):
             self._ordered[type(order)] = (order, self.now)
             if self.suggestion and \
                     type(self.registry.parse(self.suggestion[0])) is type(order):

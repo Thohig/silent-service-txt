@@ -19,7 +19,10 @@ till `logs/truth-*.log`.
 
 Besättningen föreslår själv åtgärder. Ett förslag med en färdig order visas
 som `[ja: …]` och på statusraden. Svara `ja` för att verkställa eller `nej`
-för att avslå. Avfyring föreslås aldrig som en ja-order.
+för att avslå. Du kan också be om förslag: `förslag` upprepar det som
+väntar eller ger besättningens viktigaste förslag just nu, `förslag sonar`
+frågar en viss station och `annat förslag` ger nästa i tur.
+Avfyring föreslås aldrig som en ja-order.
 Ger du själv en order om samma sak (till exempel `fart 6` när besättningen
 föreslagit `fart 4`) släpps förslaget, och besättningen föreslår aldrig en
 kurs, fart, framdrivning eller ett djup som redan är beordrat.
@@ -35,7 +38,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Område | Order |
 |---|---|
 | Manöver | `kurs 090` · `fart 5` · `stopp` · `djup 100` · `periskopdjup` · `antenndjup` · `ytläge` |
-| Förslag | `ja` · `nej` · `förslag` |
+| Förslag | `ja` · `nej` · `förslag` · `förslag sonar` (maskin, plott, navigatör, torped, radio, vakthavande) · `annat förslag` |
 | Tid | `tid 1` `tid 2` `tid 5` `tid 10` (faller till 1× vid larm) |
 | Sonar | `aktiv sonar` (ger avstånd men avslöjar oss) |
 | Plott | `läge S-1` · `plot S-1` |
