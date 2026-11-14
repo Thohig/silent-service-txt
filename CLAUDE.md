@@ -53,6 +53,12 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   `ZIGZAG_PLANS` (medelavdrift ~0) kring baskursen; `ConvoyShipAI` håller platsen (fast i baskursens
   riktning). Nödgir 50° bort från hotet, +3 kn i 15 min (sänkt fartyg, egen torped < 1,5 nm,
   detonation < 4 nm), sedan baskurs och plan igen. Typer `transport` (145 + fart dB) och `tanker` (143).
+  Eskort (`EscortAI(DestroyerAI)`, `make_escorts`): skärm 2,5 nm framför och 1,5 nm åt sidorna, fast
+  i baskursens riktning; ping var 20:e s; skarpa från start (`roe="lethal"`); koppel 4 nm från
+  ledpunkten; en jagar i taget (`Convoy.hunter`), den andra bara om datumet ligger < 1,5 nm från
+  konvojen. Konvojens brus skymmer ubåten (`masking_noise(sides=...)`). Ubåt 1 nm från konvojens väg,
+  3 kn: hittas i 8 av 8 frön på 50 och 150 m, ~25 min efter start (2–4 nm), ett anfall, sedan går
+  konvojen vidare och eskorten släpper.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen

@@ -7,7 +7,7 @@ import pytest
 from sim.convoy import NODGIR_DEG, NODGIR_S, ZIGZAG_PLANS, ConvoyDef, make_convoy
 from sim.events import ClassificationChanged, ContactDetected
 from sim.game import Game
-from sim.geo import angle_diff, bearing_to, distance
+from sim.geo import angle_diff, bearing_to, distance, velocity
 from sim.ownship import OwnShip
 from sim.scenario import default_scenario
 from sim.ship import ShipState
@@ -111,3 +111,86 @@ def test_periscope_names_convoy_ships():
     assert {"trupptransport", "tankfartyg"} <= labels
     assert all(not ob.designation.startswith("K") for ob in g.knowledge.periscope.ships())
     assert c.vessels
+
+
+# --- eskort (K2) -----------------------------------------------------------------
+from sim.convoy import GUARD_NM, ESCORT_LEASH_NM, make_escorts  # noqa: E402
+
+
+def _escorted(seed=1, base=160.0):
+    w, c = _world(seed, base=base)
+    escorts = make_escorts(w, c, random.Random(seed))
+    return w, c, escorts
+
+
+def test_escorts_keep_their_screen_ahead_of_the_zigzagging_convoy():
+    for seed in SEEDS:
+        w, c, escorts = _escorted(seed)
+        off = []
+        for t in range(3600):
+            w.tick()
+            if t > 300 and t % 30 == 0:
+                for e in escorts:
+                    px, py = e.screen_point()
+                    off.append(distance(e.vessel.state.x, e.vessel.state.y, px, py))
+        assert all(e.state == "escort" and e.roe == "lethal" for e in escorts)
+        assert sorted(off)[int(0.9 * len(off))] < 0.6, seed   # 9 av 10 nära platsen
+        for e in escorts:                                      # framför konvojen
+            b = bearing_to(c.x, c.y, e.vessel.state.x, e.vessel.state.y)
+            assert abs(angle_diff(b, c.course)) < 70
+
+
+def test_escort_ignores_a_datum_beyond_its_leash():
+    w, c, (e1, e2) = _escorted()
+    bx, by = c.x + ESCORT_LEASH_NM + 1.0, c.y
+    e1._set_datum(w, bx, by, 100.0, 0.2, fix=True)
+    assert e1.datum is None and e2.datum is None
+
+
+def _datum_off_convoy(w, c, nm):
+    """En punkt nm sjömil om styrbord om konvojen."""
+    vx, vy = velocity(c.course + 90.0, 3600.0)
+    return c.x + nm * vx, c.y + nm * vy
+
+
+def test_only_one_escort_hunts_unless_the_threat_is_close():
+    w, c, (e1, e2) = _escorted(2)
+    _run(w, 120)
+    x, y = _datum_off_convoy(w, c, 3.0)
+    e1._set_datum(w, x, y, 100.0, 0.5, fix=True)          # delas med e2 över radio
+    assert e2.datum is not None
+    _run(w, 30)
+    assert c.hunter is e1 and e1.aware()
+    assert e2.state == "escort" and not e2.aware()
+    # nära konvojen: även den andra tar hotet
+    x, y = _datum_off_convoy(w, c, GUARD_NM * 0.6)
+    e2._set_datum(w, x, y, 100.0, 0.5, fix=True)
+    _run(w, 5)
+    assert e2.aware()
+
+
+def test_hunter_returns_to_the_screen_when_the_convoy_has_moved_on():
+    w, c, (e1, e2) = _escorted(3)
+    _run(w, 60)
+    x, y = _datum_off_convoy(w, c, 2.5)
+    e1._set_datum(w, x, y, 100.0, 0.5, fix=True)
+    _run(w, 20)
+    assert c.hunter is e1
+    _run(w, 25 * 60)                                      # konvojen har gått 5 nm
+    assert e1.state == "escort" and c.hunter is None
+
+
+def test_convoy_noise_hides_the_submarine_behind_it():
+    w, c, (e1, _e2) = _escorted(4)
+    s = e1.vessel.state
+    noise = e1._noise(w)
+    tgt = w.own
+    k = c.vessels[0].state
+    # ubåten rakt bakom ett konvojfartyg sett från eskorten
+    b = bearing_to(s.x, s.y, k.x, k.y)
+    vx, vy = velocity(b, 3600.0)
+    tgt.state.x, tgt.state.y = k.x + vx * 0.5, k.y + vy * 0.5
+    masked = e1._noise_toward(w, noise, tgt)
+    tgt.state.x, tgt.state.y = s.x - vx * 2.0, s.y - vy * 2.0     # åt andra hållet
+    clear = e1._noise_toward(w, noise, tgt)
+    assert masked > clear + 5

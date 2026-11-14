@@ -12,7 +12,12 @@ hörs nära, girar konvojen bort från hotet (NODGIR_DEG), ökar farten och går
 nya kursen en stund innan den återtar baskursen och sicksackplanen.
 
 Konvojens fartyg är fientliga (`side="enemy"`) men kan inte tvinga upp ubåten.
-Eskortjagarna är vanliga `DestroyerAI` (se enemy.py).
+
+Eskortjagarna (`EscortAI`, en `DestroyerAI`) håller en skärmplats framför
+konvojen och pingar tätt. De är kopplade till konvojen: ett datum längre än
+`leash_nm` från ledpunkten släpps. Bara en eskort i taget jagar (`Convoy.hunter`);
+den andra stannar på sin plats om inte hotet ligger nära konvojen (GUARD_NM).
+Konvojens eget brus skymmer ubåten för eskortens sonar i samma bäring.
 """
 from __future__ import annotations
 
@@ -21,6 +26,8 @@ import random
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from . import acoustics
+from .enemy import DATUM_TIMEOUT, PING_INTERVAL, DestroyerAI
 from .entities import Vessel
 from .geo import angle_diff, bearing_to, distance, norm360, velocity
 from .ship import ShipState
@@ -45,6 +52,9 @@ STATION_MAX_DEG = 35.0
 SPEED_GAIN_KN_PER_NM = 8.0
 SPEED_MAX_EXTRA_KN = 3.0
 ARRIVE_COURSE_S = 15         # fartygen räknar om kurs och fart så här ofta
+GUARD_NM = 1.5               # ett hot så nära konvojen tar även den bevakande eskorten
+ESCORT_LEASH_NM = 4.0        # eskorten släpper ett datum så långt från konvojen
+SCREEN = ((-1.5, 2.5), (1.5, 2.5), (0.0, -2.0))   # (styrbord, framåt) nm i konvojens kurs
 
 
 @dataclass(frozen=True)
@@ -84,6 +94,8 @@ class Convoy:
     nodgir_course: float = 0.0
     nodgir_count: int = 0
     vessels: list[Vessel] = field(default_factory=list)
+    escorts: list["EscortAI"] = field(default_factory=list)
+    hunter: "EscortAI | None" = None
     _seen_threats: set = field(default_factory=set)
 
     def __post_init__(self) -> None:
@@ -203,6 +215,93 @@ class ConvoyShipAI:
         s.order_course(norm360(c.course + corr))
         extra = max(-SPEED_MAX_EXTRA_KN, min(SPEED_MAX_EXTRA_KN, SPEED_GAIN_KN_PER_NM * along))
         s.order_speed(max(2.0, c.speed + extra))
+
+
+class EscortAI(DestroyerAI):
+    """Eskortjagare: skärm framför konvojen, jagar bara nära den, en i taget."""
+    PING_INTERVAL = {**PING_INTERVAL, "escort": 20}
+
+    def __init__(self, vessel: Vessel, rng: random.Random, convoy: Convoy,
+                 screen: tuple[float, float], leash_nm: float = ESCORT_LEASH_NM,
+                 roe: str = "lethal"):
+        super().__init__(vessel, rng, leash_nm=leash_nm)
+        self.convoy = convoy
+        self.screen = screen
+        self.roe = roe
+        self.state = "escort"
+
+    def screen_point(self) -> tuple[float, float]:
+        c = self.convoy
+        side, ahead = self.screen
+        # fast i baskursens riktning, som formationen: sicksacken flyttar inte skärmen
+        ax, ay = velocity(c.base_course, 3600.0)
+        sx, sy = velocity(c.base_course + 90.0, 3600.0)
+        return c.x + ahead * ax + side * sx, c.y + ahead * ay + side * sy
+
+    # koppel till konvojen i stället för till en ruta
+    def _outside_leash(self, px: float, py: float) -> bool:
+        return distance(px, py, self.convoy.x, self.convoy.y) > self.leash_nm
+
+    def _noise_toward(self, world: World, noise: float, tgt: Vessel) -> float:
+        s = self.vessel.state
+        mask = world.masking_noise(s.x, s.y, 5.0, tgt.state.x, tgt.state.y,
+                                   exclude=(self.vessel.id,), sides=("neutral", "enemy"))
+        return noise if mask is None else acoustics.power_sum(noise, mask)
+
+    def _keep_station(self) -> None:
+        self.state = "escort"
+        c, s = self.convoy, self.vessel.state
+        tx, ty = self.screen_point()
+        d = distance(s.x, s.y, tx, ty)
+        s.order_course(bearing_to(s.x, s.y, tx, ty) if d > 0.1 else c.course)
+        s.order_speed(min(self.SPEED_CLOSE, c.speed + min(10.0, d * 12.0)))
+
+    def _decide(self, world: World) -> None:
+        now, c = world.time, self.convoy
+        h = c.hunter
+        if h is not None and (h.vessel.sunk or not h.aware()):
+            c.hunter = None
+        if now < self.evade_until:
+            super()._decide(world)
+            return
+        if self.datum is not None and (now - self.datum.t > DATUM_TIMEOUT
+                                       or self._beyond_leash(now)):
+            self.datum = None
+        if self.datum is None:
+            self._keep_station()
+            return
+        px, py = self.datum.predict(now)
+        near = distance(px, py, c.x, c.y) <= GUARD_NM
+        if c.hunter is None or c.hunter is self:
+            c.hunter = self
+        elif not near:
+            self._keep_station()          # den andra jagar; vi stannar hos konvojen
+            return
+        if self.state == "escort":
+            self.state = "prosecute"
+        super()._decide(world)
+        if self.state == "patrol":        # basklassen släppte datumet
+            self._keep_station()
+
+
+def make_escorts(world: World, convoy: Convoy, rng: random.Random, n: int = 2,
+                 roe: str = "lethal", prefix: str = "E") -> list[EscortAI]:
+    """Eskortjagare på sina skärmplatser."""
+    out = []
+    for i in range(n):
+        v = Vessel(f"{prefix}{i + 1}", "destroyer",
+                   ShipState(x=0.0, y=0.0, course=convoy.course, speed=convoy.speed,
+                             turn_rate=2.0, accel=0.3, max_speed=32),
+                   side="enemy", has_radar=True)
+        ai = EscortAI(v, random.Random(rng.random()), convoy, SCREEN[i % len(SCREEN)], roe=roe)
+        v.state.x, v.state.y = ai.screen_point()
+        world.contacts.append(v)
+        world.ais.append(ai)
+        convoy.escorts.append(ai)
+        out.append(ai)
+    for ai in out:
+        ai.partners = [p for p in out if p is not ai]
+    return out
 
 
 def make_convoy(world: World, cdef: ConvoyDef, rng: random.Random,

@@ -200,13 +200,14 @@ class World:
         return v.radiated_level(self.env) - tl - acoustics.power_sum(*noise)
 
     def masking_noise(self, lx: float, ly: float, ldepth: float, tx: float, ty: float,
-                      exclude: tuple[str, ...] = ()) -> float | None:
-        """Brus från neutrala fartyg (handelsfartyg) som ligger nästan i samma
+                      exclude: tuple[str, ...] = (),
+                      sides: tuple[str, ...] = ("neutral",)) -> float | None:
+        """Brus från fartyg (normalt neutrala handelsfartyg) som ligger nästan i samma
         bäring som målet, sett från lyssnaren. None om inget fartyg skymmer."""
         b = bearing_to(lx, ly, tx, ty)
         levels = []
         for m in self.contacts:
-            if m.side != "neutral" or not m.is_ship or m.sunk or m.id in exclude:
+            if m.side not in sides or not m.is_ship or m.sunk or m.id in exclude:
                 continue
             if abs(angle_diff(bearing_to(lx, ly, m.state.x, m.state.y), b)) > MASK_BEAM_DEG:
                 continue
