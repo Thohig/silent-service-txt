@@ -62,6 +62,11 @@ SHOAL_LOOK_MIN = 6          # navigatören tittar så många minuters gång fram
 SHOAL_LOOK_MIN_NM = 1.0     # men minst så långt
 SHOAL_CHECK_S = 20
 SOUNDING_TRUST_S = 600      # en lodning räknas så här länge
+SETTLE_SPEED = 1.0          # fart när vi går ned mot botten
+SETTLE_DESCEND_KN = 1.5     # gå ned först när farten är nere i detta
+SETTLE_EXTRA_M = 60         # sikta så här långt under kortets botten
+SETTLE_SUGGEST_MAX_M = 280  # föreslå att lägga oss på botten bara grundare än så
+BOTTOM_WORDS = {"lera": "lerbotten", "sand": "sandbotten", "klippa": "klippbotten"}
 CONTOUR_MARGIN_NM = 4.0     # djupkurvor så här långt utanför kvadraten
 CONTOUR_LABEL_SPOTS = ((5, 5), (15, 5), (5, 15), (15, 15), (10, 10))   # andelar av kvadraten ×20
 
@@ -114,6 +119,11 @@ class GoToStation(Order):
     pass
 
 
+@dataclass(frozen=True)
+class SettleOnBottom(Order):
+    pass
+
+
 def _course(m: re.Match) -> Order:
     c = num(m[1])
     if not 0 <= c < 360:
@@ -133,6 +143,19 @@ PHRASES = {
        if d.get("ice_ceiling") else
        " Det är is ovanför, kapten, masterna kommer inte upp här." if d.get("ice_masts") else "")
     + (f" Kortet visar botten på cirka {d['shoal']:.0f} meter här, kapten." if d.get("shoal") else ""),
+    "nav.settle.ack": lambda d: "Lägger oss på botten, aye. "
+    + (f"Ekolodet gav {d['depth']:.0f} meter" if d.get("sounded") else
+       f"Kortet visar cirka {d['depth']:.0f} meter")
+    + (f", {BOTTOM_WORDS[d['kind']]} enligt kortet" if d.get("kind") else "")
+    + ". Sakta i en knop och går ned.",
+    "nav.settle.refused": lambda d: f"Kapten, {d['reason']}.",
+    "nav.settle.already": lambda d: "Vi ligger redan på botten, kapten.",
+    "nav.settle.lift": lambda d: "Vi lättar från botten.",
+    "nav.settle.not_reached": lambda d: f"Kapten, vi är på {d['depth']:.0f} meter och har inte "
+    "nått botten. Kortet stämmer inte här. Föreslår ekolod.",
+    "nav.suggest.settle": lambda d: "Kapten, navigatören. Vi är över grunt vatten, kortet visar "
+    f"{BOTTOM_WORDS[d['kind']]} på cirka {d['depth']:.0f} meter. Ligger vi stilla på botten "
+    "drunknar vårt eko i bottenekot. Föreslår att vi lägger oss på botten.",
     "nav.suggest.shoal": lambda d: "Kapten, navigatören. "
     + (f"Ekolodet visade {d['shoal']:.0f} meter till botten här" if d.get("sounded") else
        f"Sjökortet visar {d['shoal']:.0f} meter "
@@ -263,6 +286,8 @@ class NavigationStation(Station):
                     lambda m: GoToOpening(), "vak"),
         CommandSpec(r"(?:gå till |ga till |kurs mot |mot )?(?:drivstationen|stationen|nord-?7)",
                     lambda m: GoToStation(), "drivstationen"),
+        CommandSpec(r"(?:lägg oss på |lagg oss pa |lägg på |lagg pa |sätt oss på |satt oss pa |"
+                    r"gå ned på |ga ned pa )?botten", lambda m: SettleOnBottom(), "botten"),
     ]
 
     def __init__(self, game):
@@ -290,6 +315,7 @@ class NavigationStation(Station):
         self._circle_c: tuple[float, float] | None = None
         self._circle_t = 0
         self._touching = False
+        self._settle_aim = 0.0
         self._goal_src = ""
         # djupprofilen: djupmätaren (t, djup) och ekolodets bottenlodningar
         self.depth_log: list[tuple[int, float]] = [(0, s.depth)]
@@ -416,6 +442,74 @@ class NavigationStation(Station):
             return None
         return max(PERISCOPE_DEPTH, math.floor((kb[0] - SHOAL_MARGIN_M) / 10) * 10)
 
+    # --- ligga på botten -----------------------------------------------------------
+    def bottom_here(self) -> tuple[float, str | None, bool] | None:
+        """Botten där vi tror att vi är: (djup, bottentyp enligt kortet, lodat)."""
+        chart = self.game.knowledge.bathymetry
+        kind = chart.bottom_type(self.est_x, self.est_y) if chart is not None else None
+        recent = [b for b in self.bottom_soundings if self.now - b.t <= SOUNDING_TRUST_S]
+        if recent:
+            return recent[-1].depth, kind, True
+        if chart is None:
+            return None
+        return chart.depth_at(self.est_x, self.est_y), kind, False
+
+    def _settle(self) -> None:
+        s, sys = self.ship, self.own.sys
+        if sys.on_bottom:
+            self.say("nav.settle.already", kind="ack")
+            return
+        here = self.bottom_here()
+        if here is None:
+            self.say("nav.settle.refused", {"reason": "vi vet inte djupet här. Ekolodet först"})
+            return
+        depth, kind, sounded = here
+        if depth > TEST_DEPTH:
+            self.say("nav.settle.refused",
+                     {"reason": f"botten ligger på cirka {round(depth, -1):.0f} meter, under provdjup"})
+            return
+        self.vak = None
+        self.goal = None
+        sys.settle = True
+        self._settle_aim = min(s.max_depth, depth + SETTLE_EXTRA_M)
+        s.order_speed(min(s.ordered_speed, SETTLE_SPEED) if s.ordered_speed > 0 else SETTLE_SPEED)
+        # först sakta in, sedan ned: botten ska nås i krypfart
+        s.order_depth(self._settle_aim if s.speed <= SETTLE_DESCEND_KN else s.depth)
+        self._pending.discard("depth")
+        self._pending.discard("speed")
+        self.say("nav.settle.ack", {"depth": round(depth, -1), "kind": kind, "sounded": sounded},
+                 kind="ack")
+
+    def _lift(self) -> None:
+        sys = self.own.sys
+        if sys.on_bottom:
+            self.say("nav.settle.lift", kind="ack")
+        sys.settle = sys.on_bottom = False
+
+    def _settle_watch(self) -> None:
+        s, sys = self.ship, self.own.sys
+        if sys.blowing and (sys.settle or sys.on_bottom):
+            sys.settle = sys.on_bottom = False
+            return
+        if sys.settle and not sys.on_bottom and s.speed <= SETTLE_DESCEND_KN \
+                and s.ordered_depth < self._settle_aim:
+            s.order_depth(self._settle_aim)
+        if sys.settle and not sys.on_bottom and s.depth >= self._settle_aim - 0.5:
+            sys.settle = False
+            self.say("nav.settle.not_reached", {"depth": s.depth}, alarm=True)
+
+    def _settle_proposal(self) -> Proposal | None:
+        """Förslag att lägga oss på botten: hot hållet, grunt och mjukt enligt kortet."""
+        sys = self.own.sys
+        if sys.settle or sys.on_bottom or not self.game.knowledge.threat_held():
+            return None
+        here = self.bottom_here()
+        if here is None or here[1] is None or here[1] == "klippa" or here[0] > SETTLE_SUGGEST_MAX_M:
+            return None
+        return Proposal(2, "settle", "nav.suggest.settle", "botten",
+                        {"depth": round(here[0], -1), "kind": here[1]},
+                        quality=self._shoal_quality(), cooldown=1200)
+
     def _shoal_quality(self) -> Quality:
         sigma = self.uncertainty()
         return Quality.GOD if sigma < 0.25 else Quality.OSAKER if sigma < 0.6 else Quality.DALIG
@@ -423,14 +517,18 @@ class NavigationStation(Station):
     def _shoal_watch(self) -> None:
         if self.now % SHOAL_CHECK_S:
             return
+        if self.own.sys.settle or self.own.sys.on_bottom:
+            return
+        if (p := self._settle_proposal()) is not None:
+            self.propose(p)
         kb = self.known_bottom()
         if kb is None:
             return
         shoal, dist, sounded = kb
         s = self.ship
         limit = self.depth_limit()
-        if max(s.depth, s.ordered_depth) <= limit:
-            return
+        if s.ordered_depth <= limit:
+            return                          # på väg upp, eller redan grunt nog
         minutes = dist * 60 / max(s.speed, 0.5)
         self.suggest("shoal", "nav.suggest.shoal",
                      {"shoal": round(shoal, -1), "dist": dist, "depth": limit, "sounded": sounded},
@@ -511,6 +609,8 @@ class NavigationStation(Station):
                 self._ack("course", {"course": c}, s.course == s.ordered_course)
             case SetSpeed(speed=v):
                 self.vak = None
+                if v > 0:
+                    self._lift()
                 limit = self.own.max_speed()
                 if v > limit:
                     self.say("nav.limit", {"what": "speed", "limit": limit})
@@ -518,6 +618,7 @@ class NavigationStation(Station):
                 s.order_speed(v)
                 self._ack("speed", {"speed": v}, s.speed == s.ordered_speed)
             case SetDepth(depth=d):
+                self._lift()
                 if d > s.max_depth:
                     self.say("nav.limit", {"what": "depth", "limit": s.max_depth})
                     return
@@ -553,6 +654,8 @@ class NavigationStation(Station):
                 self._go_to_opening()
             case GoToStation():
                 self._go_to_station()
+            case SettleOnBottom():
+                self._settle()
 
     def _ack(self, what: str, data: dict, already: bool) -> None:
         self.say(f"nav.{what}.ack", {**data, "already": already}, kind="ack")
@@ -901,6 +1004,8 @@ class NavigationStation(Station):
             c = bearing_to(self.est_x, self.est_y, size / 2, size / 2)
             out.append(Proposal(3, "idle_area", "nav.suggest.area", f"kurs {fmt_course(c)}",
                                 {"course": c, "area": self.game.area_name}, cooldown=900))
+        if (p := self._settle_proposal()) is not None:
+            out.append(p)
         held = self.game.knowledge.threat_held()
         sigma = self.uncertainty()
         if self.icemap.soundings:
@@ -936,6 +1041,7 @@ class NavigationStation(Station):
         if self.now % DR_TRACK_INTERVAL_S == 0:
             self.dr_track[-1].append((self.est_x, self.est_y))
         self._sound_ice()
+        self._settle_watch()
         self._shoal_watch()
         self._steer_to_opening()
         self._steer_to_station()

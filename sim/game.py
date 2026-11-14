@@ -73,6 +73,7 @@ class StatusSnapshot:
     fire: bool = False
     smoke: float = 0.0
     ventilating: bool = False
+    on_bottom: bool = False
 
 
 def build_registry(station_classes: list[type[Station]]) -> CommandRegistry:
@@ -355,5 +356,5 @@ class Game:
             cavitating=s.speed > cavitation_speed(s.depth),
             suggestion=sug[0] if sug else None, over=self.over,
             sea_noise=sea_noise, under_ice=under_ice,
-            fire=sy.fire, smoke=sy.smoke, ventilating=sy.ventilating,
+            fire=sy.fire, smoke=sy.smoke, ventilating=sy.ventilating, on_bottom=sy.on_bottom,
         )

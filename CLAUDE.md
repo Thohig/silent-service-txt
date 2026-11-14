@@ -67,6 +67,12 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   trimmen tar oss 15 m upp. Navigatören (`_shoal_watch`, var 20:e s) ser på kortet 6 min
   framåt (minst 1 nm) ± bestickets σ åt sidorna, och en färsk lodning; föreslår djup
   30 m över botten. `NavigationStation.depth_limit()` begränsar sonarens djupförslag.
+  Ligga på botten (`botten`, `OwnSystems.settle`/`on_bottom`): saktar till 1 kn, går ned först
+  under 1,5 kn, sätter sig vid kontakt; World flyttar oss inte. Ljud: maskin 100 + pumpar 112 dB
+  (mot 112/128 + 120). Ekoavdrag (`bottom_clutter`): 25 dB stilla på botten, 10 dB inom 20 m.
+  Jagare 3 nm bort med datum 1 nm fel: hittar oss i 10 av 12 (12 av 12 svävande), första
+  kontakt efter ~11 min (~6), 45 % färre ekon. Bottentyp: klippa vid berg/rygg och brantare
+  än 450 m/nm, sand grundare än 400 m, annars lera; klippa ger skrov −0,03.
 - **Sjökortet**: `Station.chart_items()` ger ritelement (`sim/chart.py`) ur
   kunskapen i beräknade koordinater; `Game.chart()` samlar, `ui/chart_render.py`
   rastrerar (en rad = två kolumner i höjd). Nytt system ritar sig självt.

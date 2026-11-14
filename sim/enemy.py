@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 from . import acoustics
 from .entities import Transient, Vessel
 from .geo import bearing_to, distance, norm360
+from .seabed import bottom_clutter
 from .weapons import Decoy, Torpedo, drop_charges
 
 if TYPE_CHECKING:
@@ -226,7 +227,8 @@ class DestroyerAI:
             tl = self._tl(world, tgt.state.x, tgt.state.y, tgt.depth)
             se = acoustics.active_excess(acoustics.PING_LEVEL_SHIP, tl, tgt.target_strength,
                                          self._noise_toward(world, noise, tgt), DT_ACTIVE) \
-                - self._wake_clutter(world, tgt) + self.rng.gauss(0, 3)
+                - self._wake_clutter(world, tgt) - bottom_clutter(world, tgt) \
+                + self.rng.gauss(0, 3)
             if se > 0:
                 echoes.append((tgt, se))
         if not echoes:

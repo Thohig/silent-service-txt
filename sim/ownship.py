@@ -54,6 +54,8 @@ class OwnSystems:
     blowing: bool = False
     ice_contact: bool = False        # ubåten ligger an mot isen ovanför
     bottom_contact: bool = False     # kölen tar i botten
+    settle: bool = False             # order: lägg oss på botten
+    on_bottom: bool = False          # ligger stilla på botten
     fire: bool = False               # brand ombord
     fire_out_t: int = 0
     fire_done: bool = False
@@ -106,9 +108,13 @@ class OwnShip(Vessel):
         if self.sunk:
             return -999.0
         s, speed = self.sys, self.state.speed
-        parts = [128.0 if s.propulsion == "turbine" and self.power else 112.0]
-        if s.reactor in ("online", "starting"):
-            parts.append(120.0)               # reaktorns kylpumpar går alltid
+        if s.on_bottom:
+            # maskinen stoppad, kylpumparna på lågvarv (självcirkulation)
+            parts = [100.0, 112.0 if s.reactor in ("online", "starting") else 0.0]
+        else:
+            parts = [128.0 if s.propulsion == "turbine" and self.power else 112.0]
+            if s.reactor in ("online", "starting"):
+                parts.append(120.0)           # reaktorns kylpumpar går alltid
         lvl = acoustics.power_sum(*parts) + 1.2 * speed
         if speed > acoustics.cavitation_speed(self.state.depth):
             lvl += 12.0

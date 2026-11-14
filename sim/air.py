@@ -21,6 +21,7 @@ from . import acoustics
 from .enemy import Datum, DestroyerAI
 from .entities import Emission, Transient, Vessel
 from .geo import NM_IN_M, bearing_to, distance, norm360
+from .seabed import bottom_clutter
 from .ship import ShipState
 
 if TYPE_CHECKING:
@@ -165,7 +166,8 @@ class AircraftAI:
                     world.emit(Transient("buoy_ping", b.state.x, b.state.y, BUOY_DEPTH_M,
                                          acoustics.BUOY_PING_LEVEL, b.id, world.time))
                     se = acoustics.active_excess(acoustics.BUOY_PING_LEVEL, tl,
-                                                 own.target_strength, noise, ACTIVE_DT)
+                                                 own.target_strength, noise, ACTIVE_DT) \
+                        - bottom_clutter(world, own)
                     if se + self.rng.gauss(0, 3) > 0:
                         # avstånd men ingen bäring: ett läge på cirkeln, nära förra datum
                         ref = self.datum or Datum(b.state.x, b.state.y, 100, 1.0, world.time)

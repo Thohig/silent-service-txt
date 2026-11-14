@@ -77,6 +77,9 @@ class StatusBar(Static):
             t.append(f"BATTERI {s.battery:.0%}", style="bold red" if s.battery < 0.3 else "bold yellow")
         else:
             t.append("TURBIN" if s.propulsion == "turbine" else "SMYGMOTOR", style="bold")
+        if s.on_bottom:
+            t.append("  │ ")
+            t.append("PÅ BOTTEN", style="bold #b09a6a")
         if s.cavitating:
             t.append("  │ ")
             t.append("KAVITERAR", style="bold red")

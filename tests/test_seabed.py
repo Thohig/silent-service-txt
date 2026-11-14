@@ -166,3 +166,93 @@ def test_sonar_never_suggests_a_depth_below_the_known_bottom():
     d = sonar._below_layer(g.world.env.layer_depth)
     assert d is None or d <= lim
     assert s.depth < g.world.env.bottom_at(s.x, s.y)
+
+
+# --- steg 3: ligga på botten ------------------------------------------------------------
+def _on_bank(seed=4):
+    """Ubåten över bankens flata del på 100 m, stilla vatten."""
+    g, reports = _toward_bank(seed=seed, depth=100.0, speed=8.0)
+    for _ in range(3400):
+        g.tick()
+    return g, reports
+
+
+def _settle(g, ticks=900):
+    g.command("botten")
+    for _ in range(ticks):
+        g.tick()
+
+
+def test_settle_on_soft_bottom_is_quiet_and_still():
+    from sim.seabed import RESTING_CLUTTER_DB, bottom_clutter
+    g, reports = _on_bank()
+    own = g.world.own
+    before = own.radiated_level(g.world.env)
+    assert bottom_clutter(g.world, own) == 0.0
+    _settle(g)
+    s = own.state
+    assert own.sys.on_bottom and own.sys.hull == 1.0
+    assert abs(s.depth - g.world.env.bottom_at(s.x, s.y)) < 15
+    assert own.radiated_level(g.world.env) < before - 6
+    assert bottom_clutter(g.world, own) == RESTING_CLUTTER_DB
+    assert g.status().on_bottom
+    g.world.env.current_kn = 0.5                  # strömmen flyttar oss inte
+    x, y = s.x, s.y
+    for _ in range(300):
+        g.tick()
+    assert (s.x, s.y) == (x, y)
+    assert any(r.type == "bottom.settled" and "Mjuk botten" in r.text for r in reports)
+    assert not any(r.type == "bottom.collision" for r in reports)
+
+
+def test_depth_order_lifts_us_off_the_bottom():
+    g, reports = _on_bank()
+    _settle(g)
+    g.command("djup 100")
+    for _ in range(300):
+        g.tick()
+    own = g.world.own
+    assert not own.sys.on_bottom and not own.sys.settle
+    assert own.state.depth < 150
+    assert any(r.type == "nav.settle.lift" for r in reports)
+
+
+def test_settling_is_refused_over_deep_water():
+    g = _game()
+    _, reports = g, []
+    from sim.events import ReportDelivered
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    _settle(g, ticks=20)
+    assert not g.world.own.sys.settle
+    assert any(r.type == "nav.settle.refused" and "provdjup" in r.text for r in reports)
+
+
+def test_rock_bottom_scrapes_the_hull():
+    g = _game()
+    s = g.world.own.state
+    rock = Seabed(1500.0, features=(Seamount(s.x, s.y, 150.0, 4.0),))
+    g.world.env.seabed = rock
+    g.knowledge.bathymetry = rock
+    assert rock.bottom_type(s.x, s.y) == "klippa"
+    g.command("fart 1")
+    for _ in range(400):
+        g.tick()
+    _settle(g, ticks=900)
+    assert g.world.own.sys.on_bottom
+    assert g.world.own.sys.hull < 1.0
+
+
+def test_navigator_suggests_the_bottom_when_hunted_over_the_bank():
+    from sim.events import ContactDetected
+    g, reports = _on_bank()
+    g.bus.publish(ContactDetected(g.now, "S-9", 90.0, "ytfartyg"))
+    for _ in range(60):
+        g.tick()
+    sugg = [r for r in reports if r.type == "nav.suggest.settle"]
+    assert sugg and sugg[-1].data["order"] == "botten"
+
+
+def test_bottom_types():
+    sb = kuba_seabed(random.Random(4), (10.0, 3.0))
+    kinds = {sb.bottom_type(x, y) for x in range(0, 21, 2) for y in range(0, 21, 2)}
+    assert {"lera", "sand", "klippa"} <= kinds

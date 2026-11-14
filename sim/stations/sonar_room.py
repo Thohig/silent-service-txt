@@ -269,6 +269,8 @@ class SonarRoom(Station):
 
     def _below_layer(self, layer: float) -> float | None:
         """Djup under skiktet som botten tillåter, eller None om det inte finns plats."""
+        if self.own.sys.settle or self.own.sys.on_bottom:
+            return None                     # vi ligger på (eller går ned mot) botten
         d = layer + 60
         lim = self._depth_limit()
         if lim is not None:
@@ -354,6 +356,8 @@ class SonarRoom(Station):
 
     def _evasive_depth(self, cooldown: int = 300) -> None:
         st = self.own.state
+        if self.own.sys.settle or self.own.sys.on_bottom:
+            return
         env = self.game.world.env
         if env.layer_depth is not None and st.ordered_depth < env.layer_depth:
             d = env.layer_depth + 60

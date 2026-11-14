@@ -40,6 +40,12 @@ TOUCH_MAX_KN = 2.0              # så sakta: kölen sätter sig, inga skador
 LEAK_KN = 5.0                   # fortare: läckor
 CLEAR_M = 2.0                   # så här långt över botten räknas kontakten som släppt
 BACKOFF_M = 15.0                # trimmen tar oss upp så här mycket efter kontakt
+ROCK_SLOPE_M_PER_NM = 450.0     # brantare än så: klippa
+SAND_DEPTH_M = 400.0            # grundare än så (och inte klippa): sand, annars lera
+CLUTTER_M = 20.0                # så nära botten drunknar ekot i bottenekot
+BOTTOM_CLUTTER_DB = 10.0        # i rörelse nära botten
+RESTING_CLUTTER_DB = 25.0       # stilla på botten: inget dopplerskift, ekot är en del av botten
+ROCK_HULL_DAMAGE = 0.03         # att sätta sig på klippbotten
 
 
 def _line_coords(x, y, px: float, py: float, bearing: float):
@@ -162,6 +168,24 @@ class Seabed:
     def depth_at(self, x: float, y: float) -> float:
         return float(self.depths(x, y))
 
+    def slope(self, x: float, y: float, h: float = 0.05) -> float:
+        """Lutning i m per nm."""
+        dx = (self.depth_at(x + h, y) - self.depth_at(x - h, y)) / (2 * h)
+        dy = (self.depth_at(x, y + h) - self.depth_at(x, y - h)) / (2 * h)
+        return math.hypot(dx, dy)
+
+    def bottom_type(self, x: float, y: float) -> str:
+        """lera, sand eller klippa: berg, ryggkrön och branta sluttningar är klippa."""
+        for f in self.features:
+            if isinstance(f, Seamount) and math.dist((x, y), (f.x, f.y)) < f.radius * 1.2:
+                return "klippa"
+            if isinstance(f, Ridge) and abs(_line_coords(x, y, f.x, f.y, f.bearing)[1]) \
+                    < f.half_width * 0.8:
+                return "klippa"
+        if self.slope(x, y) > ROCK_SLOPE_M_PER_NM:
+            return "klippa"
+        return "sand" if self.depth_at(x, y) < SAND_DEPTH_M else "lera"
+
     def chart_copy(self, rng: random.Random, err_nm: float, miss_p: float = 0.25) -> Seabed:
         """Det gamla sjökortets bild: formerna flyttade, utjämnade, ibland ett berg som saknas."""
         feats = []
@@ -262,12 +286,27 @@ def keel_clearance(seabed: Seabed, x: float, y: float, course: float, depth: flo
     return min(seabed.depth_at(px, py) - depth for _, px, py in keel_points(x, y, course))
 
 
+def bottom_clutter(world: World, vessel) -> float:
+    """Ekot från en ubåt som ligger på eller strax över botten drunknar i bottenekot (dB)."""
+    seabed = world.env.seabed
+    if seabed is None or vessel is not world.own:
+        return 0.0
+    st = vessel.state
+    if vessel.sys.on_bottom:
+        return RESTING_CLUTTER_DB
+    if seabed.depth_at(st.x, st.y) - st.depth < CLUTTER_M:
+        return BOTTOM_CLUTTER_DB
+    return 0.0
+
+
 def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
     seabed = world.env.seabed
     own = world.own
     if seabed is None or own.sunk:
         return
     st, sys = own.state, own.sys
+    if sys.on_bottom:
+        return
     gap = keel_clearance(seabed, st.x, st.y, st.course, st.depth)
     if gap >= 0:
         if gap > CLEAR_M:
@@ -282,6 +321,16 @@ def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
     floor = min(seabed.depth_at(p[1], p[2]) for p in keel_points(px, py, st.course))
     st.depth = min(pdepth, floor - 0.5)
     st.ordered_depth = min(st.ordered_depth, max(0.0, round(floor - BACKOFF_M)))
+    if sys.settle and speed <= TOUCH_MAX_KN:
+        # avsiktligt: vi lägger oss på botten och ligger kvar
+        st.depth = st.ordered_depth = floor
+        st.speed = st.ordered_speed = 0.0
+        sys.on_bottom = sys.bottom_contact = True
+        kind = seabed.bottom_type(st.x, st.y)
+        if kind == "klippa":
+            sys.hull -= ROCK_HULL_DAMAGE
+        own.alert("bottom.settled", depth=round(floor), kind=kind)
+        return
     if sys.bottom_contact:
         return
     sys.bottom_contact = True

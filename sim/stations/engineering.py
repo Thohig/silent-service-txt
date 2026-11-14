@@ -110,6 +110,10 @@ PHRASES = {
     f"{d['severity'].capitalize()} skador: " + ", ".join(COMPONENT_LABEL[c] for c in d["components"])
     + (". Vatteninträngning, länsning pågår." if d.get("leak") else ".")
     + f" Maskinen stoppad. Går upp till {d['back_to']} meter.",
+    "bottom.settled": lambda d: f"Vi ligger stilla på botten på {d['depth']} meter, kapten. "
+    + ("Klippbotten, det skrapade i skrovet. " if d["kind"] == "klippa"
+       else "Mjuk botten, inga skador. ")
+    + "Maskinen stoppad, kylpumparna på lågvarv.",
     "bottom.touch": lambda d: f"Vi tog i botten med {d['where']}, kapten. Låg fart, inga skador. "
     f"Går upp till {d['back_to']} meter.",
     "ice.touch": lambda d: "Vi tog i en isköl, kapten. Långsam fart, inga skador. Maskinen stoppad.",
@@ -236,7 +240,7 @@ class EngineeringStation(Station):
                                 {"speed": safe}, cooldown=600))
         if s.reactor in ("scram", "off") and s.battery < 0.5:
             out.append(Proposal(1, "idle_restart", "eng.suggest.restart", "starta reaktorn"))
-        if s.propulsion == "turbine" and self.game.knowledge.threat_held():
+        if s.propulsion == "turbine" and not s.on_bottom and self.game.knowledge.threat_held():
             out.append(Proposal(2, "idle_creep", "eng.suggest.creep", "smygmotor"))
         return out
 
@@ -293,6 +297,6 @@ class EngineeringStation(Station):
         if s.flooding > TRIM_RESERVE_T and st.depth > 20 and not s.blowing and s.hp_air > 0:
             self.suggest("blow", "eng.suggest.blow", {"flooding": s.flooding},
                          order="nödblåsning", cooldown=120, alarm=True)
-        if s.propulsion == "turbine" and self.game.knowledge.tracks and \
+        if s.propulsion == "turbine" and not s.on_bottom and self.game.knowledge.tracks and \
                 self.game.knowledge.threat_held():
             self.suggest("creep", "eng.suggest.creep", order="smygmotor", cooldown=3600)
