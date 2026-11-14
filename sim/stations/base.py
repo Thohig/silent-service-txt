@@ -72,6 +72,10 @@ class Station:
         """Förslag att ge om kaptenen varit tyst länge. Bara ur kunskap och eget läge."""
         return []
 
+    def chart_items(self) -> list:
+        """Sjökortselement (sim.chart) ur stationens kunskap. Aldrig ur World."""
+        return []
+
     def propose(self, p: Proposal) -> bool:
         return self.suggest(p.key, p.type, p.data, order=p.order, cooldown=p.cooldown,
                             quality=p.quality)

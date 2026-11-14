@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from typing import Any, TypeVar
 
 from . import phrases
+from .chart import ChartView
 from .crew import CrewMember, Role
 from .events import (EventBus, GameEnded, OrderIssued, PositionReported, ReportDelivered,
                      Tick, TimeScaleChanged)
@@ -301,6 +302,15 @@ class Game:
         }
         self.log(f"SLUT {summary}")
         self.bus.publish(GameEnded(self.now, o["outcome"], summary))
+
+    # ------------------------------------------------------------------ sjökort
+    def chart(self) -> ChartView:
+        """Sjökortet: stationernas element ur kunskapen, i beräknade koordinater."""
+        view = ChartView(self.clock_str(), self.area_name, self.world.size_nm,
+                         self.own_position_estimate())
+        for st in self.stations:
+            view.items.extend(st.chart_items())
+        return view
 
     # ------------------------------------------------------------------ status
     def status(self) -> StatusSnapshot:

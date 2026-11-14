@@ -17,6 +17,7 @@ import re
 from dataclasses import dataclass, field
 
 from .. import phrases
+from ..chart import Ray
 from ..crew import Role
 from ..events import OwnTorpedoHeard, SoundHeard
 from ..fmt import fmt_course, nm
@@ -428,6 +429,19 @@ class TorpedoRoom(Station):
                 return [Proposal(5, f"idle_reload{t.n}", "torp.suggest.reload",
                                  f"ladda tub {t.n} {typ}", {"tube": t.n, "type": typ})]
         return []
+
+    # --- sjökortet -------------------------------------------------------------------
+    def chart_items(self) -> list:
+        """Egna torpeder: senast hörda bäring, utritad så långt torpeden har gått."""
+        x, y = self.game.own_position_estimate()
+        items = []
+        for r in self.in_water:
+            if r.bearing is None:
+                continue
+            run = TORPEDO_TYPES[r.type].speed * max(0, self.now - r.launch_t) / 3600
+            items.append(Ray(x, y, r.bearing, max(run, 0.1), "torpedo", f"tub {r.tube}",
+                             faded=r.lost))
+        return items
 
     # --- torpeder i vattnet ---------------------------------------------------------
     def _report_in_water(self) -> None:

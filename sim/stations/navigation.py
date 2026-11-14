@@ -12,6 +12,7 @@ import re
 from dataclasses import dataclass
 
 from .. import acoustics, phrases
+from ..chart import LAYER_ICE, LAYER_OWN, Mark, Note, Ray, Ring, Track
 from ..crew import Role
 from ..entities import Transient
 from ..events import IceSounded, OpeningNotFound
@@ -47,6 +48,8 @@ STATION_SEARCH_R_NM = 0.3   # sökspiral runt stationen efter öppet vatten: sta
 STATION_SEARCH_GROW_NM_PER_H = 0.3
 STATION_SEARCH_MAX_NM = 1.2
 STATION_SEARCH_SPEED = 4.0
+DR_TRACK_INTERVAL_S = 60    # navigatören prickar in besticket på kortet så här ofta
+OWN_VECTOR_S = 360          # egen fartvektor på kortet: sex minuters gång
 
 
 @dataclass(frozen=True)
@@ -247,6 +250,9 @@ class NavigationStation(Station):
         self._pending: set[str] = set()
         s = self.ship
         self.est_x, self.est_y = s.x, s.y
+        # besticket på kortet: ett spår per fix, och fixarna (x, y, tid)
+        self.dr_track: list[list[tuple[float, float]]] = [[(s.x, s.y)]]
+        self.fixes: list[tuple[float, float, int]] = []
         rng = game.rng
         skill = self.member.effective_skill()
         self.gyro_err = rng.gauss(0, 0.3)
@@ -280,6 +286,39 @@ class NavigationStation(Station):
 
     def uncertainty(self) -> float:
         return 0.1 + DR_GROWTH_NM_PER_H * (self.now - self.last_fix_t) / 3600.0
+
+    # --- sjökortet -------------------------------------------------------------
+    def chart_items(self) -> list:
+        s, now = self.ship, self.now
+        sigma = self.uncertainty()
+        items: list = [Note(f"besticket osäkert {nm(sigma)} nm, "
+                            f"senaste fix {clock(self.game.start_clock + self.last_fix_t)[:5]}")]
+        for seg in self.dr_track:
+            pts = list(seg)
+            if seg is self.dr_track[-1]:
+                pts.append((self.est_x, self.est_y))
+            items.append(Track(tuple(pts), "track"))
+        for x, y, _ in self.fixes:
+            items.append(Mark(x, y, "+", "fix"))
+        # isen: lodningarna där vi beräknade att vi var
+        for o in self.icemap.soundings:
+            sym, style = (("≈", "ice_open") if o.open else ("=", "ice_thin") if o.usable
+                          else ("#", "ice_thick"))
+            items.append(Mark(o.x, o.y, sym, style, layer=LAYER_ICE))
+        for o in self.icemap.candidates(now):
+            q = o.quality(now)
+            cx, cy = o.center
+            items.append(Mark(cx, cy, "Ö", "opening", f"Ö{o.no} {q.label}", quality=q))
+        for wp in self.game.knowledge.waypoints.values():
+            ws = wp.sigma(now)
+            items.append(Ring(wp.x, wp.y, ws, "waypoint"))
+            items.append(Mark(wp.x, wp.y, "⊕", "waypoint", f"{wp.name} ±{nm(ws)} nm"))
+        items.append(Ring(self.est_x, self.est_y, sigma, "own"))
+        if s.speed > 0.2:
+            items.append(Ray(self.est_x, self.est_y, s.course, s.speed * OWN_VECTOR_S / 3600,
+                             "own_vector"))
+        items.append(Mark(self.est_x, self.est_y, "@", "own", layer=LAYER_OWN))
+        return items
 
     @property
     def icemap(self) -> IceMap:
@@ -740,6 +779,8 @@ class NavigationStation(Station):
     # --- löpande -----------------------------------------------------------------
     def update(self) -> None:
         self._dead_reckon()
+        if self.now % DR_TRACK_INTERVAL_S == 0:
+            self.dr_track[-1].append((self.est_x, self.est_y))
         self._sound_ice()
         self._steer_to_opening()
         self._steer_to_station()
@@ -762,6 +803,9 @@ class NavigationStation(Station):
                 new_x, new_y = s.x + rng.gauss(0, 0.08), s.y + rng.gauss(0, 0.08)
                 err = distance(self.est_x, self.est_y, new_x, new_y)
                 b = bearing_to(self.est_x, self.est_y, new_x, new_y)
+                self.dr_track[-1].append((self.est_x, self.est_y))
+                self.dr_track.append([(new_x, new_y)])
+                self.fixes.append((new_x, new_y, self.now))
                 self.est_x, self.est_y = new_x, new_y
                 self.last_fix_t = self.now
                 self.say("nav.fix.done", {"error": err, "bearing": b})

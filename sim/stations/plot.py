@@ -5,7 +5,9 @@ import dataclasses
 import re
 from dataclasses import dataclass
 
+from ..chart import Mark, Ray, Ring
 from ..crew import Role
+from ..fmt import fmt_course
 from ..geo import angle_diff, norm360
 from ..knowledge import ContactTrack
 from ..orders import DESIG, CommandSpec, Order, desig
@@ -17,6 +19,9 @@ PLOT_INTERVAL = 30              # sekunder mellan omräkningar
 SUGGEST_COOLDOWN = 420
 SUGGEST_MIN_LEG_S = 300         # rak kurs så här länge innan nytt förslag
 TABLE_ROWS = 15
+BEARING_LINE_NM = 12.0          # bäringslinjer på kortet
+VECTOR_S = 360                  # fartvektor på kortet: sex minuters gång
+FADE_S = 300                    # äldre bäringar ritas bleka
 
 
 @dataclass(frozen=True)
@@ -110,6 +115,36 @@ class PlotTeam(Station):
                  {"designation": tr.designation, "n": len(tr.observations), "rows": rows,
                   "solution": solution_data(sol) if sol else None},
                  kind="plot", quality=sol.quality if sol else Quality.DALIG)
+
+    # --- sjökortet -------------------------------------------------------------
+    def chart_items(self) -> list:
+        """Lösningar som läge, fartvektor och avståndsosäkerhet; annars senaste bäringen."""
+        items: list = []
+        for tr in self.game.knowledge.tracks.values():
+            if tr.benign and "drivstation" not in tr.classification:
+                continue
+            sol = tr.solution
+            if sol is not None and sol.quality >= Quality.OSAKER and tr.threat:
+                dt = (self.now - sol.t) / 3600.0
+                vx, vy = sol.state[2], sol.state[3]
+                x, y = sol.x + vx * dt, sol.y + vy * dt
+                faded = not tr.held
+                items.append(Ring(x, y, sol.range_sigma, "contact", quality=sol.quality))
+                items.append(Ray(x, y, sol.course, sol.speed * VECTOR_S / 3600, "contact_vector",
+                                 quality=sol.quality, faded=faded))
+                items.append(Mark(x, y, "◆", "contact",
+                                  f"{tr.designation} {sol.quality.label}, {sol.speed:.0f} kn",
+                                  quality=sol.quality, faded=faded))
+            elif tr.observations:
+                o = tr.observations[-1]
+                age = self.now - o.t
+                label = f"{tr.designation} {fmt_course(o.bearing)}"
+                if age >= 60:
+                    label += f" ({age // 60} min)"
+                items.append(Ray(o.own_x, o.own_y, o.bearing, BEARING_LINE_NM, "bearing", label,
+                                 quality=sol.quality if sol else Quality.DALIG,
+                                 faded=not tr.held or age > FADE_S))
+        return items
 
     # --- löpande arbete -------------------------------------------------------
     def update(self) -> None:
