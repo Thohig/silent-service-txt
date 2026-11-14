@@ -148,6 +148,7 @@ class Seabed:
     features: tuple[Feature, ...] = ()
     # ojämnhet: (kx, ky, fas, andel av djupet) – summan av några vågor
     rough: tuple[tuple[float, float, float, float], ...] = field(default_factory=tuple)
+    accuracy_nm: float = 0.0                        # sjökort: angiven lägesnoggrannhet
 
     def depths(self, x, y):
         """Djupet (m) för skalärer eller numpy-matriser i nm."""
@@ -193,7 +194,8 @@ class Seabed:
             if isinstance(f, Seamount) and rng.random() < miss_p:
                 continue
             feats.append(f.moved(rng, err_nm))
-        return Seabed(self.base + rng.gauss(0, 40), self.gradient, tuple(feats))
+        return Seabed(self.base + rng.gauss(0, 40), self.gradient, tuple(feats),
+                      accuracy_nm=err_nm)
 
 
 def _rough(rng: random.Random, n: int, amp: float) -> tuple:
@@ -350,3 +352,70 @@ def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
         sys.leak_rate += 0.08 * speed
     own.alert("bottom.collision", severity="svåra" if speed > 8 else "lätta", where=where,
               components=hit, leak=leak, back_to=round(st.ordered_depth))
+
+
+# --- fix mot botten (kunskap: kortet mot egna lodningar) ------------------------------
+MATCH_STEP_NM = 0.05
+MATCH_MIN_RANGE_NM = 0.5
+MATCH_MAX_RANGE_NM = 3.0
+MATCH_FIT_MAX = 4.0             # chi² per lodning på bästa läget: sämre = kortet stämmer inte
+
+
+@dataclass(frozen=True)
+class BottomMatch:
+    dx: float                   # bästa förskjutning av besticket, nm
+    dy: float
+    sigma: float                # matchningens osäkerhet (utan kortets fel), nm, rms av axlarna
+    prior_sigma: float          # bestickets osäkerhet före fixen
+    sigma_minor: float = 0.0    # bäst bestämda riktningen
+    sigma_major: float = 0.0    # sämst bestämda riktningen
+    minor_bearing: float = 0.0  # kurs (0–180) längs vilken läget är bäst bestämt
+    fit: float = 0.0            # chi² per lodning på bästa läget (utan besticket)
+
+    @property
+    def consistent(self) -> bool:
+        """Passar lodningarna kortet någonstans i närheten?"""
+        return self.fit <= MATCH_FIT_MAX
+
+    @property
+    def line_of_position(self) -> bool:
+        """Bara en led bestämd: läget tvärs djupkurvorna men inte längs dem."""
+        return self.sigma_minor < 0.5 * self.sigma_major
+
+
+def sounding_error(depth):
+    """Förväntad skillnad (m) mellan en lodning och kortets djup: lod, ojämnhet, kortfel."""
+    return 0.08 * np.asarray(depth) + 20.0
+
+
+def match_soundings(chart: Seabed, points: list[tuple[float, float]], depths: list[float],
+                    prior_sigma: float) -> BottomMatch:
+    """Var på kortet passar lodningarna bäst? points är besticket vid varje lodning.
+
+    Fördelning över förskjutningar (dx, dy) av hela serien: likelihood ur
+    skillnaden mot kortets djup gånger bestickets osäkerhet som förhandsantagande.
+    Platt botten ger en bred fördelning (sigma nära prior_sigma).
+    """
+    r = min(MATCH_MAX_RANGE_NM, max(MATCH_MIN_RANGE_NM, 3 * prior_sigma))
+    off = np.arange(-r, r + MATCH_STEP_NM / 2, MATCH_STEP_NM)
+    ox, oy = np.meshgrid(off, off)
+    px = np.array([p[0] for p in points])[:, None, None]
+    py = np.array([p[1] for p in points])[:, None, None]
+    d = np.array(depths)[:, None, None]
+    z = chart.depths(px + ox, py + oy)
+    chi2 = (((z - d) / sounding_error(d)) ** 2).sum(axis=0)
+    fit = float(chi2.min()) / len(depths)
+    cost = chi2 + (ox ** 2 + oy ** 2) / max(prior_sigma, 0.05) ** 2
+    w = np.exp(-(cost - cost.min()) / 2)
+    w /= w.sum()
+    mx, my = float((w * ox).sum()), float((w * oy).sum())
+    cxx = float((w * (ox - mx) ** 2).sum())
+    cyy = float((w * (oy - my) ** 2).sum())
+    cxy = float((w * (ox - mx) * (oy - my)).sum())
+    vals, vecs = np.linalg.eigh(np.array([[cxx, cxy], [cxy, cyy]]))
+    minor = max(MATCH_STEP_NM, math.sqrt(max(vals[0], 0.0)))
+    major = max(MATCH_STEP_NM, math.sqrt(max(vals[1], 0.0)))
+    vx, vy = vecs[:, 0]
+    bearing = math.degrees(math.atan2(vx, vy)) % 180
+    rms = math.sqrt((minor ** 2 + major ** 2) / 2)
+    return BottomMatch(mx, my, rms, prior_sigma, minor, major, bearing, fit)

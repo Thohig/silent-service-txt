@@ -1,4 +1,5 @@
 """Havsbotten: sanningen varierar, sjökortet är en egen, felaktig bild av den."""
+import math
 import random
 
 import numpy as np
@@ -256,3 +257,101 @@ def test_bottom_types():
     sb = kuba_seabed(random.Random(4), (10.0, 3.0))
     kinds = {sb.bottom_type(x, y) for x in range(0, 21, 2) for y in range(0, 21, 2)}
     assert {"lera", "sand", "klippa"} <= kinds
+
+
+# --- steg 4: fix mot botten -------------------------------------------------------------
+from sim.seabed import Bank, match_soundings  # noqa: E402
+
+
+def _series(sb, x0, y0, course, n=9, step=0.05):
+    b = math.radians(course)
+    pts = [(x0 + i * step * math.sin(b), y0 + i * step * math.cos(b)) for i in range(n)]
+    return pts, [sb.depth_at(x, y) for x, y in pts]
+
+
+def test_crossing_a_seamount_on_a_perfect_chart_finds_the_offset():
+    hits = 0
+    for seed in range(10):
+        rng = random.Random(seed)
+        sb = Seabed(2000.0, features=(Seamount(10, 10, 300, 1.2),))
+        pts, depths = _series(sb, 9.0, 9.4 + rng.uniform(0, 0.4), 70)
+        ex, ey = rng.uniform(-0.6, 0.6), rng.uniform(-0.6, 0.6)
+        m = match_soundings(sb, [(x + ex, y + ey) for x, y in pts], depths, 0.8)
+        assert m.consistent
+        if math.hypot(m.dx + ex, m.dy + ey) < 0.25:
+            hits += 1
+    assert hits >= 7
+
+
+def test_a_straight_slope_gives_a_line_of_position_across_it():
+    sb = Seabed(2000.0, features=(Bank(90.0, 5.0, 2.5, 150.0),))     # kant i nord–sydlig led
+    pts, depths = _series(sb, 6.0, 10.0, 270)
+    m = match_soundings(sb, [(x + 0.4, y - 0.4) for x, y in pts], depths, 0.8)
+    assert m.line_of_position
+    assert abs(((m.minor_bearing + 90) % 180) - 90) > 70          # bestämt i öst–västlig led
+    assert abs(m.dx + 0.4) < 0.2                                  # rätt tvärs sluttningen
+
+
+def test_flat_bottom_says_nothing():
+    sb = Seabed(3000.0)
+    pts, depths = _series(sb, 10.0, 10.0, 0)
+    m = match_soundings(sb, pts, depths, 0.8)
+    assert m.sigma > 0.8 * 0.8
+
+
+def test_a_feature_missing_from_the_chart_is_detected():
+    truth = Seabed(2000.0, features=(Seamount(10, 10, 300, 1.2),))
+    chart = Seabed(2000.0)
+    pts, depths = _series(truth, 9.0, 9.8, 70)
+    assert not match_soundings(chart, pts, depths, 1.0).consistent
+
+
+def test_bottom_fix_order_sounds_nine_times_and_reports():
+    g, reports = _toward_bank(speed=6.0, depth=100.0, offset=1.5)
+    from sim.stations import NavigationStation
+    nav = g.station(NavigationStation)
+    nav.est_x += 0.6
+    nav.last_fix_t = -7200
+    n0 = len(nav.bottom_soundings)
+    pings = []
+    for _ in range(5):
+        g.tick()
+    g.command("bottenfix")
+    for _ in range(200):
+        g.tick()
+        pings += [t for t in g.world.transients if t.kind == "echosounder"]
+    assert len(nav.bottom_soundings) - n0 == 9
+    assert len(pings) == 9
+    done = [r for r in reports if r.type.startswith("nav.bfix.")]
+    assert done and done[-1].type in ("nav.bfix.done", "nav.bfix.line", "nav.bfix.flat",
+                                      "nav.bfix.chart", "nav.bfix.mismatch")
+    assert done[-1].quality is not None
+
+
+def test_bottom_fix_is_refused_when_slow():
+    g, reports = _toward_bank(speed=0.0)
+    g.command("bottenfix")
+    for _ in range(5):
+        g.tick()
+    assert any(r.type == "nav.bfix.refused" for r in reports)
+
+
+def test_bottom_fix_honest_over_seeds():
+    """Över banken: fixen påstår aldrig mer än den levererar i genomsnitt."""
+    from sim.stations import NavigationStation
+    claimed, actual = [], []
+    for seed in range(6):
+        g, reports = _toward_bank(seed=seed, speed=6.0, depth=100.0, offset=1.5)
+        nav = g.station(NavigationStation)
+        a = random.Random(seed).uniform(0, 2 * math.pi)
+        nav.est_x += 0.8 * math.sin(a)
+        nav.est_y += 0.8 * math.cos(a)
+        nav.last_fix_t = -7200
+        g.command("bottenfix")
+        for _ in range(200):
+            g.tick()
+        s = g.world.own.state
+        claimed.append(nav.uncertainty())
+        actual.append(math.dist((nav.est_x, nav.est_y), (s.x, s.y)))
+    rms = math.sqrt(sum(e * e for e in actual) / len(actual))
+    assert rms < 1.5 * sum(claimed) / len(claimed)

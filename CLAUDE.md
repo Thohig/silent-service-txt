@@ -73,6 +73,13 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   Jagare 3 nm bort med datum 1 nm fel: hittar oss i 10 av 12 (12 av 12 svävande), första
   kontakt efter ~11 min (~6), 45 % färre ekon. Bottentyp: klippa vid berg/rygg och brantare
   än 450 m/nm, sand grundare än 400 m, annars lera; klippa ger skrov −0,03.
+  Fix mot botten (`bottenfix`, `seabed.match_soundings`): 9 lodningar var 20:e s i ≥ 2 kn;
+  sannolikhet över förskjutningar (±3σ, steg 0,05 nm) med lodfel 8 % + 20 m och besticket
+  som förhandsantagande. Avvisas om chi²/lodning > 4 (kortet saknar något) eller om σ inte
+  smalnar under 0,8·bestickets σ (flat botten). Ny σ = √(σ_match² + kortets noggrannhet²),
+  `fix_sigma` i stället för 0,1. Lägeslinje om minsta axeln < halva största. Föreslås bara
+  om bestickets σ ≥ 2 × kortets noggrannhet, brant botten och ingen brand, rök eller läcka. Över banken
+  med 0,8 nm fel: medel 0,75 nm efter (angivet ~0,93); över berget 0,53 nm.
 - **Sjökortet**: `Station.chart_items()` ger ritelement (`sim/chart.py`) ur
   kunskapen i beräknade koordinater; `Game.chart()` samlar, `ui/chart_render.py`
   rastrerar (en rad = två kolumner i höjd). Nytt system ritar sig självt.

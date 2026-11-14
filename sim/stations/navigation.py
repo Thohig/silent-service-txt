@@ -17,7 +17,7 @@ from .. import acoustics, phrases
 from ..chart import LAYER_CONTOUR, LAYER_ICE, LAYER_OWN, Mark, Note, Ray, Ring, Track
 from ..profile import BottomSounding, ChartBottom, DepthTrace, IceSounding, Level
 from ..reports import Quality
-from ..seabed import contours
+from ..seabed import contours, match_soundings
 from ..crew import Role
 from ..entities import Transient
 from ..events import IceSounded, OpeningNotFound
@@ -62,6 +62,13 @@ SHOAL_LOOK_MIN = 6          # navigatören tittar så många minuters gång fram
 SHOAL_LOOK_MIN_NM = 1.0     # men minst så långt
 SHOAL_CHECK_S = 20
 SOUNDING_TRUST_S = 600      # en lodning räknas så här länge
+BFIX_N = 9                  # fix mot botten: så många lodningar
+BFIX_INTERVAL_S = 20        # med så här långt mellan
+BFIX_MIN_SPEED = 2.0        # vi måste röra oss över botten
+BFIX_FLAT = 0.8             # matchningen smalnar inte av mer än så: botten för flat
+BFIX_GAIN = 2.0             # föreslå bara om besticket är så här mycket sämre än kortet
+BFIX_RELIEF_M_PER_NM = 150  # föreslå bottenfix bara där kortet visar så här brant botten
+PERISCOPE_FIX_SIGMA = 0.1
 SETTLE_SPEED = 1.0          # fart när vi går ned mot botten
 SETTLE_DESCEND_KN = 1.5     # gå ned först när farten är nere i detta
 SETTLE_EXTRA_M = 60         # sikta så här långt under kortets botten
@@ -124,6 +131,11 @@ class SettleOnBottom(Order):
     pass
 
 
+@dataclass(frozen=True)
+class BottomFix(Order):
+    pass
+
+
 def _course(m: re.Match) -> Order:
     c = num(m[1])
     if not 0 <= c < 360:
@@ -156,6 +168,27 @@ PHRASES = {
     "nav.suggest.settle": lambda d: "Kapten, navigatören. Vi är över grunt vatten, kortet visar "
     f"{BOTTOM_WORDS[d['kind']]} på cirka {d['depth']:.0f} meter. Ligger vi stilla på botten "
     "drunknar vårt eko i bottenekot. Föreslår att vi lägger oss på botten.",
+    "nav.bfix.start": lambda d: f"Fix mot botten, aye. Lodar {d['n']} gånger under "
+    f"{d['minutes']} minuter. Håll kurs och fart, ekolodet hörs.",
+    "nav.bfix.refused": lambda d: f"Kapten, {d['reason']}.",
+    "nav.bfix.aborted": lambda d: "Fixen mot botten avbröts, vi har nästan stannat.",
+    "nav.bfix.done": lambda d: f"Fix mot botten klar. Lodningarna passar kortet bäst "
+    f"{nm(d['error'])} sjömil åt {fmt_course(d['bearing'])}. Bestick korrigerat, osäkerhet "
+    f"{nm(d['sigma'])} sjömil.",
+    "nav.bfix.line": lambda d: f"Fix mot botten ger en lägeslinje: läget är bestämt i led "
+    f"{fmt_course(d['bearing'])}–{fmt_course((d['bearing'] + 180) % 360)} på {nm(d['minor'])} sjömil, "
+    f"men inte längs djupkurvorna. Bestick korrigerat {nm(d['error'])} sjömil åt "
+    f"{fmt_course(d['bearing_corr'])}, osäkerhet {nm(d['sigma'])} sjömil. En fix där botten "
+    "varierar åt flera håll, vid ett berg eller en ränna, ger läget i båda led.",
+    "nav.bfix.mismatch": lambda d: "Fix mot botten: lodningarna stämmer inte med kortet här, "
+    f"botten är {d['how']} än kortet visar. Kortet saknar något. Besticket oförändrat.",
+    "nav.bfix.flat": lambda d: "Fix mot botten: botten är för flat här, lodningarna säger "
+    "inget om var vi är. Besticket oförändrat.",
+    "nav.bfix.chart": lambda d: f"Fix mot botten: lodningarna passar kortet, men kortet är inte "
+    f"bättre än {nm(d['accuracy'])} sjömil. Besticket är lika bra. Oförändrat.",
+    "nav.suggest.bfix": lambda d: f"Kapten, navigatören. Bestickets osäkerhet är {nm(d['sigma'])} "
+    "sjömil och vi kan inte ta fix i periskopet. Kortet visar brant botten här. Föreslår fix "
+    "mot botten, nio lodningar.",
     "nav.suggest.shoal": lambda d: "Kapten, navigatören. "
     + (f"Ekolodet visade {d['shoal']:.0f} meter till botten här" if d.get("sounded") else
        f"Sjökortet visar {d['shoal']:.0f} meter "
@@ -286,6 +319,7 @@ class NavigationStation(Station):
                     lambda m: GoToOpening(), "vak"),
         CommandSpec(r"(?:gå till |ga till |kurs mot |mot )?(?:drivstationen|stationen|nord-?7)",
                     lambda m: GoToStation(), "drivstationen"),
+        CommandSpec(r"bottenfix|fix mot botten|djupfix|lodfix", lambda m: BottomFix(), "bottenfix"),
         CommandSpec(r"(?:lägg oss på |lagg oss pa |lägg på |lagg pa |sätt oss på |satt oss pa |"
                     r"gå ned på |ga ned pa )?botten", lambda m: SettleOnBottom(), "botten"),
     ]
@@ -303,6 +337,9 @@ class NavigationStation(Station):
         self.gyro_err = rng.gauss(0, 0.3)
         self.log_bias = rng.gauss(0, 0.01 + 0.02 * (1 - skill))
         self.last_fix_t = 0
+        self.fix_sigma = PERISCOPE_FIX_SIGMA
+        self._bfix: list[tuple[float, float, float]] | None = None   # (x, y beräknat, djup)
+        self._bfix_next = 0
         self.course_set_t = 0
         self.fix_done_t: int | None = None
         self._next_sound = 0
@@ -337,7 +374,7 @@ class NavigationStation(Station):
         return self.est_x, self.est_y
 
     def uncertainty(self) -> float:
-        return 0.1 + DR_GROWTH_NM_PER_H * (self.now - self.last_fix_t) / 3600.0
+        return self.fix_sigma + DR_GROWTH_NM_PER_H * (self.now - self.last_fix_t) / 3600.0
 
     # --- sjökortet -------------------------------------------------------------
     def chart_items(self) -> list:
@@ -640,14 +677,9 @@ class NavigationStation(Station):
                                           "sigma": self.uncertainty(),
                                           "last_fix": self.game.clock_str(self.last_fix_t)})
             case EchoSounder():
-                world = self.game.world
-                world.emit(Transient("echosounder", s.x, s.y, s.depth,
-                                     acoustics.ECHO_SOUNDER_LEVEL, world.own.id, self.now))
-                bottom = world.env.bottom_at(s.x, s.y)
-                depth = round(bottom - s.depth + self.game.rng.gauss(0, 2 + bottom * 0.005), -1)
-                self.bottom_soundings.append(BottomSounding(self.now, s.depth + depth,
-                                                            self.est_x, self.est_y))
-                self.say("nav.echo", {"under_keel": depth})
+                self.say("nav.echo", {"under_keel": self._echo() - s.depth})
+            case BottomFix():
+                self._start_bottom_fix()
             case IceReport():
                 self._ice_report()
             case GoToOpening():
@@ -656,6 +688,99 @@ class NavigationStation(Station):
                 self._go_to_station()
             case SettleOnBottom():
                 self._settle()
+
+    def _echo(self) -> float:
+        """Ekolodet: en sensor. Lodar botten rakt under oss (hörs) och loggar lodningen."""
+        world, s = self.game.world, self.ship
+        world.emit(Transient("echosounder", s.x, s.y, s.depth,
+                             acoustics.ECHO_SOUNDER_LEVEL, world.own.id, self.now))
+        bottom = world.env.bottom_at(s.x, s.y)
+        under = round(bottom - s.depth + self.game.rng.gauss(0, 2 + bottom * 0.005), -1)
+        self.bottom_soundings.append(BottomSounding(self.now, s.depth + under,
+                                                    self.est_x, self.est_y))
+        return s.depth + under
+
+    # --- fix mot botten -----------------------------------------------------------
+    def _start_bottom_fix(self) -> None:
+        s = self.ship
+        reason = None
+        if self.game.knowledge.bathymetry is None:
+            reason = "vi har inget sjökort med djup här"
+        elif self._bfix is not None:
+            reason = "vi lodar redan för en fix"
+        elif s.speed < BFIX_MIN_SPEED and s.ordered_speed < BFIX_MIN_SPEED:
+            reason = "vi måste ha minst två knop för att lodningarna ska säga något"
+        elif self.own.sys.on_bottom:
+            reason = "vi ligger på botten"
+        if reason:
+            self.say("nav.bfix.refused", {"reason": reason})
+            return
+        self._bfix = []
+        self._bfix_next = self.now
+        self.say("nav.bfix.start", {"n": BFIX_N,
+                                    "minutes": round(BFIX_N * BFIX_INTERVAL_S / 60)}, kind="ack")
+
+    def _bottom_fix_step(self) -> None:
+        if self._bfix is None or self.now < self._bfix_next:
+            return
+        if self.ship.speed < 1.0:
+            self._bfix = None
+            self.say("nav.bfix.aborted")
+            return
+        self._bfix.append((self.est_x, self.est_y, self._echo()))
+        self._bfix_next = self.now + BFIX_INTERVAL_S
+        if len(self._bfix) < BFIX_N:
+            return
+        series, self._bfix = self._bfix, None
+        chart = self.game.knowledge.bathymetry
+        # lodningarna i besticket som det var då, flyttade till där vi tror att vi är nu
+        cx, cy, _ = series[-1]
+        pts = [(x - cx + self.est_x, y - cy + self.est_y) for x, y, _ in series]
+        prior = self.uncertainty()
+        m = match_soundings(chart, pts, [d for *_, d in series], prior)
+        sigma = math.hypot(m.sigma, chart.accuracy_nm)
+        if not m.consistent:
+            depths = [d for *_, d in series]
+            here = [chart.depth_at(x, y) for x, y in pts]
+            how = "grundare" if sum(depths) < sum(here) else "djupare"
+            self.say("nav.bfix.mismatch", {"how": how}, quality=Quality.DALIG)
+            return
+        if m.sigma > BFIX_FLAT * prior:
+            self.say("nav.bfix.flat", quality=Quality.DALIG)
+            return
+        if sigma >= prior * 0.95:
+            self.say("nav.bfix.chart", {"accuracy": chart.accuracy_nm}, quality=Quality.DALIG)
+            return
+        new_x, new_y = self.est_x + m.dx, self.est_y + m.dy
+        err = math.hypot(m.dx, m.dy)
+        b = bearing_to(self.est_x, self.est_y, new_x, new_y)
+        self.dr_track[-1].append((self.est_x, self.est_y))
+        self.dr_track.append([(new_x, new_y)])
+        self.fixes.append((new_x, new_y, self.now))
+        self.est_x, self.est_y = new_x, new_y
+        self.last_fix_t = self.now
+        self.fix_sigma = sigma
+        q = (Quality.SAKER if sigma < 0.15 else Quality.GOD if sigma < 0.3
+             else Quality.OSAKER if sigma < 0.6 else Quality.DALIG)
+        if m.line_of_position:
+            self.say("nav.bfix.line", {"error": err, "bearing_corr": b, "sigma": sigma,
+                                       "bearing": m.minor_bearing,
+                                       "minor": math.hypot(m.sigma_minor, chart.accuracy_nm)},
+                     quality=q)
+            return
+        self.say("nav.bfix.done", {"error": err, "bearing": b, "sigma": sigma}, quality=q)
+
+    def _bfix_worthwhile(self) -> bool:
+        """Kan en fix mot botten hjälpa här: kort med djup, brant botten, bestick sämre än kortet."""
+        chart = self.game.knowledge.bathymetry
+        if chart is None or self._bfix is not None or self.own.sys.on_bottom:
+            return False
+        sys = self.own.sys
+        if sys.fire or sys.smoke > 0.2 or sys.flooding > 0:
+            return False                    # annat går före
+        if self.uncertainty() < BFIX_GAIN * max(chart.accuracy_nm, 0.3):
+            return False                    # kortet är inte bättre än besticket
+        return chart.slope(self.est_x, self.est_y) > BFIX_RELIEF_M_PER_NM
 
     def _ack(self, what: str, data: dict, already: bool) -> None:
         self.say(f"nav.{what}.ack", {**data, "already": already}, kind="ack")
@@ -1041,6 +1166,7 @@ class NavigationStation(Station):
         if self.now % DR_TRACK_INTERVAL_S == 0:
             self.dr_track[-1].append((self.est_x, self.est_y))
         self._sound_ice()
+        self._bottom_fix_step()
         self._settle_watch()
         self._shoal_watch()
         self._steer_to_opening()
@@ -1069,6 +1195,7 @@ class NavigationStation(Station):
                 self.fixes.append((new_x, new_y, self.now))
                 self.est_x, self.est_y = new_x, new_y
                 self.last_fix_t = self.now
+                self.fix_sigma = PERISCOPE_FIX_SIGMA
                 self.say("nav.fix.done", {"error": err, "bearing": b})
 
         sigma = self.uncertainty()
@@ -1082,6 +1209,13 @@ class NavigationStation(Station):
                     self.opening_data(o)["range"] <= FIX_VAK_MAX_M:
                 self.suggest("fix_vak", "nav.suggest.fix_vak", {"sigma": sigma, **self.opening_data(o)},
                              order="vak", cooldown=1800, quality=o.quality(self.now))
+            elif self.under_ice() and self._bfix_worthwhile():
+                self.suggest("bfix", "nav.suggest.bfix", {"sigma": sigma}, order="bottenfix",
+                             cooldown=1800)
+        elif sigma > 1.0 and s.depth > PERISCOPE_DEPTH and \
+                (self.under_ice() or self.game.knowledge.threat_held()) and self._bfix_worthwhile():
+            self.suggest("bfix", "nav.suggest.bfix", {"sigma": sigma}, order="bottenfix",
+                         cooldown=1800)
         elif sigma > 1.0 and s.depth > PERISCOPE_DEPTH:
             self.suggest("fix", "nav.suggest.fix", {"sigma": sigma}, order="periskopdjup",
                          cooldown=1800)
