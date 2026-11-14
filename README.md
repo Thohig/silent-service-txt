@@ -61,7 +61,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
 | Ljud | `ctrl+t` eller `ljud` / `ljud av` / `ljud på`: besättningen talar (macOS-rösten Alva, de ryska fraserna med Milena om den finns), larmen går det sonaren hör spelas i stereo (babord till vänster) och båten låter: reaktor, turbin, skrov, is, brand och kontakternas propellrar |
-| Vyer | `Tab` växlar logg → sjökort → djupprofil → systemtavla → logg; `Esc` går tillbaka till loggen. Orden `sjökort`, `profil` och `system` öppnar en vy direkt |
+| Vyer | `Tab` växlar logg → sjökort → djupprofil → systemtavla → periskopbild → logg; `Esc` går tillbaka till loggen. Orden `sjökort`, `profil`, `system` och `periskopbild` öppnar en vy direkt. I periskopbilden byter ← → föremål i okularet |
 | Sjökort | Navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, `c` centrerar |
 | Systemtavla | Ubåtens system på en tavla: genomskärning av de nio avdelningarna (brand, rök, skador, reaktorns läge, vatten i kölsvinet), maskin (reaktor, framdrivning, batteri, tryckluft, skrov, vatten, koldioxid, rök), skador och reparationer per komponent, navigation, torpedtuberna med laddning, sonar och samband. Allt ur besättningens egna instrument; ▲ varning, ■ fara |
 | Djupprofil | Visar ubåten från sidan över tid: vårt djup, beordrat djup, ytan, periskopdjup, språngskiktet, prov- och krossdjup, isen ovanför, botten där ekolodet lodat och det sonar hört; `+`/`-` djupskala, pilarna tidsskala, `a` automatisk skala. Djupmätaren till höger om loggen visar samma sak i kort form |
@@ -145,6 +145,7 @@ sim/                 ren Python, ingen Textual
   seabed.py          SANNING: bottentopografi; chart_copy() ger sjökortets bild (kunskap)
   profile.py         djupprofilens element; stationerna bidrar via profile_items()
   systems.py         systemtavlans element; stationerna bidrar via system_items()
+  periscope.py       periskopbilden: synlig del, vinkel på bogen, lanternor (kunskap)
   stations/          ett system ombord per modul
     base.py          Station: COMMANDS, on_order, update, say, suggest
     navigation.py    kurs, fart, djup, bestick, fix, ekolod, isekolod, vak
@@ -163,6 +164,8 @@ ui/                  Textual
   profile_render.py  rastrering av djupprofilen och djupmätaren
   systems.py         systemtavlan i helskärm
   systems_render.py  genomskärning och paneler till tecken
+  periscope.py       periskopbilden i helskärm (utkikens senaste svep)
+  periscope_render.py remsa, okular och siluetter till tecken
 ```
 
 ### Lägga till ett system

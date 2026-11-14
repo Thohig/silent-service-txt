@@ -119,7 +119,7 @@ def test_tab_cycles_through_the_board(tmp_path):
             body = str(app.screen.query_one("#systems-body").render())
             assert "MASKIN" in body and "torped" in body
             app.save_screenshot(str(tmp_path / "systemtavla.svg"))
-            await pilot.press("tab")
+            await pilot.press("tab", "tab")       # periskopbilden, sedan loggen
             assert not isinstance(app.screen, (ChartScreen, ProfileScreen, SystemScreen))
             await pilot.press(*"system", "enter")
             assert isinstance(app.screen, SystemScreen)

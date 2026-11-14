@@ -23,6 +23,7 @@ from sim.truthlog import TruthLog
 
 from .audio import SoundBoard, make_soundboard
 from .chart import ChartScreen
+from .periscope import PeriscopeScreen
 from .profile import ProfileScreen
 from .systems import SystemScreen
 from .teletype import Teletype
@@ -32,7 +33,8 @@ MAX_TICKS_PER_FRAME = 20
 CHART_WORDS = {"sjökort", "sjokort", "kort", "karta"}
 PROFILE_WORDS = {"profil", "djupprofil", "sidovy"}
 SYSTEM_WORDS = {"system", "systemtavla", "systemtavlan", "tavla", "tavlan"}
-VIEWS = (ChartScreen, ProfileScreen, SystemScreen)     # Tab-ordningen efter loggen
+PERISCOPE_WORDS = {"periskopbild", "periskopvy", "bild"}
+VIEWS = (ChartScreen, ProfileScreen, SystemScreen, PeriscopeScreen)   # Tab-ordningen efter loggen
 GAUGE_EVERY_S = 0.5
 SOUND_WORDS = {"ljud", "ljud av", "ljud på", "ljud pa"}
 SPEECH_WORDS = {"tal ryska": "ru", "tal svenska": "sv"}
@@ -158,6 +160,9 @@ class SubApp(App):
         if text.lower() in SYSTEM_WORDS:
             self.action_systems()
             return
+        if text.lower() in PERISCOPE_WORDS:
+            self.action_periscope()
+            return
         if text.lower() in SOUND_WORDS:
             want = {"ljud av": False, "ljud på": True, "ljud pa": True}.get(text.lower())
             self.action_sound(want)
@@ -210,8 +215,11 @@ class SubApp(App):
     def action_systems(self) -> None:
         self._toggle_view(SystemScreen)
 
+    def action_periscope(self) -> None:
+        self._toggle_view(PeriscopeScreen)
+
     def action_cycle(self) -> None:
-        """Tab: logg → sjökort → djupprofil → systemtavla → logg."""
+        """Tab: logg → sjökort → djupprofil → systemtavla → periskop → logg."""
         if not self.running or self.game is None:
             return
         cur = next((i for i, cls in enumerate(VIEWS) if isinstance(self.screen, cls)), None)

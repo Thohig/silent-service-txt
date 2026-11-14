@@ -124,3 +124,95 @@ def test_far_targets_give_worse_angle_on_bow_over_seeds():
     assert all(v == "helt" for v, _ in near)
     assert all(v == "överbyggnad" for v, _ in far)
     assert sum(e for _, e in far) > sum(e for _, e in near)
+
+
+# --- vyn -------------------------------------------------------------------------------
+from sim.periscope import PeriscopePicture, SightedObject  # noqa: E402
+from ui.periscope_render import (compress, mirror, ordered_objects, render_periscope,  # noqa: E402
+                                 silhouette)
+
+
+def _ship(desig="S-1", bearing=10.0, rng=1.5, aob=60.0, visible="helt", kind="destroyer",
+          lights=()):
+    return SightedObject(kind, "jagare", bearing, rng, Quality.GOD, designation=desig,
+                         visible=visible, aob=aob, aob_quality=Quality.GOD, course=0.0,
+                         speed=12, lights=lights)
+
+
+def _pic(*objs, day=True):
+    return PeriscopePicture(100, day, 8.0, 0.0, "periskop", tuple(objs))
+
+
+def test_silhouette_turns_with_the_bow_and_is_cut_by_the_horizon():
+    stb = silhouette(_ship(aob=90), large=True)
+    bb = silhouette(_ship(aob=-90), large=True)
+    assert stb[-1].rstrip().endswith("/") and bb[-1].lstrip().startswith("\\")
+    assert mirror(mirror(["h ab/("])) == ["h ab/("]
+    far = silhouette(_ship(aob=90, visible="mastoppar"), large=True)
+    sup = silhouette(_ship(aob=90, visible="överbyggnad"), large=True)
+    assert len(far) < len(sup) < len(stb)
+    assert all("\\" not in ln for ln in far)
+    # rakt förut: smal siluett, men masterna finns kvar
+    bow_on = silhouette(_ship(aob=3), large=True)
+    assert max(map(len, bow_on)) < max(map(len, stb)) / 2
+    assert "|" in "".join(bow_on)
+    assert compress(["h abc"], 1.0) == ["h abc"]
+
+
+def test_render_shows_strip_eyepiece_and_data_without_truth():
+    pic = _pic(_ship("S-1", 10.0), _ship("S-2", 200.0, rng=6.0, visible="överbyggnad"))
+    rows = [r.plain for r in render_periscope(pic, 100, 30, 0, 0)]
+    text = "\n".join(rows)
+    assert "S-1" in rows[0] and "S-2" in rows[0]
+    assert "förut" in rows[2]
+    assert "┊" in text and "░" in text
+    assert "vinkel på bogen styrbord 60° (god)" in rows[-1]
+    assert "DD1" not in text
+    objs = ordered_objects(pic)
+    assert [o.designation for o in objs] == ["S-2", "S-1"]   # 200° ligger till vänster om fören
+
+
+def test_night_eyepiece_shows_only_lights():
+    pic = _pic(_ship(aob=40, visible="ljus", lights=("topp", "grön")), day=False)
+    rows = [r.plain for r in render_periscope(pic, 100, 30, 0, 0)]
+    eye = "\n".join(rows[4:-1])
+    assert "●" in eye and "*" in eye and "\\" not in eye
+    assert "lanternor: topp, grön" in rows[-1]
+
+
+def test_no_picture_message():
+    rows = render_periscope(None, 100, 30, None, 0)
+    assert "periskop" in rows[0].plain
+
+
+def test_tab_reaches_the_periscope_view(tmp_path):
+    import asyncio
+
+    from ui.app import SubApp
+    from ui.periscope import PeriscopeScreen
+
+    async def run():
+        app = SubApp(seed=3, log_dir=tmp_path, scenario="kuba")
+        async with app.run_test(size=(110, 40)) as pilot:
+            await pilot.press("enter", "enter")
+            g = app.game
+            st = g.world.own.state
+            st.depth = st.ordered_depth = 15.0
+            st.speed = st.ordered_speed = 3.0
+            dd = next(v for v in g.world.contacts if v.kind == "destroyer")
+            dd.state.x, dd.state.y = st.x + 0.5, st.y + 1.5
+            g.command("periskop")
+            for _ in range(20):
+                g.tick()
+            await pilot.press("tab", "tab", "tab", "tab")
+            assert isinstance(app.screen, PeriscopeScreen)
+            await pilot.pause(0.6)
+            body = str(app.screen.query_one("#periscope-body").render())
+            assert "S-" in body and "┊" in body
+            await pilot.press("right")
+            assert app.screen.selected_key is not None
+            app.save_screenshot(str(tmp_path / "periskop.svg"))
+            await pilot.press("tab")
+            assert not isinstance(app.screen, PeriscopeScreen)
+
+    asyncio.run(run())

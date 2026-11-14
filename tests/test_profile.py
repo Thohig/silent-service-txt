@@ -148,11 +148,11 @@ def test_tab_cycles_the_views(tmp_path):
             app.save_screenshot(str(tmp_path / "profil.svg"))
             await pilot.press("escape")
             assert app.query_one("#order").value == "kurs 0"
-            await pilot.press("tab")                 # logg → sjökort → profil → system → logg
+            await pilot.press("tab")                 # logg → sjökort → profil → system → periskop → logg
             assert isinstance(app.screen, ChartScreen)
             await pilot.press("tab")
             assert isinstance(app.screen, ProfileScreen)
-            await pilot.press("tab", "tab")
+            await pilot.press("tab", "tab", "tab")    # system → periskop → logg
             assert not isinstance(app.screen, (ChartScreen, ProfileScreen))
             await pilot.press("ctrl+u", *"profil", "enter")
             assert isinstance(app.screen, ProfileScreen)

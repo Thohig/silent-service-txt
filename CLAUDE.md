@@ -87,7 +87,7 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   fasta djup (`Level`), navigatörens djuplogg (var 10:e s), ekolodets bottenlodningar
   (bara efter `ekolod`), isekolodets lodningar och sonarrummets hörda ljud. `Game.profile()`
   samlar, `ui/profile_render.py` ritar sidovyn (tid vågrätt, botten i eget band under
-  bruten axel) och djupmätaren bredvid loggen. Tab växlar logg → sjökort → profil → systemtavla → logg (`VIEWS` i `ui/app.py`).
+  bruten axel) och djupmätaren bredvid loggen. Tab växlar logg → sjökort → profil → systemtavla → periskopbild → logg (`VIEWS` i `ui/app.py`).
 - **Systemtavlan** (`system`): `Station.system_items()` ger element (`sim/systems.py`):
   `Gauge` (panel, etikett, text, tillstånd ok/info/av/varning/fara, ev. stapel), `Compartment`
   (nio avdelningar, maskin), `TubeRack` (torpedrum), `Flooding`. Ur egna instrument
@@ -98,6 +98,9 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   håller den senaste. Synlig del (helt/överbyggnad/mastoppar) ur ögonhöjd (periskop 1,5 m, brygga 8 m)
   och `HEIGHTS`; kursbedömningens σ (`AOB_SIGMA`) följer synlig del, natt = bara lanternor (σ 25°).
   Vinkel på bogen `aob` + styrbord. Fartyg bär plottets beteckning, aldrig sanningens id.
+  Vyn (`ui/periscope_render.py`, `ui/periscope.py`): 360°-remsa med fören i mitten, okular (32°)
+  mot valt föremål (← →), siluetter i `ART` (fören åt höger, speglas vid babord, trycks ihop efter
+  |sin vpb|, skärs efter synlig del), natt bara lanternor, bild äldre än 60 s nedtonad.
 - **Tangenter:** `Tab` växlar vy, `Esc` tillbaka, `ctrl+t` ljud. Undvik F-tangenter
   (medietangenter på Mac) och ctrl-tangenter som orderraden (`Input`) redan använder.
 - **Ljud** (`ui/audio.py`): `SoundBoard` lyssnar bara på bussen – `ReportDelivered` ger tal

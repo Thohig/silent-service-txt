@@ -59,7 +59,7 @@ class SystemScreen(Screen):
         view = game.systems()
         body.update(Text("\n").join(render_systems(view, w)))
         t = header(view)
-        t.append("   Tab loggen · Esc tillbaka", style="dim")
+        t.append("   Tab periskop · Esc tillbaka", style="dim")
         head.update(t)
 
     def add_report(self, clock: str, report: Report) -> None:
