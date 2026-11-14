@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .events import (BearingObserved, ClassificationChanged, ContactDetected,
+from .events import (BearingObserved, ClassificationChanged, ContactDetected, ConvoyAssessed,
                      ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound, PeriscopeBlocked,
                      PeriscopeSighted,
                      PhotoTaken, PositionReported)
@@ -18,6 +18,7 @@ from .seabed import Seabed
 from .environment import TidalStream
 from .reports import Quality
 from .tma import BearingObs, Solution, solve
+from .zigzag import ConvoyEstimate, LegFix
 
 
 @dataclass
@@ -30,6 +31,9 @@ class ContactTrack:
     solution: Solution | None = None
     held: bool = True
     tma_from_t: int = -10**9       # plottlaget använder bara bäringar efter denna tid
+    legs: list[LegFix] = field(default_factory=list)   # avslutade ben (sicksack)
+    turns: list[int] = field(default_factory=list)     # när plottet märkt att målet girat
+    leg_sol: Solution | None = None                    # benets senaste användbara lösning
 
     @property
     def civil(self) -> bool:
@@ -88,6 +92,7 @@ class Knowledge:
     hunt_t: int = -10**9                 # senast sonar hörde att fienden har oss
     periscope: PeriscopePicture | None = None   # utkikens senaste bild
     periscope_blocked: tuple[int, str] | None = None   # (tid, skäl) när periskopet inte kom upp
+    convoy: ConvoyEstimate | None = None   # plottets bild av en konvoj
 
     def attach(self, bus: EventBus) -> None:
         bus.subscribe(ContactDetected, self._on_detected)
@@ -100,6 +105,7 @@ class Knowledge:
         bus.subscribe(HuntSigns, self._on_hunt)
         bus.subscribe(PhotoTaken, self._on_photo)
         bus.subscribe(PeriscopeSighted, self._on_periscope)
+        bus.subscribe(ConvoyAssessed, lambda e: setattr(self, "convoy", e.estimate))
         bus.subscribe(PeriscopeBlocked, lambda e: setattr(self, "periscope_blocked", (e.t, e.reason)))
 
     # --- händelser ------------------------------------------------------------

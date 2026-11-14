@@ -19,6 +19,7 @@ from .reports import Quality, Report
 if TYPE_CHECKING:
     from .icemap import IceSoundingObs
     from .periscope import PeriscopePicture
+    from .zigzag import ConvoyEstimate
     from .tma import BearingObs
 
 
@@ -70,6 +71,12 @@ class PhotoTaken(Event):
 class PeriscopeSighted(Event):
     """Utkikens bild när periskopsvepet är klart (se sim/periscope.py)."""
     picture: PeriscopePicture
+
+
+@dataclass(frozen=True)
+class ConvoyAssessed(Event):
+    """Plottlagets bild av en konvoj: medlemmar, ben och baskurs (se sim/zigzag.py)."""
+    estimate: ConvoyEstimate
 
 
 @dataclass(frozen=True)
