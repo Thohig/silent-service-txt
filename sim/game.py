@@ -44,6 +44,7 @@ from .truthlog import TruthLog
 
 S = TypeVar("S", bound=Station)
 SUGGESTION_TTL = 300
+QUIT_CONFIRMED = "avbryt uppdraget bekräftat"   # ordern som ja verkställer efter frågan
 
 
 @dataclass(frozen=True)
@@ -246,6 +247,12 @@ class Game:
             self.suggested_at[r.data["order"]] = self.now
         self.bus.publish(ReportDelivered(self.now, r))
 
+    def _confirm_quit(self) -> None:
+        """Vakthavande frågar innan uppdraget avbryts; ja verkställer."""
+        officer = self.crew[Role.OFFICER]
+        self._deliver(Report(self.now, officer.callsign, "off.confirm_quit",
+                             {"order": QUIT_CONFIRMED}, role=Role.OFFICER.value, kind="suggest"))
+
     def _system(self, type: str, data: dict[str, Any]) -> None:
         self._deliver(Report(self.now, "", type, data, kind="system"))
 
@@ -312,6 +319,8 @@ class Game:
                 self.set_time_scale(n, "order")
             case Help():
                 self._system("system.help", {"text": self.registry.help_text() + " " + russian.glossary()})
+            case Quit(confirmed=False):
+                self._confirm_quit()
             case Quit():
                 self.world.end("quit")
                 self._end()

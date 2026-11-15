@@ -26,6 +26,8 @@ def test_avsluta_ends_game_with_report():
     for _ in range(1800):
         g.tick()
     g.command("avsluta")
+    assert not g.over                       # vakthavande frågar först
+    g.command("ja")
     assert g.over and len(ended) == 1
     s = ended[0].summary
     assert s["outcome"] == "quit" and "avbrutit patrullen" in s["text"]
@@ -45,7 +47,7 @@ def test_report_counts_torpedoes_hits_and_contacts():
     g.command("eld tub 1 mot S-1")
     for _ in range(400):
         g.tick()
-    g.command("avsluta patrullen")
+    g.command("avsluta patrullen bekräftat")
     s = ended[0].summary
     rows = _rows(s)
     assert rows["Torpeder"] == "1 avfyrade, 1 träff, 0 missar"
@@ -68,7 +70,7 @@ def test_report_never_reveals_truth_and_is_short():
             if g.over:
                 break
         if not g.over:
-            g.command("avsluta")
+            g.command("avsluta bekräftat")
         session = ended[0].summary["session"]
         assert len(session["events"]) <= 8
         texts = [v for _, v in session["rows"]] + [t for _, t in session["events"]]
@@ -81,3 +83,15 @@ def test_session_report_also_on_normal_ending():
     g.world.end("patrol_end")
     g.tick()
     assert ended and "session" in ended[0].summary
+
+
+def test_avbryt_uppdraget_asks_first_and_nej_keeps_playing():
+    g, ended = _game()
+    g.command("avbryt uppdraget")
+    assert g.suggestion is not None and "avbryta uppdraget" in g.suggestion[1]
+    g.command("nej")
+    g.tick()
+    assert not g.over and not ended
+    g.command("avbryt uppdraget")
+    g.command("ja")
+    assert g.over and ended[0].outcome == "quit"

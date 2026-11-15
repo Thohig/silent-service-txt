@@ -12,7 +12,7 @@ oktober 1962. Python 3.12, Textual, numpy, uv. Användaren kör macOS (Apple Sil
 
 ## Kommandon
 ```bash
-uv run main.py [--seed N] [--scenario kuba] [--tyst]   # spela (utan --scenario: väljare)
+uv run main.py [--seed N] [--scenario kuba] [--tyst]   # spela (utan --scenario: huvudmenyn)
 uv run pytest -q              # snabba tester, parallellt (~8 s)
 uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); före commit
 ```
@@ -240,6 +240,14 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   ritas nedtonade); i ett svep eller en titt räknas allt som setts som sett nu.
   Is: `ice.ice_view` (periskopet är en sensor) ger kant och vallar i 16 riktningar ut till 0,6 nm;
   kommer masten inte upp för isen publiceras `PeriscopeBlocked` och vyn säger det.
+- **Huvudmenyn** (`ui/menu.py`, `MenuScreen`) → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
+  huvudmenyn. `SubApp` håller spelet, ljudet och inställningarna (ljud, talets språk) över uppdragen;
+  widgetarna nås med `app.gs().query_one(...)` (`app.query_one` ser bara standardskärmen). Efter
+  slutrapporten går vyerna att titta på; Enter med tom orderrad (även i en vy) ⇒ `return_to_menu()`:
+  timern stoppas, ljud och sanningslogg stängs, `game = None`, menyn markerar scenariot. Nytt uppdrag =
+  nytt `Game`, ny buss, nytt frö (`--seed` gäller bara det första), logg `truth-<tid>-<frö>.log`.
+  `avbryt uppdraget`/`avsluta` ⇒ vakthavande frågar (`off.confirm_quit`, förslag `avbryt uppdraget
+  bekräftat`), `ja` ⇒ utfallet `quit`.
 - **Order i alla vyer** (`ui/viewbase.py`): vyerna ärver `ViewScreen` (rapportraden, `Esc`, orderrad
   `OrderLine` som visar väntande förslag). Vyns tangenter står i `EMPTY_KEYS` och gäller bara när
   orderraden är tom (Input tar annars alla utskrivbara tecken); bokstäver är aldrig vytangenter.

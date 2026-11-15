@@ -4,6 +4,7 @@ import asyncio
 
 from sim.events import ReportDelivered
 from ui.app import SubApp
+from ui.menu import MenuScreen
 
 
 def test_app_starts_and_acknowledges_order(tmp_path):
@@ -30,10 +31,10 @@ def test_game_begins_with_scenario_picker(tmp_path):
         app = SubApp(seed=1, log_dir=tmp_path)
         async with app.run_test(size=(100, 30)) as pilot:
             assert app.game is None
-            assert app.query_one("#picker").display
+            assert isinstance(app.screen, MenuScreen)
             await pilot.press("enter")        # välj första scenariot
             assert app.game is not None
-            assert not app.query_one("#picker").display
+            assert not isinstance(app.screen, MenuScreen)
             await pilot.press("enter")        # hoppa över fjärrskrivaren
             await pilot.press("enter")        # ta befälet
             assert app.running
@@ -143,3 +144,41 @@ def test_a_pending_suggestion_shows_in_the_view_order_line(tmp_path):
             assert app.game.status().suggestion != sug
 
     asyncio.run(run())
+
+
+@pytest.mark.slow
+def test_ending_returns_to_menu_and_next_mission_starts_clean(tmp_path):
+    from ui.app import GameScreen
+    from ui.chart import ChartScreen
+
+    async def run():
+        app = SubApp(seed=1, log_dir=tmp_path, scenario="kuba")
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.press("enter")        # hoppa över fjärrskrivaren
+            await pilot.press("enter")        # ta befälet
+            first = app.game
+            await pilot.press(*"avbryt uppdraget", "enter")
+            assert not first.over             # vakthavande frågar först
+            await pilot.press(*"ja", "enter")
+            assert first.over
+            await pilot.press("tab")          # vyerna går att titta på efter slutet
+            assert isinstance(app.screen, ChartScreen)
+            await pilot.press("enter")        # Enter i vyn: tillbaka till huvudmenyn
+            await pilot.pause()
+            assert isinstance(app.screen, MenuScreen)
+            assert app.game is None and not app.running
+            assert app.screen.selected == "kuba"
+            await pilot.press("enter")        # samma scenario igen, markerat
+            await pilot.pause()
+            assert isinstance(app.screen, GameScreen)
+            assert app.game is not None and app.game is not first and not app.game.over
+            await pilot.press("enter")
+            await pilot.press("enter")
+            assert app.running
+            await pilot.press(*"kurs 090", "enter")
+            for _ in range(15):
+                app.game.tick()
+            assert app.game.world.own.state.ordered_course == 90
+
+    asyncio.run(run())
+    assert len(list(tmp_path.glob("truth-*.log"))) == 2   # en sanningslogg per uppdrag

@@ -51,7 +51,8 @@ class SetTimeScale(Order):
 
 @dataclass(frozen=True)
 class Quit(Order):
-    """Kaptenen avslutar spelet."""
+    """Kaptenen avslutar spelet. Utan bekräftelse frågar vakthavande först."""
+    confirmed: bool = False
 
 
 @dataclass(frozen=True)
@@ -165,8 +166,11 @@ def _time_scale(m: re.Match) -> Order:
 
 
 TIME_COMMAND = CommandSpec(r"(?:tid|tidskomprimering)\s+(\d+)\s*x?", _time_scale, "tid 1|2|5|10")
-QUIT_COMMAND = CommandSpec(r"avsluta(?: spelet| patrullen)?|avbryt patrullen|sluta spela",
-                           lambda m: Quit(), "avsluta")
+QUIT_COMMAND = CommandSpec(
+    r"(?:avsluta(?: spelet| patrullen| uppdraget| övningen| ovningen)?|"
+    r"avbryt (?:patrullen|uppdraget|uppdrag|övningen|ovningen)|sluta spela)"
+    r"(?P<confirmed> bekräftat| bekraftat)?",
+    lambda m: Quit(confirmed=bool(m.group("confirmed"))), "avbryt uppdraget")
 HELP_COMMAND = CommandSpec(r"hjälp|hjalp|\?|order", lambda m: Help(), "hjälp")
 
 SUGGESTION_COMMANDS = [

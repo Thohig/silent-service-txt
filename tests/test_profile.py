@@ -137,7 +137,7 @@ def test_tab_cycles_the_views(tmp_path):
             for _ in range(600):
                 app.game.tick()
             await pilot.pause(0.7)
-            assert "DJUPMÄTARE" in str(app.query_one(DepthGauge).render())
+            assert "DJUPMÄTARE" in str(app.gs().query_one(DepthGauge).render())
             await pilot.press(*"kurs 0")          # orderraden behåller texten
             await pilot.press("tab", "tab")
             assert isinstance(app.screen, ProfileScreen)
@@ -149,7 +149,7 @@ def test_tab_cycles_the_views(tmp_path):
             assert app.screen.depth_zoom is None
             app.save_screenshot(str(tmp_path / "profil.svg"))
             await pilot.press("escape")
-            assert app.query_one("#order").value == "kurs 0"
+            assert app.gs().query_one("#order").value == "kurs 0"
             await pilot.press("tab")                 # logg → sjökort → profil → system → periskop → logg
             assert isinstance(app.screen, ChartScreen)
             await pilot.press("tab")

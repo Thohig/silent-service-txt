@@ -7,7 +7,7 @@ och plottlagets målrörelseanalys.
 ## Köra
 
 ```bash
-uv run main.py                     # scenarioväljare, slumpat frö
+uv run main.py                     # huvudmenyn, slumpat frö
 uv run main.py --scenario kuba     # hoppa över väljaren (kuba, kuba-kort, jagad, jagad-kort, sundet, sundet-in, sundet-ut, konvoj, konvoj-kort, konvoj-mot, arktis, arktis-kort)
 uv run main.py --seed 4            # reproducerbart scenario
 uv run main.py --tyst              # utan ljud
@@ -15,7 +15,7 @@ uv run pytest             # snabba tester
 uv run pytest --slow      # alla tester
 ```
 
-Avsluta med `ctrl+q`. Sanningen (exakta positioner och TMA-lösningar) loggas
+När ett uppdrag är slut tar Enter dig tillbaka till huvudmenyn. Stäng programmet med `ctrl+q`. Sanningen (exakta positioner och TMA-lösningar) loggas
 till `logs/truth-*.log`.
 
 ## Order
@@ -66,7 +66,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Sjökort | Navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, mellanslag centrerar |
 | Systemtavla | Ubåtens system på en tavla: genomskärning av de nio avdelningarna (brand, rök, skador, reaktorns läge, vatten i kölsvinet), maskin (reaktor, framdrivning, batteri, tryckluft, skrov, vatten, koldioxid, rök), skador och reparationer per komponent, navigation, torpedtuberna med laddning, sonar och samband. Allt ur besättningens egna instrument; ▲ varning, ■ fara |
 | Djupprofil | Visar ubåten från sidan över tid: vårt djup, beordrat djup, ytan, periskopdjup, språngskiktet, prov- och krossdjup, isen ovanför, botten där ekolodet lodat och det sonar hört; `+`/`-` djupskala, pilarna tidsskala, mellanslag automatisk skala. Djupmätaren till höger om loggen visar samma sak i kort form |
-| Övrigt | `hjälp` · `avsluta` (avbryter patrullen med slutrapport) · `ctrl+q` stänger programmet |
+| Övrigt | `hjälp` · `avbryt uppdraget` (vakthavande frågar, `ja` avbryter med slutrapport) · `ctrl+q` stänger programmet |
 
 Flera order kan ges på en rad, åtskilda med komma, semikolon eller "och":
 `kurs 090, fart 5; djup 100`. De verkställs i tur och ordning. Ett komma

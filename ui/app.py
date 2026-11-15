@@ -1,4 +1,9 @@
-"""Huvudfönstret. Simuleringen tickar i realtid oberoende av inmatningen."""
+"""Huvudfönstret. Simuleringen tickar i realtid oberoende av inmatningen.
+
+Skärmarna: huvudmenyn (MenuScreen) → spelet (GameScreen, med vyerna ovanpå) → huvudmenyn
+när uppdraget är slut och kaptenen trycker Enter. Appen håller spelet, ljudet och
+inställningarna; varje uppdrag får ett nytt Game, en ny buss och en ny sanningslogg.
+"""
 from __future__ import annotations
 
 import random
@@ -6,23 +11,23 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal
 from textual.css.query import NoMatches
 from textual.screen import Screen
-from textual.widgets import Input, OptionList, Static
-from textual.widgets.option_list import Option
+from textual.timer import Timer
+from textual.widgets import Input
 
 from sim.events import GameEnded, ReportDelivered, TimeScaleChanged
 from sim.game import Game
 from sim.fmt import fmt_course, kn
-from sim.scenario import SCENARIOS, build_scenario
+from sim.scenario import build_scenario
 from sim.truthlog import TruthLog
 
 from .audio import SoundBoard, make_soundboard
 from .chart import ChartScreen
+from .menu import MenuScreen
 from .bridge import BridgeScreen
 from .periscope import PeriscopeScreen
 from .profile import ProfileScreen
@@ -46,6 +51,24 @@ SOUND_KEY = "ctrl+t"                   # t som i tal
 
 
 FRAME_S = 0.05
+OVER_PLACEHOLDER = "Uppdraget är slut – Enter: tillbaka till huvudmenyn"
+
+
+class GameScreen(Screen):
+    """Spelets huvudskärm: statusrad, fjärrskrivaren, loggen, djupmätaren och orderraden.
+    Logiken bor i SubApp; vyerna läggs ovanpå den här skärmen."""
+
+    def compose(self) -> ComposeResult:
+        yield StatusBar(id="status")
+        yield Teletype("", id="intro")
+        with Horizontal(id="main"):
+            yield ReportLog(id="log", wrap=True, markup=False, max_lines=2000)
+            yield DepthGauge(id="gauge")
+        yield Input(placeholder="Order …   (skriv hjälp för en lista)", id="order")
+
+    def on_mount(self) -> None:
+        self.query_one("#main").display = False
+        self.app._begin()
 
 
 class SubApp(App):
@@ -69,7 +92,7 @@ class SubApp(App):
 
     def __init__(self, seed: int | None = None, log_dir: Path | str = "logs",
                  scenario: str | None = None, sound: bool = False):
-        """scenario: nyckel i SCENARIOS. Utan scenario börjar spelet med en väljare.
+        """scenario: nyckel i SCENARIOS. Utan scenario börjar spelet med huvudmenyn.
         sound: tal och larm (macOS). Av som standard så att testerna är tysta."""
         super().__init__()
         self.seed = seed if seed is not None else random.randrange(1_000_000)
@@ -86,53 +109,57 @@ class SubApp(App):
         self.sound: SoundBoard | None = None
         self._sound_note: str | None = None
         self._gauge_t = 0.0
+        self.language: str | None = None     # talets språk, gäller över uppdragen
+        self.scenario_key: str | None = None
+        self._screen: GameScreen | None = None
+        self._pump_timer: Timer | None = None
         if scenario is not None:
             self._create_game(scenario)
 
     def _create_game(self, key: str) -> None:
+        if self.scenario_key is not None:    # ett nytt uppdrag får ett nytt frö
+            self.seed = random.randrange(1_000_000)
+        self.scenario_key = key
         scenario = build_scenario(key, random.Random(self.seed))
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.truth_log = TruthLog(self.log_dir / f"truth-{stamp}.log")
+        self.truth_log = TruthLog(self.log_dir / f"truth-{stamp}-{self.seed}.log")
         self.truth_log.write(f"# seed={self.seed} scenario={key}")
         # en kort variants uppvärmning körs i en tråd medan ordern skrivs ut (_begin)
         self.game = Game(scenario, seed=self.seed, truth_log=self.truth_log, warm_up=False)
 
-    def compose(self) -> ComposeResult:
-        yield StatusBar(id="status")
-        with Vertical(id="picker"):
-            yield Static("K-114 — välj scenario", id="picker-title")
-            yield OptionList(*[Option(_scenario_label(sd), id=sd.key)
-                               for sd in SCENARIOS.values()], id="scenarios")
-        yield Teletype("", id="intro")
-        with Horizontal(id="main"):
-            yield ReportLog(id="log", wrap=True, markup=False, max_lines=2000)
-            yield DepthGauge(id="gauge")
-        yield Input(placeholder="Order …   (skriv hjälp för en lista)", id="order")
+    def gs(self) -> GameScreen:
+        """Spelskärmen (även när en vy ligger ovanpå)."""
+        if self._screen is None:
+            raise NoMatches("ingen spelskärm")
+        return self._screen
 
     def on_mount(self) -> None:
-        self.query_one("#main").display = False
-        if self.game is None:
-            self.query_one("#intro").display = False
-            self.query_one("#order").display = False
-            self.query_one("#scenarios", OptionList).focus()
+        if self.game is not None:            # --scenario: spelet skapades i __init__
+            self._show_game()
         else:
-            self._begin()
+            self.push_screen(MenuScreen())
 
-    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        if self.game is not None or event.option.id is None:
+    def start_scenario(self, key: str) -> None:
+        """Huvudmenyn: skapa spelet och visa den hemliga ordern."""
+        if self.game is not None:
             return
-        self._create_game(event.option.id)
-        self._begin()
+        self._create_game(key)
+        self._show_game()
+
+    def _show_game(self) -> None:
+        self._screen = GameScreen()
+        if isinstance(self.screen, MenuScreen):
+            self.switch_screen(self._screen)
+        else:
+            self.push_screen(self._screen)       # _begin när skärmen är monterad
 
     def _begin(self) -> None:
         """Scenariot är valt: visa den hemliga ordern på fjärrskrivaren."""
         game = self.game
-        self.query_one("#picker").display = False
-        self.query_one("#intro").display = True
-        self.query_one("#order").display = True
-        self.query_one(StatusBar).show(game.status())
-        self.query_one("#order", Input).focus()
-        tt = self.query_one(Teletype)
+        gs = self.gs()
+        gs.query_one(StatusBar).show(game.status())
+        gs.query_one("#order", Input).focus()
+        tt = gs.query_one(Teletype)
         tt.full_text = game.secret_order
         tt.start()
         if game.warmup_pending:
@@ -153,16 +180,18 @@ class SubApp(App):
         game.bus.subscribe(GameEnded, self._on_game_ended)
         self.sound, self._sound_note = make_soundboard(
             game.bus, self.sound_wanted, heading=lambda: game.status().course)
+        if self.language is not None:
+            self.sound.set_language(self.language)
         self._game_ready = True
         try:
-            self.query_one(StatusBar).show(game.status())
-            if self.query_one(Teletype).done:
+            self.gs().query_one(StatusBar).show(game.status())
+            if self.gs().query_one(Teletype).done:
                 self._show_footer()
         except NoMatches:
             pass
 
     def _show_footer(self) -> None:
-        self.query_one(Teletype).set_footer(
+        self.gs().query_one(Teletype).set_footer(
             "Tryck Enter för att ta befälet." if self._game_ready
             else "Vakthavande gör klart vakten …")
 
@@ -176,32 +205,22 @@ class SubApp(App):
         if self.game is None:
             return
         if not self.running:
-            tt = self.query_one(Teletype)
+            tt = self.gs().query_one(Teletype)
             if not tt.done:
                 tt.finish()
             elif self._game_ready:
                 self._start()
             return
+        if self._view_word(text.lower()):
+            return
+        if self.game.over:
+            if not text:
+                self.return_to_menu()
+            else:
+                self.gs().query_one(ReportLog).add_system(
+                    self.game.clock_str(), "Uppdraget är slut. Enter tar dig tillbaka till huvudmenyn.")
+            return
         if not text:
-            return
-        if text.lower() in CHART_WORDS:
-            self.action_chart()
-            return
-        if text.lower() in PROFILE_WORDS:
-            self.action_profile()
-            return
-        if text.lower() in SYSTEM_WORDS:
-            self.action_systems()
-            return
-        if text.lower() in PERISCOPE_WORDS:
-            self.action_periscope()
-            return
-        if text.lower() in BRIDGE_WORDS:
-            self.action_bridge()
-            return
-        if text.lower() in LOG_WORDS:
-            if isinstance(self.screen, VIEWS):
-                self.pop_screen()
             return
         if text.lower() in SOUND_WORDS:
             want = {"ljud av": False, "ljud på": True, "ljud pa": True}.get(text.lower())
@@ -210,15 +229,34 @@ class SubApp(App):
         if text.lower() in SPEECH_WORDS:
             self.action_speech(SPEECH_WORDS[text.lower()])
             return
-        self.query_one(ReportLog).add_captain(self.game.clock_str(), text)
+        self.gs().query_one(ReportLog).add_captain(self.game.clock_str(), text)
         if isinstance(self.screen, VIEWS):
             self.screen.add_captain(self.game.clock_str(), text)
         self.game.command(text)
 
+    def _view_word(self, text: str) -> bool:
+        """Ord som öppnar en vy (eller loggen). Sant om ordet var ett sådant."""
+        if text in CHART_WORDS:
+            self.action_chart()
+        elif text in PROFILE_WORDS:
+            self.action_profile()
+        elif text in SYSTEM_WORDS:
+            self.action_systems()
+        elif text in PERISCOPE_WORDS:
+            self.action_periscope()
+        elif text in BRIDGE_WORDS:
+            self.action_bridge()
+        elif text in LOG_WORDS:
+            if isinstance(self.screen, VIEWS):
+                self.pop_screen()
+        else:
+            return False
+        return True
+
     def _start(self) -> None:
-        self.query_one(Teletype).display = False
-        self.query_one("#main").display = True
-        log = self.query_one(ReportLog)
+        self.gs().query_one(Teletype).display = False
+        self.gs().query_one("#main").display = True
+        log = self.gs().query_one(ReportLog)
         st = self.game.world.own.state
         log.add_system(self.game.clock_str(),
                        f"Du har befälet. Ubåten går kurs {fmt_course(st.course)}, "
@@ -235,7 +273,7 @@ class SubApp(App):
             log.add_system(self.game.clock_str(), "ctrl+t slår av och på ljudet.")
         self.running = True
         self._last = time.monotonic()
-        self.set_interval(FRAME_S, self._pump)
+        self._pump_timer = self.set_interval(FRAME_S, self._pump)
 
     # ------------------------------------------------------------------ vyer
     def _toggle_view(self, cls: type[Screen]) -> None:
@@ -293,12 +331,13 @@ class SubApp(App):
         if not self.running or self.sound is None:
             return
         if not self.sound.available:
-            self.query_one(ReportLog).add_system(
+            self.gs().query_one(ReportLog).add_system(
                 self.game.clock_str(), self._sound_note or "Ljudet är avstängt (--tyst).")
             return
         if want is None or want != self.sound.enabled:
             self.sound.toggle()
-        self.query_one(ReportLog).add_system(
+        self.sound_wanted = self.sound.enabled
+        self.gs().query_one(ReportLog).add_system(
             self.game.clock_str(), "Ljudet på." if self.sound.enabled else "Ljudet av.")
 
     def action_speech(self, language: str) -> None:
@@ -306,13 +345,14 @@ class SubApp(App):
         if self.sound is None:
             return
         russian = self.sound.set_language(language)
+        self.language = language
         if language == "ru" and not russian:
             msg = ("Rösten Milena saknas, besättningen talar svenska. Lägg till den under "
                    "Systeminställningar › Hjälpmedel › Talat innehåll › Systemröst.")
         else:
             msg = "Besättningen talar ryska. Loggen är på svenska." if russian \
                 else "Besättningen talar svenska."
-        self.query_one(ReportLog).add_system(self.game.clock_str(), msg)
+        self.gs().query_one(ReportLog).add_system(self.game.clock_str(), msg)
 
     # ------------------------------------------------------------------ realtid
     def _pump(self) -> None:
@@ -341,45 +381,64 @@ class SubApp(App):
         if self.sound:
             self.sound.ambient(status, self.game.knowledge.tracks.values())
         try:
-            self.query_one(StatusBar).show(status)
+            self.gs().query_one(StatusBar).show(status)
             if now - self._gauge_t >= GAUGE_EVERY_S:
                 self._gauge_t = now
-                self.query_one(DepthGauge).show(self.game.profile())
+                self.gs().query_one(DepthGauge).show(self.game.profile())
         except NoMatches:
             pass
 
     # ------------------------------------------------------------------ händelser
     def _on_report(self, e: ReportDelivered) -> None:
-        self.query_one(ReportLog).add_report(self.game.clock_str(), e.report)
+        self.gs().query_one(ReportLog).add_report(self.game.clock_str(), e.report)
         if isinstance(self.screen, VIEWS):
             self.screen.add_report(self.game.clock_str(), e.report)
 
     def _on_time_scale(self, e: TimeScaleChanged) -> None:
-        log = self.query_one(ReportLog)
+        log = self.gs().query_one(ReportLog)
         if e.reason == "larm":
             log.add_system(self.game.clock_str(), "Tidskomprimering avbruten – 1×.", "bold red")
         else:
             log.add_system(self.game.clock_str(), f"Tidskomprimering {e.scale}×.")
-        self.query_one(StatusBar).show(self.game.status())
+        self.gs().query_one(StatusBar).show(self.game.status())
 
     def _on_game_ended(self, e: GameEnded) -> None:
         if isinstance(self.screen, VIEWS):
             self.pop_screen()               # slutrapporten visas i loggen
-        self.query_one(ReportLog).add_ending(e.summary)
-        inp = self.query_one("#order", Input)
-        inp.placeholder = "Spelet är slut – ctrl+q avslutar"
-        inp.disabled = True
-        self.query_one(StatusBar).show(self.game.status())
+        gs = self.gs()
+        gs.query_one(ReportLog).add_ending(e.summary)
+        inp = gs.query_one("#order", Input)
+        inp.placeholder = OVER_PLACEHOLDER
+        inp.focus()
+        gs.query_one(StatusBar).show(self.game.status())
+
+    def return_to_menu(self) -> None:
+        """Uppdraget är slut: stäng spelet och visa huvudmenyn med samma scenario markerat."""
+        key = self.scenario_key
+        self._close_game()
+        while isinstance(self.screen, VIEWS):
+            self.pop_screen()
+        self.switch_screen(MenuScreen(selected=key))
+
+    def _close_game(self) -> None:
+        if self._pump_timer is not None:
+            self._pump_timer.stop()
+            self._pump_timer = None
+        if self.sound:
+            self.sound.close()
+            self.sound = None
+        if self.truth_log:
+            self.truth_log.close()
+            self.truth_log = None
+        self.game = None
+        self._screen = None
+        self.running = False
+        self._game_ready = False
+        self.look_bearing = None
+        self._acc = 0.0
 
     def on_unmount(self) -> None:
         if self.sound:
             self.sound.close()
         if self.truth_log:
             self.truth_log.close()
-
-
-def _scenario_label(sd) -> Text:
-    t = Text(sd.title, style="bold")
-    t.append(f"  ({sd.key})" + (f"  ~{sd.minutes} min" if sd.minutes else "") + "\n", style="dim")
-    t.append(sd.summary, style="italic")
-    return t

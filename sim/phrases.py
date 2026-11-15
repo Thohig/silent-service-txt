@@ -100,6 +100,7 @@ PHRASES: dict[str, Phrase] = {
     "order.executing": lambda d: f"Verkställer: {d['what']}.",
     "order.no_suggestion": lambda d: "Det finns inget förslag att verkställa, kapten.",
     "order.declined": lambda d: "Uppfattat, vi avvaktar.",
+    "off.confirm_quit": lambda d: "Kapten, ska vi avbryta uppdraget? Svara ja för att bekräfta.",
     "order.suggestion_repeat": lambda d: f"Senaste förslaget: {d['text']}",
     "system.text": lambda d: d["text"],
     # plott
@@ -162,6 +163,7 @@ RU_PLOT: dict[str, Phrase] = {
     "plot.no_contacts": lambda d: "Контактов нет, товарищ командир.",
     "order.no_suggestion": lambda d: "Предложений нет, товарищ командир.",
     "order.declined": lambda d: "Есть, ждём.",
+    "off.confirm_quit": lambda d: "Товарищ командир, прервать задание?",
 }
 
 

@@ -81,6 +81,9 @@ class ViewScreen(Screen):
             line = self.query_one(OrderLine)
         except NoMatches:
             return
+        if game.over:
+            line.placeholder = "Uppdraget är slut – Enter: huvudmenyn   (Esc tillbaka)"
+            return
         sug = game.status().suggestion
         line.placeholder = f"Förslag: ja = {sug} · nej avslår   (Esc tillbaka)" if sug \
             else PLACEHOLDER
