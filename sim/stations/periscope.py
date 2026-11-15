@@ -74,6 +74,8 @@ class PeriscopeDown(Order):
 
 @dataclass(frozen=True)
 class PeriscopeTrain(Order):
+    """Vrid okularet. Kaptenens hand på periskopet, inte en order till besättningen."""
+    INSTRUMENT = True
     bearing: float | None = None
     target: str | None = None
 
@@ -167,6 +169,11 @@ class PeriscopeWatch(Station):
     @property
     def own(self):
         return self.game.world.own
+
+    @property
+    def up_s(self) -> int:
+        """Så länge masten varit uppe i denna hissning (0 när den är nere)."""
+        return 0 if self.mode is None else self.now - self._up_t
 
     @property
     def busy(self) -> bool:

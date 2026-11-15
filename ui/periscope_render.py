@@ -1,6 +1,7 @@
 """Rastrering av periskopbilden till tecken (rich, testbart utan Textual).
 
-Bilden är utkikens senaste svep (`Knowledge.periscope`), aldrig världen.
+Bilden är utkikens senaste bild (`Knowledge.periscope`), aldrig världen. Medan periskopet
+är uppe står okularet mot periskopets bäring (aim) i stället för mot ett valt föremål.
 
 Överst en 360°-remsa med fören i mitten: beteckningar, horisonten med
 föremålen och en bäringsskala. Okularets synfält (FOV_DEG) markeras med
@@ -274,7 +275,7 @@ def render_strip(pic: PeriscopePicture, w: int, selected: SightedObject | None,
                   else (STYLE["ridge"] if ice.ridged else ice_st))
         else:
             g.put(x, 1, "─", sea if looked else STYLE["dim"])
-    if pic.sector is not None:
+    if pic.sector is not None and window is None:     # okularet uppe: [ ] räcker
         for side in (-1, 1):
             x = _strip_col(norm360(pic.sector + side * SECTOR_HALF_DEG), pic.own_course, w)
             g.put(x, 0, "{" if side < 0 else "}", STYLE["reticle"])
@@ -312,7 +313,8 @@ def render_strip(pic: PeriscopePicture, w: int, selected: SightedObject | None,
 
 # --- okularet -------------------------------------------------------------------------
 def render_eyepiece(pic: PeriscopePicture, w: int, h: int, selected: SightedObject | None,
-                    stale: bool) -> list[Text]:
+                    stale: bool, aim: float | None = None) -> list[Text]:
+    """aim: okularets bäring när periskopet är uppe; annars riktat mot det valda föremålet."""
     h = max(MIN_EYE_ROWS, h)
     g = _Grid(w, h)
     cx, cy = (w - 1) / 2, (h - 1) / 2
@@ -344,19 +346,20 @@ def render_eyepiece(pic: PeriscopePicture, w: int, h: int, selected: SightedObje
         x = round(cx + k * 4 * cols_per_deg)
         if 0 <= x < w and inside[horizon][x]:
             g.put(x, horizon, "┼" if k == 0 else "┴", STYLE["reticle"])
-    center = selected.bearing if selected is not None else (
+    center = aim if aim is not None else selected.bearing if selected is not None else (
         pic.sector if pic.sector is not None else pic.own_course)
     if pic.ice:
         _draw_ice(g, inside, pic, center, cx, cols_per_deg, horizon, stale)
-    if selected is None:
+    if selected is None and aim is None:
         return g.rows()
 
     def col_of(b: float) -> float:
-        return cx + angle_diff(b, selected.bearing) * cols_per_deg
+        return cx + angle_diff(b, center) * cols_per_deg
 
     others = [o for o in pic.objects if o is not selected
-              and abs(angle_diff(o.bearing, selected.bearing)) <= FOV_DEG / 2]
-    for o in sorted(others, key=lambda o: -o.range_nm) + [selected]:
+              and abs(angle_diff(o.bearing, center)) <= FOV_DEG / 2]
+    shown = sorted(others, key=lambda o: -o.range_nm) + ([selected] if selected else [])
+    for o in shown:
         sel = o is selected
         _draw_object(g, inside, o, col_of(o.bearing), horizon, pic.day, sel, stale, pic.t)
     return g.rows()
@@ -426,10 +429,11 @@ def _draw_object(g: _Grid, inside, o: SightedObject, x: float, horizon: int, day
 
 
 # --- datarad och rubrik -------------------------------------------------------------
-def data_line(o: SightedObject | None) -> Text:
+def data_line(o: SightedObject | None, live: bool = False) -> Text:
     t = Text(" ")
     if o is None:
-        t.append("Inget i sikte vid senaste svepet.", style=STYLE["dim"])
+        t.append("Inget i okularet." if live else "Inget i sikte vid senaste svepet.",
+                 style=STYLE["dim"])
         return t
     name = f"{o.designation} {o.label}" if o.designation else o.label
     t.append(name, style="bold")
@@ -455,9 +459,21 @@ def seen_earlier(o: SightedObject | None, pic: PeriscopePicture, clock: str) -> 
         if o is not None and _old(o, pic) else Text("")
 
 
+MODE_TEXT = {"sweep": "svep", "look": "kort titt", "hold": "hålls uppe"}
+
+
 def header(pic: PeriscopePicture | None, clock: str, age_s: int,
-           note: str | None = None) -> Text:
+           note: str | None = None, up: tuple[str, int, float] | None = None) -> Text:
+    """up: (läge, sekunder uppe, okularets bäring) medan masten är uppe."""
     t = Text(" PERISKOP", style="bold")
+    if up is not None:
+        mode, secs, train = up
+        t.append(f"   UPPE {secs // 60}:{secs % 60:02d}", style="bold #e0d090")
+        t.append(f" · {MODE_TEXT.get(mode, mode)} · okular {fmt_course(train)}")
+        if pic is not None:
+            t.append(f" · {'dag' if pic.day else 'natt'} · sikt {nm(pic.visibility_nm)} nm"
+                     f" · vår kurs {fmt_course(pic.own_course)}")
+        return t
     if note:
         t.append(f"   {note}", style="bold yellow")
     if pic is None:
@@ -473,21 +489,33 @@ def header(pic: PeriscopePicture | None, clock: str, age_s: int,
     return t
 
 
+def in_eyepiece(pic: PeriscopePicture, aim: float) -> SightedObject | None:
+    """Det som ligger närmast okularets mitt (inom synfältet), fartyg före annat."""
+    near = [o for o in pic.objects if abs(angle_diff(o.bearing, aim)) <= FOV_DEG / 2]
+    return min(near, key=lambda o: (o.designation is None, _old(o, pic),
+                                    abs(angle_diff(o.bearing, aim))), default=None)
+
+
 def render_periscope(pic: PeriscopePicture | None, w: int, h: int, index: int | None,
-                     age_s: int, seen_clock=None) -> list[Text]:
-    """Hela vyn: remsa, okular och datarad. index väljer bland ordered_objects()."""
+                     age_s: int, seen_clock=None, aim: float | None = None) -> list[Text]:
+    """Hela vyn: remsa, okular och datarad. index väljer bland ordered_objects();
+    aim (periskopet uppe): okularet står mot den bäringen och visar det som ligger där."""
     if pic is None:
         msg = Text(" Inget periskopsvep än. Gå upp på periskopdjup och skriv periskop.",
                    style=STYLE["dim"])
         return [msg]
-    objs = ordered_objects(pic)
-    sel = objs[index % len(objs)] if objs and index is not None else None
-    stale = age_s >= STALE_S
-    rows = render_strip(pic, w, sel, stale)
+    if aim is not None:
+        sel = in_eyepiece(pic, aim)
+        stale = False
+    else:
+        objs = ordered_objects(pic)
+        sel = objs[index % len(objs)] if objs and index is not None else None
+        stale = age_s >= STALE_S
+    rows = render_strip(pic, w, sel, stale, None if aim is None else (aim, FOV_DEG))
     rows.append(Text(""))
     eye_h = max(MIN_EYE_ROWS, h - STRIP_ROWS - 3)
-    rows += render_eyepiece(pic, w, eye_h, sel, stale)
-    line = data_line(sel)
+    rows += render_eyepiece(pic, w, eye_h, sel, stale, aim)
+    line = data_line(sel, live=aim is not None)
     if sel is not None and seen_clock is not None:
         line.append_text(seen_earlier(sel, pic, seen_clock(sel.seen_t)))
     rows.append(line)

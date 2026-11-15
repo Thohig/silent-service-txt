@@ -222,8 +222,10 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
 - **Periskopbilden** (`sim/periscope.py`): `Knowledge.periscope` håller den senaste bilden. Synlig del (helt/överbyggnad/mastoppar) ur ögonhöjd (periskop 1,5 m, brygga 8 m)
   och `HEIGHTS`; kursbedömningens σ (`AOB_SIGMA`) följer synlig del, natt = bara lanternor (σ 25°).
   Vinkel på bogen `aob` + styrbord. Fartyg bär plottets beteckning, aldrig sanningens id.
-  Vyn (`ui/periscope_render.py`, `ui/periscope.py`): 360°-remsa med fören i mitten, okular (32°)
-  mot valt föremål (← →), siluetter i `ART` (fören åt höger, speglas vid babord, trycks ihop efter
+  Vyn (`ui/periscope_render.py`, `ui/periscope.py`): 360°-remsa med fören i mitten, okular (32°);
+  masten uppe (`StatusSnapshot.periscope`/`periscope_train`/`periscope_up_s`): okularet står mot
+  periskopets bäring, ← → vrider 5° (`vrid periskop`, `Order.INSTRUMENT`: inte i loggboken), mellanslag
+  förut, ↓ ned; nere: mot valt föremål (← →), ↑ `periskop upp`; siluetter i `ART` (fören åt höger, speglas vid babord, trycks ihop efter
   |sin vpb|, skärs efter synlig del), natt bara lanternor, bild äldre än 60 s nedtonad.
   Där okularet inte varit under hissningen följer föremål med från bilden före i 10 min (`seen_t`,
   ritas nedtonade); i ett svep eller en titt räknas allt som setts som sett nu.

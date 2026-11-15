@@ -38,7 +38,8 @@ class Logbook:
 
     def _on_order(self, e: OrderIssued) -> None:
         if not isinstance(e.order, (Unknown, Help, SetTimeScale, AskSuggestion, Quit,
-                                    AcceptSuggestion, DeclineSuggestion)):
+                                    AcceptSuggestion, DeclineSuggestion)) \
+                and not e.order.INSTRUMENT:
             self.orders += 1
 
     def _on_report(self, e: ReportDelivered) -> None:

@@ -1,8 +1,10 @@
 """Periskopbilden i helskärm (Tab eller "periskopbild"). Spelet går vidare medan den visas.
 
-Vyn visar utkikens senaste svep (`Knowledge.periscope`), inte världen. Den
-uppdateras bara när periskopet varit uppe; en gammal bild ritas nedtonad.
-← → byter föremål i okularet.
+Vyn visar utkikens bild (`Knowledge.periscope`), inte världen. Medan masten är uppe
+kommer en ny bild varannan sekund och okularet står där periskopet är vänt
+(`StatusSnapshot.periscope_train`): ← → vrider det (`vrid periskop …`, tar över ett svep),
+mellanslag vänder det förut, ↓ fäller det. När masten är nere visas den senaste bilden
+(nedtonad när den är gammal), ← → byter föremål i okularet och ↑ hissar periskopet.
 """
 from __future__ import annotations
 
@@ -16,6 +18,7 @@ from .periscope_render import (default_index, header, object_key, ordered_object
 from .viewbase import ViewScreen
 
 REDRAW_S = 0.5
+TURN_STEP_DEG = 5
 
 
 class PeriscopeScreen(ViewScreen):
@@ -27,7 +30,8 @@ class PeriscopeScreen(ViewScreen):
     """
     PREFIX = "periscope"
     REDRAW_S = REDRAW_S
-    EMPTY_KEYS = {"escape": "close", "left": "select(-1)", "right": "select(1)"}
+    EMPTY_KEYS = {"escape": "close", "left": "select(-1)", "right": "select(1)",
+                  "up": "raise", "down": "lower", "space": "ahead"}
 
     def __init__(self) -> None:
         super().__init__()
@@ -40,7 +44,37 @@ class PeriscopeScreen(ViewScreen):
         yield Static(id="periscope-ticker")
         yield self.order_line()
 
+    def _game(self):
+        return getattr(self.app, "game", None)
+
+    def _hand(self, text: str) -> None:
+        """Kaptenens hand på periskopet: en order utan rad i loggen."""
+        game = self._game()
+        if game is not None:
+            game.command(text)
+            self.draw()
+
+    def action_raise(self) -> None:
+        game = self._game()
+        if game is not None and game.status().periscope != "hold":
+            self._hand("periskop upp")
+
+    def action_lower(self) -> None:
+        game = self._game()
+        if game is not None and game.status().periscope is not None:
+            self._hand("periskop ned")
+
+    def action_ahead(self) -> None:
+        game = self._game()
+        if game is not None and game.status().periscope is not None:
+            self._hand(f"vrid periskop {round(game.status().course) % 360:03d}")
+
     def action_select(self, step: int) -> None:
+        game = self._game()
+        if game is not None and (st := game.status()).periscope is not None:
+            b = (round(st.periscope_train / TURN_STEP_DEG) + step) * TURN_STEP_DEG % 360
+            self._hand(f"vrid periskop {b:03d}")
+            return
         pic = self._picture()
         if pic is None or not pic.objects:
             return
@@ -82,16 +116,23 @@ class PeriscopeScreen(ViewScreen):
         if w < 30 or h < 8:
             return
         pic = game.knowledge.periscope
+        st = game.status()
+        aim = st.periscope_train if st.periscope is not None else None
         age = 0 if pic is None else game.now - pic.t
-        index = None if pic is None else self._index(pic)
-        body.update(Text("\n").join(render_periscope(pic, w, h, index, age, game.clock_str)))
+        index = None if pic is None or aim is not None else self._index(pic)
+        body.update(Text("\n").join(render_periscope(pic, w, h, index, age, game.clock_str, aim)))
         note = None
         blocked = game.knowledge.periscope_blocked
         if blocked is not None and (pic is None or blocked[0] > pic.t):
             note = f"Is ovanför kl {game.clock_str(blocked[0])[:5]}, masten kom inte upp."
-        t = header(pic, game.clock_str(pic.t) if pic else "", age, note)
+        up = None if aim is None else (st.periscope, st.periscope_up_s, aim)
+        t = header(pic, game.clock_str(pic.t) if pic else "", age, note, up)
         t.append("\n")
-        t.append(" ←/→ byt föremål · periskop ger ett svep, periskop 047 eller S-3 en kort titt · "
-                 "Tab logg · Esc tillbaka", style="dim")
+        if aim is not None:
+            t.append(" ←/→ vrid · mellanslag förut · ↓ periskop ned · Tab logg · Esc tillbaka",
+                     style="dim")
+        else:
+            t.append(" ←/→ byt föremål · ↑ periskop upp · periskop ger ett svep, periskop 047 "
+                     "eller S-3 en kort titt · Tab logg · Esc tillbaka", style="dim")
         head.update(t)
 

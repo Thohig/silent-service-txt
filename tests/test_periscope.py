@@ -432,3 +432,74 @@ def test_turning_takes_over_a_sweep_and_is_refused_when_down():
     for _ in range(30):
         g.tick()
     assert "off.periscope.is_down" in reports
+
+
+# --- den levande vyn (L2) --------------------------------------------------------------
+from ui.periscope_render import header, in_eyepiece  # noqa: E402
+
+
+def test_eyepiece_follows_the_aim_not_the_selection():
+    pic = _pic(_ship("S-1", 10.0), _ship("S-2", 200.0, rng=6.0, visible="överbyggnad"))
+    assert in_eyepiece(pic, 15.0).designation == "S-1"
+    assert in_eyepiece(pic, 100.0) is None
+    rows = [r.plain for r in render_periscope(pic, 100, 30, 0, 0, aim=195.0)]
+    assert "S-2 jagare" in rows[-1]
+    rows = [r.plain for r in render_periscope(pic, 100, 30, 0, 0, aim=100.0)]
+    assert "Inget i okularet" in rows[-1]
+    eye = "\n".join(rows[4:-1])
+    assert "\\" not in eye and "/" not in eye           # inga siluetter mot 100°
+
+
+def test_header_shows_the_mast_up():
+    t = header(_pic(), "05:00:00", 0, None, ("hold", 75, 47.0)).plain
+    assert "UPPE 1:15" in t and "hålls uppe" in t and "okular 047" in t
+
+
+def test_turning_the_periscope_is_not_counted_as_an_order():
+    g = _game_at_periscope_depth()
+    before = g.logbook.orders
+    g.command("periskop upp")
+    g.command("vrid periskop 090")
+    g.command("vrid periskop 095")
+    assert g.logbook.orders == before + 1
+    st = g.status()
+    assert st.periscope == "hold" and st.periscope_train == 95
+
+
+@pytest.mark.slow
+def test_live_periscope_view_turns_with_the_arrows(tmp_path):
+    import asyncio
+
+    from ui.app import SubApp
+    from ui.periscope import PeriscopeScreen
+
+    async def run():
+        app = SubApp(seed=3, log_dir=tmp_path, scenario="kuba")
+        async with app.run_test(size=(110, 40)) as pilot:
+            await pilot.press("enter", "enter")
+            g = app.game
+            st = g.world.own.state
+            st.depth = st.ordered_depth = 15.0
+            st.speed = st.ordered_speed = 3.0
+            dd = next(v for v in g.world.contacts if v.kind == "destroyer")
+            dd.state.x, dd.state.y = st.x, st.y + 1.5          # rakt norrut
+            app.action_periscope()
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, PeriscopeScreen)
+            await pilot.press("up")
+            assert g.status().periscope == "hold"
+            g.command("vrid periskop 000")
+            for _ in range(4):
+                g.tick()
+            await pilot.pause(0.6)
+            head = str(app.screen.query_one("#periscope-head").render())
+            assert "UPPE" in head and "okular 000" in head
+            body = str(app.screen.query_one("#periscope-body").render())
+            assert "Inget i okularet" not in body
+            app.save_screenshot(str(tmp_path / "periskop-uppe.svg"))
+            await pilot.press("right", "right")
+            assert g.status().periscope_train == 10
+            await pilot.press("down")
+            assert g.status().periscope is None
+
+    asyncio.run(run())

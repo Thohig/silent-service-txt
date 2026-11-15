@@ -25,8 +25,12 @@ class Order:
     STANDING: ordern sätter ett bestående läge (kurs, fart, djup, framdrivning,
     reaktor). Ett förslag om exakt samma order som redan gäller är då meningslöst.
     Engångsåtgärder (fix, skenmål, sänd …) kan däremot behöva upprepas.
+
+    INSTRUMENT: kaptenens hand på ett instrument (vrida periskopet), inte en order
+    till besättningen; räknas inte i loggbokens order.
     """
     STANDING: ClassVar[bool] = False
+    INSTRUMENT: ClassVar[bool] = False
 
 
 @dataclass(frozen=True)

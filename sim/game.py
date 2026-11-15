@@ -76,6 +76,9 @@ class StatusSnapshot:
     ventilating: bool = False
     on_bottom: bool = False
     bridge: str = "shut"            # tornluckan: shut, manning, manned, clearing
+    periscope: str | None = None    # periskopet: sweep, look, hold; None = nere
+    periscope_train: float = 0.0    # okularets bäring (periskopets gradring)
+    periscope_up_s: int = 0         # så länge masten varit uppe
 
 
 def build_registry(station_classes: list[type[Station]]) -> CommandRegistry:
@@ -395,6 +398,12 @@ class Game:
             held, sea_noise, under_ice = (), 0.0, False
         from .acoustics import cavitation_speed
         sug = self.active_suggestion()
+        try:
+            from .stations.periscope import PeriscopeWatch
+            ps = self.station(PeriscopeWatch)
+            pmode, ptrain, pup = ps.mode, ps.train, ps.up_s
+        except KeyError:
+            pmode, ptrain, pup = None, 0.0, 0
         return StatusSnapshot(
             clock=(self.start_clock + self.now) % 86400, sim_time=self.now,
             course=s.course, ordered_course=s.ordered_course,
@@ -409,5 +418,5 @@ class Game:
             suggestion=sug[0] if sug else None, over=self.over,
             sea_noise=sea_noise, under_ice=under_ice,
             fire=sy.fire, smoke=sy.smoke, ventilating=sy.ventilating, on_bottom=sy.on_bottom,
-            bridge=sy.bridge,
+            bridge=sy.bridge, periscope=pmode, periscope_train=ptrain, periscope_up_s=pup,
         )
