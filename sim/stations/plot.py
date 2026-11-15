@@ -293,6 +293,10 @@ class PlotTeam(Station):
                    and (tr.held or self.now - (tr.observations[-1].t if tr.observations else 0)
                         < FORGET_S)]
         if len(members) < 2:
+            if prev is not None:            # konvojen är borta ur plottet: glöm den
+                self.game.log(f"plott: konvojen {', '.join(prev.members)} är inte längre en grupp")
+                self._convoy_quality = None
+                self.game.bus.publish(ConvoyAssessed(self.now, None))
             return
         if group:
             x = sum(p.x for p in group) / len(group)

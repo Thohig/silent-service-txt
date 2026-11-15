@@ -166,3 +166,15 @@ def test_torpedo_room_warns_when_the_leg_may_end_before_the_torpedo_arrives():
         g.tick()
     warn = [r for r in reports if r.type == "torp.leg_warning"]
     assert len(warn) == 1 and "S-1" in warn[0].text and "girat" in warn[0].text
+
+
+def test_plot_forgets_the_convoy_when_its_ships_are_lost():
+    o0 = default_scenario(random.Random(3)).world.own.state
+    g, _reports = _game_with_convoy_estimate(o0.x - 1.0, o0.y + 14.0)
+    for d in ("S-1", "S-2"):
+        g.knowledge.track(d).held = False
+    for _ in range(1900):                       # längre än FORGET_S utan observationer
+        g.tick()
+    assert g.knowledge.convoy is None
+    g.command("anfall S-1")                     # navigatören anfaller inte en gammal bild
+    assert g.station(NavigationStation).goal is None

@@ -75,8 +75,9 @@ class PeriscopeSighted(Event):
 
 @dataclass(frozen=True)
 class ConvoyAssessed(Event):
-    """Plottlagets bild av en konvoj: medlemmar, ben och baskurs (se sim/zigzag.py)."""
-    estimate: ConvoyEstimate
+    """Plottlagets bild av en konvoj: medlemmar, ben och baskurs (se sim/zigzag.py).
+    None: konvojen är inte längre en grupp i plottet."""
+    estimate: ConvoyEstimate | None
 
 
 @dataclass(frozen=True)
