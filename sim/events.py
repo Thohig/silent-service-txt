@@ -80,6 +80,13 @@ class PeriscopeSighted(Event):
 
 
 @dataclass(frozen=True)
+class BridgeSighted(Event):
+    """Utkikens bild från bryggan (eye "brygga"), varannan sekund medan bryggan är
+    bemannad; None när bryggan utryms."""
+    picture: PeriscopePicture | None
+
+
+@dataclass(frozen=True)
 class ConvoyAssessed(Event):
     """Plottlagets bild av en konvoj: medlemmar, ben och baskurs (se sim/zigzag.py).
     None: konvojen är inte längre en grupp i plottet."""

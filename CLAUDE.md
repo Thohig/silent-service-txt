@@ -138,6 +138,15 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   (nio avdelningar, maskin), `TubeRack` (torpedrum), `Flooding`. Ur egna instrument
   (`own.sys`), aldrig om fienden. `Game.systems()` samlar, `ui/systems_render.py` ritar
   genomskärningen och panelerna (okända paneler hamnar sist, så nytt system ritar sig självt).
+- **Bryggan** (`stations/bridge.py`, `BridgeWatch`, roll vakthavande): tornluckan är sanning
+  (`OwnSystems.bridge`: shut → manning 20 s i ytläge → manned → clearing 20 s vid order att dyka → shut);
+  `OwnShip.bridge_open` håller djupet (depth_rate 0). Utkiken är en sensor: varannan sekund medan bryggan
+  är bemannad `BridgeSighted` med en `PeriscopePicture` (eye "brygga", 8 m, ingen sektor) ⇒
+  `Knowledge.bridge` (None vid utrymning). Bäring σ 1°, avstånd med ögat σ 15 % + 0,05 nm, kurs `AOB_SIGMA`,
+  fart σ 3 kn; felen dras om var 60:e s per föremål (bilden fladdrar inte), och då får plottet en
+  observation (`source="brygga"`). Egen `random.Random` så att resten av spelets dragningar inte flyttas.
+  Ropar ut nytt eller > 5 min ur sikte; flyg i sikte eller jagare < 3 nm ⇒ förslag `djup 60`.
+  Sonar skriver inte över en bättre klassning (utkikens GOD) med sämre.
 - **Periskopbilden** (`sim/periscope.py`): vakthavande publicerar `PeriscopeSighted` med en
   `PeriscopePicture` när svepet är klart (inte om vi kom under periskopdjup); `Knowledge.periscope`
   håller den senaste. Synlig del (helt/överbyggnad/mastoppar) ur ögonhöjd (periskop 1,5 m, brygga 8 m)

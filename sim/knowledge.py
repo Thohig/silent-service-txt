@@ -8,10 +8,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .events import (BearingObserved, ClassificationChanged, ContactDetected, ConvoyAssessed,
-                     ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound, PeriscopeBlocked,
-                     PeriscopeSighted,
-                     PhotoTaken, PositionReported)
+from .events import (BearingObserved, BridgeSighted, ClassificationChanged, ContactDetected,
+                     ConvoyAssessed, ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound,
+                     PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported)
 from .icemap import IceMap
 from .periscope import PeriscopePicture
 from .seabed import Seabed
@@ -91,6 +90,7 @@ class Knowledge:
     best_photo: Quality | None = None    # bästa spaningsfotot hittills
     hunt_t: int = -10**9                 # senast sonar hörde att fienden har oss
     periscope: PeriscopePicture | None = None   # utkikens senaste bild
+    bridge: PeriscopePicture | None = None      # bryggans bild just nu (None: ingen på bryggan)
     periscope_blocked: tuple[int, str] | None = None   # (tid, skäl) när periskopet inte kom upp
     convoy: ConvoyEstimate | None = None   # plottets bild av en konvoj
 
@@ -105,6 +105,7 @@ class Knowledge:
         bus.subscribe(HuntSigns, self._on_hunt)
         bus.subscribe(PhotoTaken, self._on_photo)
         bus.subscribe(PeriscopeSighted, self._on_periscope)
+        bus.subscribe(BridgeSighted, lambda e: setattr(self, "bridge", e.picture))
         bus.subscribe(ConvoyAssessed, lambda e: setattr(self, "convoy", e.estimate))
         bus.subscribe(PeriscopeBlocked, lambda e: setattr(self, "periscope_blocked", (e.t, e.reason)))
 

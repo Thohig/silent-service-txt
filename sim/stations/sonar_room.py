@@ -311,6 +311,9 @@ class SonarRoom(Station):
                              kind="contact", quality=ev.quality, alarm=True)
                     self._suggest_layer()
                 case ClassificationUpdate():
+                    tr = self.game.knowledge.tracks.get(ev.designation)
+                    if tr is not None and tr.class_quality > ev.quality:
+                        continue        # utkiken (periskop, brygga) har redan sett bättre
                     bus.publish(ClassificationChanged(self.now, ev.designation,
                                                       ev.classification, ev.quality))
                     self.say("sonar.classified",
