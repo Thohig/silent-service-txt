@@ -129,10 +129,11 @@ def test_courses_are_read_digit_by_digit():
 
 def test_cues_synthesize_to_valid_wav(tmp_path):
     for name, s in synth_cues().items():
-        assert 0.1 < len(s) / 22050 < 4.0, name
+        limit = 8.0 if name.startswith("bells") else 4.0      # åtta glas tar sin tid
+        assert 0.1 < len(s) / 22050 < limit, name
         assert np.max(np.abs(s)) <= 1.0 and np.isfinite(s).all(), name
         write_wav(tmp_path / f"{name}.wav", s)
-    assert len(list(tmp_path.glob("*.wav"))) == 6
+    assert len(list(tmp_path.glob("*.wav"))) == 6 + 8
 
 
 def test_headless_game_speaks_crew_reports():
@@ -282,3 +283,41 @@ def test_russian_mode_without_milena_falls_back_to_swedish():
     _deliver(bus, text="Kapten, plottet.", speech="Товарищ командир, планшет.", role="plot")
     board.update(0.0)
     assert p.said[-1][0] == "Kapten, plottet."
+
+
+def test_ship_bell_strikes_the_glasses_on_the_half_hour_but_not_when_quiet():
+    from dataclasses import replace
+
+    from sim.game import StatusSnapshot
+    from ui.audio import bells_for, synth_ship_bell
+
+    assert [bells_for(h * 1800) for h in range(9)] == [8, 1, 2, 3, 4, 5, 6, 7, 8]
+    assert len(synth_ship_bell(4)) > len(synth_ship_bell(1))
+    _bus, p, board = _board()
+    st = StatusSnapshot(clock=3590, sim_time=0, course=0.0, ordered_course=0.0, speed=5.0,
+                        ordered_speed=5.0, depth=100.0, ordered_depth=100.0,
+                        changing=frozenset(), time_scale=1, contacts_held=())
+    board.ambient(st)                                   # första gången: bara noterat
+    board.ambient(replace(st, clock=3605))              # 01:00 ⇒ två glas
+    assert [c for c, *_ in p.played] == ["bells2"]
+    board.ambient(replace(st, clock=5405, propulsion="electric"))   # tyst gång: ingen klocka
+    board.ambient(replace(st, clock=7205, hunted=True))
+    assert len(p.played) == 1
+
+
+def test_announcement_speaks_russian_with_russian_voice_otherwise_swedish():
+    from ui.telegram import crew_announcement
+    for key, title in (("ovning", "Övning, oktober 1962"), ("kuba", "Kvadrat 7, oktober 1962"),
+                       ("konvoj", "Konvojen, 28 oktober 1962")):
+        ru, sv = crew_announcement(key, title)
+        assert not any("a" <= ch.lower() <= "z" for ch in ru) and sv
+    assert "Боевая тревога" in crew_announcement("konvoj", "Konvojen, 28 oktober 1962")[0]
+    _bus, p, board = _board()
+    board.ru_voice = "Milena"
+    board.announce("Внимание экипажу.", "Till besättningen.")
+    _run(board, p, 0.0, 3.0)
+    assert p.voices == ["Milena"] and "Внимание" in p.said[0][0]
+    _bus, p, board = _board()
+    board.announce("Внимание экипажу.", "Till besättningen.")
+    _run(board, p, 0.0, 3.0)
+    assert p.voices == [None] and "besättningen" in p.said[0][0]

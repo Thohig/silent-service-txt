@@ -309,6 +309,12 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   Bakgrundsljud (`ui/ambience.py`): `ambient_targets(status, tracks)` ur `StatusSnapshot`
   (inkl. `sea_noise`, `fire`, `smoke`, `ventilating`) och hållna kontaktspår; `Ambience`
   mixar sömlösa slingor i en sounddevice-ström. Kontaktljudet följer klassificeringen.
+  Centralen: `aircon` (alltid med reaktorn, svagare vid tyst gång), `crew` (mummel bakom skotten; tyst vid
+  smygmotor eller jagade), `dread` (lågt sväv: jagade 0,11, hållen klassad örlogskontakt med se > 10 0,05).
+  Skeppsklockan slår glasen (`bells_for`, 1–8 per fyratimmarsvakt) vid varje halvtimme på spelklockan,
+  inte vid tyst gång eller jakt (`SoundBoard._ship_bell`). Vid överlämnandet läser vakthavande ett utrop i
+  högtalaren (`crew_announcement` i `ui/telegram.py`: övning, operation eller krig efter stämpeln;
+  `SoundBoard.announce`, ryska med Milena annars svenska; översättningen i loggen).
 - **Ryska** (`sim/russian.py`): fasta fraser i `WORDS` (translitterering, kyrilliska, svensk
   betydelse). Skriv dem med `ru("Jest")` i fraserna; betydelsen ska framgå av svensk text bredvid,
   aldrig siffror eller bedömningar på ryska. `segments()` delar texten; talet läser ryskan med

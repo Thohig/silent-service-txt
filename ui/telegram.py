@@ -10,7 +10,8 @@ import re
 
 from rich.text import Text
 
-from .menutext import DIM, HIGHLIGHT_FG, INK, RED, RED_DARK, stamp_for, stamp_text
+from .menutext import (DIM, HIGHLIGHT_FG, INK, RED, RED_DARK, STAMP_SPECIAL, STAMP_TRAINING,
+                       stamp_for, stamp_text)
 
 # FRÅN-radens stab ⇒ (ryska, svenska)
 STAFFS = (
@@ -83,3 +84,23 @@ def report_header(key: str, title: str, order: str, width: int = 60) -> list[Tex
     stamp.append(f" {st.ru} ", style=st.style)
     stamp.append(f"  {st.sv}", style=f"italic {DIM}")
     return [head, to, sv, stamp]
+
+
+def crew_announcement(key: str, title: str) -> tuple[str, str]:
+    """Vakthavandes utrop i högtalaren när kaptenen tar befälet: (ryska, svenska).
+    Övning, operation eller krig efter uppdragets stämpel."""
+    stamp = stamp_for(key, title)
+    if stamp is STAMP_TRAINING:
+        return ("Внимание экипажу. Выходим на учения. Командир на центральном посту. "
+                "По местам стоять.",
+                "Till besättningen: vi går ut på övning. Befälhavaren är i centralen. "
+                "Intag stationerna.")
+    if stamp is STAMP_SPECIAL:
+        return ("Внимание экипажу. Получен боевой приказ. Командир на центральном посту. "
+                "Боевая тревога. По местам стоять.",
+                "Till besättningen: stridsorder har mottagits. Befälhavaren är i centralen. "
+                "Stridslarm. Intag stationerna.")
+    return ("Внимание экипажу. Получен приказ командования. Командир на центральном посту. "
+            "По местам стоять.",
+            "Till besättningen: order från staben har mottagits. Befälhavaren är i centralen. "
+            "Intag stationerna.")

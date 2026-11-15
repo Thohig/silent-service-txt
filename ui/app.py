@@ -35,7 +35,7 @@ from .periscope import PeriscopeScreen
 from .profile import ProfileScreen
 from .systems import SystemScreen
 from .menutext import INK as PAPER_INK
-from .telegram import order_header, order_signature, report_header
+from .telegram import crew_announcement, order_header, order_signature, report_header
 from .teletype import Teletype
 from .widgets import CentralView, DepthGauge, ReportLog, StatusBar
 
@@ -332,6 +332,11 @@ class SubApp(App):
         else:
             log.add_system(self.game.clock_str(), "Tab växlar mellan logg, sjökort, djupprofil, "
                            "systemtavla och periskopbild, i ytläge också bryggan.")
+        key = self.scenario_key or ""
+        ru, sv = crew_announcement(key, SCENARIOS[key].title if key in SCENARIOS else "")
+        log.add_system(self.game.clock_str(), f"Vakthavande i högtalaren: {sv}")
+        if self.sound is not None:
+            self.sound.announce(ru, sv)
         if self._sound_note:
             log.add_system(self.game.clock_str(), self._sound_note)
         elif self.sound and self.sound.enabled:
