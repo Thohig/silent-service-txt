@@ -121,3 +121,19 @@ def test_one_unknown_pinger_with_noisy_bearings_is_one_pinger():
         firsts = [r for r in reports if r.type == "sonar.ping.first"
                   and 80 <= r.data["bearing"] <= 130]      # scenariots egna eskorter räknas inte
         assert len(firsts) == 1, seed
+
+
+def test_a_two_torpedo_salvo_still_warns_about_the_zigzag():
+    from types import SimpleNamespace
+    from sim.stations.torpedo_room import FireSalvo
+    g, _reports = _game(1)
+    room = g.station(TorpedoRoom)
+    sol = SimpleNamespace(range_sigma=0.1, speed_sigma=1.0, speed=10.0, course_sigma=5.0)
+    room._solution_for = lambda d: (None, sol)
+    room._aim = lambda s, load: (90.0, 300.0, 2.0)
+    fired, warned = [], []
+    room._fire = lambda o: fired.append(o) or True
+    room._leg_warning = lambda d, run_s, kind: warned.append((d, run_s))
+    room._salvo(FireSalvo("S-1", (1, 2)))
+    assert len(fired) == 2 and all(o.offset != 0.0 for o in fired)
+    assert warned == [("S-1", 300.0)]

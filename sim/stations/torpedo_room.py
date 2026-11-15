@@ -57,6 +57,7 @@ class FireTube(Order):
     designation: str | None = None
     course: float | None = None
     offset: float = 0.0           # salva: vinkel från skjutlösningens kurs
+    in_salvo: bool = False        # salvan varnar för sicksacken en gång för alla torpeder
 
 
 @dataclass(frozen=True)
@@ -378,7 +379,8 @@ class TorpedoRoom(Station):
             self.say("torp.refused", {"reason": "inga laddade raka tuber för en salva"})
             return
         tr, sol = self._solution_for(o.designation)
-        aim = self._aim(sol, self._tube(tubes[0]).load) if sol is not None else None
+        first_type = self._tube(tubes[0]).load
+        aim = self._aim(sol, first_type) if sol is not None else None
         dist = aim[2] if aim else 2.0
         # lägesfelet vid målet: avståndets σ plus fartens och kursens σ under gångtiden
         gap = SALVO_GAP_NM
@@ -392,9 +394,12 @@ class TorpedoRoom(Station):
         n = len(tubes)
         for i, tube in enumerate(tubes):
             off = (i - (n - 1) / 2) * step
-            if not self._fire(FireTube(tube, designation=o.designation, offset=off)):
+            if not self._fire(FireTube(tube, designation=o.designation, offset=off,
+                                       in_salvo=True)):
                 return
         self.say("torp.salvo", {"designation": o.designation, "n": n, "step": step})
+        if aim:
+            self._leg_warning(o.designation, aim[1], first_type)
 
     def _fire(self, o: FireTube) -> bool:
         tube = self._tube(o.tube)
@@ -461,7 +466,7 @@ class TorpedoRoom(Station):
         self.say("torp.fired", {"tube": o.tube, "type": spec.key, "course": course,
                                 "run_s": run_s, "quality": quality},
                  kind="ack", quality=quality, alarm=True)
-        if o.designation and run_s and o.offset == 0.0:
+        if o.designation and run_s and not o.in_salvo:
             self._leg_warning(o.designation, run_s, spec.key)
         return True
 
