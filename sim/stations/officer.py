@@ -90,7 +90,7 @@ def mast_refusal(game, what: str) -> str | None:
     st, sys = own.state, own.sys
     if st.depth > PERISCOPE_DEPTH:
         return f"vi måste upp på periskopdjup för {what}"
-    if st.speed > 7:
+    if st.speed > 7 and not own.surfaced:      # i ytläge ger masten inget svall
         return "farten är för hög, periskopet vibrerar och ger svall"
     if sys.health["periscope"] < 0.3:
         return "periskopet och masterna är skadade"

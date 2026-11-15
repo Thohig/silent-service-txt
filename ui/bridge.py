@@ -2,7 +2,8 @@
 
 Vyn ritar utkikens bild (`Knowledge.bridge`), som uppdateras varannan sekund
 medan bryggan är bemannad i ytläge, aldrig världen. ← → vrider blicken
-relativt fören, mellanslag tittar rakt förut igen. Under ytan, eller medan
+relativt fören, mellanslag tittar rakt förut igen. Blicken delas med periskopvyn
+(`SubApp.look_bearing`). Under ytan, eller medan
 luckan öppnas eller bryggan utryms, säger vyn det.
 """
 from __future__ import annotations
@@ -41,12 +42,27 @@ class BridgeScreen(ViewScreen):
         yield Static(id="bridge-ticker")
         yield self.order_line()
 
+    def on_mount(self) -> None:
+        """Blicken där periskopvyn (eller bryggvyn förra gången) tittade."""
+        game = getattr(self.app, "game", None)
+        look = getattr(self.app, "look_bearing", None)
+        if game is not None and look is not None:
+            self.view_rel = norm360(look - game.status().course)
+        super().on_mount()
+
+    def _share_look(self) -> None:
+        game = getattr(self.app, "game", None)
+        if game is not None and hasattr(self.app, "look_bearing"):
+            self.app.look_bearing = norm360(game.status().course + self.view_rel)
+
     def action_turn(self, step: int) -> None:
         self.view_rel = norm360(self.view_rel + step * TURN_STEP_DEG)
+        self._share_look()
         self.draw()
 
     def action_ahead(self) -> None:
         self.view_rel = 0.0
+        self._share_look()
         self.draw()
 
     def draw(self) -> None:

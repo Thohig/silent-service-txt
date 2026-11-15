@@ -5,6 +5,10 @@ kommer en ny bild varannan sekund och okularet står där periskopet är vänt
 (`StatusSnapshot.periscope_train`): ← → vrider det (`vrid periskop …`, tar över ett svep),
 mellanslag vänder det förut, ↓ fäller det. När masten är nere visas den senaste bilden
 (nedtonad när den är gammal), ← → byter föremål i okularet och ↑ hissar periskopet.
+
+I ytläge med bryggan bemannad är vyn kikaren på bryggan: den visar bryggans levande bild
+(`Knowledge.bridge`). Blickens bäring delas med bryggvyn (`SubApp.look_bearing`): vyn
+öppnas mot det bryggan tittade på, och det valda föremålet blir bryggans blick.
 """
 from __future__ import annotations
 
@@ -12,6 +16,8 @@ from rich.text import Text
 from textual.app import ComposeResult
 from textual.css.query import NoMatches
 from textual.widgets import Static
+
+from sim.geo import angle_diff
 
 from .periscope_render import (default_index, header, object_key, ordered_objects,
                                render_periscope)
@@ -85,7 +91,21 @@ class PeriscopeScreen(ViewScreen):
 
     def _picture(self):
         game = getattr(self.app, "game", None)
-        return None if game is None else game.knowledge.periscope
+        if game is None:
+            return None
+        if self._bridge_live(game):
+            return game.knowledge.bridge
+        return game.knowledge.periscope
+
+    @staticmethod
+    def _bridge_live(game) -> bool:
+        """Kikaren utan att någon håller den: bryggans bild är den levande."""
+        st = game.status()
+        return st.periscope is None and st.bridge == "manned" and game.knowledge.bridge is not None
+
+    def _share_look(self, bearing: float | None) -> None:
+        if bearing is not None and hasattr(self.app, "look_bearing"):
+            self.app.look_bearing = bearing
 
     def _index(self, pic) -> int:
         """Behåll valet mellan svepen om föremålet finns kvar, annars det närmaste fartyget."""
@@ -95,6 +115,11 @@ class PeriscopeScreen(ViewScreen):
             fresh = {object_key(o) for o in objs if not (0 <= o.seen_t < pic.t)}
             if self.selected_key not in fresh:
                 self.selected_key = None        # nytt svep: välj bland det vi just såg
+        look = getattr(self.app, "look_bearing", None)
+        if self.selected_key is None and look is not None and objs:
+            near = min(range(len(objs)), key=lambda i: abs(angle_diff(objs[i].bearing, look)))
+            if abs(angle_diff(objs[near].bearing, look)) <= 60:    # det bryggan tittade på
+                self.selected_key = object_key(objs[near])
         for i, o in enumerate(objs):
             if object_key(o) == self.selected_key:
                 return i
@@ -115,18 +140,25 @@ class PeriscopeScreen(ViewScreen):
         w, h = body.size.width, body.size.height
         if w < 30 or h < 8:
             return
-        pic = game.knowledge.periscope
         st = game.status()
+        bridge_live = self._bridge_live(game)
+        pic = game.knowledge.bridge if bridge_live else game.knowledge.periscope
         aim = st.periscope_train if st.periscope is not None else None
         age = 0 if pic is None else game.now - pic.t
         index = None if pic is None or aim is not None else self._index(pic)
+        if aim is not None:
+            self._share_look(aim)
+        elif index is not None and pic.objects:
+            self._share_look(ordered_objects(pic)[index].bearing)
         body.update(Text("\n").join(render_periscope(pic, w, h, index, age, game.clock_str, aim)))
         note = None
         blocked = game.knowledge.periscope_blocked
         if blocked is not None and (pic is None or blocked[0] > pic.t):
             note = f"Is ovanför kl {game.clock_str(blocked[0])[:5]}, masten kom inte upp."
         up = None if aim is None else (st.periscope, st.periscope_up_s, aim)
-        t = header(pic, game.clock_str(pic.t) if pic else "", age, note, up)
+        kikare = bridge_live or (aim is not None and st.periscope_optic == "kikare")
+        t = header(pic, game.clock_str(pic.t) if pic else "", age, note, up,
+                   "KIKARE, bryggan" if kikare else "PERISKOP")
         t.append("\n")
         if aim is not None:
             t.append(" ←/→ vrid · mellanslag förut · ↓ periskop ned · Tab logg · Esc tillbaka",

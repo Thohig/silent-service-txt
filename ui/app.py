@@ -77,6 +77,8 @@ class SubApp(App):
         self.game: Game | None = None
         self.truth_log: TruthLog | None = None
         self.running = False
+        # blickens sanna bäring, delad mellan bryggvyn och periskopvyn (None: inte satt)
+        self.look_bearing: float | None = None
         self._game_ready = False             # spelet är klart att ta över (efter ev. uppvärmning)
         self._acc = 0.0
         self._last = 0.0

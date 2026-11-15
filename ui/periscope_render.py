@@ -463,12 +463,14 @@ MODE_TEXT = {"sweep": "svep", "look": "kort titt", "hold": "hålls uppe"}
 
 
 def header(pic: PeriscopePicture | None, clock: str, age_s: int,
-           note: str | None = None, up: tuple[str, int, float] | None = None) -> Text:
+           note: str | None = None, up: tuple[str, int, float] | None = None,
+           title: str = "PERISKOP") -> Text:
     """up: (läge, sekunder uppe, okularets bäring) medan masten är uppe."""
-    t = Text(" PERISKOP", style="bold")
+    t = Text(f" {title}", style="bold")
     if up is not None:
         mode, secs, train = up
-        t.append(f"   UPPE {secs // 60}:{secs % 60:02d}", style="bold #e0d090")
+        t.append(f"   {'I HAND' if title != 'PERISKOP' else 'UPPE'} {secs // 60}:{secs % 60:02d}",
+                 style="bold #e0d090")
         t.append(f" · {MODE_TEXT.get(mode, mode)} · okular {fmt_course(train)}")
         if pic is not None:
             t.append(f" · {'dag' if pic.day else 'natt'} · sikt {nm(pic.visibility_nm)} nm"

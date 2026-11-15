@@ -446,3 +446,111 @@ def test_scene_draws_land_and_events():
     night = PeriscopePicture(100, False, 2.5, 0.0, "brygga", objs, land=land)
     ntxt = _plain(render_scene(night, 110, 24, 0.0, 100))
     assert "▲▲▲" in ntxt and "|||" not in ntxt and "░" not in ntxt
+
+
+# --- kikaren: periskopets order med bryggan bemannad (L3) ----------------------------
+from sim.events import BridgeSighted, PeriscopeSighted  # noqa: E402
+from sim.stations.periscope import LOOK_S, PeriscopeWatch  # noqa: E402
+
+
+def test_periscope_on_a_manned_bridge_is_the_binoculars_with_the_bridges_picture():
+    g, reports = _game(dd_at=(0.5, 3.0))
+    _surface(g)
+    frames, obs, bridge_pics = [], [], []
+    g.bus.subscribe(PeriscopeSighted, frames.append)
+    g.bus.subscribe(BridgeSighted, lambda e: bridge_pics.append(e.picture))
+    g.bus.subscribe(BearingObserved, lambda e: obs.append(e.obs.source))
+    g.world.own.state.speed = g.world.own.state.ordered_speed = 10.0   # ingen fartgräns
+    g.command("periskop")
+    ps = g.station(PeriscopeWatch)
+    assert ps.mode == "sweep" and ps.optic == "kikare"
+    for _ in range(LOOK_S):
+        g.tick()
+        assert not g.world.own.masts_up(g.now)        # ingen mast: utkiken tittar
+    done = [e for e in frames if not e.live]
+    assert len(done) == 1 and done[0].picture.eye == "brygga"
+    seen = done[0].picture.ships()
+    judged = {(o.designation, o.course, o.speed, o.range_nm)
+              for p in bridge_pics if p is not None for o in p.ships()}
+    assert seen
+    for o in seen:                                    # bryggans bedömning, inte en egen
+        assert (o.designation, o.course, o.speed, o.range_nm) in judged
+    assert "periskop" not in obs
+    types = _types(reports)
+    assert "off.binoculars.up" in types and "off.refused" not in types
+    assert "off.periscope.contact" not in types       # utkiken har redan ropat ut
+
+
+def test_binoculars_come_down_when_the_bridge_is_cleared():
+    g, reports = _game()
+    _surface(g)
+    g.command("periskop upp")
+    ps = g.station(PeriscopeWatch)
+    assert ps.mode == "hold" and ps.optic == "kikare"
+    g.command("djup 40")
+    for _ in range(5):
+        g.tick()
+    assert ps.mode is None
+    for _ in range(30):
+        g.tick()
+    assert "off.binoculars.down" in _types(reports)
+
+
+def test_periscope_has_no_speed_limit_on_the_surface_with_the_hatch_shut():
+    g, reports = _game()
+    st = g.world.own.state
+    st.depth = st.ordered_depth = 0.0
+    st.speed = st.ordered_speed = 10.0
+    g.world.own.sys.bridge = "shut"
+    g.command("periskop")
+    ps = g.station(PeriscopeWatch)
+    assert ps.mode == "sweep" and ps.optic == "periskop"
+    g2, _ = _game()
+    st = g2.world.own.state
+    st.depth = st.ordered_depth = 15.0
+    st.speed = st.ordered_speed = 10.0
+    g2.command("periskop")
+    assert g2.station(PeriscopeWatch).mode is None    # under ytan: för fort
+
+
+@pytest.mark.slow
+def test_periscope_view_shows_the_bridge_and_shares_the_look(tmp_path):
+    import asyncio
+
+    from ui.app import SubApp
+    from ui.bridge import BridgeScreen
+    from ui.periscope import PeriscopeScreen
+
+    async def run():
+        app = SubApp(seed=3, log_dir=tmp_path, scenario="kuba")
+        async with app.run_test(size=(110, 40)) as pilot:
+            await pilot.press("enter", "enter")
+            g = app.game
+            g.world.env.sunrise, g.world.env.sunset = 0, 24 * 3600
+            st = g.world.own.state
+            dd = next(v for v in g.world.contacts if v.kind == "destroyer")
+            dd.state.x, dd.state.y = st.x + 2.0, st.y + 0.3        # tvärs styrbord
+            for ai in g.world.ais:
+                ai.can_force = False
+            _surface(g)
+            app.action_bridge()
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, BridgeScreen)
+            for _ in range(6):                                     # blicken 90° styrbord
+                await pilot.press("right")
+            app.action_periscope()
+            await pilot.pause(0.6)
+            assert isinstance(app.screen, PeriscopeScreen)
+            head = str(app.screen.query_one("#periscope-head").render())
+            assert "KIKARE" in head
+            body = str(app.screen.query_one("#periscope-body").render())
+            line = body.splitlines()[-1]
+            assert "jagare" in line                                # det bryggan tittade på
+            app.save_screenshot(str(tmp_path / "kikare.svg"))
+            await pilot.press("space")                             # inget periskop: ingen effekt
+            app.action_bridge()
+            await pilot.pause(0.2)
+            assert isinstance(app.screen, BridgeScreen)
+            assert 60 <= app.screen.view_rel <= 120
+
+    asyncio.run(run())
