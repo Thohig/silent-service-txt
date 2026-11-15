@@ -126,7 +126,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   plottets lösning ("stämmer" om kurs < 20°, fart < 4 kn, läge < max(0,5 nm, 30 % av avståndet)).
   Förslagsveto (`Station.vetoes`): navigatören stoppar alla dykförslag där ordern förbjuder dykning;
   i ytläge föreslår maskin ingen smygmotor och navigatören inte botten.
-  8 frön, ja-boten: klar i alla på 92–106 min, ingen grundstötning; lyssningen 8–16 min, plottets
+  8 frön, ja-boten: klar i alla på 92–106 min, ingen grundstötning; lyssningen 8–16 min (efter
+  plottets ärliga kvalitet 2026-11-15: 7–25 min, avbruten i 1 av 8, hela övningen 110–121 min), plottets
   kurs inom 7° i alla, läget 0,1–1,4 nm fel (efter ändrade gränser stämmer fler än 4 av 8).
   Övningstorped (`TORPEDO_TYPES["övning"]`, 53-61 utan stridsspets, 12 m djup): detonerar aldrig,
   noterar närmaste passage per fartyg (`Torpedo.passed`), sätter inte `hostile_act`; torpedrummet
@@ -315,6 +316,14 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   chi² > 4 eller brytpunktstest > 15 (två raka ben före/efter 5 eller 10 min mot ett;
   raka mål ger median 2, max ~12). Plottlaget säger manöver högst var 5:e min per kontakt.
   Två ben i sicksack ska normalt ge god/säker lösning på ~20 min.
+  Ärlig kvalitet (`tma.py`): processbrus för målets manöver q = 1 kn²/h (3 gav ofta bara osäker på
+  två ben); utan nya bäringar sannolikheten τ/(τ + 10 min) att målet girat, σ 90° (en 10 min gammal
+  lösning blir osäker); jagare som pingar medan vi är jagade q = 400 (inte i lugn patrull: då
+  tappade plottet patrulljagaren och radion gick upp för tidigt); kursens σ ≥ 15/30/60° ⇒ högst
+  god/osäker/dålig när målet går ≥ 3 kn. Brytpunktstestet räknar utan brus. Mot sanningen (ja-boten,
+  övning/kuba/konvoj-kort/sundet, 8 frön): grova fel (avstånd > 50 % eller kurs > 90°) bland god/säker
+  11 % ⇒ 9 %, fel > 3σ 18 % ⇒ 11 %; säkra lösningar med kurs > 90° fel 6 % ⇒ ~1 %. Det som är kvar är
+  mest girar de senaste minuterna som plottet inte hunnit se. Mätskriptet: `kalibrering/tma_kvalitet.py`.
 - Periskopet i TMA: varje titt ger, utöver avstånd (σ 8 % + 0,03 nm), kurs (`AOB_SIGMA` efter synlig del)
   och fart (σ 2 kn) som mätningar (`BearingObs.course_obs`/`speed_obs`). En titt vars kurs avviker mer
   än max(20°, 3σ) från lösningen före titten ⇒ målet har girat, TMA börjar om från titten

@@ -5,8 +5,8 @@ kaptenens (användarens) beslut. Det som redan är byggt står i CLAUDE.md och R
 
 ## Öppna fel och osäkra siffror
 
-- **Plottet kallar ibland felaktiga lösningar "god"** (avståndet fel, ibland kursen 180° fel),
-  märkt i övningen.
+- ~~Plottet kallar ibland felaktiga lösningar "god"~~ – rättat 2026-11-15 (manöverbrus, gamla
+  lösningar, kursen som tak). Kvar: girar de senaste minuterna innan plottet sett dem (~9 % grova fel).
 - **Torpedrummet säger skjutlösning på bevakningsfartyget** före torpedsteget i övningen.
 - **Kalibreringssiffror som glidit:** Övningens ja-bot står som 92–106 min men tar 107–122 min
   sedan torpedsteget; Arktis ja-bot angavs ~10 av 12 men gav 6–7.

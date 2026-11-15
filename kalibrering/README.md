@@ -32,6 +32,7 @@ scratchpad (2026-11-14–15). En del läser sanningen (`sundet.py --orakel`, `su
 | `konvoj_mot.py` | konvoj-mot | passiv, ja, bort |
 | `arktis.py` | arktis | ja |
 | `arktis_kort.py` | arktis-kort | passiv, ja |
+| `tma_kvalitet.py` | flera | ja; plottets lösningar mot sanningen per kvalitet |
 
 Provkörda 2026-11-15 med ett frö var. Alla gick utan fel. `konvoj.py` och `kuba_jakt.py`
 kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.

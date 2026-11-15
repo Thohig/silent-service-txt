@@ -267,7 +267,7 @@ def test_hunting_target_gets_more_maneuver_noise():
     assert hunter.quality < calm.quality
 
 
-def test_knowledge_treats_pinging_contact_as_hunter():
+def test_knowledge_treats_pinging_contact_as_hunter_when_we_are_hunted():
     from sim.knowledge import ContactTrack, Knowledge
     obs, t, own, tgt = _two_legs(4)
     k_calm, k_hunt = Knowledge(), Knowledge()
@@ -278,6 +278,9 @@ def test_knowledge_treats_pinging_contact_as_hunter():
         k_hunt.on_bearing(dataclasses.replace(o, designation="S-1",
                                               source="ping" if o.t > t - 120 else "sonar"))
     calm = k_calm.resolve("S-1", t, (own.x, own.y))
+    # pingar i lugn patrull: inget extra brus
+    assert k_hunt.resolve("S-1", t, (own.x, own.y)).range_sigma < 1.5 * calm.range_sigma
+    k_hunt.hunt_t = t - 60                      # sonar har hört jakttecken
     hunt = k_hunt.resolve("S-1", t, (own.x, own.y))
     assert hunt.range_sigma > 2 * calm.range_sigma
 

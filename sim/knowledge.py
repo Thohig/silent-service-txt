@@ -204,8 +204,10 @@ class Knowledge:
         if tr is None:
             return None
         obs = [o for o in tr.observations if o.t >= tr.tma_from_t]
-        # ett mål som pingar jagar och girar hela tiden
-        hunting = any(o.source == "ping" and o.t >= t_now - HUNTER_PING_S for o in obs)
+        # ett mål som pingar medan vi är jagade (snabb pingtakt, plask) girar hela tiden;
+        # en jagare som pingar i lugn patrull går sina ben
+        hunting = self.hunted(t_now) and \
+            any(o.source == "ping" and o.t >= t_now - HUNTER_PING_S for o in obs)
         tr.solution = solve(obs, t_now=t_now, own_now=own_now,
                             maneuver_q=HUNTER_MANEUVER_Q if hunting else None)
         return tr.solution
