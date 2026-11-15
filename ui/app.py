@@ -77,9 +77,6 @@ class SubApp(App):
     Screen { background: #0b0f0c; }
     #status { height: 2; background: #1c2a20; color: #c8d0b0; }
     #intro  { height: 1fr; padding: 2 6; }
-    #picker { height: 1fr; padding: 2 6; }
-    #picker-title { color: #c8d0b0; text-style: bold; margin-bottom: 1; }
-    #scenarios { background: #0b0f0c; border: none; color: #c8d0b0; }
     #main   { height: 1fr; }
     #log    { width: 1fr; padding: 0 1; background: #0b0f0c; scrollbar-size-vertical: 1; }
     #gauge  { width: 24; padding: 1 1 0 1; background: #0f1611; color: #7f9a80; }

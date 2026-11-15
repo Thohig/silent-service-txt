@@ -240,7 +240,10 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   ritas nedtonade); i ett svep eller en titt räknas allt som setts som sett nu.
   Is: `ice.ice_view` (periskopet är en sensor) ger kant och vallar i 16 riktningar ut till 0,6 nm;
   kommer masten inte upp för isen publiceras `PeriscopeBlocked` och vyn säger det.
-- **Huvudmenyn** (`ui/menu.py`, `MenuScreen`) → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
+- **Huvudmenyn** (`ui/menu.py`, `MenuScreen`): uppdragen grupperade (`mission_groups`: kort variants nyckel
+  = lång nyckel + "-x", titeln "Rubrik – variant, datum", det långa först, `FIRST_GROUPS` övningen först),
+  rubriker är avstängda alternativ, beskrivningen (`brief`) bredvid, sist Avsluta. Nytt scenario hamnar
+  i menyn av sig självt om nyckel och titel följer mönstret. Flödet: menyn → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
   huvudmenyn. `SubApp` håller spelet, ljudet och inställningarna (ljud, talets språk) över uppdragen;
   widgetarna nås med `app.gs().query_one(...)` (`app.query_one` ser bara standardskärmen). Efter
   slutrapporten går vyerna att titta på; Enter med tom orderrad (även i en vy) ⇒ `return_to_menu()`:
