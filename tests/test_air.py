@@ -1,4 +1,5 @@
 """Ubåtsjaktflyg: radar, sonobojar, MAD, samarbete med jagaren och besättningens reaktioner."""
+import pytest
 import random
 
 from sim.air import (ALT_MAD_M, AirDef, Aircraft, AircraftAI, AirPatrol, Sonobuoy)
@@ -147,6 +148,7 @@ def test_crew_hears_buoys_splash_and_active_pings():
     assert "sonar.buoy" in types and "sonar.buoy_ping" in types
 
 
+@pytest.mark.slow
 def test_patrol_sends_planes_on_a_schedule_and_cleans_up():
     g, _ = _game()
     w = g.world

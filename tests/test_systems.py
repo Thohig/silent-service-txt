@@ -1,4 +1,5 @@
 """Systemtavlan: stationernas element ur egna instrument, och rastreringen."""
+import pytest
 import asyncio
 import random
 
@@ -100,6 +101,7 @@ def test_new_station_draws_its_own_panel():
     assert "Primärkrets" in _text(render_systems(v, 110))
 
 
+@pytest.mark.slow
 def test_tab_cycles_through_the_board(tmp_path):
     from ui.app import SubApp
     from ui.chart import ChartScreen

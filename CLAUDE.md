@@ -13,7 +13,8 @@ oktober 1962. Python 3.12, Textual, numpy, uv. Användaren kör macOS (Apple Sil
 ## Kommandon
 ```bash
 uv run main.py [--seed N] [--scenario kuba] [--tyst]   # spela (utan --scenario: väljare)
-uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
+uv run pytest -q              # snabba tester, parallellt (~8 s)
+uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); före commit
 ```
 
 ## Designprinciper (får inte brytas)
@@ -304,6 +305,9 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   nya delar: föreslå struktur och invänta ok.
 - Nytt system ⇒ tester i `tests/`. Statistiska påståenden (TMA, sonar) testas över
   flera seeds, inte ett enda lyckat frö.
+- Testerna körs parallellt (pytest-xdist, `-n auto` i pyproject; `-n0` för seriellt). Ett test som
+  tar mer än ~1 s (hela spel, flera frön, uppvärmning, gränssnitt) märks `@pytest.mark.slow` och körs
+  bara med `--slow` (`tests/conftest.py`). Kör `--slow` före varje commit.
 - Verifiera spelkänslan med en huvudlös genomspelning: skapa `Game`, prenumerera
   på `ReportDelivered`, skriv ut rapporter, kör `g.tick()` i en loop (gärna med
   en bot som svarar `ja` på förslag). Skriv sådana skript i scratchpad, inte i repot.

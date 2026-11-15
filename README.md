@@ -11,7 +11,8 @@ uv run main.py                     # scenarioväljare, slumpat frö
 uv run main.py --scenario kuba     # hoppa över väljaren (kuba, jagad, jagad-kort, sundet, konvoj, konvoj-kort, konvoj-mot, arktis)
 uv run main.py --seed 4            # reproducerbart scenario
 uv run main.py --tyst              # utan ljud
-uv run pytest             # tester
+uv run pytest             # snabba tester
+uv run pytest --slow      # alla tester
 ```
 
 Avsluta med `ctrl+q`. Sanningen (exakta positioner och TMA-lösningar) loggas

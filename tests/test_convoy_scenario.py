@@ -1,4 +1,5 @@
 """Scenariot Konvojen: uppställning, spelslut, salva och okända pingare."""
+import pytest
 import random
 
 from sim.events import BearingObserved, ReportDelivered
@@ -54,6 +55,7 @@ def test_sinking_a_convoy_ship_and_getting_clear_wins():
     assert g.world.outcome["outcome"] == "convoy_attacked"
 
 
+@pytest.mark.slow
 def test_passive_submarine_lets_the_convoy_pass():
     g, _ = _game(4)
     for _ in range(3 * 3600):

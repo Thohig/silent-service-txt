@@ -1,4 +1,5 @@
 """Genom sundet: foto av ankarplatsen, kurs mot kända platser, utvägen kräver bilderna."""
+import pytest
 import random
 
 from sim.events import ReportDelivered
@@ -149,6 +150,7 @@ def _inbound(g):
     return [v for v in g.world.contacts if v.kind == "merchant" and abs(v.state.course) < 30]
 
 
+@pytest.mark.slow
 def test_patrol_boat_escorts_an_inbound_ship_to_the_gate():
     from sim.geo import distance
     from sim.harbor import PatrolBoatAI
@@ -188,6 +190,7 @@ def test_moored_ships_do_not_drift():
     assert (m.state.x, m.state.y) == (x0, y0)
 
 
+@pytest.mark.slow
 def test_harbor_ships_pass_through_the_gate():
     g = _game(1)
     w = g.world

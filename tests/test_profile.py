@@ -1,4 +1,5 @@
 """Djupprofilen: elementen byggs ur kunskapen, och rastreringen visar dem."""
+import pytest
 import asyncio
 import random
 
@@ -122,6 +123,7 @@ def test_gauge_is_ordered_by_depth():
     assert order == sorted(order)
 
 
+@pytest.mark.slow
 def test_tab_cycles_the_views(tmp_path):
     from ui.app import SubApp
     from ui.chart import ChartScreen

@@ -185,6 +185,7 @@ def test_no_picture_message():
     assert "periskop" in rows[0].plain
 
 
+@pytest.mark.slow
 def test_tab_reaches_the_periscope_view(tmp_path):
     import asyncio
 

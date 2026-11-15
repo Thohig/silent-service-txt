@@ -1,4 +1,5 @@
 """Isens ljud: bakgrundsbrus, knakande transienter och falska kontakter."""
+import pytest
 import random
 
 import numpy as np
@@ -56,6 +57,7 @@ def _run(seed, seconds=2 * 3600):
     return g, reports
 
 
+@pytest.mark.slow
 def test_sources_come_and_go():
     g, _ = _run(1, 3 * 3600)
     ice = g.world.env.ice
@@ -64,6 +66,7 @@ def test_sources_come_and_go():
     assert all(s in g.world.contacts for s in ice.sources)
 
 
+@pytest.mark.slow
 def test_ice_contacts_are_classified_as_ice_over_seeds():
     """Sonaren tar ofta isljud för kontakter, men lyssnar sig fram till att det är is."""
     detected = classified = 0

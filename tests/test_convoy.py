@@ -79,6 +79,7 @@ def test_sinking_a_ship_makes_the_convoy_turn_away_and_speed_up():
     assert c.nodgir_count == 1
 
 
+@pytest.mark.slow
 def test_crew_hears_and_classifies_the_convoy():
     g = Game(default_scenario(random.Random(3)), seed=3)
     o = g.world.own.state

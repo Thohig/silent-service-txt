@@ -1,4 +1,5 @@
 """Ryska inslag: fasta fraser med svensk mening bredvid, rysk röst i talet."""
+import pytest
 import random
 
 from sim.events import ReportDelivered
@@ -107,6 +108,7 @@ def test_report_without_russian_phrase_says_who_reports():
     assert R.fallback("plot", "suggest").endswith("Есть предложение.")
 
 
+@pytest.mark.slow
 def test_russian_speech_is_pure_cyrillic_over_a_patrol():
     """Över en patrull med ja-bot: allt tal har rysk text, och inget latinskt läcker in."""
     import re

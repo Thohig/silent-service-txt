@@ -1,4 +1,5 @@
 """Besättningen tar initiativ när kaptenen är tyst en längre stund."""
+import pytest
 import random
 
 from sim.events import ReportDelivered
@@ -102,6 +103,7 @@ def test_no_initiative_while_a_suggestion_waits():
     assert not _idle(g, reports)
 
 
+@pytest.mark.slow
 def test_reload_proposed_but_never_fire_or_nuclear():
     g, reports = _game()
     room = g.station(TorpedoRoom)
@@ -179,6 +181,7 @@ def test_ask_unknown_station():
     assert any(r.type == "order.unknown" and "vilken station" in r.text for r in reports)
 
 
+@pytest.mark.slow
 def test_ask_never_offers_fire():
     for seed in SEEDS:
         g, reports = _game(seed)

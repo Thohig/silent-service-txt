@@ -1,4 +1,5 @@
 """Plottets konvojanalys: baskurs ur sicksackens ben, benlängd och gruppering."""
+import pytest
 import math
 import random
 
@@ -61,6 +62,7 @@ def test_groups_join_ships_with_same_motion_and_leave_escorts_out():
     assert len(g) == 1 and {p.designation for p in g[0]} == {"S-1", "S-2"}
 
 
+@pytest.mark.slow
 def test_plot_finds_the_convoy_and_its_base_course_with_periscope_looks():
     errs = []
     for seed in (3, 5, 7):

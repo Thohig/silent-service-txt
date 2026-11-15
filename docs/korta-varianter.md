@@ -75,13 +75,11 @@ Flytta en variant från **Kvar** till **Klart** när den är byggd, testad och k
 - **Siffrorna** förs in under Kalibrering i CLAUDE.md.
 - **Tester i `tests/`:** varianten startar med kontakt, och tidsgränsen ger rätt utfall.
   Statistiska påståenden testas över flera frön, men så få som möjligt, eftersom
-  uppvärmningen tar ~5–8 s per frö.
+  uppvärmningen tar ~5–8 s per frö. Sådana tester märks `@pytest.mark.slow`.
 - **README:** lägg till varianten i scenariotabellen och i `--scenario`-raden.
 
 ## Öppna frågor
 
-- **Testsviten:** tar flera minuter, inte ~3 s som CLAUDE.md säger. Antingen uppdateras
-  siffran eller så görs de långsamma testerna snabbare (t.ex. färre frön, eller markera dem).
 - **Konvojens träffsiffra:** delvis utrett. Plottet använde inte periskopets kurs och fart och
   märkte inte girar mellan tittarna, så lösningar kallades säkra med 1 nm och 100° fel. Rättat (se
   TMA under Kalibrering). Konvojboten (ja + salva mot klassad transport/tanker ≤ 3 nm, lösning

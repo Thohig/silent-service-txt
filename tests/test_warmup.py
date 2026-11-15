@@ -1,4 +1,5 @@
 """Korta varianter: vakten före kaptenen (Scenario.warmup) och överlämnandet."""
+import pytest
 import random
 
 from sim.events import Handover, OrderIssued, ReportDelivered
@@ -66,6 +67,7 @@ def test_short_variants_are_marked_with_play_time():
     assert SCENARIOS["konvoj"].minutes is None
 
 
+@pytest.mark.slow
 def test_convoy_short_hands_over_with_the_convoy_plotted_and_unseen():
     """Över flera frön: plottet har konvojen, den är några sjömil bort och ingen eskort
     har oss när kaptenen tar befälet."""
@@ -90,6 +92,7 @@ def test_pilot_can_hand_over_early():
     assert g.logbook.start_t == 40
 
 
+@pytest.mark.slow
 def test_convoy_counter_hands_over_with_the_salvo_running_and_an_escort_turning():
     """Över flera frön: vakten har skjutit, torpederna går, en eskort har oss och
     skrovet är helt när kaptenen tar befälet; tidsgränsen räknas från överlämnandet."""
@@ -107,6 +110,7 @@ def test_convoy_counter_hands_over_with_the_salvo_running_and_an_escort_turning(
         assert g.now < 6 * 60
 
 
+@pytest.mark.slow
 def test_convoy_counter_salvo_hits_within_minutes_over_seeds():
     hits = 0
     for seed in range(8):

@@ -1,4 +1,5 @@
 """Sjökortet: elementen byggs ur kunskapen, i navigatörens beräknade koordinater."""
+import pytest
 import random
 
 from sim.chart import Mark, Note, Ray, Ring, Track
@@ -92,6 +93,7 @@ def test_ice_soundings_openings_and_station_appear_in_the_arctic():
     assert len(ice) == len(g.knowledge.ice.soundings)
 
 
+@pytest.mark.slow
 def test_chart_never_reveals_truth_ids():
     for key, seed in (("kuba", 1), ("kuba", 4), ("arktis", 2), ("arktis", 5)):
         g = _game(key, seed)
