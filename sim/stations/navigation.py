@@ -25,7 +25,7 @@ from ..events import IceSounded, OpeningNotFound
 from ..fmt import clock, fmt_course, kn, nm
 from .. import russian as R
 from ..russian import ru
-from ..geo import angle_diff, bearing_to, distance, norm360, velocity
+from ..geo import angle_diff, bearing_to, distance, norm360, offset_starboard, velocity
 from ..ice import SAIL_TOP_M, masts_clear
 from ..icemap import (MIN_SURFACE_LEN_M, OPEN_M, IceMap, IceSoundingObs, Opening,
                       describe_opening, round_m, thickness_words)
@@ -92,6 +92,12 @@ WAIT_TRANSIT_KN = 5.0      # dit i smygmotorns högsta fart ...
 WAIT_QUIET_NM = 5.0        # ... tills vi är så här nära nätet,
 WAIT_QUIET_KN = 3.0        # sedan så här tyst
 WAIT_SUGGEST_S = 900
+FAIRWAY_STEP_S = 15        # farleden: ny kurs mot nästa punkt så här ofta
+FAIRWAY_RIGHT_NM = 0.15    # håll så här långt till styrbord om farledens mitt
+FAIRWAY_TURN_NM = 0.25     # gir mot nästa ben så här långt före brytpunkten
+FAIRWAY_SUGGEST_S = 600
+BRIDGE_FIX_EVERY_S = 180   # i ytläge med land i sikte pejlar navigatören landmärken så här ofta
+BRIDGE_FIX_QUIET_NM = 0.15 # mindre rättelse än så sägs inte
 ATTACK_STEP_S = 30         # anfall: ny kurs mot skjutläget så här ofta
 ATTACK_OFFSET_NM = 1.2     # skjutläget ligger så här långt från målets väg
 ATTACK_LEAD_H = 4 / 60     # framme så här länge innan målet är tvärs
@@ -126,6 +132,11 @@ class SteerTo(Order):
 
 @dataclass(frozen=True)
 class GoToWait(Order):
+    pass
+
+
+@dataclass(frozen=True)
+class FollowFairway(Order):
     pass
 
 
@@ -334,7 +345,23 @@ PHRASES = {
     else f"Djup {d['depth']:.0f} meter, kapten.",
     "nav.limit": lambda d: f"Kapten, högsta fart just nu är {kn(d['limit'])} knop."
     if d["what"] == "speed" else f"Kapten, största djup är {d['limit']:.0f} meter.",
-    "nav.fix.start": lambda d: ("Tar fix på landmärken, en halv minut." if d.get("coast") and
+    "nav.fairway": lambda d: f"{ru('Jest')}, följer farleden ut, kurs {fmt_course(d['course'])}. "
+    f"{d['legs']} ben, {nm(d['dist'])} sjömil. Vi håller styrbords sida.",
+    "nav.fairway.leg": lambda d: f"Girpunkt i farleden, ny kurs {fmt_course(d['course'])}."
+    + (" Sista benet ut." if d["legs"] == 1 else ""),
+    "nav.fairway.done": lambda d: "Kapten, vi är ute ur farleden"
+    + (f", {d['depth']:.0f} meter vatten enligt kortet" if d.get("depth") else "")
+    + ". Fritt att dyka här." + (f" {d['to']} ligger framför oss." if d.get("to") else ""),
+    "nav.fairway.none": lambda d: "Kapten, vi har redan gått farleden ut." if d["done"]
+    else "Kapten, det finns ingen farled framför oss på kortet.",
+    "nav.suggest.fairway": lambda d: "Kapten, navigatören. Jag föreslår att vi följer farleden ut"
+    + (f" mot {d['to'].lower()}" if d.get("to") else "")
+    + ", på styrbords sida. Jag tar fixar från bryggan under tiden.",
+    "nav.suggest.fairway_to": lambda d: f"Kapten, {d['name'].lower()} ligger i "
+    f"{fmt_course(d['course'])}, {nm(d['range'])} sjömil. Föreslår kurs mot {d['name'].lower()}.",
+    "nav.fix.start": lambda d: "Pejlar landmärken från bryggan, en halv minut." if d.get("bridge")
+    and d.get("day") else "Pejlar fyrarna från bryggan, under en minut." if d.get("bridge") else
+    ("Tar fix på landmärken, en halv minut." if d.get("coast") and
                                 d.get("day") else "Tar fix på fyrarna, under en minut."
                                 if d.get("coast") else "Tar fix i periskopet, cirka två minuter."),
     "nav.fix.refused": lambda d: f"Kapten, {d['reason']}.",
@@ -479,7 +506,17 @@ RU_PHRASES = {
     "nav.settle.lift": lambda d: "Отрываемся от грунта.",
     "nav.bfix.start": lambda d: f"Есть, определяемся по глубинам. {d['n']} промеров за "
     f"{R.count(d['minutes'], R.MINUTE)}. Держите курс и ход, эхолот слышно.",
-    "nav.fix.start": lambda d: "Есть, определяемся по перископу.",
+    "nav.fairway": lambda d: f"Есть, идём по фарватеру, курс {R.course(d['course'])}. "
+    "Держимся правой стороны.",
+    "nav.fairway.leg": lambda d: f"Поворотная точка. Новый курс {R.course(d['course'])}.",
+    "nav.fairway.done": lambda d: f"{R.CAPTAIN}, фарватер пройден. Можно погружаться.",
+    "nav.fairway.none": lambda d: f"{R.CAPTAIN}, фарватера впереди нет.",
+    "nav.suggest.fairway": lambda d: f"{R.CAPTAIN}, штурман. Предлагаю идти по фарватеру, "
+    "правой стороной.",
+    "nav.suggest.fairway_to": lambda d: f"{R.CAPTAIN}, предлагаю курс {R.course(d['course'])} "
+    "в район учений.",
+    "nav.fix.start": lambda d: "Есть, определяемся по береговым ориентирам." if d.get("bridge")
+    else "Есть, определяемся по перископу.",
     "nav.fix.aborted": lambda d: "Определение прервано, мы ушли с перископной глубины.",
     "nav.fix.done": lambda d: f"Место определено. Поправка {R.dec(d['error'], R.MILE)} "
     f"по пеленгу {R.course(d['bearing'])}.",
@@ -576,6 +613,8 @@ class NavigationStation(Station):
                     "anfall S-1"),
         CommandSpec(r"(?:gå till |ga till |till )?(?:väntläget|vantlaget|väntläge|vantlage)",
                     lambda m: GoToWait(), "väntläget"),
+        CommandSpec(r"(?:följ |folj |gå |ga |styr |ut )?(?:i |genom )?(?:farleden|fjorden)|lotsa",
+                    lambda m: FollowFairway(), "farleden"),
         CommandSpec(r"följ (s-?\d+)|folj (s-?\d+)",
                     lambda m: FollowContact(m.group(1) or m.group(2)), "följ S-1"),
         CommandSpec(r"(?:kurs|styr|gå|ga) mot (.+)", lambda m: SteerTo(m.group(1)), "kurs mot <plats>"),
@@ -617,6 +656,9 @@ class NavigationStation(Station):
         self.attack: str | None = None        # kontakten vi går till skjutläge mot (goal "attack")
         self._attack_arrived_t = -10**9
         self._wait_arrived = False
+        self._fw_i = 0                        # farleden: nästa punkt
+        self._fw_done = False                 # farleden är gången
+        self._fix_quiet = False               # fixen är navigatörens egen pejling från bryggan
         self._attack_behind = 0
         self._water = None                    # sjökortets vattenrutnät för vägsökning
         self._exit_cache: tuple[int, tuple | None, str | None] | None = None
@@ -704,6 +746,9 @@ class NavigationStation(Station):
                 pts.append((self.est_x, self.est_y))
             items.append(Track(tuple(pts), "track"))
         items.extend(self._contours())
+        fw = self.game.knowledge.fairway
+        if len(fw) >= 2:
+            items.append(Track(tuple(fw), "fairway", LAYER_CONTOUR + 0.05, "╌"))
         for b in reversed(self.bottom_soundings):      # nyaste först: dess etikett vinner
             if b.x is not None:
                 items.append(Mark(b.x, b.y, "∙", "sounding", f"{b.depth:.0f}".replace(",", " "),
@@ -909,6 +954,9 @@ class NavigationStation(Station):
         ahead = self.chart_ahead()
         if ahead is None or ahead[0] >= LAND_CLEAR_M:
             return False
+        if self.goal == "fairway" and (p := self._fairway_point()) is not None and \
+                ahead[1] > distance(self.est_x, self.est_y, *p) + 0.1:
+            return True                         # landet ligger bortom girpunkten i farleden
         options = [(c, self.chart_ahead(c)) for c in
                    (norm360(s.course + sgn * a) for a in LAND_TURNS for sgn in (1, -1))]
         options = [(c, a[0]) for c, a in options if a is not None]
@@ -1062,6 +1110,8 @@ class NavigationStation(Station):
                 self._steer_to(name)
             case GoToWait():
                 self._start_wait()
+            case FollowFairway():
+                self._start_fairway()
             case FollowContact(designation=d):
                 self._start_follow(d)
             case AttackApproach(designation=d):
@@ -1169,8 +1219,21 @@ class NavigationStation(Station):
         else:
             self._pending.add(what)
 
-    def _start_fix(self) -> None:
+    def _bridge_bearings(self) -> bool:
+        """I ytläge med folk på bryggan och land i sikte: fix med pejlskivan, inget periskop."""
+        return self.own.surfaced and self.own.sys.bridge == "manned" and \
+            self._land_in_sight(self.game.world.env.is_day(self.now))
+
+    def _start_fix(self, quiet: bool = False) -> None:
         own, s = self.own, self.ship
+        day = self.game.world.env.is_day(self.now)
+        self._fix_quiet = quiet
+        if self._bridge_bearings():
+            self._fix_coast = True
+            self.fix_done_t = self.now + (COAST_FIX_S if day else COAST_FIX_NIGHT_S)
+            if not quiet:
+                self.say("nav.fix.start", {"coast": True, "day": day, "bridge": True}, kind="ack")
+            return
         reason = None
         if s.depth > PERISCOPE_DEPTH:
             reason = "vi måste upp på periskopdjup för en fix"
@@ -1773,6 +1836,110 @@ class NavigationStation(Station):
             far = net is not None and distance(self.est_x, self.est_y, net.x, net.y) > WAIT_QUIET_NM
             s.order_speed(min(WAIT_TRANSIT_KN, self.own.max_speed()) if far else WAIT_QUIET_KN)
 
+    # --- farleden ------------------------------------------------------------------
+    def _fairway_points(self) -> list[tuple[float, float]]:
+        """Farleden enligt kortet, förskjuten till styrbord: där vi styr."""
+        fw = self.game.knowledge.fairway
+        if len(fw) < 2:
+            return list(fw)
+        return offset_starboard(fw, FAIRWAY_RIGHT_NM)
+
+    def _fairway_point(self) -> tuple[float, float] | None:
+        pts = self._fairway_points()
+        return pts[self._fw_i] if self._fw_i < len(pts) else None
+
+    def _fairway_passed(self, pts: list[tuple[float, float]], i: int) -> bool:
+        """Är vi framme vid, eller förbi, punkt i (längs benet som leder dit)?"""
+        px, py = pts[i]
+        if distance(self.est_x, self.est_y, px, py) < FAIRWAY_TURN_NM:
+            return True
+        ax, ay = pts[i - 1] if i > 0 else (self.est_x, self.est_y)
+        if i == 0:
+            return False
+        dx, dy = px - ax, py - ay
+        return (self.est_x - px) * dx + (self.est_y - py) * dy > 0
+
+    def _fairway_index(self) -> int:
+        pts = self._fairway_points()
+        # närmaste ben framför oss: hoppa över punkter vi redan passerat
+        i = 0
+        if pts:
+            i = min(range(len(pts)), key=lambda k: distance(self.est_x, self.est_y, *pts[k]))
+            if i + 1 < len(pts) and self._fairway_passed(pts, i):
+                i += 1
+            elif i > 0 and not self._fairway_passed(pts, i - 1):
+                i -= 1
+        return i
+
+    def _fairway_left(self) -> bool:
+        """Finns det farled kvar framför oss?"""
+        pts = self._fairway_points()
+        if len(pts) < 2 or self._fw_done:
+            return False
+        i = self._fairway_index()
+        return not (i == len(pts) - 1 and self._fairway_passed(pts, i))
+
+    def _start_fairway(self) -> None:
+        if not self._fairway_left():
+            self.say("nav.fairway.none", {"done": self._fw_done})
+            return
+        self.vak = None
+        self.goal = "fairway"
+        self.course_set_t = self.now
+        self._fw_i = self._fairway_index()
+        pts = self._fairway_points()
+        c = round(bearing_to(self.est_x, self.est_y, *pts[self._fw_i])) % 360
+        self.ship.order_course(c)
+        self.say("nav.fairway", {"course": c, "legs": len(pts) - self._fw_i,
+                                 "dist": self._fairway_dist(pts)}, kind="ack")
+
+    def _fairway_dist(self, pts: list[tuple[float, float]]) -> float:
+        d, x, y = 0.0, self.est_x, self.est_y
+        for p in pts[self._fw_i:]:
+            d += distance(x, y, *p)
+            x, y = p
+        return d
+
+    def _fairway_step(self) -> None:
+        """Styr längs farleden; gir mot nästa ben strax före brytpunkten."""
+        pts = self._fairway_points()
+        if self._fw_i >= len(pts):
+            self.goal = None
+            return
+        if self._fairway_passed(pts, self._fw_i):
+            self._fw_i += 1
+            if self._fw_i >= len(pts):
+                self.goal = None
+                self._fw_done = True
+                k = self.game.knowledge
+                depth = self.chart_depth_at(self.est_x, self.est_y)
+                self.say("nav.fairway.done", {"to": k.fairway_to,
+                                              "depth": round(depth, -1) if depth else None})
+                if k.fairway_to and k.fairway_to in k.waypoints:
+                    wp = k.waypoints[k.fairway_to]
+                    c = bearing_to(self.est_x, self.est_y, wp.x, wp.y)
+                    self.suggest("fairway_to", "nav.suggest.fairway_to",
+                                 {"name": wp.name, "course": c,
+                                  "range": distance(self.est_x, self.est_y, wp.x, wp.y)},
+                                 order=f"kurs mot {wp.name.lower()}", cooldown=600)
+                return
+            c = round(bearing_to(self.est_x, self.est_y, *pts[self._fw_i])) % 360
+            self.ship.order_course(c)
+            self.say("nav.fairway.leg", {"course": c, "legs": len(pts) - self._fw_i})
+            return
+        self.ship.order_course(round(bearing_to(self.est_x, self.est_y, *pts[self._fw_i])) % 360)
+
+    def _fairway_watch(self) -> None:
+        """I fjorden utan lots: föreslå att följa farleden ut."""
+        if self.goal is not None or not self.game.knowledge.fairway or \
+                self.now - self.course_set_t < 120 and self.course_set_t > 0:
+            return
+        if not self._fairway_left():
+            return
+        self.suggest("fairway", "nav.suggest.fairway",
+                     {"to": self.game.knowledge.fairway_to, "surfaced": self.own.surfaced},
+                     order="farleden", cooldown=FAIRWAY_SUGGEST_S)
+
     def _convoy_watch(self) -> None:
         """Plottet har en konvoj och vi ligger framför den: föreslå anfall (aldrig avfyring)."""
         from .officer import is_big_ship
@@ -1979,6 +2146,10 @@ class NavigationStation(Station):
             self._harbor_watch()
         if self.goal == "wait" and self.now % WAIT_STEP_S == 0:
             self._wait_step()
+        if self.goal == "fairway" and self.now % FAIRWAY_STEP_S == 0:
+            self._fairway_step()
+        elif self.now % SHOAL_CHECK_S == 0:
+            self._fairway_watch()
         self._log_depth()
         if self.now % DR_TRACK_INTERVAL_S == 0:
             self.dr_track[-1].append((self.est_x, self.est_y))
@@ -2014,7 +2185,11 @@ class NavigationStation(Station):
                 self.est_x, self.est_y = new_x, new_y
                 self.last_fix_t = self.now
                 self.fix_sigma = COAST_FIX_SIGMA if self._fix_coast else PERISCOPE_FIX_SIGMA
-                self.say("nav.fix.done", {"error": err, "bearing": b})
+                if not self._fix_quiet or err >= BRIDGE_FIX_QUIET_NM:
+                    self.say("nav.fix.done", {"error": err, "bearing": b})
+        elif self.now - self.last_fix_t >= BRIDGE_FIX_EVERY_S and self.now % 10 == 0 \
+                and self._bridge_bearings():
+            self._start_fix(quiet=True)       # navigatören pejlar landmärken från bryggan
 
         sigma = self.uncertainty()
         if s.depth <= PERISCOPE_DEPTH and sigma > 0.8 and self.fix_done_t is None \

@@ -440,6 +440,7 @@ class OfficerStation(Station):
         st = self.own.state
         held = self.game.knowledge.threat_held()
         if st.depth <= PERISCOPE_DEPTH and not held and st.speed <= 7 and \
+                not self.own.bridge_open and \
                 not self.game.knowledge.ice.under_ice(self.now) and \
                 self.now - self._last_look_t >= LOOK_INTERVAL_S and self.look_done_t is None:
             return [Proposal(5, "idle_look", "off.suggest.look", "periskop", cooldown=900)]
@@ -590,7 +591,8 @@ class OfficerStation(Station):
 
             eye = EYE_BRIDGE_M if self.own.surfaced else EYE_PERISCOPE_M
             objects: list[SightedObject] = []
-            seen = [v for v in self._surface_ships() if world.true_range(v) <= vis and looked(v)]
+            seen = [v for v in self._surface_ships() if world.true_range(v) <= vis and looked(v)
+                    and world.in_sight(v.state.x, v.state.y)]     # inte bakom land
             stations = [v for v in world.contacts if v.kind == "station"
                         and world.true_range(v) <= STATION_LIGHT_NM and looked(v)]
             for v in stations:

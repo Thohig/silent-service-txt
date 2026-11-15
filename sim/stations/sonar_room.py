@@ -325,7 +325,8 @@ class SonarRoom(Station):
                     self.say("sonar.lost", {"designation": ev.designation,
                                             "last_bearing": tr.last_bearing if tr else None},
                              kind="contact")
-                    if self.own.state.speed > 6 and not self.game.knowledge.hunted(self.now):
+                    if self.own.state.speed > 6 and not self.game.knowledge.hunted(self.now) \
+                            and not self.own.bridge_open:   # i ytläge ser bryggan
                         self.suggest("slow", "sonar.suggest.slow",
                                      {"speed": self.own.state.speed}, order="fart 4", cooldown=600)
                 case BearingObs():
@@ -348,7 +349,7 @@ class SonarRoom(Station):
                 and not self._up_for_radio():
             out.append(Proposal(2, "idle_layer", "sonar.suggest.layer",
                                 f"djup {d:.0f}", {"layer": env.layer_depth, "depth": d}))
-        if not held and st.ordered_speed > 6:
+        if not held and st.ordered_speed > 6 and not self.own.bridge_open:
             out.append(Proposal(4, "idle_slow", "sonar.suggest.slow", "fart 4",
                                 {"speed": st.ordered_speed}))
         return out

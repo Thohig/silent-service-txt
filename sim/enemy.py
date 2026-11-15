@@ -154,7 +154,8 @@ class DestroyerAI:
 
     def _tl(self, world: World, x: float, y: float, depth: float) -> float:
         s = self.vessel.state
-        return acoustics.transmission_loss(distance(s.x, s.y, x, y), 5.0, depth, world.env)
+        return acoustics.transmission_loss(distance(s.x, s.y, x, y), 5.0, depth, world.env) \
+            + world.land_loss(s.x, s.y, x, y)
 
     # ------------------------------------------------------------------ datum
     def _set_datum(self, world: World, x: float, y: float, depth: float, sigma: float,

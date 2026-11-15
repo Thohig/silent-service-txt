@@ -46,6 +46,7 @@ CLUTTER_M = 20.0                # så nära botten drunknar ekot i bottenekot
 BOTTOM_CLUTTER_DB = 10.0        # i rörelse nära botten
 RESTING_CLUTTER_DB = 25.0       # stilla på botten: inget dopplerskift, ekot är en del av botten
 ROCK_HULL_DAMAGE = 0.03         # att sätta sig på klippbotten
+SURFACE_DRAFT_M = 7.0           # djupgående i ytläge: kölen så här djupt
 
 
 def _line_coords(x, y, px: float, py: float, bearing: float):
@@ -182,7 +183,87 @@ class Coast:
                        bay_depth=self.bay_depth * rng.uniform(0.9, 1.1))
 
 
-Feature = Bank | Seamount | Ridge | Canyon | Coast
+def _polyline_coords(x, y, path: tuple[tuple[float, float], ...]):
+    """(index, andel, avstånd) till närmaste segment av en linje; första och sista segmentet
+    förlängs ut i det oändliga (fjorden fortsätter utanför kortet och ut i mynningen)."""
+    best_d = best_i = best_t = None
+    n = len(path) - 1
+    for i in range(n):
+        (ax, ay), (bx, by) = path[i], path[i + 1]
+        dx, dy = bx - ax, by - ay
+        L2 = dx * dx + dy * dy
+        t = ((x - ax) * dx + (y - ay) * dy) / L2
+        lo = -np.inf if i == 0 else 0.0
+        hi = np.inf if i == n - 1 else 1.0
+        t = np.clip(t, lo, hi)
+        d = np.hypot(x - (ax + t * dx), y - (ay + t * dy))
+        if best_d is None:
+            best_d, best_i, best_t = d, np.zeros_like(d, dtype=int), t
+        else:
+            closer = d < best_d
+            best_d = np.where(closer, d, best_d)
+            best_i = np.where(closer, i, best_i)
+            best_t = np.where(closer, t, best_t)
+    return best_i, best_t, best_d
+
+
+@dataclass(frozen=True)
+class Fjord:
+    """Fjordkust: hav norr om en vågig strandlinje, land söder om den utom längs en fjord.
+
+    Fjorden följer `path` (söder → norr, sista punkten ute i mynningen) med halva bredden
+    och mittdjupet i varje punkt; väggarna stupar brant. Holmar (x, y, radie) är land med
+    brant strand. Land får negativt djup; Seabed måste då ha min_depth under noll."""
+    shore_y: float              # strandlinjens medelläge mot havet (nm norrut)
+    wave_amp: float
+    wave_nm: float
+    wave_phase: float
+    path: tuple[tuple[float, float], ...]
+    half_w: tuple[float, ...]   # nm, per punkt
+    depth: tuple[float, ...]    # m mitt i fjorden, per punkt
+    islands: tuple[tuple[float, float, float], ...] = ()
+    shelf_m_per_nm: float = 120.0
+    land_m: float = -10.0
+
+    def shore(self, x):
+        return self.shore_y + self.wave_amp * np.sin(2 * np.pi * x / self.wave_nm + self.wave_phase)
+
+    def _along(self, x, y):
+        """Halva bredden, mittdjupet och avståndet från mittlinjen på platsen."""
+        i, t, d = _polyline_coords(x, y, self.path)
+        hw, dp = np.asarray(self.half_w), np.asarray(self.depth)
+        j = np.minimum(i + 1, len(self.path) - 1)
+        tc = np.clip(t, 0.0, 1.0)
+        return hw[i] + (hw[j] - hw[i]) * tc, dp[i] + (dp[j] - dp[i]) * tc, d
+
+    def in_fjord(self, x, y):
+        """Innanför mynningen (söder om strandlinjen) och i fjorden."""
+        hw, _, d = self._along(x, y)
+        return (y < self.shore(x)) & (d < hw)
+
+    def apply(self, x, y, d):
+        s = y - self.shore(x)                       # nm till havs från stranden
+        shelf = 8.0 + self.shelf_m_per_nm * s + 300.0 * s * s
+        out = np.where(s > 0, np.minimum(d, shelf), self.land_m)
+        hw, dp, a = self._along(x, y)
+        u = np.clip(a / hw, 0.0, 1.0)
+        fj = np.where(a < hw, np.minimum(dp * (1 - u ** 4), d), self.land_m)
+        out = np.maximum(out, fj)
+        for ix, iy, r in self.islands:
+            di = np.hypot(x - ix, y - iy) - r
+            out = np.where(di < 0, self.land_m, np.minimum(out, 8.0 + 1000.0 * di))
+        return out
+
+    def moved(self, rng: random.Random, err_nm: float) -> Fjord:
+        """Hemmavattnen är väl kartlagda: små fel i läge och djup."""
+        f = 0.3 * err_nm
+        path = tuple((px + rng.gauss(0, f), py + rng.gauss(0, f)) for px, py in self.path)
+        isl = tuple((ix + rng.gauss(0, f), iy + rng.gauss(0, f), r) for ix, iy, r in self.islands)
+        return replace(self, shore_y=self.shore_y + rng.gauss(0, f), path=path, islands=isl,
+                       depth=tuple(dp * rng.uniform(0.9, 1.1) for dp in self.depth))
+
+
+Feature = Bank | Seamount | Ridge | Canyon | Coast | Fjord
 
 
 @dataclass(frozen=True)
@@ -298,6 +379,44 @@ def strait_seabed(rng: random.Random, size: float = 14.0) -> Seabed:
                   contour_levels=COAST_CONTOUR_LEVELS)
 
 
+FJORD_CONTOUR_LEVELS = (0, 20, 50, 100, 200)
+ISLAND_CLEAR_NM = 0.5           # holmarnas insida minst så långt från fjordens mitt
+
+
+def kola_seabed(rng: random.Random, size: float = 16.0) -> Seabed:
+    """Kolafjorden från Poljarnyj ut till Barents hav (stiliserad): fjorden går från
+    södra kanten norrut med en böj åt öster, ett par holmar, mynningen ungefär 7 nm norrut
+    och sedan kustbanken som stupar mot 200–300 m."""
+    x0 = size * 0.4 + rng.uniform(-0.5, 0.5)
+    mouth_y = 8.0 + rng.uniform(-0.4, 0.4)
+    bend = rng.uniform(0.8, 1.6)                    # så långt åt öster vid mynningen
+    path = ((x0, -2.0), (x0 + rng.uniform(-0.2, 0.2), 2.5),
+            (x0 + bend * 0.5, 5.0 + rng.uniform(-0.3, 0.3)),
+            (x0 + bend, mouth_y), (x0 + bend + rng.uniform(-0.3, 0.3), mouth_y + 1.5))
+    half_w = (0.55, rng.uniform(0.6, 0.75), rng.uniform(0.65, 0.85), rng.uniform(0.8, 1.0), 1.4)
+    depth = (rng.uniform(110, 150), rng.uniform(130, 180), rng.uniform(160, 220),
+             rng.uniform(180, 240), 240.0)
+    islands = []
+    for k in (1, 2):                                # en holme vid var sida av mittenbenen
+        (ax, ay), (bx, by) = path[k], path[k + 1]
+        f = rng.uniform(0.3, 0.7)
+        cx, cy = ax + (bx - ax) * f, ay + (by - ay) * f
+        L = math.hypot(bx - ax, by - ay)
+        nx, ny = (by - ay) / L, -(bx - ax) / L      # åt höger längs leden
+        side = rng.choice((-1.0, 1.0))
+        w = half_w[k] + (half_w[k + 1] - half_w[k]) * f
+        r = rng.uniform(0.12, 0.2)
+        # nära stranden: farleden (0,15–0,2 nm åt sidorna) går fritt innanför holmen
+        off = side * max(w * 0.95, ISLAND_CLEAR_NM + r)
+        islands.append((cx + nx * off, cy + ny * off, r))
+    fjord = Fjord(shore_y=mouth_y - 0.3, wave_amp=rng.uniform(0.2, 0.4),
+                  wave_nm=rng.uniform(4.0, 7.0), wave_phase=rng.uniform(0, 2 * math.pi),
+                  path=path, half_w=half_w, depth=depth, islands=tuple(islands))
+    return Seabed(base=rng.uniform(220, 300), gradient=(0.0, 4.0), features=(fjord,),
+                  rough=_rough(rng, 4, 0.04), min_depth=-30.0,
+                  contour_levels=FJORD_CONTOUR_LEVELS)
+
+
 def arctic_seabed(rng: random.Random, size: float = 20.0) -> Seabed:
     """Nord-3: djuphavsslätt med en rygg som korsar området."""
     ridge = Ridge(x=rng.uniform(6, size - 6), y=rng.uniform(6, size - 6),
@@ -392,7 +511,7 @@ def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
     st, sys = own.state, own.sys
     if sys.on_bottom:
         return
-    gap = keel_clearance(seabed, st.x, st.y, st.course, st.depth)
+    gap = keel_clearance(seabed, st.x, st.y, st.course, max(st.depth, SURFACE_DRAFT_M))
     if gap >= 0:
         if gap > CLEAR_M:
             sys.bottom_contact = False

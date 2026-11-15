@@ -40,6 +40,7 @@ STYLE = {
     "torpedo": "bold red",
     "contour": "#33505a",
     "coast": "#9c8a5a",
+    "fairway": "#8a7fb0",
     "land": "#4a4232",
     "contour_label": "#4f7480",
     "sounding": "#b09a6a",

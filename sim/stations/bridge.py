@@ -216,6 +216,8 @@ class BridgeWatch(Station):
             if v.side == "own" or v.sunk or getattr(v, "gone", False):
                 continue
             r = world.true_range(v)
+            if r <= vis and not world.in_sight(v.state.x, v.state.y):
+                continue                        # bakom land
             if v.is_ship and v.depth < 10 and r <= vis:
                 objects.append(self._ship(v, r, day))
             elif v.kind == "aircraft" and day and r <= vis:

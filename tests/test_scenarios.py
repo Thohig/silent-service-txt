@@ -23,7 +23,10 @@ def test_every_scenario_builds_and_runs(key, tmp_path):
     log.close()
     assert not g.over
     assert sc.secret_order.strip()
-    assert "AI " in (tmp_path / "truth.log").read_text(encoding="utf-8")
+    text = (tmp_path / "truth.log").read_text(encoding="utf-8")
+    assert "OWN x=" in text
+    if any(ai.vessel.side != "neutral" for ai in g.world.ais):   # övningen har inga fiender
+        assert "AI " in text
 
 
 def test_unknown_scenario_is_rejected():

@@ -15,6 +15,8 @@ import random
 from dataclasses import dataclass, field
 from typing import Any
 
+import numpy as np
+
 from . import acoustics
 from .entities import Emission, Transient, Vessel
 from .environment import Environment
@@ -23,6 +25,9 @@ from .ice import ice_contact, ice_sounds
 from .seabed import bottom_contact
 from .ownship import OwnShip
 from .weapons import Torpedo, step_weapons
+
+LAND_STEP_NM = 0.05         # land mellan två punkter: prov så här tätt längs linjen
+LAND_BLOCK_DB = 60.0        # ljud genom ett berg: i praktiken inget
 
 SINK_ENDING_DELAY = 45      # sekunder brytningsljud innan spelet slutar
 HUNT_NEAR_NM = 1.0          # ett datum så nära oss räknas som att jägaren har oss
@@ -160,6 +165,11 @@ class World:
             if target is not None and self.true_range(target) <= goal["radius_nm"]:
                 self.end(goal["outcome"])
                 return
+        reach = self.mission.get("reach")
+        if reach and distance(self.own.state.x, self.own.state.y, reach["x"], reach["y"]) \
+                <= reach["radius_nm"]:
+            self.end(reach["outcome"])
+            return
         esc = self.mission.get("escape")
         if esc and esc.get("requires_photo") is not None and \
                 self.mission.get("best_photo", -1) < esc["requires_photo"]:
@@ -230,9 +240,31 @@ class World:
         o = self.own.state
         return bearing_to(o.x, o.y, v.state.x, v.state.y)
 
+    def land_between(self, x0: float, y0: float, x1: float, y1: float) -> bool:
+        """Ligger land mellan punkterna? Sanning: ljud och syn går inte genom berg."""
+        sb = self.env.seabed
+        if sb is None or not sb.has_land:
+            return False
+        r = distance(x0, y0, x1, y1)
+        n = int(r / LAND_STEP_NM)
+        if n < 2:
+            return False
+        t = np.arange(1, n) / n
+        return bool((sb.depths(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t) <= 0).any())
+
+    def land_loss(self, x0: float, y0: float, x1: float, y1: float) -> float:
+        """Extra förlust (dB) när land ligger mellan källan och lyssnaren."""
+        return LAND_BLOCK_DB if self.land_between(x0, y0, x1, y1) else 0.0
+
+    def in_sight(self, x: float, y: float) -> bool:
+        """Kan vi se platsen från ubåten (inget land mellan)?"""
+        o = self.own.state
+        return not self.land_between(o.x, o.y, x, y)
+
     def tl_to_own(self, x: float, y: float, depth: float) -> float:
         o = self.own.state
-        return acoustics.transmission_loss(distance(o.x, o.y, x, y), o.depth, depth, self.env)
+        return acoustics.transmission_loss(distance(o.x, o.y, x, y), o.depth, depth, self.env) \
+            + self.land_loss(o.x, o.y, x, y)
 
     def raw_signal_excess(self, v: Vessel) -> float:
         """SE vid egna hydrofoner, utan operatörens tröskel – ren fysik.

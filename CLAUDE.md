@@ -90,10 +90,26 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   `off.briefing` (konvoj, kontakter, besticket ur kunskapen). Tidsgränsen är `World.patrol_end`
   (uppvärmning + speltid). Piloten kan lämna över tidigare genom att returnera True (`seconds` är
   då ett tak). `ScenarioDef.minutes` visas i väljaren. Kort variant = egen nyckel
-  (`konvoj-kort`) som bygger på det långa scenariot. Alla sju scenarier har en kort variant (`-kort`, `-mot`,
+  (`konvoj-kort`) som bygger på det långa scenariot. Alla sju stridsscenarier har en kort variant (`-kort`, `-mot`,
   `-in`, `-ut`). Ny kort variant: provkör 8 frön med passiv bot, ja-boten och en bot med besättningens
   verktyg; riktmärken: första förslag eller kontakt inom 3 min, ja-boten ~2–4 av 8 (utom där följandet
   är kaptenens sak), viktiga lösningar ≥ osäker vid överlämnandet. Siffrorna under Kalibrering.
+- **Övningen** (`ovning`, `training_scenario`): 8 okt 1962, 10:00, ytläge med bryggan bemannad i
+  Kolafjorden utanför Poljarnyj, kurs ut, 10 kn. Botten `kola_seabed` (`seabed.Fjord`: land söder om
+  kusten utom längs en fjord efter `path` med `half_w`/`depth` per punkt, holmar nära stranden minst
+  `ISLAND_CLEAR_NM` från mitten, `in_fjord`); mynningen ~7,7 nm norrut, 260–340 m utanför. Farleden
+  (`Scenario.fairway` ur sjökortets fjord ⇒ `Knowledge.fairway`/`fairway_to`, ritas `╌`). Navigatören
+  (`farleden`, goal "fairway") styr 0,15 nm till styrbord, gir 0,25 nm före brytpunkten, säger
+  `nav.fairway.done` (fritt att dyka) och föreslår `kurs mot övningsområdet`; föreslår `farleden` i
+  fjorden (var 10:e min). Landvarningen tiger om landet ligger bortom girpunkten. Fix från bryggan
+  (`_bridge_bearings`: ytläge, bemannad, land i sikte): ingen mast, ingen fartgräns, var 3:e min av sig
+  själv, rättelse < 0,15 nm sägs inte. Trafik in/ut med brytpunkter 0,2 nm till styrbord. Mål
+  `mission["reach"]` (inom 0,8 nm från övningsområdet) ⇒ `training_area`. Ingen kort variant än.
+  8 frön, ja-boten: framme i alla på 60–65 min, ingen grundstötning, möten på 0,3–0,4 nm.
+- **Land skymmer** (`World.land_between`, prov var 0,05 nm): ljud genom land +60 dB (`land_loss` i
+  `tl_to_own`, jagarens och US-ubåtens `_tl`), bryggan och periskopet ser inte fartyg bakom land.
+  Djupgående i ytläge 7 m (`SURFACE_DRAFT_M`): ytläge kan gå på grund. Med bryggan bemannad föreslår
+  vakthavande inget periskopsvep och sonar ingen fart 4; i ytläge föreslår maskin inget om kavitation.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen

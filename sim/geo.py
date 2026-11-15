@@ -51,3 +51,15 @@ def circular_mean(angles: list[float]) -> float:
     sx = sum(math.sin(math.radians(a)) for a in angles)
     cy = sum(math.cos(math.radians(a)) for a in angles)
     return norm360(math.degrees(math.atan2(sx, cy)))
+
+
+def offset_starboard(points, off: float) -> list[tuple[float, float]]:
+    """Linjen förskjuten off nm till styrbord om gångriktningen (punkterna i gångordning)."""
+    pts = list(points)
+    out = []
+    for i, (x, y) in enumerate(pts):
+        a, b = pts[max(i - 1, 0)], pts[min(i + 1, len(pts) - 1)]
+        L = math.hypot(b[0] - a[0], b[1] - a[1]) or 1.0
+        ux, uy = (b[0] - a[0]) / L, (b[1] - a[1]) / L
+        out.append((x + uy * off, y - ux * off))
+    return out

@@ -87,6 +87,9 @@ class Knowledge:
     waypoints: dict[str, Waypoint] = field(default_factory=dict)
     bathymetry: Seabed | None = None     # det gamla sjökortets djupkurvor (inte sanningen)
     tide_table: TidalStream | None = None   # tidvattentabellen (förutsägelse, inte sanningen)
+    # farleden enligt sjökortet (beräknade koordinater, i gångriktningen) och vart den leder
+    fairway: tuple[tuple[float, float], ...] = ()
+    fairway_to: str | None = None
     best_photo: Quality | None = None    # bästa spaningsfotot hittills
     hunt_t: int = -10**9                 # senast sonar hörde att fienden har oss
     periscope: PeriscopePicture | None = None   # utkikens senaste bild

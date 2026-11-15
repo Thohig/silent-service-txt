@@ -482,7 +482,7 @@ class EngineeringStation(Station):
         if s.flooding > TRIM_RESERVE_T and st.depth > 20 and not s.blowing and s.hp_air > 0:
             out.append(Proposal(1, "idle_blow", "eng.suggest.blow", "nödblåsning",
                                 {"flooding": s.flooding}, cooldown=120))
-        if st.speed > acoustics.cavitation_speed(st.depth) + 0.2:
+        if st.speed > acoustics.cavitation_speed(st.depth) + 0.2 and not self.own.surfaced:
             safe = max(3.0, int(acoustics.cavitation_speed(st.depth)))
             out.append(Proposal(1, "idle_cavitation", "eng.suggest.cavitation", f"fart {safe}",
                                 {"speed": safe}, cooldown=600))
@@ -576,7 +576,8 @@ class EngineeringStation(Station):
         self._smoke_advice()
 
         st = own.state
-        if st.speed > acoustics.cavitation_speed(st.depth) + 0.2:
+        # i ytläge hörs vi ändå som ett ytfartyg: kavitationen spelar ingen roll
+        if st.speed > acoustics.cavitation_speed(st.depth) + 0.2 and not own.surfaced:
             safe = max(3.0, int(acoustics.cavitation_speed(st.depth)))
             self.suggest("cavitation", "eng.suggest.cavitation", {"speed": safe},
                          order=f"fart {safe}", cooldown=600)

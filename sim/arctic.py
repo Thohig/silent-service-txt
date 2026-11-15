@@ -90,7 +90,8 @@ class SubmarineAI:
 
     def _tl(self, world: World, x: float, y: float, depth: float) -> float:
         s = self.vessel.state
-        return acoustics.transmission_loss(distance(s.x, s.y, x, y), s.depth, depth, world.env)
+        return acoustics.transmission_loss(distance(s.x, s.y, x, y), s.depth, depth, world.env) \
+            + world.land_loss(s.x, s.y, x, y)
 
     # --- sensorer -------------------------------------------------------------------
     def _listen(self, world: World) -> None:
