@@ -89,6 +89,7 @@ class Scenario:
     escape_margin_nm: float | None = None
     escape_requires_photo: Quality | None = None   # utvägen räknas först med ett så bra foto
     warmup: Warmup | None = None         # kort variant: vakten före kaptenen (se Warmup)
+    report_required: bool = False        # ordern kräver en rapport vid sambandstillfället
 
 
 def _crew() -> dict[Role, CrewMember]:
@@ -733,6 +734,67 @@ def convoy_counter_scenario(rng: random.Random) -> Scenario:
     return sc
 
 
+KUBA_SHORT_WARM_S = 15 * 60            # vakten före kaptenen: 04:30–04:45
+KUBA_SHORT_WINDOW_IN_S = 5 * 60        # sambandstillfället öppnar så här långt efter överlämnandet
+KUBA_SHORT_WINDOW_S = 15 * 60
+KUBA_SHORT_AFTER_S = 10 * 60           # efter fönstret: så länge att bryta kontakten
+KUBA_SHORT_DD_NM = (3.0, 4.0)
+KUBA_SHORT_CONTACT_SIGMA_NM = 0.5      # jagaren "har oss" bara med ett så skarpt datum
+KUBA_SHORT_TURN_S = 7 * 60             # vakten girar för plottets skull
+
+
+def _kuba_watch_pilot(game: Any, t: int) -> None:
+    """Vakten: smygmotor på 100 m och en gir efter sju minuter, så att plottet får avstånd."""
+    if t == 0:
+        game.command("smygmotor, fart 3")
+    elif t == KUBA_SHORT_TURN_S:
+        game.command(f"kurs {int(game.world.own.state.course + 70) % 360:03d}")
+
+
+def kuba_short_scenario(rng: random.Random) -> Scenario:
+    """Kvadrat 7, kort: jagaren patrullerar 3–4 nm bort, vakten har plottat den i en kvart.
+    Sambandstillfället öppnar fem minuter efter överlämnandet; rapporten ska sändas och
+    ingen får ha oss när fönstret stänger."""
+    sc = default_scenario(rng)
+    w = sc.world
+    r2 = random.Random(rng.random())
+    o = w.own.state
+    dd = next(v for v in w.contacts if v.id == "DD1")
+    b, r = r2.uniform(0, 360), r2.uniform(*KUBA_SHORT_DD_NM)
+    dd.state.x = o.x + r * math.sin(math.radians(b))
+    dd.state.y = o.y + r * math.cos(math.radians(b))
+    dd.state.course = dd.state.ordered_course = (b + 90 + r2.uniform(-40, 40)) % 360
+    w0 = KUBA_SHORT_WARM_S + KUBA_SHORT_WINDOW_IN_S
+    air = AirDef(first_s=(KUBA_SHORT_WARM_S + 5 * 60, KUBA_SHORT_WARM_S + 10 * 60))
+    w.spawners = [sp for sp in w.spawners if not isinstance(sp, AirPatrol)]
+    w.spawners.append(AirPatrol(air, random.Random(r2.random()), area=w.size_nm))
+    sc.radio_windows = [w0]
+    sc.radio_window_len = KUBA_SHORT_WINDOW_S
+    sc.report_required = True
+    w.mission["report"] = {"from": w0, "to": w0 + KUBA_SHORT_WINDOW_S, "outcome": "reported",
+                           "miss_outcome": "report_missed",
+                           "contact_sigma_nm": KUBA_SHORT_CONTACT_SIGMA_NM}
+    w.patrol_end = w0 + KUBA_SHORT_WINDOW_S + KUBA_SHORT_AFTER_S
+    sc.warmup = Warmup(KUBA_SHORT_WARM_S, _kuba_watch_pilot)
+    open_at = sc.start_clock + w0
+    close_at = open_at + KUBA_SHORT_WINDOW_S
+    hm = lambda c: f"{c // 3600:02d}.{c % 3600 // 60:02d}"
+    sc.secret_order += (f"\nVAKTJOURNALEN, {hm(sc.start_clock + KUBA_SHORT_WARM_S)}: EN JAGARE\n"
+                        "PATRULLERAR NÄRA. VAKTHAVANDE HAR GÅTT PÅ\n"
+                        "SMYGMOTOR OCH PLOTTAT DEN. KAPTENEN TAR BEFÄLET.\n"
+                        f"RAPPORTEN SKA SÄNDAS VID SAMBANDSTILLFÄLLET\n"
+                        f"{hm(open_at)}–{hm(close_at)}.\n")
+    sc.outcome_text.update({
+        "reported": "Rapporten är sänd och kvitterad, och jagaren söker på fel ställe. "
+                    "Huvudstaben vet nu var de amerikanska fartygen går.",
+        "report_missed": "Sambandstillfället stängde utan rapport från K-114. Huvudstaben "
+                         "vet inte var de amerikanska fartygen går.",
+        "patrol_end": "Rapporten gick fram, men jagaren har fortfarande K-114. Kvadrat 7 "
+                      "är förlorad som spaningsområde.",
+    })
+    return sc
+
+
 # --- scenarioregister ----------------------------------------------------------
 @dataclass(frozen=True)
 class ScenarioDef:
@@ -760,6 +822,11 @@ register(ScenarioDef(
     "kuba", "Kvadrat 7, oktober 1962",
     "Kubakrisen. Förbli oupptäckt för en amerikansk jagare i karantänlinjen.",
     default_scenario))
+register(ScenarioDef(
+    "kuba-kort", "Kvadrat 7 – sambandsfönstret, oktober 1962",
+    "Kort variant. En amerikansk jagare patrullerar några sjömil bort. Sambandstillfället "
+    "öppnar om fem minuter: sänd rapporten och se till att ingen har er när det stänger.",
+    kuba_short_scenario, minutes=25))
 register(ScenarioDef(
     "arktis", "Under packisen, oktober 1962",
     "Polarnatt vid 85° nord. Drivstationen Nord-7 har tystnat. Ta er dit under isen, "

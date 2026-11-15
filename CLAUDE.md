@@ -292,6 +292,16 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
 - Eskorter (alla konvojer): en eskort med egen kontakt ≤ 40 s gammal och < 0,8 × den jagandes avstånd till
   datumet tar över jakten (`_closer_than`); i anfall går eskorten `SPEED_CLOSE` tills den är 1 nm från
   datumet (förut anfallsfart 15 kn hela vägen, så den hann sällan fram innan kopplet släppte).
+- Kvadrat 7 kort (`kuba-kort`, `kuba_short_scenario`): jagaren 3–4 nm bort i patrull (övningsbomber), vakt
+  15 min (smygmotor 3 kn på 100 m, gir +70° efter 7 min), sambandstillfälle 5 min efter överlämnandet i 15 min,
+  sedan 10 min. Flyget efter 5–10 min. Mål `mission["report"]`: rapport sänd inom fönstret (`last_report_t`)
+  och, när fönstret stängt, ingen jägare med datum σ ≤ 0,5 nm på oss (`_hunting_us(max_sigma=...)`; pejlingen
+  av sändningen, σ 1,5, räknas inte) ⇒ `reported`; ingen rapport ⇒ `report_missed`. Radion (`report_required`):
+  väntar (`radio.wait`) så länge plottet har en hotkontakt ≥ osäker närmare än 5 nm (`RADIO_SAFE_NM`), föreslår
+  antenndjup när den gått längre bort (`radio.clear`), sedan periskopdjup och `sänd rapport` (inte när vi är
+  jagade). Förvarningar under vakten ges igen vid överlämnandet. Sonar föreslår inte skiktet medan radion
+  behöver masten (`RadioStation.needs_mast`), utom när vi är jagade. 8 frön: plottet har jagaren vid
+  överlämnandet i 7, passiv 0, ja-boten 4 (rapporten sänd i 7).
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m.
 - Packis (`ice.py`): rutor 0,05 nm, flerårsis 2–4,5 m, kölar 8–25 m (6 % 30–45 m),
   170 råkar, 28 polynyor ⇒ ~4–5 % öppet vatten, en öppning ungefär var 30:e minut

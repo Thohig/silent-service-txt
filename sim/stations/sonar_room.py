@@ -341,7 +341,8 @@ class SonarRoom(Station):
         held = self.game.knowledge.threat_held()
         out = []
         d = self._below_layer(env.layer_depth) if env.layer_depth is not None else None
-        if held and d is not None and st.ordered_depth < env.layer_depth:
+        if held and d is not None and st.ordered_depth < env.layer_depth \
+                and not self._up_for_radio():
             out.append(Proposal(2, "idle_layer", "sonar.suggest.layer",
                                 f"djup {d:.0f}", {"layer": env.layer_depth, "depth": d}))
         if not held and st.ordered_speed > 6:
@@ -367,9 +368,20 @@ class SonarRoom(Station):
             d = min(d, lim)
         return d if d >= layer + 20 else None
 
+    def _up_for_radio(self) -> bool:
+        """Ligger vi uppe för ett sambandstillfälle som inte är avklarat? Då föreslår sonar
+        inte skiktet, så länge fienden inte har oss."""
+        from .radio import RadioStation
+        try:
+            radio = self.game.station(RadioStation)
+        except KeyError:
+            return False
+        return radio.needs_mast() and not self.game.knowledge.hunted(self.now)
+
     def _suggest_layer(self) -> None:
         env, st = self.game.world.env, self.own.state
-        if env.layer_depth is not None and st.ordered_depth < env.layer_depth:
+        if env.layer_depth is not None and st.ordered_depth < env.layer_depth \
+                and not self._up_for_radio():
             d = self._below_layer(env.layer_depth)
             if d is None:
                 return

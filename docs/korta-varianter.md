@@ -22,6 +22,8 @@ Flytta en variant från **Kvar** till **Klart** när den är byggd, testad och k
   - Tester: `tests/test_warmup.py`.
 - **`konvoj-kort`, "Skjutläge":** konvojen 13–15 nm bort, vakt i 35 min (periskopdjup, fart 3,
   svep var 4:e min), sedan 45 min. Kalibrering står i CLAUDE.md.
+- **`kuba-kort`, "Sambandsfönstret":** vakt 15 min, fönster 5 min efter överlämnandet, rapporten
+  ska sändas och jagaren får inte ha kontakt när fönstret stänger. Kalibrering står i CLAUDE.md.
 - **`konvoj-mot`, "Motanfallet":** vakten skjuter salvan inom 2–4 min, kaptenen tar över ~45 s före
   träff med en eskort i anfall. Kalibrering står i CLAUDE.md.
 - **`jagad-kort`, "Skarpt":** utan uppvärmning, kvadraten 7 nm, båda jagarna skarpa från start,
@@ -30,14 +32,6 @@ Flytta en variant från **Kvar** till **Klart** när den är byggd, testad och k
 ## Kvar, i byggordning
 
 ### Steg 4 – uppvärmning med fast plan
-
-**`kuba-kort`, "Sambandsfönstret", ~20 min**
-- **Start:** jagaren 3–4 nm bort i patrull med övningsbomber.
-  Flyget efter 5–10 min (`KUBA_AIR` med kortare första väntan).
-- **Uppvärmning:** ~15 min, så att sonar och plott har jagaren.
-- **Radiofönstret:** öppnar några minuter efter överlämnandet och är öppet i 15 min.
-- **Mål:** rapporten sänd och ingen jägare med datum på oss när fönstret stänger.
-- **Nytt i koden:** målet i `World._check_outcome` (t.ex. `mission["report"]`).
 
 **`sundet-in`, "Grinden", ~20 min**
 - **Start:** i väntläget, med ett inkommande fartyg 1,5 nm från grinden.
