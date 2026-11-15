@@ -6,6 +6,8 @@ instrument (`StatusSnapshot`) och vem som just rapporterat; aldrig något om fie
 
 Ren funktion: `render_central(status, speaking, t, width, height)` ger en rad `Text` per rad.
 Bilden ritas i den storlek den får (minst `W` × `H`): stor som huvudvy, liten bredvid loggen.
+Stor (`BIG`) har väggarna instrument i braille (`ui/instruments.py`): gyro, sidroder och telegraf
+till vänster, djup, fart, klocka och djuproder till höger. Visarna rör sig mjukt (`Needles`).
 """
 from __future__ import annotations
 
@@ -16,10 +18,15 @@ from rich.text import Text
 
 from sim.game import StatusSnapshot
 
+from . import instruments as ins
+from .canvas import Canvas as _Canvas
+
 W, H = 40, 13                   # minsta storlek (och den lilla bilden bredvid loggen)
 CRUSH_M = 450.0
 SPEAK_S = 3.0                   # så länge en plats lyser efter en rapport
 DIAL_ROW = 1                    # mätarnas översta rad
+BIG = (100, 22)                 # minst så stor: braillesinstrumenten
+NEEDLE_TAU_S = 0.5              # visarnas tröghet
 
 PALETTES = {
     "normal": {
@@ -101,6 +108,36 @@ class Geometry:
         return DIAL_ROW + self.dial_h
 
     @property
+    def big(self) -> bool:
+        return self.w >= BIG[0] and self.h >= BIG[1]
+
+    def slots(self) -> dict[str, tuple[int, int, int, int]]:
+        """De stora instrumentens rutor (top, left, rows, cols): den stora mätaren ytterst på
+        varje vägg, de mindre staplade närmare mitten."""
+        top, rows = DIAL_ROW, self.lamps - DIAL_ROW
+        out = {}
+        for (a, b), outer, inner in ((self.left, "gyro", ("sidror", "telegraf")),
+                                     (self.right, "djup", ("fart", "djupror"))):
+            width = b - a + 1
+            big_w = min(int(width * 0.55), 2 * (rows - 1))
+            rest = width - big_w - 1
+            upper = rows // 2
+            if outer == "gyro":
+                out[outer] = (top, a, rows, big_w)
+                x = a + big_w + 1
+            else:
+                out[outer] = (top, b - big_w + 1, rows, big_w)
+                x = a
+            if inner[0] == "fart":                 # fart och klocka sida vid sida
+                half = rest // 2
+                out["fart"] = (top, x, upper, half)
+                out["klocka"] = (top, x + half, upper, rest - half)
+            else:
+                out[inner[0]] = (top, x, upper, rest)
+            out[inner[1]] = (top + upper, x, rows - upper, rest)
+        return out
+
+    @property
     def mid(self) -> int:
         return self.w // 2
 
@@ -139,10 +176,10 @@ class Geometry:
 
     def seated(self) -> dict[str, int]:
         """Huvudets kolumn för de sittande."""
-        d = self.dials()
+        a, b = self.left
         lo = self.officer + 4
         hi = max(lo + 8, self.right[1] - 1 - (self.w - W) // 20)
-        out = {"ror": d["kurs"] + self.dial_w // 2, "djupror": d["roder"] + self.dial_w // 2}
+        out = {"ror": round(a + (b - a) * 0.25), "djupror": round(a + (b - a) * 0.75)}
         for i, role in enumerate(("engineer", "navigator", "plot")):
             out[role] = round(lo + (hi - lo) * i / 2)
         return out
@@ -158,39 +195,6 @@ class Geometry:
     @property
     def julgran(self) -> int:
         return self.right[1] - 6
-
-
-class _Canvas:
-    def __init__(self, w: int, h: int, base: str) -> None:
-        self.w, self.h = w, h
-        self.cells = [[(" ", base) for _ in range(w)] for _ in range(h)]
-
-    def put(self, row: int, col: int, ch: str, style: str) -> None:
-        if 0 <= row < self.h and 0 <= col < self.w:
-            self.cells[row][col] = (ch, style)
-
-    def text(self, row: int, col: int, s: str, style: str) -> None:
-        for i, ch in enumerate(s):
-            self.put(row, col + i, ch, style)
-
-    def blank(self, row: int, col: int) -> bool:
-        return self.cells[row][col][0] == " "
-
-    def lines(self) -> list[Text]:
-        out = []
-        for row in self.cells:
-            t = Text(no_wrap=True, overflow="crop")
-            run, style = "", None
-            for ch, st in row:
-                if st != style and run:
-                    t.append(run, style=style)
-                    run = ""
-                run += ch
-                style = st
-            if run:
-                t.append(run, style=style)
-            out.append(t)
-        return out
 
 
 def _signed_diff(a: float, b: float) -> float:
@@ -249,16 +253,90 @@ def _dial(c: _Canvas, g: Geometry, col: int, angle: float, p: dict,
     c.put(cr, cc, "●", p["hub"])
 
 
+class Needles:
+    """Visarnas visade läge: följer instrumenten med tröghet, så att de svänger mjukt
+    i stället för att hoppa en gång per sekund. En per bild (widget)."""
+
+    def __init__(self, tau: float = NEEDLE_TAU_S) -> None:
+        self.tau = tau
+        self.values: dict[str, float] = {}
+        self.t: float | None = None
+
+    def update(self, s: StatusSnapshot, now: float) -> dict[str, float]:
+        targets = {"course": s.course, "depth": s.depth, "speed": s.speed,
+                   "rudder": rudder_angle(s), "planes": plane_angle(s)}
+        dt = 0.0 if self.t is None else max(0.0, min(2.0, now - self.t))
+        self.t = now
+        k = 1.0 - math.exp(-dt / self.tau) if dt > 0 else 0.0
+        for key, target in targets.items():
+            if key not in self.values:
+                self.values[key] = target
+            elif key == "course":
+                v = self.values[key]
+                self.values[key] = (v + _signed_diff(v, target) * k) % 360.0
+            else:
+                self.values[key] += (target - self.values[key]) * k
+        return dict(self.values)
+
+
+def _big_instruments(c: _Canvas, g: Geometry, s: StatusSnapshot, shown: dict[str, float],
+                     p: dict, ring: str | None) -> None:
+    slots = g.slots()
+    turning = "course" in s.changing
+    diving = "depth" in s.changing
+    dials = {
+        "gyro": ins.gyro(shown["course"], s.ordered_course if turning else None, p),
+        "djup": ins.depth_gauge(shown["depth"], s.ordered_depth if diving else None, p),
+        "fart": ins.speed_gauge(shown["speed"], s.ordered_speed, s.depth, s.cavitating, p),
+        "klocka": ins.clock_face(s.clock, p),
+        "sidror": ins.rudder_gauge(shown["rudder"], p),
+        "djupror": ins.planes_gauge(shown["planes"], p),
+        "telegraf": ins.telegraph(s.ordered_speed, s.speed, s.propulsion, s.reactor, p),
+    }
+    # avläsningarna visar instrumentens exakta värde, visarna det trögare
+    dials["gyro"].readout[0] = (ins.fmt_course(s.course), "bold")
+    dials["djup"].readout[0] = (f"{s.depth:.0f} m", dials["djup"].readout[0][1])
+    for key, d in dials.items():
+        top, left, rows, cols = slots[key]
+        ins.draw_dial(c, top, left, rows, cols, d, p, ring)
+
+
+def _small_dials(c: _Canvas, g: Geometry, s: StatusSnapshot, shown: dict[str, float],
+                 p: dict, dial_style: str | None, blink: bool) -> None:
+    """Den lilla bilden: fyra enkla mätare med åtta visarlägen."""
+    dials = g.dials()
+    _dial(c, g, dials["kurs"], shown["course"], p, top="N",
+          marker=s.ordered_course if "course" in s.changing else None, style=dial_style)
+    _dial(c, g, dials["roder"], shown["rudder"] * 2.5, p, style=dial_style)
+
+    def depth_angle(d: float) -> float:
+        return -150.0 + 300.0 * min(max(d, 0.0) / CRUSH_M, 1.0)
+
+    deep = s.depth >= 300
+    _dial(c, g, dials["djup"], depth_angle(shown["depth"]), p,
+          marker=depth_angle(s.ordered_depth) if "depth" in s.changing else None,
+          style=RED if deep and blink else dial_style)
+    _dial(c, g, dials["djupror"], 90.0 + shown["planes"] * 2.0, p, style=dial_style)
+    for key, label in (("kurs", "kurs"), ("roder", "roder"), ("djup", "djup"),
+                       ("djupror", "djupr")):
+        col = dials[key] + g.dial_w // 2 - len(label) // 2
+        c.text(g.label, col, label, p["label"])
+
+
 def _seated(c: _Canvas, g: Geometry, col: int, p: dict, lit: str | None, lean: int = 0) -> None:
     c.put(g.head, col + lean, "●", lit or p["head"])
     c.text(g.body, col - 1, "▟█▙", lit or p["crew"])
 
 
 def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
-                   t: float = 0.0, width: int = W, height: int = H) -> list[Text]:
+                   t: float = 0.0, width: int = W, height: int = H,
+                   shown: dict[str, float] | None = None) -> list[Text]:
     """speaking: roll → sekunder sedan rollens senaste rapport. t: väggklocka för blinkande.
-    width/height: bildens storlek i tecken (minst W × H)."""
+    width/height: bildens storlek i tecken (minst W × H). shown: visarnas läge (`Needles`),
+    annars instrumentens."""
     g = Geometry(max(W, width), max(H, height))
+    shown = shown or {"course": s.course, "depth": s.depth, "speed": s.speed,
+                      "rudder": rudder_angle(s), "planes": plane_angle(s)}
     red = s.night or s.hunted
     p = PALETTES["red" if red else "normal"]
     speaking = speaking or {}
@@ -292,24 +370,11 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
         c.put(r + 1, g.ladder, "█", p["crew"])
 
     # mätarna
-    dials = g.dials()
     dial_style = p["label"] if smoky else None
-    _dial(c, g, dials["kurs"], s.course, p, top="N",
-          marker=s.ordered_course if "course" in s.changing else None, style=dial_style)
-    _dial(c, g, dials["roder"], rudder_angle(s) * 2.5, p, style=dial_style)
-
-    def depth_angle(d: float) -> float:
-        return -150.0 + 300.0 * min(max(d, 0.0) / CRUSH_M, 1.0)
-
-    deep = s.depth >= 300
-    _dial(c, g, dials["djup"], depth_angle(s.depth), p,
-          marker=depth_angle(s.ordered_depth) if "depth" in s.changing else None,
-          style=RED if deep and blink else dial_style)
-    _dial(c, g, dials["djupror"], 90.0 + plane_angle(s) * 2.0, p, style=dial_style)
-    for key, label in (("kurs", "kurs"), ("roder", "roder"), ("djup", "djup"),
-                       ("djupror", "djupr")):
-        col = dials[key] + g.dial_w // 2 - len(label) // 2
-        c.text(g.label, col, label, p["label"])
+    if g.big:
+        _big_instruments(c, g, s, shown, p, dial_style)
+    else:
+        _small_dials(c, g, s, shown, p, dial_style, blink)
 
     # pulpeterna
     for a, b in (g.left, g.right):
@@ -322,8 +387,9 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
     tele = GREEN if s.propulsion == "turbine" else "bold #5fafff"
     if s.reactor != "online":
         tele = AMBER
-    for i, ch in enumerate("▂▄▆█"):
-        c.put(g.lamps, g.telegraph + i, ch, tele if i < steps else p["lamp_off"])
+    if not g.big:                                   # stor: telegrafen är ett instrument
+        for i, ch in enumerate("▂▄▆█"):
+            c.put(g.lamps, g.telegraph + i, ch, tele if i < steps else p["lamp_off"])
     # julgranen: skrovets öppningar, grönt stängt, rött öppet
     openings = (s.bridge != "shut", s.periscope is not None and s.periscope_optic == "periskop",
                 s.masts_up)
@@ -345,7 +411,7 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
     c.put(g.console, g.officer, "●", officer or p["head"])
     c.text(g.head, g.officer - 1, "▟█▙", officer or p["crew"])
     c.text(g.body, g.officer - 1, "▐ ▌", officer or p["crew"])
-    rud = rudder_angle(s)
+    rud = shown["rudder"]
     lean = 1 if rud > 5 else -1 if rud < -5 else 0
     seats = g.seated()
     _seated(c, g, seats["ror"], p, None, lean)

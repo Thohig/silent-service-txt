@@ -47,6 +47,7 @@ CENTRAL_WORDS = {"central", "centralen"}
 VIEWS = (LogScreen, ChartScreen, ProfileScreen, SystemScreen, PeriscopeScreen,
          BridgeScreen)
 GAUGE_EVERY_S = 0.5
+CENTRAL_EVERY_S = 0.1                  # centralens instrument: tio gånger i sekunden
 CENTRAL_MIN_WIDTH = 100                # smalare terminal: bara djupmätaren
 BIG_MIN = (120, 36)                    # minst så stort: centralen är huvudvyn, loggen en remsa
 SOUND_WORDS = {"ljud", "ljud av", "ljud på", "ljud pa"}
@@ -138,6 +139,7 @@ class SubApp(App):
         self.sound: SoundBoard | None = None
         self._sound_note: str | None = None
         self._gauge_t = 0.0
+        self._central_t = 0.0
         self._spoke: dict[str, float] = {}   # roll → när den senast rapporterade (väggklocka)
         self.language: str | None = None     # talets språk, gäller över uppdragen
         self.scenario_key: str | None = None
@@ -220,6 +222,8 @@ class SubApp(App):
         self._game_ready = True
         self._spoke = {}
         try:
+            for view in self.gs().query(CentralView):
+                view.reset()
             self.gs().query_one(StatusBar).show(game.status())
             self._show_central(game.status(), time.monotonic())
             if self.gs().query_one(Teletype).done:
@@ -434,12 +438,16 @@ class SubApp(App):
             if now - self._gauge_t >= GAUGE_EVERY_S:
                 self._gauge_t = now
                 self.gs().query_one(DepthGauge).show(self.game.profile())
+            if now - self._central_t >= CENTRAL_EVERY_S:
+                self._central_t = now
                 self._show_central(status, now)
         except NoMatches:
             pass
 
     def _show_central(self, status, now: float) -> None:
         gs = self.gs()
+        if self.screen is not gs:            # en vy ligger över: ingen ser centralen
+            return
         speaking = {role: now - t for role, t in self._spoke.items()}
         view = gs.query_one("#central-big" if gs.big else "#central", CentralView)
         if view.display:

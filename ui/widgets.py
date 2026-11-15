@@ -11,7 +11,7 @@ from sim.geo import fmt_course
 from sim.profile import ProfileView
 from sim.reports import Quality, Report
 
-from .central_render import render_central
+from .central_render import Needles, render_central
 from .profile_render import render_gauge
 
 QUALITY_STYLE = {
@@ -207,9 +207,19 @@ class DepthGauge(Static):
 
 
 class CentralView(Static):
-    """Centralen som bild ovanför djupmätaren (ui/central_render.py)."""
+    """Centralen som bild (ui/central_render.py): huvudvy i stort fönster, annars liten
+    ovanför djupmätaren. Visarna följer instrumenten med tröghet (`Needles`)."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.needles = Needles()
+
+    def reset(self) -> None:
+        """Nytt uppdrag: visarna börjar där instrumenten står."""
+        self.needles = Needles()
 
     def show(self, status: StatusSnapshot, speaking: dict[str, float], t: float) -> None:
         """Ritas i den storlek widgeten har (minst den lilla bilden)."""
         w, h = self.content_size.width, self.content_size.height
-        self.update(Text("\n").join(render_central(status, speaking, t, w, h)))
+        shown = self.needles.update(status, t)
+        self.update(Text("\n").join(render_central(status, speaking, t, w, h, shown)))

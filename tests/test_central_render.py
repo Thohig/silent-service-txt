@@ -131,7 +131,8 @@ def test_layout_follows_the_window(tmp_path):
             assert big.size.height > 25 and big.size.width == 140
             assert gs.query_one("#log", ReportLog).size.height < 12
             lines = str(big.render()).split("\n")
-            assert len(lines) == big.size.height and "╭" in lines[1]
+            assert len(lines) == big.size.height
+            assert any(0x2800 < ord(ch) <= 0x28FF for ch in "".join(lines))   # instrumenten
 
             await pilot.press(*"kurs 090", "enter")
             await pilot.press("tab")                     # första vyn: hela loggboken
