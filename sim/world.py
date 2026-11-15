@@ -139,6 +139,10 @@ class World:
         strike = self.mission.get("strike")
         if strike and self._strike_done(strike):
             return
+        photo = self.mission.get("photo")
+        if photo and self.mission.get("best_photo", -1) >= photo["quality"]:
+            self.end(photo["outcome"])
+            return
         rep = self.mission.get("report")
         if rep and self.time >= rep["to"]:
             sent = self.mission.get("last_report_t")

@@ -425,10 +425,14 @@ STRAIT_RADIO = [
 HARBOR_PATROL_SPEED = 6.0
 
 
-def strait_scenario(rng: random.Random) -> Scenario:
-    """Genom sundet: smyg in mot en flottbas, fotografera ankarplatsen, ta dig ut."""
+def strait_scenario(rng: random.Random, short: bool = False) -> Scenario:
+    """Genom sundet: smyg in mot en flottbas, fotografera ankarplatsen, ta dig ut.
+
+    short (`sundet-in`): 06:20, vi ligger vid väntläget och ett fartyg är på väg in;
+    målet är bara fotot (se strait_in_scenario)."""
     from .harbor import HarborDefense, HydrophoneLine, Net, PatrolBoatAI, hydrophone_points
-    start_clock = 4 * 3600 + 20 * 60                   # 04:20, gryningen kl 06:10
+    # 04:20, gryningen kl 06:10; kort variant efter gryningen
+    start_clock = STRAIT_IN_CLOCK if short else 4 * 3600 + 20 * 60
     size = 14.0
     sb_rng = random.Random(rng.random())
     seabed = strait_seabed(sb_rng, size)
@@ -498,15 +502,30 @@ def strait_scenario(rng: random.Random) -> Scenario:
     margin = 0.5
     world.mission["escape"] = {"margin_nm": margin, "outcome": "recon_done",
                                "requires_photo": int(Quality.GOD)}
-    windows = [(c - start_clock) for c in (6 * 3600 + 30 * 60, 8 * 3600)]
+    if short:
+        r2 = random.Random(rng.random())
+        # vid väntläget: ut längs farleden och lite åt sidan, på smygmotor
+        side = r2.choice((-1.0, 1.0))
+        own.state.x, own.state.y = cx + side * 0.35, net_y - 1.4 - r2.uniform(0.1, 0.3)
+        own.state.depth = own.state.ordered_depth = 30.0
+        own.state.speed = own.state.ordered_speed = 2.0
+        # fartyget in: framme vid grinden ungefär 1,5 nm efter vakten
+        y0, y1 = lanes[0].start[1], lanes[0].end[1]
+        gy = net_y - r2.uniform(*STRAIT_IN_SHIP_NM)
+        traffic._spawn(world, lanes[0], (gy - y0) / (y1 - y0))
+        traffic.next_t[0] = 10**9                         # inga fler in under spelet
+        del world.mission["escape"]
+        world.mission["photo"] = {"quality": int(Quality.GOD), "outcome": "photo_taken"}
+        world.patrol_end = STRAIT_IN_WARM_S + STRAIT_IN_LIMIT_S
+    windows = [(c - start_clock) for c in (6 * 3600 + 30 * 60, 8 * 3600) if c > start_clock + 3600]
     known = [("Ankarplatsen", ax + rng.gauss(0, 0.2), ay + rng.gauss(0, 0.2), 0.4, 0),
              ("Nätet", cx + rng.gauss(0, 0.05), net_y + rng.gauss(0, 0.15), 0.2, 0)]
     return Scenario(world, _crew(), STRAIT_ORDER, start_clock,
                     radio_windows=windows, radio_messages=list(STRAIT_RADIO),
                     known_positions=known, chart_seabed=chart,
                     tide_table=tide.table_copy(random.Random(rng.random())),
-                    area_name="inloppet", escape_margin_nm=margin,
-                    escape_requires_photo=Quality.GOD,
+                    area_name="inloppet", escape_margin_nm=None if short else margin,
+                    escape_requires_photo=None if short else Quality.GOD,
                     outcome_text={
                         "recon_done": "K-114 har lämnat inloppet med bilderna av ankarplatsen. "
                                       "Filmen framkallas ombord; i Moskva väntar man på dem.",
@@ -518,6 +537,37 @@ def strait_scenario(rng: random.Random) -> Scenario:
                         "quit": "Kaptenen har avbrutit. K-114 lämnar inloppet i förtid.",
                         "lost": "K-114 är förlorad utanför Guantánamo med hela besättningen.",
                     })
+
+
+STRAIT_IN_CLOCK = 6 * 3600 + 20 * 60      # efter gryningen: fotot kräver dagsljus
+STRAIT_IN_WARM_S = 10 * 60
+STRAIT_IN_LIMIT_S = 35 * 60
+STRAIT_IN_SHIP_NM = (3.0, 3.2)             # fartyget in så långt från nätet vid start
+
+
+def _strait_watch_pilot(game: Any, t: int) -> None:
+    """Vakten: smygmotor och väntläget, så att sonar och plott får fartyget som kommer in."""
+    if t == 0:
+        game.command("smygmotor, väntläget")
+
+
+def strait_in_scenario(rng: random.Random) -> Scenario:
+    """Genom sundet, kort: väntläget, ett fartyg på väg in mot grinden, fotot är målet."""
+    sc = strait_scenario(rng, short=True)
+    sc.warmup = Warmup(STRAIT_IN_WARM_S, _strait_watch_pilot)
+    sc.secret_order = STRAIT_ORDER.replace(
+        "3. LÄMNA OMRÅDET SÖDERUT OUPPTÄCKT MED\n   BILDERNA.",
+        "3. BILDERNA ÄR ALLT. VÄGEN UT ÄR EN\n   SENARE FRÅGA.") + (
+        "\nVAKTJOURNALEN, 06.30: VI LIGGER I VÄNTLÄGET\n"
+        "UTANFÖR NÄTET. ETT FARTYG ÄR PÅ VÄG IN MOT\n"
+        "GRINDEN. KAPTENEN TAR BEFÄLET.\n")
+    sc.outcome_text.update({
+        "photo_taken": "Bilderna av ankarplatsen är tagna. K-114 ligger innanför nätet i "
+                       "Guantánamobukten med filmen ombord.",
+        "patrol_end": "Fartyget har passerat och grinden är stängd. K-114 har inte kommit nära "
+                      "nog för bilderna.",
+    })
+    return sc
 
 
 CONVOY_ORDER = """\
@@ -847,6 +897,11 @@ register(ScenarioDef(
     "Smyg in mot den amerikanska flottbasen genom ett grunt inlopp med nät, hydrofoner och "
     "patrullbåt. Fotografera ankarplatsen i dagsljus och ta er ut igen.",
     strait_scenario))
+register(ScenarioDef(
+    "sundet-in", "Guantánamo – grinden, 25 oktober 1962",
+    "Kort variant. Ni ligger i väntläget utanför nätet och ett fartyg är på väg in mot "
+    "grinden. Ta er in bakom det och fotografera ankarplatsen.",
+    strait_in_scenario, minutes=25))
 register(ScenarioDef(
     "konvoj", "Konvojen, 28 oktober 1962",
     "Kriget har börjat. En eskorterad konvoj med trupper till Kuba sicksackar genom "

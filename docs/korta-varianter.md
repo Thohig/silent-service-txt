@@ -22,6 +22,8 @@ Flytta en variant från **Kvar** till **Klart** när den är byggd, testad och k
   - Tester: `tests/test_warmup.py`.
 - **`konvoj-kort`, "Skjutläge":** konvojen 13–15 nm bort, vakt i 35 min (periskopdjup, fart 3,
   svep var 4:e min), sedan 45 min. Kalibrering står i CLAUDE.md.
+- **`sundet-in`, "Grinden":** vakt 10 min i väntläget, fartyget passerar 3–5 min efter
+  överlämnandet, målet är ett gott foto. Kalibrering står i CLAUDE.md.
 - **`kuba-kort`, "Sambandsfönstret":** vakt 15 min, fönster 5 min efter överlämnandet, rapporten
   ska sändas och jagaren får inte ha kontakt när fönstret stänger. Kalibrering står i CLAUDE.md.
 - **`konvoj-mot`, "Motanfallet":** vakten skjuter salvan inom 2–4 min, kaptenen tar över ~45 s före
@@ -32,12 +34,6 @@ Flytta en variant från **Kvar** till **Klart** när den är byggd, testad och k
 ## Kvar, i byggordning
 
 ### Steg 4 – uppvärmning med fast plan
-
-**`sundet-in`, "Grinden", ~20 min**
-- **Start:** i väntläget, med ett inkommande fartyg 1,5 nm från grinden.
-- **Uppvärmning:** ~10 min, så att sonar och plott har fartyget.
-- **Mål:** ett foto av god kvalitet. Utvägen ingår inte.
-- **Nytt i koden:** mål som slutar vid fotot (i dag kräver `escape` foto *och* utväg).
 
 **`sundet-ut`, "Ut med filmen", ~20 min**
 - **Start:** innanför nätet med filmen och patrullbåten i rörelse. Ett utgående fartyg

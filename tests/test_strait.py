@@ -282,3 +282,36 @@ def test_wait_order_takes_us_there_and_holds_station():
     assert o.ordered_speed <= 2.0 and nav.goal == "wait"
     g.command("fart 8")                                    # kaptenen tar över
     assert nav.goal is None
+
+
+def test_photo_goal_ends_the_game_when_good():
+    from sim.scenario import build_scenario
+    g = Game(build_scenario("sundet-in", random.Random(1)), seed=1, warm_up=False)
+    w = g.world
+    assert "escape" not in w.mission and w.mission["photo"]["outcome"] == "photo_taken"
+    w.mission["best_photo"] = int(Quality.OSAKER)
+    w._check_outcome()
+    assert w.outcome is None
+    w.mission["best_photo"] = int(Quality.GOD)
+    w._check_outcome()
+    assert w.outcome["outcome"] == "photo_taken"
+
+
+@pytest.mark.slow
+def test_strait_in_hands_over_at_the_wait_point_with_a_ship_coming_in():
+    from sim.harbor import HarborDefense
+    from sim.scenario import SCENARIOS, STRAIT_IN_LIMIT_S, STRAIT_IN_WARM_S, build_scenario
+    assert SCENARIOS["sundet-in"].minutes
+    for seed in range(3):
+        g = Game(build_scenario("sundet-in", random.Random(seed)), seed=seed)
+        w = g.world
+        net = next(sp for sp in w.spawners if isinstance(sp, HarborDefense)).net
+        o = w.own.state
+        assert g.now == STRAIT_IN_WARM_S and not g.over
+        assert w.env.is_day(g.now)
+        assert 1.0 < net.y - o.y < 1.8 and abs(o.x - net.gate_x) < 0.6
+        inbound = [v for v in w.contacts if v.kind == "merchant" and 0.0 < o.y - v.state.y < 1.0
+                   and abs(v.state.x - net.gate_x) < 0.3]
+        assert inbound, "ett fartyg på väg in strax utanför oss"
+        assert any(t.civil and t.solution is not None for t in g.knowledge.tracks.values())
+        assert w.patrol_end == STRAIT_IN_WARM_S + STRAIT_IN_LIMIT_S
