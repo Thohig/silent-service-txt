@@ -8,8 +8,9 @@ kaptenens (användarens) beslut. Det som redan är byggt står i CLAUDE.md och R
 - ~~Plottet kallar ibland felaktiga lösningar "god"~~ – rättat 2026-11-15 (manöverbrus, gamla
   lösningar, kursen som tak). Kvar: girar de senaste minuterna innan plottet sett dem (~9 % grova fel).
 - **Torpedrummet säger skjutlösning på bevakningsfartyget** före torpedsteget i övningen.
-- **Kalibreringssiffror som glidit:** Övningens ja-bot står som 92–106 min men tar 107–122 min
-  sedan torpedsteget; Arktis ja-bot angavs ~10 av 12 men gav 6–7.
+- ~~Kalibreringssiffror som glidit~~ – alla botar omkörda 2026-11-15 och siffrorna rättade i
+  CLAUDE.md. Störst skillnad: Kvadrat 7 hittas nu av jagaren i 12 av 12 (angivet 9) och flyget 11
+  av 12 (8); konvoj-mot passiv/ja 5 av 8 (3/4). Inte omkört: sundet med sanningsboten, väntläget.
 - **Gränssnittet ej provkört för hand** i riktig terminal: övningen, periskopet i realtid.
 - **Konvojen:** ska besättningen föreslå en periskoptitt strax före skjutläge? Boten skjuter
   på gamla lösningar (titt var 4:e min, ben på 5–10 min).

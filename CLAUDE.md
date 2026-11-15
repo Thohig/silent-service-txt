@@ -126,8 +126,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   plottets lösning ("stämmer" om kurs < 20°, fart < 4 kn, läge < max(0,5 nm, 30 % av avståndet)).
   Förslagsveto (`Station.vetoes`): navigatören stoppar alla dykförslag där ordern förbjuder dykning;
   i ytläge föreslår maskin ingen smygmotor och navigatören inte botten.
-  8 frön, ja-boten: klar i alla på 92–106 min, ingen grundstötning; lyssningen 8–16 min (efter
-  plottets ärliga kvalitet 2026-11-15: 7–25 min, avbruten i 1 av 8, hela övningen 110–121 min), plottets
+  8 frön, ja-boten: klar i alla på 110–121 min (omkört 2026-11-15; förut angivet 92–106, före
+  torpedsteget), ingen grundstötning; lyssningen 7–25 min, avbruten i 1 av 8 (förut 8–16), plottets
   kurs inom 7° i alla, läget 0,1–1,4 nm fel (efter ändrade gränser stämmer fler än 4 av 8).
   Övningstorped (`TORPEDO_TYPES["övning"]`, 53-61 utan stridsspets, 12 m djup): detonerar aldrig,
   noterar närmaste passage per fartyg (`Torpedo.passed`), sätter inte `hostile_act`; torpedrummet
@@ -137,12 +137,14 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   igenom (`train.torpedo.brief`, var 5:e min) och kaptenen beordrar själv; klart en minut efter
   beräknad passage, eller hoppas över efter 15 min utan avfyring. Partnern svarar på
   undervattenstelefonen (`exercise.torpedo_report`): träff = under kölen (halva längden), annars
-  avstånd i meter. 8 frön, bot som skjuter en torped när lösningen är god: klar på 98–115 min,
-  träff i 2, bom på 70–90 m i 4, långt bom i 1, ingen god lösning i 1.
+  avstånd i meter. 8 frön, bot som skjuter en torped när lösningen är god: klar på 99–121 min,
+  träff i 4, bom på 140 m i 1, långt bom (830 m, eller torpeden hördes aldrig) i 2, ingen avfyring i 1
+  (omkört 2026-11-15; förut träff i 2, bom 70–90 m i 4).
   Kort variant (`ovning-kort`, 40 min): start på periskopdjup 4 kn inom 0,4 nm från
   övningsområdet, vakt 4 min (periskopsvep, fix), stegen från `djup100`, tidsgräns 60 min.
-  8 frön: första förslag efter ~67 s; ja-boten klar på 35–51 min (torpeden hoppas över);
-  bot som skjuter klar på 25–37 min, träff i 1; passiv kapten: tiden ute.
+  8 frön: första förslag efter ~67 s; ja-boten klar på 41–53 min i 7, tiden ute i 1 (torpeden hoppas
+  över); bot som skjuter klar på 22–52 min, träff i 3 (omkört 2026-11-15; förut 35–51, 25–37 och
+  träff i 1); passiv kapten: tiden ute.
 - **Land skymmer** (`World.land_between`, prov var 0,05 nm): ljud genom land +60 dB (`land_loss` i
   `tl_to_own`, jagarens och US-ubåtens `_tl`), bryggan och periskopet ser inte fartyg bakom land.
   Djupgående i ytläge 7 m (`SURFACE_DRAFT_M`): ytläge kan gå på grund. Med bryggan bemannad föreslår
@@ -336,7 +338,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
 - Ubåtsjaktflyg (Kuba, `KUBA_AIR`): första plan efter 40–80 min, 60–90 min över kvadraten,
   45–75 min mellan. Radar: master 6 nm (6 %/svep), ytläge 25 nm. MAD 250 m snedavstånd
   från 60 m höjd (säkert under ~190 m). Passiva bojar DT 8; aktiv boj 205 dB var 20:e s.
-  Med flyg: jagaren hittar ja-boten i 9 av 12 frön (7 utan), flyget självt i 8 av 12.
+  Med flyg: jagaren hittar ja-boten i 9 av 12 frön (7 utan), flyget självt i 8 av 12. Omkört
+  2026-11-15 (`kuba_jakt.py`): jagaren 12 av 12, flyget 11 av 12, 338 sjunkbomber, skrovet skadat i 2.
 - Botten (Kuba): djuphav 1 850–2 350 m, +15 m/nm norrut; bank 120–200 m med kanten 4,5–5,5 nm
   från väst- eller östsidan ⇒ ~15–18 % grundare än 300 m; berg med topp 250–400 m minst 4 nm
   från start; ränna 250–450 m djup. Kortets fel 0,5 nm (Arktis 0,8), berget saknas i 25 %.
@@ -391,7 +394,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
 - Sundet (`sundet`, `strait_scenario`), 7 h, ett fartyg in efter 45–75 min, sedan 0,6/h in och ut
   i lotsfart (6–8 kn). Grindtricket: vänta söder om grinden, `turbin, djup 40, följ S-x` när
   fartyget passerat 0,2–0,45 nm, foto innanför, följ ett utgående fartyg ut. 8 frön: bot med bara
-  besättningens verktyg klarar 3 (goda bilder i 6), bot som läser sanningen 5 (bilder i 8);
+  besättningens verktyg klarar 3 (goda bilder i 6; omkört 2026-11-15: 5, bilder i 7), bot som läser
+  sanningen 5 (bilder i 8; inte omkört);
   ja-boten och den som försöker smyga genom skärmen utan fartyg klarar 0. Botarna i scratchpad
   (`follow_bot.py`, `strait_bot.py`).
   Väntläget (första steget, `_harbor_watch`/`_wait_point`): före fotot och utanför nätet föreslår
@@ -412,7 +416,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   på smygmotor. Ett fartyg ut startar 0,9–1,2 nm bakom oss (passerar 3–6 min efter överlämnandet), inga fler.
   Ute = söder om `Scenario.escape_y_below` (1 nm söder om nätet) och ingen har oss; navigatörens väg ut räknar
   mot linjen. Tidsgräns 30 min. 8 frön: passiv 0, ja-boten 0, utboten (periskoptitt var 60:e s, `turbin, djup 25,
-  följ S-x` när fartyget passerat 0,2–0,45 nm, efter 1,2 nm söderut fart 10) 5, på 16–22 min.
+  följ S-x` när fartyget passerat 0,2–0,45 nm, efter 1,2 nm söderut fart 10) 5, på 16–22 min
+  (omkört 2026-11-15: 5, på 20–26 min).
 - Konvojen (`konvoj`, `convoy_scenario`): 28 okt, krig, 06:30 (dagsljus). Konvoj (2 trupptransporter,
   1 tanker) och 2 eskorter, baskurs 190–230°, start 16–20 nm bort, vägen passerar oss på 1,5–5 nm;
   ordern ger läge (±2 nm) och kurs avrundad. Mål `mission["strike"]`: minst ett mål sänkt och ingen
@@ -428,7 +433,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   eskort har oss; första förslag 0–3 min efter; ja-boten i skjutläge i 4 (9–34 min). Bot som skjuter
   `salva` (upprepad) mot klassad transport/tanker ≤ 3 nm med lösning ≥ osäker: sänker 1 på 28 min
   (samma bot i `konvoj`: 1, på 69 min). Uppvärmningen tar ~5–8 s. Efter plottets periskoprättelse:
-  `konvoj` 2 av 8, `konvoj-kort` fortfarande 1 av 8; boten skjuter på gamla lösningar (titt var 4:e min,
+  `konvoj` 2 av 8, `konvoj-kort` fortfarande 1 av 8 (omkört 2026-11-15 med `konvoj_salva.py`: `konvoj` 3
+  av 8 på 57–60 min, `konvoj-kort` 2 av 8; `konvoj.py attack` 2 av 8); boten skjuter på gamla lösningar (titt var 4:e min,
   ben på 5–10 min). Öppen fråga: ska besättningen föreslå en titt strax före skjutläge?
 - Konvojen motanfall (`konvoj-mot`, `convoy_counter_scenario`): ledpunkten 1–2 nm före tvärs, vi 1,8–2,4 nm
   vid sidan. Vakten (`_CounterattackWatch`): periskopdjup, titt var 60:e s, `salva` (två gånger) mot
@@ -437,7 +443,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   eskort oss då ger närmaste eskort färsk kontakt (σ 0,1 nm, torpedbanorna). Eskortens koppel 6 nm.
   Eskorternas ping hittar oss på 1,3–1,9 nm även under skiktet, så att gömma vakten går inte.
   8 frön: vakten skjuter i 8, träff i 6 (25–155 s efter överlämnandet); passiv 3, ja-boten 4,
-  djupt och bort (turbin 12 kn, 200 m, bort från hotet) 6.
+  djupt och bort (turbin 12 kn, 200 m, bort från hotet) 6 (omkört 2026-11-15: passiv 5, ja 5, bort 6).
 - Eskorter (alla konvojer): en eskort med egen kontakt ≤ 40 s gammal och < 0,8 × den jagandes avstånd till
   datumet tar över jakten (`_closer_than`); i anfall går eskorten `SPEED_CLOSE` tills den är 1 nm från
   datumet (förut anfallsfart 15 kn hela vägen, så den hann sällan fram innan kopplet släppte).
@@ -457,8 +463,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   i 5 kn. Tornets topp 13 m och skrovets 8 m över kölen. Tunn is ≤ 1 m bryts i
   ≤ 2 kn på 40 s. Isdrift 0,25 kn mot 200°. Isbrus 50 dB (fast is) till 72 dB.
 - Arktis: generatorn 142 dB, US-ubåt 125 + 1,5·fart med DT 0 och egenbrus 48 + fart.
-  Mål: ytläge inom 1,5 nm från Nord-7. Ja-boten når målet i 7 av 12 frön (2026-11-15; förut angivet
-  ~10, men koden före dagens ändringar gav 6).
+  Mål: ytläge inom 1,5 nm från Nord-7. Ja-boten når målet i 9 av 12 frön (omkört 2026-11-15 efter
+  plottets ärliga kvalitet; förut 7, ännu tidigare angivet ~10).
 - Arktis kort (`arktis-kort`, `arctic_scenario(short=True)`): stationen 3,6–4,2 nm norrut vid start, vakt
   20 min (`kurs mot Nord-7, djup 60`), alltså 1,7–2,6 nm kvar vid överlämnandet; nödsignalens läge känt
   (σ 0,6). US-ubåten 5,5 nm från stationen vid start (2,5–5 nm från oss vid överlämnandet, oftast ohörd).
