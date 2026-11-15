@@ -27,6 +27,7 @@ from sim.truthlog import TruthLog
 
 from .audio import SoundBoard, make_soundboard
 from .chart import ChartScreen
+from .logview import LogScreen
 from .menu import MenuScreen
 from .bridge import BridgeScreen
 from .periscope import PeriscopeScreen
@@ -41,11 +42,13 @@ PROFILE_WORDS = {"profil", "djupprofil", "sidovy"}
 SYSTEM_WORDS = {"system", "systemtavla", "systemtavlan", "tavla", "tavlan"}
 PERISCOPE_WORDS = {"periskopbild", "periskopvy", "bild"}
 BRIDGE_WORDS = {"brygga", "bryggan", "bryggvy", "utsikt"}
-LOG_WORDS = {"logg", "loggen"}
-VIEWS = (ChartScreen, ProfileScreen, SystemScreen, PeriscopeScreen,
-         BridgeScreen)   # Tab-ordningen efter loggen
+LOG_WORDS = {"logg", "loggen", "loggbok", "loggboken"}
+CENTRAL_WORDS = {"central", "centralen"}
+VIEWS = (LogScreen, ChartScreen, ProfileScreen, SystemScreen, PeriscopeScreen,
+         BridgeScreen)
 GAUGE_EVERY_S = 0.5
 CENTRAL_MIN_WIDTH = 100                # smalare terminal: bara djupmätaren
+BIG_MIN = (120, 36)                    # minst så stort: centralen är huvudvyn, loggen en remsa
 SOUND_WORDS = {"ljud", "ljud av", "ljud på", "ljud pa"}
 SPEECH_WORDS = {"tal ryska": "ru", "tal svenska": "sv"}
 SOUND_KEY = "ctrl+t"                   # t som i tal
@@ -62,11 +65,13 @@ class GameScreen(Screen):
     def compose(self) -> ComposeResult:
         yield StatusBar(id="status")
         yield Teletype("", id="intro")
-        with Horizontal(id="main"):
-            yield ReportLog(id="log", wrap=True, markup=False, max_lines=2000)
-            with Vertical(id="side"):
-                yield CentralView(id="central")
-                yield DepthGauge(id="gauge")
+        with Vertical(id="main"):
+            yield CentralView(id="central-big")
+            with Horizontal(id="lower"):
+                yield ReportLog(id="log", wrap=True, markup=False, max_lines=2000)
+                with Vertical(id="side"):
+                    yield CentralView(id="central")
+                    yield DepthGauge(id="gauge")
         yield Input(placeholder="Order …   (skriv hjälp för en lista)", id="order")
 
     def on_mount(self) -> None:
@@ -74,9 +79,16 @@ class GameScreen(Screen):
         self.app._begin()
 
     def on_resize(self, event) -> None:
-        wide = event.size.width >= CENTRAL_MIN_WIDTH
-        self.query_one("#central").display = wide
-        self.query_one("#side").set_class(not wide, "narrow")
+        """Stort fönster: centralen fyller vyn och loggen blir en remsa (hela loggen i loggvyn).
+        Mindre: loggen stor och en liten central bredvid; smalt: bara djupmätaren."""
+        w, h = event.size.width, event.size.height
+        big = w >= BIG_MIN[0] and h >= BIG_MIN[1]
+        self.set_class(big, "big")
+        self.set_class(not big and w < CENTRAL_MIN_WIDTH, "narrow")
+
+    @property
+    def big(self) -> bool:
+        return self.has_class("big")
 
 
 class SubApp(App):
@@ -86,9 +98,16 @@ class SubApp(App):
     #status { height: 2; background: #1c2a20; color: #c8d0b0; }
     #intro  { height: 1fr; padding: 2 6; }
     #main   { height: 1fr; }
+    #central-big { height: 1fr; display: none; background: #0b0f0c; }
+    #lower  { height: 1fr; }
+    GameScreen.big #central-big { display: block; }
+    GameScreen.big #lower { height: 11; }
+    GameScreen.big #central { display: none; }
+    GameScreen.big #side { width: 26; }
+    GameScreen.narrow #central { display: none; }
     #log    { width: 1fr; padding: 0 1; background: #0b0f0c; scrollbar-size-vertical: 1; }
     #side   { width: 42; background: #0f1611; }
-    #side.narrow { width: 24; }
+    GameScreen.narrow #side { width: 24; }
     #central { height: 13; padding: 0 1; }
     #gauge  { width: 100%; height: 1fr; padding: 1 1 0 1; background: #0f1611; color: #7f9a80; }
     #order  { border: tall #2f4a36; background: #0f1611; }
@@ -265,6 +284,11 @@ class SubApp(App):
         elif text in BRIDGE_WORDS:
             self.action_bridge()
         elif text in LOG_WORDS:
+            if self.gs().big:
+                self._toggle_view(LogScreen)
+            elif isinstance(self.screen, VIEWS):
+                self.pop_screen()
+        elif text in CENTRAL_WORDS:
             if isinstance(self.screen, VIEWS):
                 self.pop_screen()
         else:
@@ -283,8 +307,12 @@ class SubApp(App):
         if self.sound is not None and self.sound.enabled and self.sound.speaks_russian:
             log.add_system(self.game.clock_str(), "Besättningen talar ryska, loggen är på svenska. "
                            "tal svenska byter språk.")
-        log.add_system(self.game.clock_str(), "Tab växlar mellan logg, sjökort, djupprofil, "
-                       "systemtavla och periskopbild, i ytläge också bryggan.")
+        if self.gs().big:
+            log.add_system(self.game.clock_str(), "Tab växlar mellan centralen, loggboken, sjökort, "
+                           "djupprofil, systemtavla och periskopbild, i ytläge också bryggan.")
+        else:
+            log.add_system(self.game.clock_str(), "Tab växlar mellan logg, sjökort, djupprofil, "
+                           "systemtavla och periskopbild, i ytläge också bryggan.")
         if self._sound_note:
             log.add_system(self.game.clock_str(), self._sound_note)
         elif self.sound and self.sound.enabled:
@@ -324,12 +352,15 @@ class SubApp(App):
         """Tab-ordningen efter läget: under ytan ingen brygga; med folk på väg upp eller på
         bryggan kommer bryggan före periskopbilden (kikaren)."""
         base = (ChartScreen, ProfileScreen, SystemScreen)
+        if self._screen is not None and self._screen.big:
+            base = (LogScreen,) + base
         if self.game is None or self.game.status().bridge == "shut":
             return base + (PeriscopeScreen,)
         return base + (BridgeScreen, PeriscopeScreen)
 
     def action_cycle(self) -> None:
-        """Tab: logg → sjökort → djupprofil → systemtavla → periskop (och brygga) → logg."""
+        """Tab: huvudvyn → (loggboken, om centralen är huvudvy) → sjökort → djupprofil →
+        systemtavla → periskop (och brygga) → huvudvyn."""
         if not self.running or self.game is None:
             return
         views = self.tab_views()
@@ -408,8 +439,11 @@ class SubApp(App):
             pass
 
     def _show_central(self, status, now: float) -> None:
+        gs = self.gs()
         speaking = {role: now - t for role, t in self._spoke.items()}
-        self.gs().query_one(CentralView).show(status, speaking, now)
+        view = gs.query_one("#central-big" if gs.big else "#central", CentralView)
+        if view.display:
+            view.show(status, speaking, now)
 
     # ------------------------------------------------------------------ händelser
     def _on_report(self, e: ReportDelivered) -> None:
@@ -431,6 +465,8 @@ class SubApp(App):
             self.pop_screen()               # slutrapporten visas i loggen
         gs = self.gs()
         gs.query_one(ReportLog).add_ending(e.summary)
+        if gs.big:
+            self.push_screen(LogScreen())    # slutrapporten får inte plats i remsan
         inp = gs.query_one("#order", Input)
         inp.placeholder = OVER_PLACEHOLDER
         inp.focus()

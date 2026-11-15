@@ -73,7 +73,8 @@ def test_manual_lists_every_command_and_only_real_view_words():
         assert {s.help for s in cls.COMMANDS if s.help} <= listed
     assert "avbryt uppdraget" in listed and "ja" in listed
     all_views = (ui_app.CHART_WORDS | ui_app.PROFILE_WORDS | ui_app.SYSTEM_WORDS
-                 | ui_app.PERISCOPE_WORDS | ui_app.BRIDGE_WORDS | ui_app.LOG_WORDS)
+                 | ui_app.PERISCOPE_WORDS | ui_app.BRIDGE_WORDS | ui_app.LOG_WORDS
+                 | ui_app.CENTRAL_WORDS)
     assert set(VIEW_WORDS) <= all_views
     assert set(SOUND_WORDS) <= ui_app.SOUND_WORDS | set(ui_app.SPEECH_WORDS)
 

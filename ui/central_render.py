@@ -1,37 +1,25 @@
-"""Centralen (центральный пост) som bild bredvid loggen.
+"""Centralen (центральный пост) som bild.
 
 Kaptenens blick förut genom centralen: mätare på väggarna (kurs, sidroder, djup, djuproder),
 periskopet mitt i rummet, stegen upp i tornet, besättningen vid pulpeterna. Allt ur egna
 instrument (`StatusSnapshot`) och vem som just rapporterat; aldrig något om fienden.
 
-Ren funktion: `render_central(status, speaking, t)` ger en rad `Text` per rad.
+Ren funktion: `render_central(status, speaking, t, width, height)` ger en rad `Text` per rad.
+Bilden ritas i den storlek den får (minst `W` × `H`): stor som huvudvy, liten bredvid loggen.
 """
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 
 from rich.text import Text
 
 from sim.game import StatusSnapshot
 
-W, H = 40, 13
+W, H = 40, 13                   # minsta storlek (och den lilla bilden bredvid loggen)
 CRUSH_M = 450.0
 SPEAK_S = 3.0                   # så länge en plats lyser efter en rapport
-
-# rad- och kolumnlägen
-DIAL_ROW = 1                    # mätarnas översta rad (5 rader höga, 7 breda)
-DIALS = {"kurs": 2, "roder": 9, "djup": 24, "djupror": 31}   # vänsterkant
-LABEL_ROW = 6
-LAMP_ROW = 7
-CONSOLE_ROW = 8
-HEAD_ROW, BODY_ROW = 9, 10
-FLOOR_ROW, DECK_ROW = 11, 12
-LADDER_COL = 17
-PERI_COL = 20                   # periskoprörets vänstra halva (två kolumner)
-PERI_EYE_UP = 6                 # okularets rad när periskopet är uppe
-OFFICER_COL = 24                # vakthavandes huvud
-SEATED = {"ror": 5, "djupror": 12, "engineer": 28, "navigator": 32, "plot": 36}   # huvudets kolumn
-INTERCOM = {"sonar": 3, "radio": 5, "torpedo": 7}
+DIAL_ROW = 1                    # mätarnas översta rad
 
 PALETTES = {
     "normal": {
@@ -56,24 +44,134 @@ ROLE_LIGHT = {
 }
 GREEN, RED, AMBER = "bold #5fd75f", "bold #ff5f5f", "bold #ffaf00"
 SKY_DAY, SKY_NIGHT = "#a8c8e8", "#283850"
+MARKER = "bold #f0c674"
 
 # nålens riktning i åtta steg (0 = upp, medurs): (rad, kolumn, tecken)
 NEEDLE = [(-1, 0, "│"), (-1, 1, "╱"), (0, 1, "─"), (1, 1, "╲"),
           (1, 0, "│"), (1, -1, "╱"), (0, -1, "─"), (-1, -1, "╲")]
 
 
+@dataclass(frozen=True)
+class Geometry:
+    """Var allt står i en bild av given storlek."""
+    w: int
+    h: int
+
+    @property
+    def deck(self) -> int:
+        return self.h - 1
+
+    @property
+    def floor(self) -> int:
+        return self.h - 2
+
+    @property
+    def body(self) -> int:
+        return self.h - 3
+
+    @property
+    def head(self) -> int:
+        return self.h - 4
+
+    @property
+    def console(self) -> int:
+        return self.h - 5
+
+    @property
+    def lamps(self) -> int:
+        return self.h - 6
+
+    @property
+    def dial_h(self) -> int:
+        """Mätarnas höjd (udda): så stora som höjden ger, men två ska få plats på varje vägg."""
+        dh = max(5, (self.h - 6) // 2)
+        if dh % 2 == 0:
+            dh -= 1
+        region = self.left[1] - self.left[0] + 1
+        while dh > 5 and 2 * (2 * dh - 3) + 3 > region:
+            dh -= 2
+        return dh
+
+    @property
+    def dial_w(self) -> int:
+        return 2 * self.dial_h - 3
+
+    @property
+    def label(self) -> int:
+        return DIAL_ROW + self.dial_h
+
+    @property
+    def mid(self) -> int:
+        return self.w // 2
+
+    @property
+    def ladder(self) -> int:
+        return self.mid - 3
+
+    @property
+    def peri(self) -> int:                      # periskoprörets vänstra halva
+        return self.mid
+
+    @property
+    def peri_eye_up(self) -> int:               # okularets rad när periskopet är uppe
+        return self.head - 3
+
+    @property
+    def officer(self) -> int:                   # vakthavandes huvud
+        return self.mid + 4
+
+    @property
+    def left(self) -> tuple[int, int]:          # vänstra väggens område (från, till och med)
+        return 2, self.mid - 5
+
+    @property
+    def right(self) -> tuple[int, int]:
+        return self.mid + 4, self.w - 3
+
+    def dials(self) -> dict[str, int]:
+        """Mätarnas vänsterkant: två på varje vägg."""
+        out = {}
+        for (a, b), keys in ((self.left, ("kurs", "roder")), (self.right, ("djup", "djupror"))):
+            gap = max(0, (b - a + 1 - 2 * self.dial_w) // 3)
+            out[keys[0]] = a + gap
+            out[keys[1]] = a + 2 * gap + self.dial_w
+        return out
+
+    def seated(self) -> dict[str, int]:
+        """Huvudets kolumn för de sittande."""
+        d = self.dials()
+        lo = self.officer + 4
+        hi = max(lo + 8, self.right[1] - 1 - (self.w - W) // 20)
+        out = {"ror": d["kurs"] + self.dial_w // 2, "djupror": d["roder"] + self.dial_w // 2}
+        for i, role in enumerate(("engineer", "navigator", "plot")):
+            out[role] = round(lo + (hi - lo) * i / 2)
+        return out
+
+    def intercom(self) -> dict[str, int]:
+        a = self.left[0]
+        return {"sonar": a + 1, "radio": a + 3, "torpedo": a + 5}
+
+    @property
+    def telegraph(self) -> int:
+        return self.left[0] + 8
+
+    @property
+    def julgran(self) -> int:
+        return self.right[1] - 6
+
+
 class _Canvas:
-    def __init__(self, base: str) -> None:
-        self.cells = [[(" ", base) for _ in range(W)] for _ in range(H)]
+    def __init__(self, w: int, h: int, base: str) -> None:
+        self.w, self.h = w, h
+        self.cells = [[(" ", base) for _ in range(w)] for _ in range(h)]
 
     def put(self, row: int, col: int, ch: str, style: str) -> None:
-        if 0 <= row < H and 0 <= col < W:
+        if 0 <= row < self.h and 0 <= col < self.w:
             self.cells[row][col] = (ch, style)
 
     def text(self, row: int, col: int, s: str, style: str) -> None:
         for i, ch in enumerate(s):
-            if ch != "\0":
-                self.put(row, col + i, ch, style)
+            self.put(row, col + i, ch, style)
 
     def blank(self, row: int, col: int) -> bool:
         return self.cells[row][col][0] == " "
@@ -115,142 +213,158 @@ def plane_angle(s: StatusSnapshot) -> float:
     return max(-25.0, min(25.0, s.ordered_depth - s.depth))
 
 
-def _ring_cell(angle: float) -> tuple[int, int]:
-    """Var på mätarens ram (7 × 5) en vinkel hamnar, relativt mitten."""
+def _ring_cell(angle: float, rx: int, ry: int) -> tuple[int, int]:
+    """Var på mätarens ram en vinkel hamnar, relativt mitten."""
     a = math.radians(angle)
     dx, dy = math.sin(a), -math.cos(a)
-    k = 1.0 / max(abs(dx) / 3.0, abs(dy) / 2.0)
+    k = 1.0 / max(abs(dx) / rx, abs(dy) / ry)
     return round(k * dy), round(k * dx)
 
 
-def _dial(c: _Canvas, col: int, angle: float, p: dict, marker: float | None = None,
-          top: str | None = None, style: str | None = None) -> None:
+def _dial(c: _Canvas, g: Geometry, col: int, angle: float, p: dict,
+          marker: float | None = None, top: str | None = None, style: str | None = None) -> None:
     ring = style or p["ring"]
+    dw, dh = g.dial_w, g.dial_h
     r0 = DIAL_ROW
-    c.text(r0, col, "╭─────╮", ring)
-    for r in range(1, 4):
-        c.text(r0 + r, col, "│     │", ring)
-    c.text(r0 + 4, col, "╰─────╯", ring)
-    cr, cc = r0 + 2, col + 3
+    c.text(r0, col, "╭" + "─" * (dw - 2) + "╮", ring)
+    for r in range(1, dh - 1):
+        c.text(r0 + r, col, "│" + " " * (dw - 2) + "│", ring)
+    c.text(r0 + dh - 1, col, "╰" + "─" * (dw - 2) + "╯", ring)
+    rx, ry = dw // 2, dh // 2
+    cr, cc = r0 + ry, col + rx
     if top:
         c.put(r0, cc, top, ring)
     if marker is not None:
-        dr, dc = _ring_cell(marker)
-        c.put(cr + dr, cc + dc, "◆", "bold #f0c674")
+        dr, dc = _ring_cell(marker, rx, ry)
+        c.put(cr + dr, cc + dc, "◆", MARKER)
     dr, dc, ch = NEEDLE[round(angle / 45.0) % 8]
-    c.put(cr + dr, cc + dc, ch, p["needle"])
-    if dr == 0:                                   # vågrätt: nålen räcker två steg
-        c.put(cr, cc + 2 * dc, ch, p["needle"])
+    if dr == 0:                                   # vågrätt
+        for k in range(1, rx):
+            c.put(cr, cc + dc * k, ch, p["needle"])
+    else:                                         # lodrätt eller snett (tecknen är dubbelt så höga)
+        wide = 1 if dh == 5 else 2
+        for k in range(1, ry):
+            for j in range(wide if dc else 1):
+                c.put(cr + dr * k, cc + dc * (wide * k - j), ch, p["needle"])
     c.put(cr, cc, "●", p["hub"])
 
 
-def _seated(c: _Canvas, col: int, p: dict, lit: str | None, lean: int = 0) -> None:
-    c.put(HEAD_ROW, col + lean, "●", lit or p["head"])
-    c.text(BODY_ROW, col - 1, "▟█▙", lit or p["crew"])
+def _seated(c: _Canvas, g: Geometry, col: int, p: dict, lit: str | None, lean: int = 0) -> None:
+    c.put(g.head, col + lean, "●", lit or p["head"])
+    c.text(g.body, col - 1, "▟█▙", lit or p["crew"])
 
 
 def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
-                   t: float = 0.0) -> list[Text]:
-    """speaking: roll → sekunder sedan rollens senaste rapport. t: väggklocka för blinkande."""
+                   t: float = 0.0, width: int = W, height: int = H) -> list[Text]:
+    """speaking: roll → sekunder sedan rollens senaste rapport. t: väggklocka för blinkande.
+    width/height: bildens storlek i tecken (minst W × H)."""
+    g = Geometry(max(W, width), max(H, height))
     red = s.night or s.hunted
     p = PALETTES["red" if red else "normal"]
     speaking = speaking or {}
     lit = {role: ROLE_LIGHT.get(role) for role, age in speaking.items() if age < SPEAK_S}
     blink = (t % 1.0) < 0.5
     smoky = s.smoke > 0.5
-    c = _Canvas(p["wall"])
+    c = _Canvas(g.w, g.h, p["wall"])
 
     # skrovet: tak, väggar och durk
-    c.text(0, 0, "▗" + "▄" * (W - 2) + "▖", p["ceiling"])
-    for r in range(1, DECK_ROW):
+    c.text(0, 0, "▗" + "▄" * (g.w - 2) + "▖", p["ceiling"])
+    for r in range(1, g.deck):
         c.put(r, 0, "▐", p["wall"])
-        c.put(r, W - 1, "▌", p["wall"])
-    c.text(DECK_ROW, 0, "▀" * W, p["deck"])
+        c.put(r, g.w - 1, "▌", p["wall"])
+    c.text(g.deck, 0, "▀" * g.w, p["deck"])
 
     # tornluckan och stegen
     if s.bridge != "shut":
         sky = SKY_NIGHT if s.night else SKY_DAY
-        c.text(0, LADDER_COL - 1, "███", sky)
+        c.text(0, g.ladder - 1, "███", sky)
         if not s.night:
             for r in (1, 2):
-                c.put(r, LADDER_COL - 1, "░", sky)
-                c.put(r, LADDER_COL + 1, "░", sky)
-    for r in range(1, FLOOR_ROW):
-        c.put(r, LADDER_COL, "╫", p["ladder"])
+                c.put(r, g.ladder - 1, "░", sky)
+                c.put(r, g.ladder + 1, "░", sky)
+    for r in range(1, g.floor):
+        c.put(r, g.ladder, "╫", p["ladder"])
     if s.bridge in ("manning", "clearing"):          # någon på stegen
-        step = int(t * 2) % 4
-        r = 4 - step if s.bridge == "manning" else 1 + step
-        c.put(r, LADDER_COL, "●", p["head"])
-        c.put(r + 1, LADDER_COL, "█", p["crew"])
+        span = max(1, min(4, g.floor - 3))
+        step = int(t * 2) % span
+        r = span - step if s.bridge == "manning" else 1 + step
+        c.put(r, g.ladder, "●", p["head"])
+        c.put(r + 1, g.ladder, "█", p["crew"])
 
     # mätarna
+    dials = g.dials()
     dial_style = p["label"] if smoky else None
-    _dial(c, DIALS["kurs"], s.course, p, top="N",
+    _dial(c, g, dials["kurs"], s.course, p, top="N",
           marker=s.ordered_course if "course" in s.changing else None, style=dial_style)
-    _dial(c, DIALS["roder"], rudder_angle(s) * 2.5, p, style=dial_style)
-    depth_angle = lambda d: -150.0 + 300.0 * min(max(d, 0.0) / CRUSH_M, 1.0)
+    _dial(c, g, dials["roder"], rudder_angle(s) * 2.5, p, style=dial_style)
+
+    def depth_angle(d: float) -> float:
+        return -150.0 + 300.0 * min(max(d, 0.0) / CRUSH_M, 1.0)
+
     deep = s.depth >= 300
-    _dial(c, DIALS["djup"], depth_angle(s.depth), p,
+    _dial(c, g, dials["djup"], depth_angle(s.depth), p,
           marker=depth_angle(s.ordered_depth) if "depth" in s.changing else None,
           style=RED if deep and blink else dial_style)
-    _dial(c, DIALS["djupror"], 90.0 + plane_angle(s) * 2.0, p, style=dial_style)
+    _dial(c, g, dials["djupror"], 90.0 + plane_angle(s) * 2.0, p, style=dial_style)
     for key, label in (("kurs", "kurs"), ("roder", "roder"), ("djup", "djup"),
                        ("djupror", "djupr")):
-        col = DIALS[key] + 3 - len(label) // 2
-        c.text(LABEL_ROW, col, label, p["label"])
+        col = dials[key] + g.dial_w // 2 - len(label) // 2
+        c.text(g.label, col, label, p["label"])
 
     # pulpeterna
-    c.text(CONSOLE_ROW, 2, "▒" * 14, p["console"])
-    c.text(CONSOLE_ROW, 24, "▒" * 14, p["console"])
+    for a, b in (g.left, g.right):
+        c.text(g.console, a, "▒" * (b - a + 1), p["console"])
     # snabbtelefonen (Kasjtan): lyser när sonar, radio eller torpedrummet talar
-    for role, col in INTERCOM.items():
-        c.put(LAMP_ROW, col, "●" if role in lit else "○", lit.get(role) or p["lamp_off"])
+    for role, col in g.intercom().items():
+        c.put(g.lamps, col, "●" if role in lit else "○", lit.get(role) or p["lamp_off"])
     # maskintelegrafen: beordrad fart i fyra steg
     steps = sum(s.ordered_speed >= v for v in (0.5, 6.0, 12.0, 20.0))
     tele = GREEN if s.propulsion == "turbine" else "bold #5fafff"
     if s.reactor != "online":
         tele = AMBER
     for i, ch in enumerate("▂▄▆█"):
-        c.put(LAMP_ROW, 10 + i, ch, tele if i < steps else p["lamp_off"])
+        c.put(g.lamps, g.telegraph + i, ch, tele if i < steps else p["lamp_off"])
     # julgranen: skrovets öppningar, grönt stängt, rött öppet
     openings = (s.bridge != "shut", s.periscope is not None and s.periscope_optic == "periskop",
                 s.masts_up)
     for i, is_open in enumerate(openings):
-        c.put(LAMP_ROW, 31 + 2 * i, "●", RED if is_open else GREEN)
+        c.put(g.lamps, g.julgran + 2 * i, "●", RED if is_open else GREEN)
 
     # periskopet
     up = s.periscope is not None and s.periscope_optic == "periskop"
-    c.text(1, PERI_COL, "╤╤", p["tube"])
+    c.text(1, g.peri, "╤╤", p["tube"])
     if up:
-        eye = max(PERI_EYE_UP, FLOOR_ROW - s.periscope_up_s)
-        for r in range(2, FLOOR_ROW):
-            c.text(r, PERI_COL, "┃┃", p["tube"])
-        c.text(eye, PERI_COL - 2, "═▐██▌═", p["eye"])
-    c.text(FLOOR_ROW, PERI_COL - 1, "▁▁▁▁", p["tube"])
+        eye = max(g.peri_eye_up, g.floor - s.periscope_up_s)
+        for r in range(2, g.floor):
+            c.text(r, g.peri, "┃┃", p["tube"])
+        c.text(eye, g.peri - 2, "═▐██▌═", p["eye"])
+    c.text(g.floor, g.peri - 1, "▁▁▁▁", p["tube"])
 
     # besättningen
     officer = lit.get("officer")
-    c.put(CONSOLE_ROW, OFFICER_COL, "●", officer or p["head"])
-    c.text(HEAD_ROW, OFFICER_COL - 1, "▟█▙", officer or p["crew"])
-    c.text(BODY_ROW, OFFICER_COL - 1, "▐ ▌", officer or p["crew"])
-    lean = 1 if rudder_angle(s) > 5 else -1 if rudder_angle(s) < -5 else 0
-    _seated(c, SEATED["ror"], p, None, lean)
-    _seated(c, SEATED["djupror"], p, None)
+    c.put(g.console, g.officer, "●", officer or p["head"])
+    c.text(g.head, g.officer - 1, "▟█▙", officer or p["crew"])
+    c.text(g.body, g.officer - 1, "▐ ▌", officer or p["crew"])
+    rud = rudder_angle(s)
+    lean = 1 if rud > 5 else -1 if rud < -5 else 0
+    seats = g.seated()
+    _seated(c, g, seats["ror"], p, None, lean)
+    _seated(c, g, seats["djupror"], p, None)
     for role in ("engineer", "navigator", "plot"):
-        _seated(c, SEATED[role], p, lit.get(role))
+        _seated(c, g, seats[role], p, lit.get(role))
 
     # larmlampor i taket: stridslarm rött, brand gult
     alarm = RED if s.hunted else AMBER if s.fire else None
     if alarm:
-        for col in (1, W - 2):
+        for col in (1, g.w - 2):
             c.put(1, col, "◉" if blink else "○", alarm if blink else p["lamp_off"])
 
     # rök uppifrån, vatten nerifrån
     if s.smoke > 0.02 or s.fire:
-        rows = max(1, math.ceil(min(s.smoke, 1.0) * 9))
+        rows = max(1, math.ceil(min(s.smoke, 1.0) * (g.h - 4)))
         drift = int(t * 2)
         for r in range(1, 1 + rows):
-            for col in range(1, W - 1):
+            for col in range(1, g.w - 1):
                 if not c.blank(r, col) and s.smoke < 0.7:
                     continue
                 if (col + r + drift) % 3 != 0 or s.smoke > 0.4:
@@ -259,8 +373,8 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
         level = 1 if s.flooding < 10 else 2 if s.flooding < 40 else 3
         phase = int(t * 2) % 2
         for i in range(level):
-            r = FLOOR_ROW - i
-            for col in range(1, W - 1):
+            r = g.floor - i
+            for col in range(1, g.w - 1):
                 top = i == level - 1
                 ch = ("≈" if (col + phase) % 2 else "~") if top else "█"
                 c.put(r, col, ch, p["water"] if top else p["water2"])

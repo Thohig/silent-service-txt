@@ -5,8 +5,12 @@ from dataclasses import replace
 import pytest
 
 from sim.game import StatusSnapshot
-from ui.central_render import (DIAL_ROW, DIALS, FLOOR_ROW, H, PERI_COL, PERI_EYE_UP, W,
-                               plane_angle, render_central, rudder_angle)
+from ui.central_render import (DIAL_ROW, H, W, Geometry, plane_angle, render_central,
+                               rudder_angle)
+
+G = Geometry(W, H)
+DIALS = G.dials()
+FLOOR_ROW, PERI_COL, PERI_EYE_UP = G.floor, G.peri, G.peri_eye_up
 
 BASE = StatusSnapshot(clock=0, sim_time=0, course=90, ordered_course=90, speed=6,
                       ordered_speed=6, depth=100, ordered_depth=100, changing=frozenset(),
@@ -22,11 +26,27 @@ def styles_at(s: StatusSnapshot, row: int, col: int, **kw) -> str:
     return " ".join(str(span.style) for span in line.spans if span.start <= col < span.end)
 
 
-def test_fixed_size():
-    for s in (BASE, replace(BASE, smoke=0.9, flooding=60, hunted=True, bridge="manned")):
-        rows = plain(s, t=0.3)
-        assert len(rows) == H
-        assert all(len(r) == W for r in rows)
+def test_size_follows_the_space_given():
+    busy = replace(BASE, smoke=0.9, flooding=60, hunted=True, bridge="manning",
+                   periscope="hold", periscope_up_s=3)
+    for s in (BASE, busy):
+        for w, h in ((W, H), (90, 20), (130, 26), (200, 50), (10, 5)):
+            rows = plain(s, t=0.3, width=w, height=h)
+            assert len(rows) == max(H, h)
+            assert all(len(r) == max(W, w) for r in rows)
+
+
+def test_big_room_has_bigger_dials_and_the_crew_apart():
+    small, big = Geometry(W, H), Geometry(150, 32)
+    assert big.dial_h > small.dial_h
+    for g in (small, big):
+        d = g.dials()
+        assert d["roder"] >= d["kurs"] + g.dial_w            # mätarna överlappar inte
+        assert d["djupror"] + g.dial_w <= g.w - 1
+        assert g.left[1] < g.ladder < g.peri < g.officer
+        cols = sorted(g.seated().values())
+        assert all(b - a >= 4 for a, b in zip(cols, cols[1:]))
+        assert min(g.seated()[r] for r in ("engineer", "navigator", "plot")) >= g.officer + 3
 
 
 def test_periscope_rises_with_the_mast():
@@ -90,22 +110,50 @@ def test_periscope_column_stays_clear_of_dials():
 
 
 @pytest.mark.slow
-def test_central_shown_beside_the_log_and_hidden_when_narrow(tmp_path):
+def test_layout_follows_the_window(tmp_path):
+    """Stort fönster: centralen fyller vyn, loggen är en remsa och loggvyn visar allt.
+    Mindre: liten central bredvid loggen. Smalt: bara loggen och djupmätaren."""
     from ui.app import SubApp
-    from ui.widgets import CentralView
+    from ui.logview import LogScreen
+    from ui.widgets import CentralView, ReportLog
 
     async def run():
         app = SubApp(seed=1, log_dir=tmp_path, scenario="kuba")
-        async with app.run_test(size=(120, 40)) as pilot:
+        async with app.run_test(size=(140, 44)) as pilot:
             await pilot.press("enter", "enter")
             for _ in range(5):
                 app.game.tick()
             await pilot.pause(0.7)
-            central = app.gs().query_one(CentralView)
-            assert central.display
-            assert "╭─────╮" in str(central.render())
+            gs = app.gs()
+            big = gs.query_one("#central-big", CentralView)
+            small = gs.query_one("#central", CentralView)
+            assert gs.big and big.display and not small.display
+            assert big.size.height > 25 and big.size.width == 140
+            assert gs.query_one("#log", ReportLog).size.height < 12
+            lines = str(big.render()).split("\n")
+            assert len(lines) == big.size.height and "╭" in lines[1]
+
+            await pilot.press(*"kurs 090", "enter")
+            await pilot.press("tab")                     # första vyn: hela loggboken
+            assert isinstance(app.screen, LogScreen)
+            full = app.screen.query_one("#logview-log", ReportLog)
+            assert len(full.entries) == len(gs.query_one("#log", ReportLog).entries)
+            for _ in range(10):
+                app.game.tick()
+            await pilot.pause(0.2)
+            assert len(full.entries) == len(gs.query_one("#log", ReportLog).entries)
+            await pilot.press(*"centralen", "enter")
+            assert not isinstance(app.screen, LogScreen)
+
+            await pilot.resize_terminal(110, 34)
+            await pilot.pause(0.7)
+            assert not gs.big and not big.display and small.display
+            await pilot.press("tab")                     # ingen loggvy när loggen är stor
+            assert not isinstance(app.screen, LogScreen)
+            await pilot.press("escape")
+
             await pilot.resize_terminal(90, 30)
             await pilot.pause(0.1)
-            assert not central.display
+            assert not small.display and not big.display
 
     asyncio.run(run())

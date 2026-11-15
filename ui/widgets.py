@@ -103,12 +103,30 @@ class StatusBar(Static):
 
 
 class ReportLog(RichLog):
+    """Loggboken. Sparar allt som skrivits (`entries`) så att loggvyn kan visa hela loggen,
+    och skriver vidare till en spegel (`mirror`) medan loggvyn är öppen."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.entries: list = []
+        self.mirror: ReportLog | None = None
+
+    def emit(self, content) -> None:
+        """Skriv en rad i loggboken: spara den, spegla den och visa den.
+        (Inte `write`: RichLog skriver om rader som kom före storleken genom `write`.)"""
+        self.entries.append(content)
+        if self.max_lines is not None and len(self.entries) > self.max_lines:
+            del self.entries[: len(self.entries) - self.max_lines]
+        if self.mirror is not None and self.mirror.is_attached:
+            self.mirror.emit(content)
+        self.write(content)
+
     def add_report(self, clock: str, r: Report) -> None:
         line = Text()
         line.append(f"{clock} ", style="dim")
         if r.kind == "system":
             line.append(r.text, style="dim italic")
-            self.write(line)
+            self.emit(line)
             return
         if r.alarm:
             line.append("▲ ", style="bold red")
@@ -118,33 +136,33 @@ class ReportLog(RichLog):
         line.append(r.text, style="bold" if r.alarm else "#f0c674" if r.kind == "suggest" else "")
         if r.quality is not None:
             line.append(f"  [{r.quality.label}]", style=QUALITY_STYLE[r.quality])
-        self.write(line)
+        self.emit(line)
         if r.table:
             table = Table(*(r.table_header or []), box=None, padding=(0, 2),
                           header_style="dim", show_edge=False)
             for row in r.table:
                 table.add_row(*row)
-            self.write(table)
+            self.emit(table)
 
     def add_captain(self, clock: str, text: str) -> None:
         line = Text()
         line.append(f"{clock} ", style="dim")
         line.append("Kapten: ", style=ROLE_STYLE["captain"])
         line.append(text, style="italic")
-        self.write(line)
+        self.emit(line)
 
     def add_system(self, clock: str, text: str, style: str = "dim italic") -> None:
         line = Text()
         line.append(f"{clock} ", style="dim")
         line.append(text, style=style)
-        self.write(line)
+        self.emit(line)
 
     def add_ending(self, summary: dict) -> None:
-        self.write(Text(""))
-        self.write(Text("═" * 60, style="dim"))
-        self.write(Text(f"  {summary['text']}", style="bold"))
+        self.emit(Text(""))
+        self.emit(Text("═" * 60, style="dim"))
+        self.emit(Text(f"  {summary['text']}", style="bold"))
         if summary.get("cause"):
-            self.write(Text(f"  Orsak: {summary['cause']}.", style="italic"))
+            self.emit(Text(f"  Orsak: {summary['cause']}.", style="italic"))
         rows = [
             ("Klockan", summary["clock"]),
             ("Gånger jagaren hade sonarkontakt med oss", str(summary["detected"])),
@@ -159,26 +177,26 @@ class ReportLog(RichLog):
             line = Text("  ")
             line.append(f"{k}: ", style="dim")
             line.append(v, style="bold")
-            self.write(line)
+            self.emit(line)
         session = summary.get("session")
         if session:
-            self.write(Text(""))
-            self.write(Text("  Patrullens förlopp", style="bold"))
+            self.emit(Text(""))
+            self.emit(Text("  Patrullens förlopp", style="bold"))
             for k, v in session["rows"]:
                 line = Text("  ")
                 line.append(f"{k}: ", style="dim")
                 line.append(v)
-                self.write(line)
+                self.emit(line)
             if session["events"]:
-                self.write(Text(""))
-                self.write(Text("  Viktiga händelser", style="bold"))
+                self.emit(Text(""))
+                self.emit(Text("  Viktiga händelser", style="bold"))
                 for clock, text in session["events"]:
                     line = Text("  ")
                     line.append(f"{clock} ", style="dim")
                     line.append(text)
-                    self.write(line)
-        self.write(Text("═" * 60, style="dim"))
-        self.write(Text("  Avsluta med ctrl+q.", style="dim italic"))
+                    self.emit(line)
+        self.emit(Text("═" * 60, style="dim"))
+        self.emit(Text("  Avsluta med ctrl+q.", style="dim italic"))
 
 
 class DepthGauge(Static):
@@ -192,4 +210,6 @@ class CentralView(Static):
     """Centralen som bild ovanför djupmätaren (ui/central_render.py)."""
 
     def show(self, status: StatusSnapshot, speaking: dict[str, float], t: float) -> None:
-        self.update(Text("\n").join(render_central(status, speaking, t)))
+        """Ritas i den storlek widgeten har (minst den lilla bilden)."""
+        w, h = self.content_size.width, self.content_size.height
+        self.update(Text("\n").join(render_central(status, speaking, t, w, h)))

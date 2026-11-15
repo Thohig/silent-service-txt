@@ -186,8 +186,14 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   samlar, `ui/profile_render.py` ritar sidovyn (tid vågrätt, botten i eget band under
   bruten axel) och djupmätaren bredvid loggen. Tab växlar logg → sjökort → profil → systemtavla → periskopbild → logg, med luckan öppen brygga före
   periskopbild (`SubApp.tab_views`; `VIEWS` är alla vyer).
-- **Centralen** (`ui/central_render.py`, `CentralView` i `ui/widgets.py`): bild av центральный пост
-  ovanför djupmätaren (40 × 13, döljs under 100 kolumner). Ren funktion `render_central(status, speaking, t)`
+- **Centralen** (`ui/central_render.py`, `CentralView` i `ui/widgets.py`): bild av центральный пост.
+  Huvudvyns layout efter fönstret (`GameScreen.on_resize`, klasserna `big`/`narrow`): minst 120 × 36 ⇒
+  centralen fyller vyn (`#central-big`), loggen är en remsa (11 rader) med djupmätaren bredvid och hela
+  loggen är en egen vy (`LogScreen`, `ui/logview.py`: först i Tab-ordningen, `logg`; `central` tillbaka;
+  slutrapporten öppnar den). Mindre ⇒ loggen stor och en liten central (40 × 13) ovanför djupmätaren;
+  under 100 kolumner bara djupmätaren. `ReportLog.emit` sparar raderna (`entries`) och speglar dem till
+  loggvyn (`mirror`); skriv aldrig loggrader med `write`. Bilden ritas i widgetens storlek (`Geometry`:
+  mätarna växer med höjden). Ren funktion `render_central(status, speaking, t, width, height)`
   ur `StatusSnapshot` (bara egna instrument) och vem som rapporterat senaste 3 s (`SubApp._spoke`, roll ⇒
   plats eller snabbtelefonens lampa). Mätare kurs/sidroder/djup/djuproder (rodren härledda ur beordrat mot
   verkligt), periskopet hissas med `periscope_up_s`, stegen och luckan (himlen syns), maskintelegrafen,
