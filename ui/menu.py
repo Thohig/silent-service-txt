@@ -18,6 +18,8 @@ from textual.widgets.option_list import Option
 from sim.scenario import SCENARIOS, ScenarioDef
 
 from .manual import ManualScreen
+from .menutext import (BG, DIM, HIGHLIGHT_BG, HIGHLIGHT_FG, INK, RULE, header, stamp_for,
+                       stamp_text)
 from .settings import SettingsScreen
 
 FIRST_GROUPS = ("ovning",)        # övningen först: den lär känna båten
@@ -80,7 +82,9 @@ def heading_label(g: MissionGroup) -> Text:
 
 def brief(sd: ScenarioDef, group: MissionGroup | None) -> Text:
     """Beskrivningen till höger om listan."""
-    t = Text(sd.title, style="bold")
+    t = stamp_text(stamp_for(sd.key, sd.title))
+    t.append("\n\n")
+    t.append(sd.title, style="bold")
     t.append("\n")
     short = sd.minutes is not None
     t.append((f"Kort variant · ~{sd.minutes} min" if short else "Hela uppdraget · flera timmar")
@@ -111,18 +115,19 @@ def settings_brief(app) -> Text:
 class MenuScreen(Screen):
     """Huvudmenyn. selected: scenariot som markeras (det man nyss spelade)."""
 
-    DEFAULT_CSS = """
-    MenuScreen { background: #0b0f0c; }
-    MenuScreen #menu-title { height: 3; padding: 1 2 0 2; color: #c8d0b0; }
-    MenuScreen #menu-body  { height: 1fr; padding: 1 2 0 2; }
-    MenuScreen #scenarios  { width: %d; height: 1fr; background: #0b0f0c; border: none;
-                             color: #c8d0b0; scrollbar-size-vertical: 1; }
-    MenuScreen #scenarios > .option-list--option-disabled { color: #c8d0b0; }
-    MenuScreen #scenarios > .option-list--option-highlighted { background: #2f4a36; color: #e8f0d0; }
-    MenuScreen #brief      { width: 1fr; height: 1fr; padding: 0 2 0 3; color: #c8d0b0;
-                             border-left: vkey #2f4a36; }
-    MenuScreen #menu-keys  { height: 1; padding: 0 2; color: #7f9a80; }
-    """ % LIST_WIDTH
+    DEFAULT_CSS = f"""
+    MenuScreen {{ background: {BG}; }}
+    MenuScreen #menu-title {{ height: 4; color: {INK}; background: {BG}; }}
+    MenuScreen #menu-body  {{ height: 1fr; padding: 1 2 0 2; background: {BG}; }}
+    MenuScreen #scenarios  {{ width: {LIST_WIDTH}; height: 1fr; background: {BG}; border: none;
+                             color: {INK}; scrollbar-size-vertical: 1; }}
+    MenuScreen #scenarios > .option-list--option-disabled {{ color: {INK}; }}
+    MenuScreen #scenarios > .option-list--option-highlighted {{
+        background: {HIGHLIGHT_BG}; color: {HIGHLIGHT_FG}; }}
+    MenuScreen #brief      {{ width: 1fr; height: 1fr; padding: 0 2 0 3; color: {INK};
+                             background: {BG}; border-left: vkey {RULE}; }}
+    MenuScreen #menu-keys  {{ height: 1; padding: 0 2; color: {DIM}; background: {BG}; }}
+    """
 
     def __init__(self, selected: str | None = None) -> None:
         super().__init__()
@@ -131,9 +136,7 @@ class MenuScreen(Screen):
         self._group_of = {sd.key: g for g in self.groups for sd in g.variants}
 
     def compose(self) -> ComposeResult:
-        title = Text("K-114", style="bold")
-        title.append("   Projekt 627A · Norra flottan · oktober 1962", style="dim")
-        yield Static(title, id="menu-title")
+        yield Static(header(), id="menu-title")
         options: list[Option | None] = []
         for g in self.groups:
             if options:
@@ -148,7 +151,11 @@ class MenuScreen(Screen):
             yield Static("", id="brief")
         yield Static("↑ ↓ välj · Enter starta eller öppna · ctrl+q avsluta", id="menu-keys")
 
+    def on_resize(self) -> None:
+        self.query_one("#menu-title", Static).update(header(self.size.width))
+
     def on_mount(self) -> None:
+        self.query_one("#menu-title", Static).update(header(self.size.width))
         options = self.query_one("#scenarios", OptionList)
         key = self.selected if self.selected in SCENARIOS else self.groups[0].variants[0].key
         options.highlighted = options.get_option_index(key)

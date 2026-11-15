@@ -120,3 +120,26 @@ def test_settings_change_sound_speech_and_seed_for_the_next_mission(tmp_path):
             assert app.seed == 4711 and app.last_seed == 4711
 
     asyncio.run(run())
+
+
+def test_stamps_grow_more_secret_towards_28_october():
+    from ui.menutext import (STAMP_SECRET, STAMP_SPECIAL, STAMP_TOP_SECRET, STAMP_TRAINING,
+                             mission_day, stamp_for)
+    assert mission_day("Jagade, natten till 27 oktober 1962") == 27
+    assert mission_day("Kvadrat 7, oktober 1962") is None
+    assert stamp_for("ovning-kort", SCENARIOS["ovning-kort"].title) is STAMP_TRAINING
+    assert stamp_for("kuba", SCENARIOS["kuba"].title) is STAMP_SECRET
+    assert stamp_for("sundet", SCENARIOS["sundet"].title) is STAMP_TOP_SECRET
+    assert stamp_for("konvoj-mot", SCENARIOS["konvoj-mot"].title) is STAMP_SPECIAL
+    text = brief(SCENARIOS["jagad"], None).plain
+    assert text.startswith(" СОВ. СЕКРЕТНО") and "strängt hemligt" in text
+
+
+def test_header_fits_the_width_and_translates_the_russian():
+    from ui.menutext import header
+    for width in (80, 120, 200):
+        lines = header(width).plain.split("\n")
+        assert len(lines[0]) == width and len(lines[1]) == width
+    plain = header(120).plain
+    assert "СОВЕРШЕННО СЕКРЕТНО" in plain and "Strängt hemligt" in plain
+    assert "СЕВЕРНЫЙ ФЛОТ" in plain and "Norra flottan" in plain
