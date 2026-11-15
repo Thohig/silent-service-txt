@@ -137,6 +137,9 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   föremål utanför sektorn följer med från förra bilden i 10 min (`seen_t`, ritas nedtonade).
   Is: `ice.ice_view` (periskopet är en sensor) ger kant och vallar i 16 riktningar ut till 0,6 nm;
   kommer masten inte upp för isen publiceras `PeriscopeBlocked` och vyn säger det.
+- **Order i alla vyer** (`ui/viewbase.py`): vyerna ärver `ViewScreen` (rapportraden, `Esc`, orderrad
+  `OrderLine` som visar väntande förslag). Vyns tangenter står i `EMPTY_KEYS` och gäller bara när
+  orderraden är tom (Input tar annars alla utskrivbara tecken); bokstäver är aldrig vytangenter.
 - **Tangenter:** `Tab` växlar vy, `Esc` tillbaka, `ctrl+t` ljud. Undvik F-tangenter
   (medietangenter på Mac) och ctrl-tangenter som orderraden (`Input`) redan använder.
 - **Ljud** (`ui/audio.py`): `SoundBoard` lyssnar bara på bussen – `ReportDelivered` ger tal

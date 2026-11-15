@@ -3,22 +3,19 @@ from __future__ import annotations
 
 from rich.text import Text
 from textual.app import ComposeResult
-from textual.binding import Binding
 from textual.css.query import NoMatches
-from textual.screen import Screen
 from textual.widgets import Static
 
 from sim.fmt import nm
-from sim.reports import Report
 
 from .chart_render import STYLE, fmt_grid, grid_step, render_chart
-from .widgets import QUALITY_STYLE, ROLE_STYLE
+from .viewbase import ViewScreen
+from .widgets import QUALITY_STYLE
 
 ZOOM = (0.01, 0.025, 0.05, 0.1, 0.2, 0.4)          # sjömil per kolumn
 DEFAULT_ZOOM = 3
 PAN_COLS = 10
 REDRAW_S = 0.25
-TICKER_LINES = 2
 
 LEGEND = [
     ("@", "own", "beräknad position"), ("·", "track", "bestick"), ("+", "fix", "fix"),
@@ -32,7 +29,7 @@ LEGEND = [
 LEGEND_SPLIT = 7                  # andra raden: isen och osäkerheten
 
 
-class ChartScreen(Screen):
+class ChartScreen(ViewScreen):
     CSS = """
     ChartScreen { background: #0b0f0c; }
     #chart-head { height: 2; background: #1c2a20; color: #c8d0b0; }
@@ -40,42 +37,30 @@ class ChartScreen(Screen):
     #chart-legend { height: 2; color: #7f9a80; }
     #chart-ticker { height: 2; background: #0f1611; }
     """
-    BINDINGS = [
-        Binding("escape", "close", "Tillbaka"),
-        Binding("plus,equals_sign", "zoom(-1)", "Zooma in"),
-        Binding("minus", "zoom(1)", "Zooma ut"),
-        Binding("up", "pan(0,1)", show=False),
-        Binding("down", "pan(0,-1)", show=False),
-        Binding("left", "pan(-1,0)", show=False),
-        Binding("right", "pan(1,0)", show=False),
-        Binding("c", "center", "Centrera"),
-    ]
+    PREFIX = "chart"
+    REDRAW_S = REDRAW_S
+    EMPTY_KEYS = {"escape": "close", "plus": "zoom(-1)", "equals_sign": "zoom(-1)",
+                  "minus": "zoom(1)", "up": "pan(0,1)", "down": "pan(0,-1)",
+                  "left": "pan(-1,0)", "right": "pan(1,0)", "space": "center"}
 
     def __init__(self) -> None:
         super().__init__()
         self.zoom = DEFAULT_ZOOM
         self.follow = True
         self.center: tuple[float, float] = (0.0, 0.0)
-        self.ticker: list[Text] = []
 
     def compose(self) -> ComposeResult:
         yield Static(id="chart-head")
         yield Static(id="chart-body")
         yield Static(_legend(), id="chart-legend")
         yield Static(id="chart-ticker")
-
-    def on_mount(self) -> None:
-        self.draw()
-        self.set_interval(REDRAW_S, self.draw)
+        yield self.order_line()
 
     @property
     def scale(self) -> float:
         return ZOOM[self.zoom]
 
     # --- tangenter ----------------------------------------------------------------
-    def action_close(self) -> None:
-        self.app.pop_screen()
-
     def action_zoom(self, step: int) -> None:
         self.zoom = min(max(self.zoom + step, 0), len(ZOOM) - 1)
         self.draw()
@@ -119,20 +104,9 @@ class ChartScreen(Screen):
         t.append("\n")
         t.append(f" 1 tecken = {_nm(self.scale)} nm · rutnät {fmt_grid(grid_step(self.scale))} nm"
                  f" · N↑", style="dim")
-        t.append("   +/− zoom · pilar flyttar · c centrerar · Tab djupprofil · Esc tillbaka"
+        t.append("   +/− zoom · pilar flyttar · mellanslag centrerar · Tab djupprofil · Esc tillbaka"
                  + ("" if self.follow else " · (ej centrerat)"), style="dim")
         head.update(t)
-
-    def add_report(self, clock: str, report: Report) -> None:
-        line = Text(f" {clock[:5]} ", style="dim")
-        line.append(f"{report.speaker}: " if report.speaker else "",
-                    style=ROLE_STYLE.get(report.role, "bold"))
-        line.append(report.text or "", style="bold red" if report.alarm else "")
-        self.ticker = (self.ticker + [line])[-TICKER_LINES:]
-        try:
-            self.query_one("#chart-ticker", Static).update(Text("\n").join(self.ticker))
-        except NoMatches:
-            pass
 
 
 def _nm(v: float) -> str:

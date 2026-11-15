@@ -34,6 +34,7 @@ CHART_WORDS = {"sjökort", "sjokort", "kort", "karta"}
 PROFILE_WORDS = {"profil", "djupprofil", "sidovy"}
 SYSTEM_WORDS = {"system", "systemtavla", "systemtavlan", "tavla", "tavlan"}
 PERISCOPE_WORDS = {"periskopbild", "periskopvy", "bild"}
+LOG_WORDS = {"logg", "loggen"}
 VIEWS = (ChartScreen, ProfileScreen, SystemScreen, PeriscopeScreen)   # Tab-ordningen efter loggen
 GAUGE_EVERY_S = 0.5
 SOUND_WORDS = {"ljud", "ljud av", "ljud på", "ljud pa"}
@@ -163,6 +164,10 @@ class SubApp(App):
         if text.lower() in PERISCOPE_WORDS:
             self.action_periscope()
             return
+        if text.lower() in LOG_WORDS:
+            if isinstance(self.screen, VIEWS):
+                self.pop_screen()
+            return
         if text.lower() in SOUND_WORDS:
             want = {"ljud av": False, "ljud på": True, "ljud pa": True}.get(text.lower())
             self.action_sound(want)
@@ -171,6 +176,8 @@ class SubApp(App):
             self.action_speech(SPEECH_WORDS[text.lower()])
             return
         self.query_one(ReportLog).add_captain(self.game.clock_str(), text)
+        if isinstance(self.screen, VIEWS):
+            self.screen.add_captain(self.game.clock_str(), text)
         self.game.command(text)
 
     def _start(self) -> None:

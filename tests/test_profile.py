@@ -143,7 +143,7 @@ def test_tab_cycles_the_views(tmp_path):
             assert "▬▬▶" in str(app.screen.query_one("#profile-body").render())
             await pilot.press("minus")
             assert app.screen.depth_zoom is not None
-            await pilot.press("a")
+            await pilot.press("space")
             assert app.screen.depth_zoom is None
             app.save_screenshot(str(tmp_path / "profil.svg"))
             await pilot.press("escape")

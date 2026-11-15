@@ -3,21 +3,16 @@ from __future__ import annotations
 
 from rich.text import Text
 from textual.app import ComposeResult
-from textual.binding import Binding
 from textual.css.query import NoMatches
-from textual.screen import Screen
 from textual.widgets import Static
 
-from sim.reports import Report
-
 from .systems_render import header, legend, render_systems
-from .widgets import ROLE_STYLE
+from .viewbase import ViewScreen
 
 REDRAW_S = 0.5
-TICKER_LINES = 2
 
 
-class SystemScreen(Screen):
+class SystemScreen(ViewScreen):
     CSS = """
     SystemScreen { background: #0b0f0c; }
     #systems-head { height: 1; background: #1c2a20; color: #c8d0b0; }
@@ -25,24 +20,15 @@ class SystemScreen(Screen):
     #systems-legend { height: 1; color: #7f9a80; }
     #systems-ticker { height: 2; background: #0f1611; }
     """
-    BINDINGS = [Binding("escape", "close", "Tillbaka")]
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.ticker: list[Text] = []
+    PREFIX = "systems"
+    REDRAW_S = REDRAW_S
 
     def compose(self) -> ComposeResult:
         yield Static(id="systems-head")
         yield Static(id="systems-body")
         yield Static(legend(), id="systems-legend")
         yield Static(id="systems-ticker")
-
-    def on_mount(self) -> None:
-        self.draw()
-        self.set_interval(REDRAW_S, self.draw)
-
-    def action_close(self) -> None:
-        self.app.pop_screen()
+        yield self.order_line()
 
     def draw(self) -> None:
         game = getattr(self.app, "game", None)
@@ -62,13 +48,3 @@ class SystemScreen(Screen):
         t.append("   Tab periskop · Esc tillbaka", style="dim")
         head.update(t)
 
-    def add_report(self, clock: str, report: Report) -> None:
-        line = Text(f" {clock[:5]} ", style="dim")
-        line.append(f"{report.speaker}: " if report.speaker else "",
-                    style=ROLE_STYLE.get(report.role, "bold"))
-        line.append(report.text or "", style="bold red" if report.alarm else "")
-        self.ticker = (self.ticker + [line])[-TICKER_LINES:]
-        try:
-            self.query_one("#systems-ticker", Static).update(Text("\n").join(self.ticker))
-        except NoMatches:
-            pass

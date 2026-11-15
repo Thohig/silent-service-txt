@@ -8,51 +8,37 @@ from __future__ import annotations
 
 from rich.text import Text
 from textual.app import ComposeResult
-from textual.binding import Binding
 from textual.css.query import NoMatches
-from textual.screen import Screen
 from textual.widgets import Static
-
-from sim.reports import Report
 
 from .periscope_render import (default_index, header, object_key, ordered_objects,
                                render_periscope)
-from .widgets import ROLE_STYLE
+from .viewbase import ViewScreen
 
 REDRAW_S = 0.5
-TICKER_LINES = 2
 
 
-class PeriscopeScreen(Screen):
+class PeriscopeScreen(ViewScreen):
     CSS = """
     PeriscopeScreen { background: #0b0f0c; }
     #periscope-head { height: 2; background: #1c2a20; color: #c8d0b0; }
     #periscope-body { height: 1fr; }
     #periscope-ticker { height: 2; background: #0f1611; }
     """
-    BINDINGS = [
-        Binding("escape", "close", "Tillbaka"),
-        Binding("left", "select(-1)", "Föregående"),
-        Binding("right", "select(1)", "Nästa"),
-    ]
+    PREFIX = "periscope"
+    REDRAW_S = REDRAW_S
+    EMPTY_KEYS = {"escape": "close", "left": "select(-1)", "right": "select(1)"}
 
     def __init__(self) -> None:
         super().__init__()
         self.selected_key: str | None = None
         self._pic_t: int | None = None
-        self.ticker: list[Text] = []
 
     def compose(self) -> ComposeResult:
         yield Static(id="periscope-head")
         yield Static(id="periscope-body")
         yield Static(id="periscope-ticker")
-
-    def on_mount(self) -> None:
-        self.draw()
-        self.set_interval(REDRAW_S, self.draw)
-
-    def action_close(self) -> None:
-        self.app.pop_screen()
+        yield self.order_line()
 
     def action_select(self, step: int) -> None:
         pic = self._picture()
@@ -109,13 +95,3 @@ class PeriscopeScreen(Screen):
                  "Tab logg · Esc tillbaka", style="dim")
         head.update(t)
 
-    def add_report(self, clock: str, report: Report) -> None:
-        line = Text(f" {clock[:5]} ", style="dim")
-        line.append(f"{report.speaker}: " if report.speaker else "",
-                    style=ROLE_STYLE.get(report.role, "bold"))
-        line.append(report.text or "", style="bold red" if report.alarm else "")
-        self.ticker = (self.ticker + [line])[-TICKER_LINES:]
-        try:
-            self.query_one("#periscope-ticker", Static).update(Text("\n").join(self.ticker))
-        except NoMatches:
-            pass
