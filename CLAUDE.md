@@ -242,13 +242,16 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   kommer masten inte upp för isen publiceras `PeriscopeBlocked` och vyn säger det.
 - **Huvudmenyn** (`ui/menu.py`, `MenuScreen`): uppdragen grupperade (`mission_groups`: kort variants nyckel
   = lång nyckel + "-x", titeln "Rubrik – variant, datum", det långa först, `FIRST_GROUPS` övningen först),
-  rubriker är avstängda alternativ, beskrivningen (`brief`) bredvid, sist Avsluta. Nytt scenario hamnar
+  rubriker är avstängda alternativ, beskrivningen (`brief`) bredvid, sist Inställningar, Order och
+  ordlista, Avsluta. Inställningar (`ui/settings.py`): ljud, talets språk, slumpfrö (`SubApp.sound_wanted`,
+  `language`, `fixed_seed`; `--seed`/`--tyst` sätter startvärdena, fröet gäller alla uppdrag tills det
+  ändras). Order och ordlista (`ui/manual.py`) hämtar orderna ur stationernas `COMMANDS` per roll. Nytt scenario hamnar
   i menyn av sig självt om nyckel och titel följer mönstret. Flödet: menyn → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
   huvudmenyn. `SubApp` håller spelet, ljudet och inställningarna (ljud, talets språk) över uppdragen;
   widgetarna nås med `app.gs().query_one(...)` (`app.query_one` ser bara standardskärmen). Efter
   slutrapporten går vyerna att titta på; Enter med tom orderrad (även i en vy) ⇒ `return_to_menu()`:
   timern stoppas, ljud och sanningslogg stängs, `game = None`, menyn markerar scenariot. Nytt uppdrag =
-  nytt `Game`, ny buss, nytt frö (`--seed` gäller bara det första), logg `truth-<tid>-<frö>.log`.
+  nytt `Game`, ny buss, nytt frö om inget är inställt, logg `truth-<tid>-<frö>.log`.
   `avbryt uppdraget`/`avsluta` ⇒ vakthavande frågar (`off.confirm_quit`, förslag `avbryt uppdraget
   bekräftat`), `ja` ⇒ utfallet `quit`.
 - **Order i alla vyer** (`ui/viewbase.py`): vyerna ärver `ViewScreen` (rapportraden, `Esc`, orderrad

@@ -17,8 +17,13 @@ from textual.widgets.option_list import Option
 
 from sim.scenario import SCENARIOS, ScenarioDef
 
+from .manual import ManualScreen
+from .settings import SettingsScreen
+
 FIRST_GROUPS = ("ovning",)        # övningen först: den lär känna båten
 QUIT_ID = "_avsluta"
+SETTINGS_ID = "_installningar"
+MANUAL_ID = "_ordlista"
 SHORT_PREFIX = "Kort variant. "
 LIST_WIDTH = 44
 LABEL_WIDTH = 26
@@ -94,6 +99,15 @@ def brief(sd: ScenarioDef, group: MissionGroup | None) -> Text:
     return t
 
 
+def settings_brief(app) -> Text:
+    t = Text("Ljud, talets språk och slumpfrö.\n\n", style="dim")
+    t.append(f"Ljud      {'på' if getattr(app, 'sound_wanted', False) else 'av'}\n")
+    t.append(f"Tal       {'svenska' if getattr(app, 'language', None) == 'sv' else 'ryska'}\n")
+    seed = getattr(app, "fixed_seed", None)
+    t.append(f"Slumpfrö  {'slumpat' if seed is None else seed}\n")
+    return t
+
+
 class MenuScreen(Screen):
     """Huvudmenyn. selected: scenariot som markeras (det man nyss spelade)."""
 
@@ -126,11 +140,13 @@ class MenuScreen(Screen):
                 options.append(None)
             options.append(Option(heading_label(g), id=f"_grupp_{g.key}", disabled=True))
             options += [Option(variant_label(sd), id=sd.key) for sd in g.variants]
-        options += [None, Option(Text("Avsluta", style="bold"), id=QUIT_ID)]
+        options += [None, Option(Text("Inställningar", style="bold"), id=SETTINGS_ID),
+                    Option(Text("Order och ordlista", style="bold"), id=MANUAL_ID),
+                    Option(Text("Avsluta", style="bold"), id=QUIT_ID)]
         with Horizontal(id="menu-body"):
             yield OptionList(*options, id="scenarios")
             yield Static("", id="brief")
-        yield Static("↑ ↓ välj · Enter starta · ctrl+q avsluta", id="menu-keys")
+        yield Static("↑ ↓ välj · Enter starta eller öppna · ctrl+q avsluta", id="menu-keys")
 
     def on_mount(self) -> None:
         options = self.query_one("#scenarios", OptionList)
@@ -143,8 +159,18 @@ class MenuScreen(Screen):
         brief_w = self.query_one("#brief", Static)
         if key in SCENARIOS:
             brief_w.update(brief(SCENARIOS[key], self._group_of.get(key)))
+        elif key == SETTINGS_ID:
+            brief_w.update(settings_brief(self.app))
+        elif key == MANUAL_ID:
+            brief_w.update(Text("Alla order ordnade efter vem som utför dem, vyerna, tangenterna "
+                                "och besättningens ryska ord.", style="dim"))
         elif key == QUIT_ID:
             brief_w.update(Text("Stäng programmet.", style="dim"))
+
+    def on_screen_resume(self) -> None:
+        """Tillbaka från inställningarna: visa de nya värdena."""
+        opt = self.query_one("#scenarios", OptionList).highlighted_option
+        self._show(opt.id if opt else None)
 
     def on_option_list_option_highlighted(self, event: OptionList.OptionHighlighted) -> None:
         event.stop()
@@ -154,5 +180,9 @@ class MenuScreen(Screen):
         event.stop()
         if event.option.id == QUIT_ID:
             self.app.exit()
+        elif event.option.id == SETTINGS_ID:
+            self.app.push_screen(SettingsScreen())
+        elif event.option.id == MANUAL_ID:
+            self.app.push_screen(ManualScreen())
         elif event.option.id in SCENARIOS:
             self.app.start_scenario(event.option.id)

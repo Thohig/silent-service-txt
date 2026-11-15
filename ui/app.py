@@ -92,7 +92,9 @@ class SubApp(App):
         """scenario: nyckel i SCENARIOS. Utan scenario börjar spelet med huvudmenyn.
         sound: tal och larm (macOS). Av som standard så att testerna är tysta."""
         super().__init__()
-        self.seed = seed if seed is not None else random.randrange(1_000_000)
+        self.fixed_seed = seed               # inställning: samma frö varje uppdrag (None: slumpat)
+        self.seed: int | None = None         # det pågående uppdragets frö
+        self.last_seed: int | None = None
         self.log_dir = Path(log_dir)
         self.game: Game | None = None
         self.truth_log: TruthLog | None = None
@@ -114,12 +116,17 @@ class SubApp(App):
             self._create_game(scenario)
 
     def _create_game(self, key: str) -> None:
-        if self.scenario_key is not None:    # ett nytt uppdrag får ett nytt frö
-            self.seed = random.randrange(1_000_000)
+        self.seed = self.fixed_seed if self.fixed_seed is not None else random.randrange(1_000_000)
+        self.last_seed = self.seed
         self.scenario_key = key
         scenario = build_scenario(key, random.Random(self.seed))
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.truth_log = TruthLog(self.log_dir / f"truth-{stamp}-{self.seed}.log")
+        path = self.log_dir / f"truth-{stamp}-{self.seed}.log"
+        n = 2
+        while path.exists():                 # samma frö igen inom samma sekund
+            path = self.log_dir / f"truth-{stamp}-{self.seed}-{n}.log"
+            n += 1
+        self.truth_log = TruthLog(path)
         self.truth_log.write(f"# seed={self.seed} scenario={key}")
         # en kort variants uppvärmning körs i en tråd medan ordern skrivs ut (_begin)
         self.game = Game(scenario, seed=self.seed, truth_log=self.truth_log, warm_up=False)

@@ -15,7 +15,7 @@ uv run pytest             # snabba tester
 uv run pytest --slow      # alla tester
 ```
 
-När ett uppdrag är slut tar Enter dig tillbaka till huvudmenyn. Stäng programmet med `ctrl+q`. Sanningen (exakta positioner och TMA-lösningar) loggas
+När ett uppdrag är slut tar Enter dig tillbaka till huvudmenyn. Där finns också inställningar (ljud, tal, slumpfrö) och en lista över alla order och ryska ord. Stäng programmet med `ctrl+q`. Sanningen (exakta positioner och TMA-lösningar) loggas
 till `logs/truth-*.log`.
 
 ## Order

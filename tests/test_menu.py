@@ -1,6 +1,8 @@
 """Huvudmenyn: uppdragen grupperade med varianter, beskrivning och återgång."""
 import asyncio
 
+import pytest
+
 from sim.scenario import SCENARIOS
 from ui.menu import QUIT_ID, MenuScreen, brief, mission_groups, split_title, variant_label
 
@@ -57,5 +59,63 @@ def test_menu_skips_headings_and_marks_the_last_mission(tmp_path):
             await pilot.press("enter")              # Avsluta stänger programmet
             await pilot.pause()
         assert not app.is_running
+
+    asyncio.run(run())
+
+
+def test_manual_lists_every_command_and_only_real_view_words():
+    from sim.stations import DEFAULT_STATIONS
+    from ui import app as ui_app
+    from ui.manual import SOUND_WORDS, VIEW_WORDS, order_sections
+
+    listed = {h for _, helps in order_sections() for h in helps}
+    for cls in DEFAULT_STATIONS:
+        assert {s.help for s in cls.COMMANDS if s.help} <= listed
+    assert "avbryt uppdraget" in listed and "ja" in listed
+    all_views = (ui_app.CHART_WORDS | ui_app.PROFILE_WORDS | ui_app.SYSTEM_WORDS
+                 | ui_app.PERISCOPE_WORDS | ui_app.BRIDGE_WORDS | ui_app.LOG_WORDS)
+    assert set(VIEW_WORDS) <= all_views
+    assert set(SOUND_WORDS) <= ui_app.SOUND_WORDS | set(ui_app.SPEECH_WORDS)
+
+
+@pytest.mark.slow
+def test_settings_change_sound_speech_and_seed_for_the_next_mission(tmp_path):
+    from ui.app import GameScreen, SubApp
+    from ui.manual import ManualScreen
+    from ui.menu import MANUAL_ID, SETTINGS_ID
+    from ui.settings import SettingsScreen
+
+    async def run():
+        app = SubApp(log_dir=tmp_path, sound=True)
+        async with app.run_test(size=(110, 36)) as pilot:
+            await pilot.pause()
+            options = app.screen.query_one("#scenarios")
+            options.highlighted = options.get_option_index(SETTINGS_ID)
+            await pilot.press("enter")
+            await pilot.pause()
+            assert isinstance(app.screen, SettingsScreen)
+            await pilot.press("enter")                       # ljud av
+            await pilot.press("down", "enter")               # tal svenska
+            await pilot.press("down", "enter", *"12x", "enter")
+            assert app.fixed_seed is None                    # bara siffror
+            await pilot.press(*"4711", "enter")
+            assert (app.sound_wanted, app.language, app.fixed_seed) == (False, "sv", 4711)
+            await pilot.press("escape")
+            await pilot.pause()
+            assert isinstance(app.screen, MenuScreen)
+            assert "4711" in str(app.screen.query_one("#brief").render())
+            options = app.screen.query_one("#scenarios")
+            options.highlighted = options.get_option_index(MANUAL_ID)
+            await pilot.press("enter")
+            await pilot.pause()
+            assert isinstance(app.screen, ManualScreen)
+            await pilot.press("escape")
+            await pilot.pause()
+            options = app.screen.query_one("#scenarios")
+            options.highlighted = options.get_option_index("kuba")
+            await pilot.press("enter")
+            await pilot.pause()
+            assert isinstance(app.screen, GameScreen)
+            assert app.seed == 4711 and app.last_seed == 4711
 
     asyncio.run(run())
