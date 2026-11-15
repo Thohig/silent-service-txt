@@ -40,6 +40,10 @@ def header(width: int = 100, level: int = 0, lit: bool = True) -> Text:
     boat.append(" К-114", style=f"bold {HIGHLIGHT_FG}")
     boat.append("   Projekt 627A · 4:e eskadern · Poljarnyj", style=DIM)
     ready = readiness_text(level, lit)
+    if len(boat.plain) + len(ready.plain) + 2 > width:      # smalt: översättningen bort först
+        ready = readiness_text(level, lit, translate=False)
+    if len(boat.plain) + len(ready.plain) + 2 > width:
+        boat = Text(" К-114", style=f"bold {HIGHLIGHT_FG}")
     t.append_text(boat)
     t.append(" " * max(2, width - len(boat.plain) - len(ready.plain)))
     t.append_text(ready)
@@ -102,7 +106,7 @@ READINESS = [
 ]
 
 
-def readiness_text(level: int, lit: bool = True) -> Text:
+def readiness_text(level: int, lit: bool = True, translate: bool = True) -> Text:
     """"БОЕВАЯ ГОТОВНОСТЬ · ПОВЫШЕННАЯ" och översättningen. lit: blinkningens läge."""
     r = READINESS[level]
     t = Text()
@@ -110,7 +114,8 @@ def readiness_text(level: int, lit: bool = True) -> Text:
     hot = (f"bold {HIGHLIGHT_FG} on {RED}" if level >= 2 else f"bold {RED}" if level == 1
            else f"bold {INK}")
     t.append(f" {r.ru} ", style=hot if (lit or not r.blink) else f"bold {RED_DARK}")
-    t.append(f"  stridsberedskap: {r.sv} ", style=f"italic {DIM}")
+    if translate:
+        t.append(f"  stridsberedskap: {r.sv} ", style=f"italic {DIM}")
     return t
 
 

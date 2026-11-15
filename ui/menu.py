@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 from rich.text import Text
 from textual.app import ComposeResult
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import OptionList, Static
 from textual.widgets.option_list import Option
@@ -19,6 +19,7 @@ from textual.widgets.option_list import Option
 from sim.scenario import SCENARIOS, ScenarioDef
 
 from .manual import ManualScreen
+from .menu_scene import scene_text
 from .menutext import (BG, DIM, HIGHLIGHT_BG, HIGHLIGHT_FG, INK, RULE, RadioState, TickerState,
                        header, radio_at, radio_text, stamp_for, stamp_text, ticker_at,
                        ticker_text)
@@ -33,6 +34,8 @@ LIST_WIDTH = 44
 LABEL_WIDTH = 26
 FRAME_S = 0.1               # menyns klocka: fjärrskrivaren och beredskapens blinkning
 BLINK_S = 0.6
+SCENE_ROWS = 10             # bilden av båten vid kaj, under beskrivningen
+SCENE_MIN_HEIGHT = 34       # lägre fönster: ingen bild
 
 
 @dataclass
@@ -124,10 +127,14 @@ class MenuScreen(Screen):
     MenuScreen #menu-title {{ height: 4; color: {INK}; background: {BG}; }}
     MenuScreen #menu-body  {{ height: 1fr; padding: 1 2 0 2; background: {BG}; }}
     MenuScreen #scenarios  {{ width: {LIST_WIDTH}; height: 1fr; background: {BG}; border: none;
-                             color: {INK}; scrollbar-size-vertical: 1; }}
+                             color: {INK}; scrollbar-size-vertical: 1;
+                             scrollbar-color: {RULE}; scrollbar-background: {BG}; }}
     MenuScreen #scenarios > .option-list--option-disabled {{ color: {INK}; }}
     MenuScreen #scenarios > .option-list--option-highlighted {{
         background: {HIGHLIGHT_BG}; color: {HIGHLIGHT_FG}; }}
+    MenuScreen #right      {{ width: 1fr; height: 1fr; background: {BG}; }}
+    MenuScreen #scene      {{ height: {SCENE_ROWS}; padding: 0 0 0 3; background: {BG};
+                             border-left: vkey {RULE}; }}
     MenuScreen #brief      {{ width: 1fr; height: 1fr; padding: 0 2 0 3; color: {INK};
                              background: {BG}; border-left: vkey {RULE}; }}
     MenuScreen #ticker     {{ height: 1; margin: 1 2 0 2; background: #1e1510; color: {INK}; }}
@@ -157,7 +164,9 @@ class MenuScreen(Screen):
                     Option(Text("Avsluta", style="bold"), id=QUIT_ID)]
         with Horizontal(id="menu-body"):
             yield OptionList(*options, id="scenarios")
-            yield Static("", id="brief")
+            with Vertical(id="right"):
+                yield Static("", id="brief")
+                yield Static("", id="scene")
         yield Static("", id="ticker")
         yield Static("↑ ↓ välj · Enter starta eller öppna · ctrl+t ljud · ctrl+q avsluta", id="menu-keys")
 
@@ -192,6 +201,10 @@ class MenuScreen(Screen):
         line = (radio_text(self.radio, width - 4) if self.radio is not None
                 else ticker_text(self.ticker, width - 4, lit))
         try:
+            scene = self.query_one("#scene", Static)
+            scene.display = self.size.height >= SCENE_MIN_HEIGHT
+            if scene.display and scene.size.width:
+                scene.update(scene_text(scene.size.width - 3, SCENE_ROWS, t))
             self.query_one("#menu-title", Static).update(header(width, self.ticker.level, lit))
             self.query_one("#ticker", Static).update(line)
         except Exception:                             # noqa: BLE001 – under nedstängning

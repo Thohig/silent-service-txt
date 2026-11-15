@@ -280,7 +280,9 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   Radio Moskva (`BULLETINS`, `radio_at(t)`): påhittade sändningar efter 25 s och sedan var 95:e s, allt
   mer olycksbådande (den sista upprepas); remsan visar översättningen. Ljud: ratten (`synth_tuning`),
   kortvågsbrus, musiken sänks; rösten är Milena via `say -o` genom `radio_voice` (smalt band, fading).
-  Utan Milena bara brus. Flödet: menyn → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
+  Utan Milena bara brus. Bilden (`ui/menu_scene.py`, `render_scene(cols, rows, t)`): К-114 vid kaj i
+  braille under beskrivningen (10 rader, bara när fönstret är ≥ 34 rader): stjärnor, fjällen, kajen med kran
+  och lampa, ubåten med röd stjärna och lanterna, glitter på vattnet, snö i vinden; ingen slump (`_hash`). Flödet: menyn → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
   huvudmenyn. `SubApp` håller spelet, ljudet och inställningarna (ljud, talets språk) över uppdragen;
   widgetarna nås med `app.gs().query_one(...)` (`app.query_one` ser bara standardskärmen). Efter
   slutrapporten går vyerna att titta på; Enter med tom orderrad (även i en vy) ⇒ `return_to_menu()`:

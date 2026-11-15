@@ -173,7 +173,10 @@ def test_ticker_line_fits_and_readiness_follows_the_dispatch():
         assert d.stamp in ticker_text(full, 80).plain
     assert ticker_text(TickerState(0, 0, False, True), 80).plain.strip() == "ТЕЛЕТАЙП"
     assert "ПОЛНАЯ" in header(120, 3).plain and "stridsberedskap: full" in header(120, 3).plain
-    assert all(len(header(120, lvl).plain.split("\n")[3]) == 120 for lvl in range(len(READINESS)))
+    for width in (80, 100, 120):
+        for lvl in range(len(READINESS)):
+            line = header(width, lvl).plain.split("\n")[3]
+            assert len(line) == width and READINESS[lvl].ru in line
 
 
 def test_menu_screen_shows_the_ticker_and_readiness(tmp_path):
@@ -211,3 +214,15 @@ def test_radio_moscow_comes_on_schedule_and_grows_more_ominous():
         assert radio_show_s(b) < RADIO_EVERY_S
         assert not any("a" <= c.lower() <= "z" for c in b.ru)          # rösten läser bara kyrilliska
         assert len(radio_text(radio_at(RADIO_FIRST_S + RADIO_TUNE_S + 1), 80).plain) <= 80
+
+
+def test_scene_draws_the_boat_at_the_quay_and_the_snow_moves():
+    from ui.menu_scene import MIN_COLS, render_scene
+    a = render_scene(80, 10, 0.5)   # lampan fladdrar ibland
+    assert len(a) == 10 and all(len(line.plain) == 80 for line in a)
+    text = "\n".join(line.plain for line in a)
+    assert "★" in text and "✦" in text and "К-114" in text
+    assert "⣿" in text                                             # skrovet är fyllt
+    assert [l.plain for l in render_scene(80, 10, 0.5)] == [l.plain for l in a]   # ingen slump
+    assert [l.plain for l in render_scene(80, 10, 1.5)] != [l.plain for l in a]   # snön faller
+    assert render_scene(MIN_COLS - 1, 10, 0.0) == []
