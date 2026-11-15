@@ -188,6 +188,7 @@ class ConvoyShipAI:
     can_force = False
     datum = None
     roe = "-"
+    state = "formation"
 
     def __init__(self, vessel: Vessel, convoy: Convoy, slot: ConvoyShip):
         self.vessel = vessel

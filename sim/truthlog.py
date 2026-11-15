@@ -36,10 +36,11 @@ class TruthLog:
                 f"k={s.course:5.1f} v={s.speed:4.1f} r={world.true_range(v):5.2f} "
                 f"b={world.true_bearing(v):5.1f} SE={world.raw_signal_excess(v):+5.1f}")
         for ai in world.ais:
-            if ai.vessel.side == "neutral" and ai.state == "transit":
+            state = getattr(ai, "state", "-")
+            if ai.vessel.side == "neutral" and state == "transit":
                 continue
-            d = ai.datum
-            parts.append(f"AI {ai.vessel.id} {ai.state}/{ai.roe}" +
+            d = getattr(ai, "datum", None)
+            parts.append(f"AI {ai.vessel.id} {state}/{getattr(ai, 'roe', '-')}" +
                          (f" datum=({d.x:.2f},{d.y:.2f},{d.depth:.0f}m ±{d.sigma:.2f})" if d else ""))
         self.write(" | ".join(parts))
 
