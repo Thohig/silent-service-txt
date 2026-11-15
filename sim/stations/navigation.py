@@ -89,6 +89,8 @@ ATTACK_IN_POSITION_H = 8 / 60   # målet tvärs inom så här lång tid ...
 ATTACK_IN_POSITION_NM = 2.5     # ... och vi så här nära dess väg: i skjutläge
 ATTACK_PASSED_NM = 0.3          # vi ligger så här långt bakom målet: det har passerat
 ATTACK_MAX_H = 1.5         # längre bort än så: vi hinner inte i praktiken
+ATTACK_SUGGEST_S = 300     # mål känt: föreslå anfall så här ofta (obesvarat glesas ut)
+ATTACK_REST_S = 1200       # efter skjutläge: föreslå inte nytt anfall förrän efter så här länge
 PATH_STEP_NM = 0.1         # vägsökningens rutnät
 EXIT_RECALC_S = 20         # vägen ut räknas om så här ofta
 TIDE_TABLE_ERR = 0.3        # tidvattentabellen kan ha så här stort fel (andel av farten)
@@ -283,6 +285,11 @@ PHRASES = {
     "nav.attack.passed": lambda d: f"Kapten, {_att_what(d)} har redan passerat oss. "
     "Slutar styra mot skjutläget.",
     "nav.suggest.attack_slow": lambda d: "Kapten, navigatören. Föreslår fart 3, tyst medan de kommer.",
+    "nav.suggest.attack": lambda d: f"Kapten, navigatören. Plottet har "
+    f"{'konvojen' if d.get('convoy') else d['designation']} på kurs "
+    f"{fmt_course(d['course'])}, och vi ligger framför. Föreslår att vi går till skjutläge "
+    f"vid sidan av dess väg, mot {d['designation']}"
+    + (f", {d['classification']}" if d.get("classification") else "") + ".",
     "nav.steer": lambda d: f"Kurs {fmt_course(d['course'])} mot {d['name']}, "
     f"{nm(d['range'])} sjömil, ± {nm(d['sigma'])}.",
     "nav.steer.none": lambda d: f"Kapten, vi har ingen position för {d['name']}. "
@@ -469,6 +476,10 @@ RU_PHRASES = {
     f"через {R.count(max(1, round(d['passage_min'])), R.MINUTE)}.",
     "nav.attack.passed": lambda d: f"{R.CAPTAIN}, цель уже прошла. Прекращаем выход в атаку.",
     "nav.suggest.attack_slow": lambda d: f"{R.CAPTAIN}, штурман. Предлагаю ход три узла.",
+    "nav.suggest.attack": lambda d: f"{R.CAPTAIN}, штурман. "
+    f"{'Конвой' if d.get('convoy') else R.contact(d['designation']).capitalize()} идёт курсом "
+    f"{R.course(d['course'])}, мы впереди. Предлагаю выйти в атаку по "
+    f"{R.contact(d['designation'], True)}.",
     "nav.follow.lost": lambda d: f"{R.CAPTAIN}, мы потеряли {R.contact(d['designation'])}. "
     "Прекращаем следование.",
     "nav.suggest.fix": lambda d: f"{R.CAPTAIN}, штурман. Ошибка счисления {R.dec(d['sigma'], R.MILE)}. "
@@ -566,6 +577,7 @@ class NavigationStation(Station):
         self.follow: str | None = None        # kontakten vi följer (goal "follow")
         self.follow_speed = True
         self.attack: str | None = None        # kontakten vi går till skjutläge mot (goal "attack")
+        self._attack_arrived_t = -10**9
         self._attack_behind = 0
         self._water = None                    # sjökortets vattenrutnät för vägsökning
         self._exit_cache: tuple[int, tuple | None, str | None] | None = None
@@ -1548,10 +1560,10 @@ class NavigationStation(Station):
             self.attack = "S-" + self.attack.lstrip("S")
         self._attack_step(announce=True)
 
-    def _attack_target(self):
+    def _attack_target(self, designation: str | None = None):
         """Målets mitt nu och fart (knop) enligt plottet: konvojens baskurs om vi har den."""
         k = self.game.knowledge
-        tr = k.track(self.attack)
+        tr = k.track(designation or self.attack)
         if tr is None:
             return None
         c = k.convoy
@@ -1601,6 +1613,7 @@ class NavigationStation(Station):
                 data.update(passage_min=along / v * 60, dist=across,
                             side=1 if (ex - x) * vy - (ey - y) * vx > 0 else -1)
                 self.say("nav.attack.arrived", data, quality=q, alarm=True)
+                self._attack_arrived_t = self.now
                 if s.speed > 3.5:
                     self.suggest("attack_slow", "nav.suggest.attack_slow", data, order="fart 3",
                                  cooldown=120)
@@ -1631,6 +1644,39 @@ class NavigationStation(Station):
         if announce:
             data.update(course=course, minutes=t_h * 60, side=side)
             self.say("nav.attack", data, kind="ack", quality=q)
+
+    def _convoy_watch(self) -> None:
+        """Plottet har en konvoj och vi ligger framför den: föreslå anfall (aldrig avfyring)."""
+        from .officer import is_big_ship
+        k = self.game.knowledge
+        if k.hunted(self.now) or self.now - self._attack_arrived_t < ATTACK_REST_S:
+            return
+        c = k.convoy
+        if c is not None:
+            tracks = [t for m in c.members if (t := k.track(m)) is not None]
+        else:                                   # ett ensamt stort fartyg med en färsk lösning
+            tracks = [t for t in k.tracks.values() if t.held and is_big_ship(t)
+                      and t.solution is not None and t.solution.quality >= Quality.OSAKER
+                      and self.now - t.solution.t <= 600]
+        if not tracks:
+            return
+        # helst ett klassat mål: trupptransport eller tankfartyg
+        best = next((t for t in tracks if "transport" in t.classification
+                     or "tank" in t.classification), tracks[0])
+        tgt = self._attack_target(best.designation)
+        if tgt is None:
+            return
+        x, y, vx, vy, what, _basis, q = tgt
+        v = math.hypot(vx, vy)
+        ex, ey = self.game.own_position_estimate()
+        if v < 0.5 or ((ex - x) * vx + (ey - y) * vy) / v < 0:
+            return                              # målet har redan passerat
+        self.suggest("convoy_attack", "nav.suggest.attack",
+                     {"designation": best.designation, "convoy": what == "konvojen",
+                      "course": norm360(math.degrees(math.atan2(vx, vy))),
+                      "classification": best.classification if best.classification
+                      != "okänd kontakt" else ""},
+                     order=f"anfall {best.designation}", cooldown=ATTACK_SUGGEST_S, quality=q)
 
     def _steer_to(self, name: str) -> None:
         wps = self.game.knowledge.waypoints
@@ -1780,6 +1826,8 @@ class NavigationStation(Station):
             self._follow_step()
         if self.goal == "attack" and self.now % ATTACK_STEP_S == 0:
             self._attack_step()
+        elif self.now % ATTACK_STEP_S == 0:
+            self._convoy_watch()
         self._log_depth()
         if self.now % DR_TRACK_INTERVAL_S == 0:
             self.dr_track[-1].append((self.est_x, self.est_y))

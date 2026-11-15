@@ -74,6 +74,13 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   fart 3. Passerat (bakom, två gånger i rad, säkert bara med baskurs eller < 3 nm) ⇒ slutar.
   Torpedrummet (`_leg_warning`) varnar när gångtiden är längre än det som är kvar av benet.
   Fyra provkörningar (periskop var 4:e min): framme i alla, närmaste passage 0,2–3,3 nm.
+  Besättningen visar vägen (aldrig avfyring): navigatören (`_convoy_watch`, var 30:e s) föreslår
+  `anfall S-x` när plottet har konvojen, eller ett ensamt stort fartyg med färsk lösning ≥ osäker, och
+  vi ligger framför (inte jagade, inte inom 20 min efter skjutläge, var 5:e min). Vakthavande föreslår
+  `periskopdjup` och sedan `periskop S-x` var 4:e min när konvojen är känd eller sonar hör stora fartyg
+  (`is_big_ship`: klassning stort/transport/tank, inte civilt), utom när vi är jagade, en klassad jagare
+  är < 3 nm enligt plottet eller radarn varit mycket stark senaste 5 min. 8 frön, ja-boten: framme i
+  4 (förut ~2); ja-boten som skjuter `salva` när navigatören säger skjutläge sänker 1–2 (förut 0).
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen

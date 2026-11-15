@@ -14,6 +14,7 @@ vakthavande direkt ur samma kandidater, utan att vänta eller spärra upprepning
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, replace
 
 from .. import phrases
@@ -31,12 +32,21 @@ from ..periscope import (AOB_SIGMA, EYE_BRIDGE_M, EYE_PERISCOPE_M, IceBearing,
                          PeriscopePicture, SightedObject, angle_on_bow, aob_quality, carried,
                          in_sector, lights, range_quality, visible_part)
 from ..reports import Quality
+from .. import russian as R
 from ..russian import ru
 from ..tma import BearingObs
 from .base import Proposal, Station
 from .sonar_room import SonarRoom
 
 LOOK_S = 15
+BIG_SHIP_WORDS = ("stort", "transport", "tank")   # sonarns klassning av stora fartyg (mål)
+
+
+def is_big_ship(track) -> bool:
+    """Ett stort fartyg som inte är civilt: en trolig transport eller tanker (ett mål)."""
+    return not track.civil and any(w in track.classification for w in BIG_SHIP_WORDS)
+
+
 SHORT_LOOK_S = 8           # kort titt mot en bäring: mindre tid med masten uppe
 RADAR_S = 10
 RADAR_RANGE_NM = 12.0
@@ -45,6 +55,10 @@ QUIET_S = 600              # tystnad från kaptenen innan besättningen tar init
 IDLE_RETRY_S = 60          # om ingen station hade något att föreslå
 REPEAT_S = 1200            # samma order föreslås inte igen inom denna tid
 LOOK_INTERVAL_S = 900      # på periskopdjup utan kontakt: titta så här ofta
+CONVOY_LOOK_S = 240        # konvojen känd: en kort titt mot den så här ofta (utkiken ger kursen)
+CONVOY_STEP_S = 30
+ESCORT_CLOSE_NM = 3.0      # en jagare så nära: föreslå inte att gå upp
+ESM_STRONG_S = 300         # mycket stark radar så nyligen: föreslå inte att gå upp
 
 
 @dataclass(frozen=True)
@@ -144,6 +158,10 @@ PHRASES = {
         else "Kapten, vakthavande. Inga förslag just nu, läget är lugnt."),
     "off.suggest.look": lambda d: "Kapten, vakthavande. Vi är på periskopdjup och har inte "
     "tittat på en stund. Föreslår ett periskopsvep.",
+    "off.suggest.convoy_up": lambda d: "Kapten, vakthavande. Sonar hör stora fartyg, men bara "
+    "utkiken ser vart de styr. Föreslår periskopdjup för en titt.",
+    "off.suggest.convoy_look": lambda d: f"Kapten, vakthavande. Föreslår en kort titt mot "
+    f"{d['designation']}, så att plottet får kursen ur vinkeln på bogen.",
 }
 phrases.register(PHRASES)
 
@@ -152,6 +170,10 @@ RU_PHRASES = {
     "off.battle_stations": lambda d: "Боевая тревога! Боевая тревога! Противник, видимо, "
     "обнаружил нас.",
     "off.periscope.up": lambda d: "Есть, поднять перископ.",
+    "off.suggest.convoy_up": lambda d: f"{R.CAPTAIN}, вахтенный офицер. Слышим большие суда. "
+    "Предлагаю всплыть на перископную глубину и посмотреть.",
+    "off.suggest.convoy_look": lambda d: f"{R.CAPTAIN}, вахтенный офицер. Предлагаю короткий "
+    f"взгляд в перископ на {R.contact(d['designation'], True)}.",
 }
 phrases.register_ru(RU_PHRASES)
 
@@ -286,6 +308,37 @@ class OfficerStation(Station):
         self.say("off.suggest.none",
                  {"station": ROLE_LABEL[role] if role else None, "other": other})
 
+    def _convoy_watch(self) -> None:
+        """Konvojen känd: utkiken ger plottet kursen, så föreslå periskopdjup och korta tittar."""
+        k = self.game.knowledge
+        c = k.convoy
+        big = [t.designation for t in k.tracks.values() if t.held and is_big_ship(t)]
+        if (c is None and not big) or k.hunted(self.now) or self._escort_close() \
+                or any(strength == "mycket stark" and self.now - t <= ESM_STRONG_S
+                       for strength, t in self._esm_last.values()):
+            return
+        st = self.own.state
+        if st.depth > PERISCOPE_DEPTH + 1:
+            self.suggest("convoy_up", "off.suggest.convoy_up", order="periskopdjup", cooldown=600)
+        elif self.look_done_t is None and st.speed <= 7 and \
+                self.now - self._last_look_t >= CONVOY_LOOK_S:
+            d = c.members[0] if c is not None and c.members else big[0]
+            self.suggest("convoy_look", "off.suggest.convoy_look", {"designation": d},
+                         order=f"periskop {d}", cooldown=CONVOY_LOOK_S)
+
+    def _escort_close(self) -> bool:
+        """En klassad jagare inom ESCORT_CLOSE_NM enligt plottet."""
+        ex, ey = self.game.own_position_estimate()
+        for tr in self.game.knowledge.tracks.values():
+            sol = tr.solution
+            if "jagare" not in tr.classification or sol is None or not tr.held:
+                continue
+            dt = (self.now - sol.t) / 3600.0
+            x, y = sol.x + sol.state[2] * dt, sol.y + sol.state[3] * dt
+            if math.hypot(x - ex, y - ey) < ESCORT_CLOSE_NM:
+                return True
+        return False
+
     def idle_proposals(self) -> list[Proposal]:
         st = self.own.state
         held = self.game.knowledge.threat_held()
@@ -415,6 +468,8 @@ class OfficerStation(Station):
         world, st, rng = self.game.world, self.own.state, self.game.rng
         self._idle_watch()
         self._battle_watch()
+        if self.now % CONVOY_STEP_S == 0:
+            self._convoy_watch()
         if self.look_done_t is not None and self.now >= self.look_done_t:
             self.look_done_t = None
             if st.depth > PERISCOPE_DEPTH + 1:

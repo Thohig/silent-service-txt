@@ -178,3 +178,50 @@ def test_plot_forgets_the_convoy_when_its_ships_are_lost():
     assert g.knowledge.convoy is None
     g.command("anfall S-1")                     # navigatören anfaller inte en gammal bild
     assert g.station(NavigationStation).goal is None
+
+
+# --- besättningen föreslår vägen till skjutläge -------------------------------------
+def _ticks(g, n):
+    for _ in range(n):
+        g.tick()
+
+
+def test_navigator_suggests_an_attack_when_the_convoy_is_ahead():
+    o0 = default_scenario(random.Random(3)).world.own.state
+    g, reports = _game_with_convoy_estimate(o0.x - 1.0, o0.y + 14.0)
+    _ticks(g, 70)
+    sug = [r for r in reports if r.type == "nav.suggest.attack"]
+    assert sug and "[ja: anfall S-1]" in sug[0].text and "konvojen" in sug[0].text
+
+
+def test_navigator_does_not_suggest_an_attack_on_a_convoy_that_has_passed():
+    o0 = default_scenario(random.Random(3)).world.own.state
+    g, reports = _game_with_convoy_estimate(o0.x + 0.5, o0.y - 4.0)
+    _ticks(g, 70)
+    assert not any(r.type == "nav.suggest.attack" for r in reports)
+
+
+def test_officer_suggests_periscope_depth_and_then_short_looks_at_the_convoy():
+    o0 = default_scenario(random.Random(3)).world.own.state
+    g, reports = _game_with_convoy_estimate(o0.x - 1.0, o0.y + 14.0)
+    g.command("djup 80")
+    g.world.own.state.depth = 80
+    _ticks(g, 70)
+    assert any(r.type == "off.suggest.convoy_up" and "[ja: periskopdjup]" in r.text
+               for r in reports)
+    g.command("periskopdjup")
+    g.world.own.state.depth = 16
+    _ticks(g, 70)
+    assert any(r.type == "off.suggest.convoy_look" and "[ja: periskop S-1]" in r.text
+               for r in reports)
+
+
+def test_officer_does_not_suggest_going_up_while_hunted():
+    o0 = default_scenario(random.Random(3)).world.own.state
+    g, reports = _game_with_convoy_estimate(o0.x - 1.0, o0.y + 14.0)
+    g.command("djup 80")
+    g.world.own.state.depth = 80
+    for t in range(0, 70, 10):
+        g.knowledge.hunt_t = g.now
+        _ticks(g, 10)
+    assert not any(r.type == "off.suggest.convoy_up" for r in reports)
