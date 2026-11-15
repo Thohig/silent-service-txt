@@ -86,6 +86,3 @@ Flytta en variant från **Kvar** till **Klart** när den är byggd, testad och k
   ≥ osäker): `konvoj` 2 av 8 (förut 1), `konvoj-kort` fortfarande 1 av 8. Boten skjuter på gamla
   lösningar (tittar var 4:e min, ben på 5–10 min); en bot som skjuter strax efter en titt träffar
   oftare (vakten i `konvoj-mot`: 6 av 6 salvor träffade).
-- **Långa Jagade har glidit:** med samma botar som för `jagad-kort` (12 000 s) ger `jagad` i dag
-  ja-boten 1 av 8 och djupt och fort 1 av 8 (oftast sänkta, `lost`), mot 3 och 7 i CLAUDE.md.
-  Samma resultat före och efter `jagad-kort`, så det har kommit med någon tidigare ändring.

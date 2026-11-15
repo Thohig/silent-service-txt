@@ -98,6 +98,7 @@ def test_navigator_points_the_way_out_away_from_threats():
     for _ in range(40):
         g.tick()
     nav.est_x, nav.est_y = 8.0, 9.0
+    g.knowledge.bathymetry = None                           # bara hoten, inte banken
     for tr in g.knowledge.tracks.values():                  # inga hot västerut
         tr.observations[-1] = replace(tr.observations[-1], bearing=90.0)
     c, dist, clear = nav.exit_route()
@@ -210,3 +211,20 @@ def test_sprint_proposal_always_orders_the_turbine():
     eng = g.station(EngineeringStation)
     order, data = eng._sprint()
     assert "turbin" in order and f"fart {data['speed']}" in order
+
+
+def test_way_out_avoids_running_over_the_bank():
+    """Jagade vill springa djupt: vägen ut över banken (grundare än 300 m på kortet)
+    räknas längre, så navigatören väljer djupt vatten även om det är något längre."""
+    from sim.stations.navigation import EXIT_DEEP_M
+    for seed in range(4):
+        g = Game(build_scenario("jagad", random.Random(seed)), seed=seed)
+        nav = g.station(NavigationStation)
+        for tr in g.knowledge.tracks.values():
+            tr.held = False                                 # inga hot: bara botten
+        c, _, _ = nav.exit_route()
+        chart = g.knowledge.bathymetry
+        bank_west = chart.depth_at(0.5, nav.est_y) < chart.depth_at(19.5, nav.est_y)
+        assert c != (270.0 if bank_west else 90.0)
+        assert nav._shallow_nm(nav.est_x, nav.est_y, c, 3.0) < 1.0
+        assert EXIT_DEEP_M >= 250

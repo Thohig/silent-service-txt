@@ -223,8 +223,11 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   skarpa efter tre övningsanfall (~25 min). `leash_nm=1`: släpper jakten när datumet ligger mer
   än 1 nm utanför kvadraten. Mål `mission["escape"]`: 1 nm utanför och ingen jägare med datum
   inom max(1 nm, 3σ) från oss (ett skenmål räknas inte). Navigatören (`exit_route`) föreslår
-  närmaste kant, +4 nm straff inom 40° från en hotkontakt. 8 frön: passiv 0, ja-boten 3,
-  djupt och fort (turbin 12 kn, 200 m, rakt ut) 7.
+  närmaste kant, +4 nm straff inom 40° från en hotkontakt, och sträckan där kortet visar grundare än
+  300 m (`EXIT_DEEP_M`) räknas dubbelt: över banken kan vi inte springa djupt. 8 frön: passiv 0,
+  ja-boten 6 (15 av 24), djupt och fort (turbin 12 kn, 200 m, navigatörens väg ut vid start, ja till
+  djupförslag) 8. Utan grundstraffet gick vägen ut ofta över banken och ja-boten klarade 2 av 24
+  (vilket förslag som kommer först beror på rapporternas slumpade fördröjning).
 - Jagade kort (`jagad-kort`, `hunted_scenario(short=True)`): kvadraten 7 nm, ubåten 2–2,5 nm från
   djupvattensidans kant, DD1 1,4–1,7 nm bort i anfall, DD2 3–3,8 nm bort på djupvattensidan, båda
   skarpa från start; tidsgräns 30 min. 8 frön: passiv 0, ja-boten 4 (24–26 min), djupt och fort
