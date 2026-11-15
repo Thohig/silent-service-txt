@@ -158,6 +158,8 @@ def classification(s: str) -> str:
 
 def weapon(name: str) -> str:
     """Torpedtyp för rösten: SET-53 -> 'СЭТ 53', 53-61 -> '53 61' (inte 'minus')."""
+    if name == "övning":
+        return "практическая"
     return name.replace("SET", "СЭТ").replace("-", " ")
 
 

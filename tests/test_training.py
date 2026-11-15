@@ -159,13 +159,13 @@ def _yes_bot(seed, minutes):
 @pytest.mark.slow
 def test_yes_bot_gets_out_and_completes_the_programme():
     for seed in range(1, 5):
-        g, said, closest = _yes_bot(seed, 130)
+        g, said, closest = _yes_bot(seed, 150)
         assert g.world.outcome["outcome"] == "training_done", seed
-        assert said.count("train.step.done") == 10, seed
+        assert said.count("train.step.done") == 11, seed
         assert "train.partner" in said, seed
         assert "train.done" in said, seed
         assert closest > 0.2, seed                    # inga fartyg nära i ytläge
-        assert g.now < 115 * 60, seed
+        assert g.now < 135 * 60, seed
 
 
 @pytest.mark.slow
@@ -214,3 +214,93 @@ def test_partner_report_only_within_telephone_range():
     o.x, o.y = ship.state.x + 1.0, ship.state.y
     rep = partner_report(g.world, random.Random(1))
     assert rep is not None and rep["course"] % 5 == 0
+
+
+def _target_world(dx=0.0):
+    """Ubåten och ett stillaliggande bevakningsfartyg 1 nm norrut (dx åt sidan)."""
+    from sim.entities import Vessel
+    sb = Seabed(base=2000.0)
+    w = _world(sb, 5.0, 5.0, depth=40.0)
+    ship = Vessel("SKR1", "guardship", ShipState(x=5.0 + dx, y=6.0, course=90.0, speed=0.0),
+                  side="neutral")
+    w.contacts.append(ship)
+    return w, ship
+
+
+def test_exercise_torpedo_runs_under_the_target_without_sinking_it():
+    from sim.exercise import torpedo_report
+    from sim.weapons import TORPEDO_TYPES, launch_torpedo
+    w, ship = _target_world()
+    t = launch_torpedo(w, TORPEDO_TYPES["övning"], 0.0)
+    for _ in range(200):
+        w.tick()
+    assert not ship.sunk
+    assert not any(tr.kind == "explosion" for tr in w.transients)
+    assert t.passed["SKR1"] < 0.03
+    rep = torpedo_report(w)
+    assert rep["hit"] and "hostile_act" not in w.mission
+
+
+def test_exercise_torpedo_miss_is_reported_with_distance():
+    from sim.exercise import torpedo_report
+    from sim.weapons import TORPEDO_TYPES, launch_torpedo
+    w, ship = _target_world(dx=0.1)
+    launch_torpedo(w, TORPEDO_TYPES["övning"], 0.0)
+    for _ in range(200):
+        w.tick()
+    rep = torpedo_report(w)
+    assert not rep["hit"] and 150 <= rep["miss_m"] <= 220 and rep["seen"]
+
+
+def test_training_loads_only_exercise_torpedoes_and_never_offers_to_fire():
+    from sim.stations.torpedo_room import TorpedoRoom
+    g = _game(1)
+    tr = g.station(TorpedoRoom)
+    assert [t.load for t in tr.tubes[:2]] == ["övning", "övning"]
+    assert all(t.load is None for t in tr.tubes[2:])
+    assert tr.idle_proposals() == []                       # inget att ladda om med
+    from sim.stations.training import STEPS
+    assert STEPS["torped"].order is None                    # vapen: aldrig en ja-order
+
+
+def test_short_variant_hands_over_at_periscope_depth_in_the_area():
+    g = Game(build_scenario("ovning-kort", random.Random(1)), seed=1)
+    nav = g.station(NavigationStation)
+    a = g.knowledge.waypoints["Övningsområdet"]
+    assert g.world.own.state.depth <= 18 and not g.world.own.surfaced
+    assert math.dist((nav.est_x, nav.est_y), (a.x, a.y)) < 1.5
+    assert g.knowledge.periscope is not None                # vakten har svept
+    said = []
+    g.bus.subscribe(ReportDelivered, lambda e: said.append(e.report.data.get("order")))
+    for _ in range(180):
+        g.tick()
+    assert "djup 100" in said                               # första förslaget inom 3 min
+
+
+@pytest.mark.slow
+def test_short_variant_with_a_captain_who_fires():
+    fired = 0
+    for seed in range(1, 5):
+        g = Game(build_scenario("ovning-kort", random.Random(seed)), seed=seed)
+        pending, said = [], []
+
+        def on(e, pending=pending, said=said):
+            r = e.report
+            said.append(r.type)
+            if r.type == "train.torpedo.brief" and r.data.get("good") and r.data.get("tubes"):
+                pending.append(f"eld tub {r.data['tubes'][0]} mot {r.data['designation']}")
+        g.bus.subscribe(ReportDelivered, on)
+        bot_t = 0
+        for _ in range(60 * 60):
+            g.tick()
+            while pending:
+                c = pending.pop()
+                g.command(c)
+            if g.suggestion and g.suggestion[2] > bot_t:
+                bot_t = g.suggestion[2]
+                g.command("ja")
+            if g.over:
+                break
+        assert g.world.outcome["outcome"] == "training_done", seed
+        fired += "train.torpedo.result" in said
+    assert fired >= 3              # utan god lösning skjuter kaptenen inte, och steget hoppas över

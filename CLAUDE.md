@@ -90,7 +90,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   `off.briefing` (konvoj, kontakter, besticket ur kunskapen). Tidsgränsen är `World.patrol_end`
   (uppvärmning + speltid). Piloten kan lämna över tidigare genom att returnera True (`seconds` är
   då ett tak). `ScenarioDef.minutes` visas i väljaren. Kort variant = egen nyckel
-  (`konvoj-kort`) som bygger på det långa scenariot. Alla sju stridsscenarier har en kort variant (`-kort`, `-mot`,
+  (`konvoj-kort`) som bygger på det långa scenariot. Alla scenarier har en kort variant (`-kort`, `-mot`,
   `-in`, `-ut`). Ny kort variant: provkör 8 frön med passiv bot, ja-boten och en bot med besättningens
   verktyg; riktmärken: första förslag eller kontakt inom 3 min, ja-boten ~2–4 av 8 (utom där följandet
   är kaptenens sak), viktiga lösningar ≥ osäker vid överlämnandet. Siffrorna under Kalibrering.
@@ -107,7 +107,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   Övningsområdet 4,5 nm norr om mynningen, 1,5–2,5 nm vid sidan av leden; botten 350–420 m.
   Övningsledaren (`stations/training.py`, `TrainingOfficer`, roll vakthavande, tyst utan
   `Scenario.training`): stegen `dyk` (fart 6, periskopdjup), `svep`, `fix`, `framme` (fart 4), `djup100`,
-  `provdjup` (300 m, bara där kortet visar ≥ 340), `smyg`, `lyssna`, `pd`, `upp` (bara med en titt
+  `provdjup` (300 m, bara där kortet visar ≥ 340), `smyg`, `lyssna`, `torped`, `pd`, `upp` (bara med en titt
   ≤ 2 min gammal och inget fartyg < 1,0 nm). Varje steg föreslås som ja-order med förklaring, bockas av ur egna
   instrument, navigatörens fix eller periskopbilden; 30 s paus mellan stegen. Stegen `framme`–`lyssna`
   görs i övningsområdet (inom 1,5 nm, kvar tills 3 nm; utanför föreslås kurs dit); inget föreslås förrän kortet visar oss 0,5 nm utanför
@@ -128,6 +128,20 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   i ytläge föreslår maskin ingen smygmotor och navigatören inte botten.
   8 frön, ja-boten: klar i alla på 92–106 min, ingen grundstötning; lyssningen 8–16 min, plottets
   kurs inom 7° i alla, läget 0,1–1,4 nm fel (efter ändrade gränser stämmer fler än 4 av 8).
+  Övningstorped (`TORPEDO_TYPES["övning"]`, 53-61 utan stridsspets, 12 m djup): detonerar aldrig,
+  noterar närmaste passage per fartyg (`Torpedo.passed`), sätter inte `hostile_act`; torpedrummet
+  frågar inte om bekräftelse mot vårt eget fartyg och säger skjutlösning på det bara med
+  övningstorped i tuben. Övningens beväpning ur `Scenario.armament` (tub 1–2 övningstorped,
+  inget att ladda om ⇒ inga omladdningsförslag). Steget `torped` har ingen order: vakthavande går
+  igenom (`train.torpedo.brief`, var 5:e min) och kaptenen beordrar själv; klart en minut efter
+  beräknad passage, eller hoppas över efter 15 min utan avfyring. Partnern svarar på
+  undervattenstelefonen (`exercise.torpedo_report`): träff = under kölen (halva längden), annars
+  avstånd i meter. 8 frön, bot som skjuter en torped när lösningen är god: klar på 98–115 min,
+  träff i 2, bom på 70–90 m i 4, långt bom i 1, ingen god lösning i 1.
+  Kort variant (`ovning-kort`, 40 min): start på periskopdjup 4 kn inom 0,4 nm från
+  övningsområdet, vakt 4 min (periskopsvep, fix), stegen från `djup100`, tidsgräns 60 min.
+  8 frön: första förslag efter ~67 s; ja-boten klar på 35–51 min (torpeden hoppas över);
+  bot som skjuter klar på 25–37 min, träff i 1; passiv kapten: tiden ute.
 - **Land skymmer** (`World.land_between`, prov var 0,05 nm): ljud genom land +60 dB (`land_loss` i
   `tl_to_own`, jagarens och US-ubåtens `_tl`), bryggan och periskopet ser inte fartyg bakom land.
   Djupgående i ytläge 7 m (`SURFACE_DRAFT_M`): ytläge kan gå på grund. Med bryggan bemannad föreslår

@@ -37,12 +37,15 @@ class TorpedoSpec:
     kill_radius_nm: float = HIT_RADIUS_NM
     seeker_cone: float = 35.0
     seeker_noise: float = 70.0
+    exercise: bool = False    # övningstorped: ingen stridsspets, går under målet
 
 
 TORPEDO_TYPES: dict[str, TorpedoSpec] = {
     "53-61": TorpedoSpec("53-61", "53-61 (rak)", speed=45, range_nm=8.0, source_level=155),
     "SET-53": TorpedoSpec("SET-53", "SET-53 (målsökande)", speed=23, range_nm=4.0,
                           homing=True, source_level=130),
+    "övning": TorpedoSpec("övning", "53-61 övningstorped (utan stridsspets)", speed=45,
+                          range_nm=8.0, source_level=155, run_depth=12.0, exercise=True),
     "T-5": TorpedoSpec("T-5", "T-5 (kärnladdning)", speed=40, range_nm=5.5, nuclear=True,
                        source_level=150, kill_radius_nm=1.0),
 }
@@ -71,6 +74,7 @@ class Torpedo(Vessel):
         self.locked: str | None = None
         self.detonate_at_nm = detonate_at_nm
         self.done = False
+        self.passed: dict[str, float] = {}   # övningstorped: närmaste passage per fartyg (nm)
 
     def radiated_level(self, env) -> float:
         return -999.0 if self.done else self.spec.source_level
@@ -221,7 +225,15 @@ def _step_torpedo(world: World, t: Torpedo, dt: int) -> None:
             _detonate(world, t, None)
         return
 
-    if t.run_nm >= ARM_DISTANCE_NM:
+    if t.spec.exercise:
+        # ingen stridsspets: torpeden går under målet; vi noterar närmaste passage
+        for v in world.contacts:
+            if v.side == "own" or v.sunk or not v.is_ship:
+                continue
+            d = _closest_approach(p0, p1, (v.state.x, v.state.y))
+            if d < t.passed.get(v.id, 9.9):
+                t.passed[v.id] = d
+    elif t.run_nm >= ARM_DISTANCE_NM:
         for v in world.contacts:
             if v.side == "own" or v.sunk or not v.is_ship:
                 continue

@@ -92,3 +92,20 @@ def partner_report(world: World, rng: random.Random, vid: str = "SKR1") -> dict 
     s = v.state
     return {"course": round(s.course / 5) * 5 % 360, "speed": round(s.speed),
             "x": s.x + rng.gauss(0, REPORT_POS_SIGMA_NM), "y": s.y + rng.gauss(0, REPORT_POS_SIGMA_NM)}
+
+
+def torpedo_report(world: World, vid: str = "SKR1") -> dict | None:
+    """Undervattenstelefonen: partnerns utkik om senaste övningstorpeden.
+    hit = passerade under skrovet; miss_m = närmaste passage i meter. None om ingen
+    övningstorped avfyrats eller partnern är utom räckhåll."""
+    from .weapons import HULL_HALF_NM, HIT_RADIUS_NM, Torpedo
+    v = next((c for c in world.contacts if c.id == vid and not c.sunk), None)
+    if v is None or world.true_range(v) > UK_RANGE_NM:
+        return None
+    runs = [c for c in world.contacts if isinstance(c, Torpedo) and c.spec.exercise]
+    if not runs:
+        return None
+    t = runs[-1]
+    d = t.passed.get(vid, 9.9)
+    radius = max(HIT_RADIUS_NM, HULL_HALF_NM.get(v.kind, 0.0))
+    return {"hit": d <= radius, "miss_m": round(d * 1852 / 10) * 10, "seen": d < 0.5}

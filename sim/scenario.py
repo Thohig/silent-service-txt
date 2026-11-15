@@ -99,6 +99,8 @@ class Scenario:
     training: tuple[str, ...] = ()
     training_area: str | None = None
     no_dive_in_fjord: bool = False      # ordern förbjuder dykning innanför mynningen
+    # torpedrummets laddning: {"tubes": {tub: typ}, "inventory": {typ: antal}}, annars standard
+    armament: dict | None = None
 
 
 def _crew() -> dict[Role, CrewMember]:
@@ -967,11 +969,13 @@ DATUM: 8 OKTOBER 1962
    MYNNINGEN. GENOMFÖR PROGRAMMET:
    DYKNING, PERISKOPSVEP, FIX, DJUP 100,
    PROVDJUP 300 METER, SMYGMOTOR,
-   LYSSNINGSÖVNING, UPPSTIGNING.
+   LYSSNINGSÖVNING, ÖVNINGSTORPED,
+   UPPSTIGNING.
    ANMÄL NÄR DET ÄR KLART.
 4. BEVAKNINGSFARTYGET SKR-112 ÖVAR I
    OMRÅDET SOM MÅL FÖR LYSSNINGEN.
-5. INGA SKARPA VAPEN.
+5. INGA SKARPA VAPEN. TUB 1 OCH 2
+   LADDADE MED ÖVNINGSTORPEDER.
 
 SLUT
 """
@@ -980,8 +984,9 @@ TRAINING_CLOCK = 10 * 3600
 TRAINING_SIZE = 16.0
 TRAINING_AREA = "Övningsområdet"
 TRAINING_AREA_OUT_NM = 4.5          # övningsområdet så långt norr om mynningen
-TRAINING_STEPS = ("dyk", "svep", "fix", "framme", "djup100", "provdjup", "smyg", "lyssna", "pd",
-                  "upp")
+TRAINING_STEPS = ("dyk", "svep", "fix", "framme", "djup100", "provdjup", "smyg", "lyssna", "torped",
+                  "pd", "upp")
+TRAINING_ARMAMENT = {"tubes": {1: "övning", 2: "övning"}, "inventory": {"övning": 0}}
 TRAINING_SHIP_R_NM = 3.0            # bevakningsfartyget håller sig inom så här långt från området
 TRAINING_AREA_SIDE_NM = (1.5, 2.5)  # övningsområdet så långt vid sidan av leden
 TRAINING_KEEP_RIGHT_NM = 0.15       # fartygen håller så här långt till styrbord om farledens mitt
@@ -1048,6 +1053,7 @@ def training_scenario(rng: random.Random) -> Scenario:
                     tide_table=tide.table_copy(random.Random(rng.random())),
                     area_name="Kolafjorden", fairway=fairway, fairway_to=TRAINING_AREA,
                     training=TRAINING_STEPS, training_area=TRAINING_AREA, no_dive_in_fjord=True,
+                    armament=TRAINING_ARMAMENT,
                     outcome_text={
                         "training_done": "Övningsprogrammet är genomfört. K-114 ligger i "
                                          "ytläge i övningsområdet och anmäler till staben i "
@@ -1066,6 +1072,43 @@ def training_scenario(rng: random.Random) -> Scenario:
                         "lost": "K-114 är förlorad i Barents hav med hela besättningen.",
                     })
 
+
+
+TRAINING_SHORT_WARM_S = 4 * 60        # vakten: periskopsvep och fix i övningsområdet
+TRAINING_SHORT_LIMIT_S = 60 * 60      # sedan så här länge för resten av programmet
+TRAINING_SHORT_STEPS = ("djup100", "provdjup", "smyg", "lyssna", "torped", "pd", "upp")
+
+
+def _training_watch_pilot(game: Any, t: int) -> None:
+    """Vakten i övningsområdet: periskopsvep, sedan en fix på kustens landmärken."""
+    if t == 5:
+        game.command("periskop")
+    elif t == 60:
+        game.command("fix")
+
+
+def training_short_scenario(rng: random.Random) -> Scenario:
+    """Övningen, kort: K-114 ligger redan på periskopdjup i övningsområdet."""
+    sc = training_scenario(rng)
+    w = sc.world
+    r2 = random.Random(rng.random())
+    a = next(k for k in sc.known_positions if k[0] == TRAINING_AREA)
+    o = w.own.state
+    o.x, o.y = a[1] + r2.uniform(-0.4, 0.4), a[2] + r2.uniform(-0.4, 0.4)
+    o.depth = o.ordered_depth = 17.0
+    o.speed = o.ordered_speed = 4.0
+    o.course = o.ordered_course = r2.uniform(0, 360)
+    w.own.sys.bridge = "shut"
+    sc.training = TRAINING_SHORT_STEPS
+    sc.warmup = Warmup(TRAINING_SHORT_WARM_S, _training_watch_pilot)
+    w.patrol_end = TRAINING_SHORT_WARM_S + TRAINING_SHORT_LIMIT_S
+    sc.secret_order += ("\nVAKTJOURNALEN, 11.10: K-114 LIGGER PÅ PERISKOPDJUP\n"
+                        "I ÖVNINGSOMRÅDET. DYKNING, PERISKOPSVEP OCH FIX\n"
+                        "ÄR GENOMFÖRDA. KAPTENEN TAR BEFÄLET FÖR RESTEN\n"
+                        "AV PROGRAMMET.\n")
+    sc.outcome_text["patrol_end"] = ("Tiden är ute innan programmet var genomfört; staben i "
+                                     "Severomorsk vill ha en förklaring.")
+    return sc
 
 
 @dataclass(frozen=True)
@@ -1155,3 +1198,8 @@ register(ScenarioDef(
     "dyk utanför mynningen och gå igenom övningsprogrammet: periskop, fix, provdjup, "
     "smygmotor och lyssning mot ett eget bevakningsfartyg.",
     training_scenario))
+register(ScenarioDef(
+    "ovning-kort", "Övning – i övningsområdet, oktober 1962",
+    "Kort variant. K-114 ligger redan på periskopdjup i övningsområdet. Gå igenom resten av "
+    "programmet: djup 100, provdjup, smygmotor, lyssning, övningstorped och uppstigning.",
+    training_short_scenario, minutes=40))

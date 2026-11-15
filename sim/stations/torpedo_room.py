@@ -47,6 +47,7 @@ TYPE_ALIASES = {
     "53-61": "53-61", "53": "53-61", "rak": "53-61", "raka": "53-61",
     "set-53": "SET-53", "set53": "SET-53", "set": "SET-53", "målsökande": "SET-53",
     "malsokande": "SET-53",
+    "övning": "övning", "ovning": "övning", "övningstorped": "övning", "ovningstorped": "övning",
     "t-5": "T-5", "t5": "T-5", "kärn": "T-5", "karn": "T-5", "kärnladdning": "T-5",
 }
 
@@ -221,6 +222,8 @@ PHRASES = {
     "torp.run.silent": lambda d: f"Tub {d['tube']}: torpeden har tystnat"
     + (f" i bäring {fmt_course(d['bearing'])}" if d.get("bearing") is not None else "")
     + " utan detonation. Miss, kapten.",
+    "torp.run.exercise_end": lambda d: f"Tub {d['tube']}: övningstorpeden har gått färdigt "
+    "och flyter upp för bärgning.",
     "torp.run.timeout": lambda d: f"Tub {d['tube']}: torpedens räckvidd är slut och vi har inte "
     "hört någon detonation. Trolig miss.",
 }
@@ -265,6 +268,8 @@ RU_PHRASES = {
     "torp.run.silent": lambda d: f"{_ru_tube(d)}: торпеда затихла"
     + (f", пеленг {R.course(d['bearing'])}" if d.get("bearing") is not None else "")
     + ", взрыва не было. Промах, товарищ командир.",
+    "torp.run.exercise_end": lambda d: f"{_ru_tube(d)}: практическая торпеда прошла дистанцию "
+    "и всплыла.",
     "torp.run.timeout": lambda d: f"{_ru_tube(d)}: запас хода торпеды кончился, взрыва не "
     "слышали. Вероятно, промах.",
 }
@@ -300,6 +305,11 @@ class TorpedoRoom(Station):
         for t in self.tubes[4:6]:
             t.load = "SET-53"
         self.inventory = {"53-61": 6, "SET-53": 4, "T-5": 2}
+        arm = getattr(game.scenario, "armament", None)
+        if arm:                                   # t.ex. övningen: bara övningstorpeder
+            for t in self.tubes:
+                t.load = arm["tubes"].get(t.n)
+            self.inventory = dict(arm["inventory"])
         self.decoys = 6
         self.in_water: list[Running] = []
         self._launches = 0
@@ -440,7 +450,8 @@ class TorpedoRoom(Station):
                 return False
             course, run_s, dist = aim
             course = (course + o.offset) % 360
-            if not tr.warship and self._confirmed.get(tr.designation, -10**9) < self.now - CONFIRM_S:
+            if not tr.warship and not (spec.exercise and tr.friendly) and \
+                    self._confirmed.get(tr.designation, -10**9) < self.now - CONFIRM_S:
                 # torpedrummet frågar en gång; samma order inom en minut verkställs
                 self._confirmed[tr.designation] = self.now
                 self.say("torp.confirm", {"designation": tr.designation,
@@ -454,7 +465,8 @@ class TorpedoRoom(Station):
             course = o.course
         launch_torpedo(self.game.world, spec, course, detonate_at)
         self.game.bus.publish(OwnSoundMade(self.now, "launch"))
-        self.game.world.mission["hostile_act"] = True
+        if not spec.exercise:
+            self.game.world.mission["hostile_act"] = True
         tube.load = None
         self._launches += 1
         run_nm = min(detonate_at, spec.range_nm) if detonate_at else spec.range_nm
@@ -541,7 +553,10 @@ class TorpedoRoom(Station):
                 self.say("torp.time", {"tube": r.tube, "designation": r.designation}, kind="info")
             if self.now >= r.t_end + END_GRACE_S:
                 self.in_water.remove(r)
-                self.say("torp.run.timeout", {"tube": r.tube}, quality=Quality.OSAKER)
+                if TORPEDO_TYPES[r.type].exercise:
+                    self.say("torp.run.exercise_end", {"tube": r.tube})
+                else:
+                    self.say("torp.run.timeout", {"tube": r.tube}, quality=Quality.OSAKER)
 
         if self.now % 30 == 0:
             self._readiness()
@@ -549,11 +564,15 @@ class TorpedoRoom(Station):
     def _readiness(self) -> None:
         for tr in self.game.knowledge.tracks.values():
             sol = tr.solution
-            if not tr.threat or sol is None or sol.quality < Quality.GOD:
+            if not (tr.threat or tr.friendly and tr.held) or sol is None \
+                    or sol.quality < Quality.GOD:
                 continue
             if self._ready_said.get(tr.designation, Quality.DALIG) >= sol.quality:
                 continue
             for tube in self.tubes:
+                # mot vårt eget fartyg bara med övningstorped
+                if tr.friendly and not (tube.load and TORPEDO_TYPES[tube.load].exercise):
+                    continue
                 if tube.load and not self._blocked(tube.load) and \
                         (aim := self._aim(sol, tube.load)) is not None:
                     self._ready_said[tr.designation] = sol.quality

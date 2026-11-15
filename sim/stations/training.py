@@ -15,8 +15,8 @@ from dataclasses import dataclass
 from .. import phrases
 from .. import russian as R
 from ..crew import Role
-from ..events import ListeningExercise, PeriscopeSighted
-from ..exercise import partner_report
+from ..events import ListeningExercise, OwnSoundMade, PeriscopeSighted
+from ..exercise import partner_report, torpedo_report
 from ..fmt import fmt_course, kn, nm
 from ..geo import bearing_to, distance
 from ..ownship import TEST_DEPTH
@@ -40,12 +40,15 @@ LISTEN_DEPTH = 40            # lyssningsövningen: över språngskiktet, där yt
 LISTEN_MIN_S = 8 * 60        # lyssna minst så här länge efter förslaget
 LISTEN_MAX_S = 25 * 60       # så länge får plottet hålla på innan övningen avbryts
 LISTEN_TARGET = "bevakningsfartyg"
+TORP_MAX_S = 15 * 60         # utan avfyring så här länge efter genomgången: steget hoppas över
+TORP_AFTER_S = 60            # partnern rapporterar så här länge efter beräknad passage
+TORP_BRIEF_S = 300           # genomgången upprepas så här ofta (glesas ut)
 DONE_DELAY_S = 30            # anmälan levereras innan övningen räknas som klar
 
 
 @dataclass(frozen=True)
 class Step:
-    order: str
+    order: str | None        # None: vakthavande förklarar, kaptenen ger ordern själv (vapen)
     name: str                # som vakthavande säger det: "övningen <name>"
     area: bool = False       # görs i övningsområdet
 
@@ -59,6 +62,7 @@ STEPS: dict[str, Step] = {
     "provdjup": Step(f"djup {TEST_DEPTH:.0f}", "provdjup", area=True),
     "smyg": Step("smygmotor", "smygmotorn", area=True),
     "lyssna": Step(f"djup {LISTEN_DEPTH}", "lyssning", area=True),
+    "torped": Step(None, "övningstorped", area=True),
     "pd": Step("periskopdjup", "periskopdjup"),
     "upp": Step("ytläge", "uppstigning"),
 }
@@ -80,11 +84,18 @@ class TrainingOfficer(Station):
         self._in_area = False
         self._look_t = -10**9
         self._listen_t: int | None = None     # när lyssningsövningen föreslogs första gången
+        self._torp_t: int | None = None       # när torpedövningen gicks igenom första gången
+        self._fired_t: int | None = None      # senaste avfyring (vårt eget ljud)
         self.rng = random.Random(1962)          # undervattenstelefonens fel: egen slump
 
     def attach(self, bus) -> None:
         super().attach(bus)
         bus.subscribe(PeriscopeSighted, lambda e: setattr(self, "_look_t", e.t))
+        bus.subscribe(OwnSoundMade, self._on_own_sound)
+
+    def _on_own_sound(self, e: OwnSoundMade) -> None:
+        if e.kind == "launch":
+            self._fired_t = e.t
 
     @property
     def own(self):
@@ -118,6 +129,23 @@ class TrainingOfficer(Station):
                 return tr
         return None
 
+    def _exercise_running(self) -> bool:
+        """En övningstorped är på väg mot målet (partnern kan rapportera en minut efter
+        beräknad passage; resten av gången väntar vi inte på)."""
+        from .torpedo_room import TorpedoRoom
+        return any(r.type == "övning" and self.now < (r.t_hit + TORP_AFTER_S if r.t_hit
+                                                       else r.t_end)
+                   for r in self.game.station(TorpedoRoom).in_water)
+
+    def _torp_brief(self) -> dict:
+        from .torpedo_room import TorpedoRoom
+        tubes = [t.n for t in self.game.station(TorpedoRoom).tubes if t.load == "övning"]
+        tr = self._listen_track() or next(
+            (t for t in self.game.knowledge.tracks.values() if t.held and t.friendly), None)
+        return {"tubes": tubes, "designation": tr.designation if tr else None,
+                "good": tr is not None and tr.solution is not None
+                and tr.solution.quality >= Quality.GOD}
+
     def _step_done(self, key: str) -> bool:
         st, sys = self.own.state, self.own.sys
         match key:
@@ -142,6 +170,12 @@ class TrainingOfficer(Station):
                 spent = self.now - self._listen_t
                 return spent >= LISTEN_MAX_S or \
                     spent >= LISTEN_MIN_S and self._listen_track() is not None
+            case "torped":
+                if self._torp_t is None:
+                    return False
+                if self._fired_t is not None and self._fired_t >= self._torp_t:
+                    return not self._exercise_running()
+                return self.now - self._torp_t >= TORP_MAX_S
             case "pd":
                 return st.depth <= 18 and not self.own.surfaced
             case "upp":
@@ -209,6 +243,14 @@ class TrainingOfficer(Station):
                                  order=f"kurs mot {a.name.lower()}", cooldown=SUGGEST_S)
                 return
             data["depth"] = round(TEST_DEPTH)
+        if key == "torped":
+            # vapen föreslås aldrig som ja-order: vakthavande går igenom, kaptenen beordrar
+            if self._torp_t is None:
+                self._torp_t = self.now
+            if self._fired_t is None or self._fired_t < self._torp_t:
+                self.suggest("train_torped", "train.torpedo.brief", self._torp_brief(),
+                             cooldown=TORP_BRIEF_S)
+            return
         if key == "lyssna" and self._listen_t is None:
             self._listen_t = self.now
             self.game.bus.publish(ListeningExercise(self.now, True))
@@ -251,6 +293,13 @@ class TrainingOfficer(Station):
                 data.update(designation=tr.designation, range=sol.range_nm, course=sol.course,
                             speed=sol.speed, quality=sol.quality.label)
             self._partner_check(data, tr)
+        if key == "torped":
+            fired = self._fired_t is not None and self._torp_t is not None \
+                and self._fired_t >= self._torp_t
+            data["fired"] = fired
+            if fired:
+                rep = torpedo_report(self.game.world)
+                self.say("train.torpedo.result", rep or {}, extra_delay=8)
         self.say("train.step.done", data, kind="done")
         if self.i >= len(self.steps):
             first = self.done[0][1]
@@ -275,7 +324,33 @@ def _partner_text(d: dict) -> str:
                    "Fler och större girar ger bättre avstånd.")
 
 
+def _torpedo_brief_text(d: dict) -> str:
+    tubes = " och ".join(str(n) for n in d["tubes"]) or "–"
+    target = d["designation"] or "bevakningsfartyget"
+    return ("Kapten, vakthavande. Nästa övning: övningstorped mot bevakningsfartyget. "
+            f"Tub {tubes} har övningstorpeder utan stridsspets; de går på 12 meter, under kölen. "
+            + (f"Plottets lösning på {target} är god. " if d["good"] else
+               f"Vänta tills plottets lösning på {target} är god. ")
+            + f"Ordern ger ni själv: eld tub {d['tubes'][0] if d['tubes'] else 1} mot {target}"
+            + (f", eller båda: salva mot {target}." if len(d["tubes"]) > 1 else "."))
+
+
+def _torpedo_result_text(d: dict) -> str:
+    if not d:
+        return "Sonar: bevakningsfartyget svarar inte på undervattenstelefonen om torpeden."
+    if d["hit"]:
+        return "Sonar: bevakningsfartyget på undervattenstelefonen. Torpeden gick under kölen. Träff!"
+    if d["seen"]:
+        return (f"Sonar: bevakningsfartyget på undervattenstelefonen. Torpeden passerade "
+                f"{d['miss_m']} meter från skrovet. Bom.")
+    return "Sonar: bevakningsfartyget på undervattenstelefonen. De såg aldrig torpeden. Bom."
+
+
 def _step_done_text(d: dict) -> str:
+    if d["step"] == "torped" and not d.get("fired"):
+        return "Ingen övningstorped avfyrad; vi hoppar över torpedövningen."
+    if d["step"] == "torped":
+        return "Torpedövningen genomförd."
     if d["step"] == "lyssna":
         if d.get("designation") is None:
             return "Lyssningsövningen avbruten: plottet fick ingen god lösning på bevakningsfartyget."
@@ -325,6 +400,8 @@ PHRASES = {
     "barlast, och bryggan bemannas igen.",
     "train.step.done": _step_done_text,
     "train.partner": _partner_text,
+    "train.torpedo.brief": _torpedo_brief_text,
+    "train.torpedo.result": _torpedo_result_text,
     "train.partner.none": lambda d: "Sonar: vi når inte bevakningsfartyget på "
     "undervattenstelefonen.",
     "train.done": lambda d: f"Kapten, övningsprogrammet är genomfört på {d['minutes']} minuter: "
@@ -362,6 +439,11 @@ RU_PHRASES = {
     "train.partner": lambda d: f"{R.CAPTAIN}, акустик. Сторожевой корабль по звукоподводной "
     f"связи: курс {R.course(d['course'])}, ход {R.count(d['speed'], R.KNOT)}.",
     "train.partner.none": lambda d: f"{R.CAPTAIN}, акустик. Связи со сторожевым кораблём нет.",
+    "train.torpedo.brief": lambda d: f"{R.CAPTAIN}, вахтенный офицер. Следующее упражнение: "
+    "практическая торпедная стрельба по сторожевому кораблю. Приказ за вами.",
+    "train.torpedo.result": lambda d: f"{R.CAPTAIN}, акустик. "
+    + ("Нет связи." if not d else "Торпеда прошла под килем. Попадание!" if d["hit"]
+       else "Промах."),
 }
 
 phrases.register(PHRASES)
