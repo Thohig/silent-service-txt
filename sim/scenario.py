@@ -88,6 +88,7 @@ class Scenario:
     # målet är att lämna området: så här långt utanför kanten räknas som ute (nm)
     escape_margin_nm: float | None = None
     escape_requires_photo: Quality | None = None   # utvägen räknas först med ett så bra foto
+    escape_y_below: float | None = None  # ute = söder om denna linje (i stället för kvadratens kant)
     warmup: Warmup | None = None         # kort variant: vakten före kaptenen (se Warmup)
     report_required: bool = False        # ordern kräver en rapport vid sambandstillfället
 
@@ -425,14 +426,16 @@ STRAIT_RADIO = [
 HARBOR_PATROL_SPEED = 6.0
 
 
-def strait_scenario(rng: random.Random, short: bool = False) -> Scenario:
+def strait_scenario(rng: random.Random, short: bool = False, out: bool = False) -> Scenario:
     """Genom sundet: smyg in mot en flottbas, fotografera ankarplatsen, ta dig ut.
 
     short (`sundet-in`): 06:20, vi ligger vid väntläget och ett fartyg är på väg in;
-    målet är bara fotot (se strait_in_scenario)."""
+    målet är bara fotot (se strait_in_scenario). out (`sundet-ut`): 07:00 innanför nätet,
+    ett fartyg på väg ut; ute = vid skärmens inre kant (se strait_out_scenario)."""
     from .harbor import HarborDefense, HydrophoneLine, Net, PatrolBoatAI, hydrophone_points
     # 04:20, gryningen kl 06:10; kort variant efter gryningen
-    start_clock = STRAIT_IN_CLOCK if short else 4 * 3600 + 20 * 60
+    start_clock = STRAIT_OUT_CLOCK if out else STRAIT_IN_CLOCK if short else 4 * 3600 + 20 * 60
+    assert not (short and out)
     size = 14.0
     sb_rng = random.Random(rng.random())
     seabed = strait_seabed(sb_rng, size)
@@ -517,6 +520,25 @@ def strait_scenario(rng: random.Random, short: bool = False) -> Scenario:
         del world.mission["escape"]
         world.mission["photo"] = {"quality": int(Quality.GOD), "outcome": "photo_taken"}
         world.patrol_end = STRAIT_IN_WARM_S + STRAIT_IN_LIMIT_S
+    if out:
+        r2 = random.Random(rng.random())
+        # innanför nätet, nära nog ankarplatsen för en god bild, på periskopdjup
+        # vid sidan av farleden: fartyget ut går förbi, inte rakt över oss
+        own.state.x = cx + r2.choice((-1.0, 1.0)) * STRAIT_OUT_SIDE_NM
+        own.state.y = net_y + r2.uniform(*STRAIT_OUT_INSIDE_NM)
+        own.state.depth = own.state.ordered_depth = 16.0
+        own.state.speed = own.state.ordered_speed = 2.0
+        own.state.course = own.state.ordered_course = 180.0
+        # fartyget ut: passerar oss några minuter efter överlämnandet
+        y0, y1 = lanes[1].start[1], lanes[1].end[1]
+        gy = min(own.state.y + r2.uniform(*STRAIT_OUT_SHIP_BEHIND_NM), y0 - 0.05)
+        traffic._spawn(world, lanes[1], (gy - y0) / (y1 - y0))
+        traffic.next_t = [10**9, 10**9]
+        # ute: förbi nätet och hydrofonerna, och ingen har oss
+        world.mission["escape"] = {"margin_nm": margin, "outcome": "recon_done",
+                                   "requires_photo": int(Quality.GOD),
+                                   "y_below": net_y - STRAIT_OUT_LINE_NM}
+        world.patrol_end = STRAIT_OUT_WARM_S + STRAIT_OUT_LIMIT_S
     windows = [(c - start_clock) for c in (6 * 3600 + 30 * 60, 8 * 3600) if c > start_clock + 3600]
     known = [("Ankarplatsen", ax + rng.gauss(0, 0.2), ay + rng.gauss(0, 0.2), 0.4, 0),
              ("Nätet", cx + rng.gauss(0, 0.05), net_y + rng.gauss(0, 0.15), 0.2, 0)]
@@ -566,6 +588,41 @@ def strait_in_scenario(rng: random.Random) -> Scenario:
                        "Guantánamobukten med filmen ombord.",
         "patrol_end": "Fartyget har passerat och grinden är stängd. K-114 har inte kommit nära "
                       "nog för bilderna.",
+    })
+    return sc
+
+
+STRAIT_OUT_CLOCK = 7 * 3600                # dagsljus för bilden under vakten
+STRAIT_OUT_WARM_S = 4 * 60
+STRAIT_OUT_LIMIT_S = 30 * 60
+STRAIT_OUT_INSIDE_NM = (1.0, 1.2)          # vi startar så långt innanför nätet
+STRAIT_OUT_LINE_NM = 1.0                  # ute: så långt söder om nätet (hydrofonerna 0,5–0,6)
+STRAIT_OUT_SIDE_NM = 0.2                  # vid sidan av farledens mitt
+STRAIT_OUT_SHIP_BEHIND_NM = (0.9, 1.2)     # fartyget ut startar så långt bakom oss
+
+
+def _strait_out_pilot(game: Any, t: int) -> None:
+    """Vakten: bilden av ankarplatsen, sedan ned på 20 m (bukten är grund) och vänta."""
+    if t == 5:
+        game.command("foto")
+    elif t == 60:
+        game.command("djup 20, smygmotor, fart 1")
+
+
+def strait_out_scenario(rng: random.Random) -> Scenario:
+    """Genom sundet, ut: filmen är tagen innanför nätet; ta er ut bakom ett fartyg."""
+    sc = strait_scenario(rng, out=True)
+    sc.warmup = Warmup(STRAIT_OUT_WARM_S, _strait_out_pilot)
+    sc.escape_y_below = sc.world.mission["escape"]["y_below"]
+    sc.secret_order += ("\nVAKTJOURNALEN, 07.04: BILDERNA AV ANKARPLATSEN\n"
+                        "ÄR TAGNA. VI LIGGER INNANFÖR NÄTET. ETT FARTYG\n"
+                        "ÄR PÅ VÄG UT MOT GRINDEN. KAPTENEN TAR BEFÄLET.\n")
+    sc.outcome_text.update({
+        "recon_done": "K-114 har tagit sig ut förbi nätet och hydrofonerna med bilderna av "
+                      "ankarplatsen. "
+                      "Filmen framkallas ombord; i Moskva väntar man på dem.",
+        "patrol_end": "Tiden är ute. K-114 är kvar i inloppet med filmen, och fler fartyg "
+                      "letar efter henne.",
     })
     return sc
 
@@ -902,6 +959,11 @@ register(ScenarioDef(
     "Kort variant. Ni ligger i väntläget utanför nätet och ett fartyg är på väg in mot "
     "grinden. Ta er in bakom det och fotografera ankarplatsen.",
     strait_in_scenario, minutes=25))
+register(ScenarioDef(
+    "sundet-ut", "Guantánamo – ut med filmen, 25 oktober 1962",
+    "Kort variant. Bilderna av ankarplatsen är tagna och ni ligger innanför nätet. Ett "
+    "fartyg är på väg ut mot grinden. Ta er ut förbi patrullbåten med filmen.",
+    strait_out_scenario, minutes=20))
 register(ScenarioDef(
     "konvoj", "Konvojen, 28 oktober 1962",
     "Kriget har börjat. En eskorterad konvoj med trupper till Kuba sicksackar genom "

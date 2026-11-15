@@ -164,7 +164,9 @@ class World:
         if esc and esc.get("requires_photo") is not None and \
                 self.mission.get("best_photo", -1) < esc["requires_photo"]:
             esc = None                      # inte utan bilderna
-        if esc and not self.own.surfaced and self._outside_area(esc["margin_nm"]) \
+        out = (self.own.state.y < esc["y_below"]) if esc and "y_below" in esc \
+            else esc and self._outside_area(esc["margin_nm"])
+        if esc and not self.own.surfaced and out \
                 and not any(self._hunting_us(ai) for ai in self.ais):
             self.end(esc["outcome"])
             return

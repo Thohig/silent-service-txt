@@ -22,6 +22,8 @@ Flytta en variant från **Kvar** till **Klart** när den är byggd, testad och k
   - Tester: `tests/test_warmup.py`.
 - **`konvoj-kort`, "Skjutläge":** konvojen 13–15 nm bort, vakt i 35 min (periskopdjup, fart 3,
   svep var 4:e min), sedan 45 min. Kalibrering står i CLAUDE.md.
+- **`sundet-ut`, "Ut med filmen":** startläget byggt direkt innanför nätet, fotot tas av vakten,
+  ute = 1 nm söder om nätet. Kalibrering står i CLAUDE.md.
 - **`sundet-in`, "Grinden":** vakt 10 min i väntläget, fartyget passerar 3–5 min efter
   överlämnandet, målet är ett gott foto. Kalibrering står i CLAUDE.md.
 - **`kuba-kort`, "Sambandsfönstret":** vakt 15 min, fönster 5 min efter överlämnandet, rapporten
@@ -32,16 +34,6 @@ Flytta en variant från **Kvar** till **Klart** när den är byggd, testad och k
   DD2 spärrar den korta vägen ut. Tidsgräns 30 min. Kalibrering står i CLAUDE.md.
 
 ## Kvar, i byggordning
-
-### Steg 4 – uppvärmning med fast plan
-
-**`sundet-ut`, "Ut med filmen", ~20 min**
-- **Start:** innanför nätet med filmen och patrullbåten i rörelse. Ett utgående fartyg
-  lämnar kajen om 5 min.
-- **Mål:** ute ur området (`escape` som i dag).
-- **Svårt:** en uppvärmning genom hela inträngningen är för opålitlig. Bygg startläget direkt
-  (ubåten innanför nätet) och för in fotot som en händelse (`PhotoTaken`) under en kort
-  uppvärmning, så att `Knowledge.best_photo` byggs via bussen.
 
 ### Steg 5
 

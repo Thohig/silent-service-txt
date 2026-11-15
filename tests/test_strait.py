@@ -315,3 +315,51 @@ def test_strait_in_hands_over_at_the_wait_point_with_a_ship_coming_in():
         assert inbound, "ett fartyg på väg in strax utanför oss"
         assert any(t.civil and t.solution is not None for t in g.knowledge.tracks.values())
         assert w.patrol_end == STRAIT_IN_WARM_S + STRAIT_IN_LIMIT_S
+
+
+def test_escape_line_counts_as_out_without_a_hunter():
+    from sim.scenario import build_scenario
+    g = Game(build_scenario("sundet-ut", random.Random(2)), seed=2, warm_up=False)
+    w = g.world
+    line = w.mission["escape"]["y_below"]
+    assert g.scenario.escape_y_below == line
+    w.mission["best_photo"] = int(Quality.GOD)
+    for ai in w.ais:
+        if hasattr(ai, "datum"):
+            ai.datum, ai.state = None, getattr(ai, "state", "patrol")
+    w.own.state.y = line + 0.1
+    w._check_outcome()
+    assert w.outcome is None
+    w.own.state.y = line - 0.1
+    w._check_outcome()
+    assert w.outcome["outcome"] == "recon_done"
+
+
+def test_navigator_measures_the_way_out_to_the_line():
+    from sim.scenario import build_scenario
+    g = Game(build_scenario("sundet-ut", random.Random(2)), seed=2, warm_up=False)
+    nav = g.station(NavigationStation)
+    line = g.scenario.escape_y_below
+    nav.est_y = line + 1.5
+    c, d, _ = nav.exit_route()
+    assert c == 180.0 and abs(d - (1.5 + nav.uncertainty())) < 1e-6
+    nav.est_y = line - 0.1
+    assert nav.outside_area()
+
+
+@pytest.mark.slow
+def test_strait_out_hands_over_inside_with_the_film_and_a_ship_coming_out():
+    from sim.scenario import SCENARIOS, STRAIT_OUT_WARM_S, build_scenario
+    assert SCENARIOS["sundet-ut"].minutes
+    for seed in range(3):
+        g = Game(build_scenario("sundet-ut", random.Random(seed)), seed=seed)
+        w = g.world
+        net = next(sp for sp in w.spawners if isinstance(sp, HarborDefense)).net
+        o = w.own.state
+        assert g.now == STRAIT_OUT_WARM_S and not g.over
+        assert g.knowledge.best_photo is not None and g.knowledge.best_photo >= Quality.GOD
+        assert g.escape_ready()
+        assert 0.6 < o.y - net.y < 1.3
+        outbound = [v for v in w.contacts if v.kind == "merchant" and 90 < v.state.course < 270
+                    and 0.2 < v.state.y - o.y < 1.2]
+        assert outbound, "ett fartyg på väg ut strax bakom oss"

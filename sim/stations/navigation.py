@@ -1822,7 +1822,13 @@ class NavigationStation(Station):
                                "sigma": wp.sigma(self.now) + self.uncertainty()}, kind="ack")
 
     # --- ut ur området -------------------------------------------------------------
+    def _escape_line(self) -> float | None:
+        sc = self.game.scenario
+        return sc.escape_y_below if sc is not None else None
+
     def outside_area(self) -> bool:
+        if (line := self._escape_line()) is not None:
+            return self.est_y < line
         m, size = self.game.escape_nm or 0.0, self.game.world.size_nm
         return not (-m <= self.est_x <= size + m and -m <= self.est_y <= size + m)
 
@@ -1840,6 +1846,8 @@ class NavigationStation(Station):
         m, size = self.game.escape_nm or 0.0, self.game.world.size_nm
         sigma = self.uncertainty()
         routes = [(90.0, size + m - x), (270.0, x + m), (0.0, size + m - y), (180.0, y + m)]
+        if (line := self._escape_line()) is not None:
+            routes = [(180.0, y - line)]           # ordern: ut söderut förbi linjen
         return [(c, d + sigma) for c, d in routes if self._clear_path(x, y, c, d + sigma)]
 
     def _shallow_nm(self, x: float, y: float, course: float, dist: float) -> float:

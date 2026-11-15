@@ -272,6 +272,12 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   `photo_taken` (ingen utväg). Tidsgräns 35 min efter överlämnandet. 8 frön: passiv 0, ja-boten 0 (följandet
   föreslås inte, kaptenens sak), grindboten (`turbin, djup 40, följ S-x` när fartyget passerat 0,2–0,45 nm,
   `kurs mot ankarplatsen, fart 4, periskopdjup` 0,6 nm innanför, `foto`) 6, på 18–33 min.
+- Sundet ut (`sundet-ut`, `strait_scenario(out=True)`): 07:00, startläget byggt direkt: innanför nätet 1,0–1,2 nm,
+  0,2 nm vid sidan av farleden på periskopdjup; vakten (4 min) tar `foto` (bilden via bussen) och går till 20 m
+  på smygmotor. Ett fartyg ut startar 0,9–1,2 nm bakom oss (passerar 3–6 min efter överlämnandet), inga fler.
+  Ute = söder om `Scenario.escape_y_below` (1 nm söder om nätet) och ingen har oss; navigatörens väg ut räknar
+  mot linjen. Tidsgräns 30 min. 8 frön: passiv 0, ja-boten 0, utboten (periskoptitt var 60:e s, `turbin, djup 25,
+  följ S-x` när fartyget passerat 0,2–0,45 nm, efter 1,2 nm söderut fart 10) 5, på 16–22 min.
 - Konvojen (`konvoj`, `convoy_scenario`): 28 okt, krig, 06:30 (dagsljus). Konvoj (2 trupptransporter,
   1 tanker) och 2 eskorter, baskurs 190–230°, start 16–20 nm bort, vägen passerar oss på 1,5–5 nm;
   ordern ger läge (±2 nm) och kurs avrundad. Mål `mission["strike"]`: minst ett mål sänkt och ingen
