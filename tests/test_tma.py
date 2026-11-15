@@ -153,3 +153,65 @@ def test_impossible_speed_is_poor_quality():
             for o in obs]                       # samma bäringar på en tredjedel av tiden
     q = solve(fast)
     assert q.speed > MAX_TARGET_KN and q.quality == Quality.DALIG
+
+
+def _looks(own, tgt, seconds, rng, obs, look_every=120, r_frac=0.08, c_sigma=8.0):
+    """Sonarbäringar var 5:e s och periskoptittar med avstånd, kurs och fart."""
+    for t in range(seconds):
+        if t % 5 == 0:
+            b = bearing_to(own.x, own.y, tgt.x, tgt.y) + rng.gauss(0, 1.0)
+            obs.append(BearingObs(t, b % 360, 1.0, own.x, own.y, own.course))
+        if t % look_every == look_every // 2:
+            r = distance(own.x, own.y, tgt.x, tgt.y)
+            rs = r_frac * r + 0.03
+            obs.append(BearingObs(t, bearing_to(own.x, own.y, tgt.x, tgt.y) % 360, 0.5,
+                                  own.x, own.y, own.course, range_nm=r + rng.gauss(0, rs),
+                                  range_sigma=rs, source="periskop",
+                                  course_obs=(tgt.course + rng.gauss(0, c_sigma)) % 360,
+                                  course_sigma=c_sigma,
+                                  speed_obs=tgt.speed + rng.gauss(0, 2.0), speed_sigma=2.3))
+        own.step(1)
+        tgt.step(1)
+
+
+def test_periscope_course_and_speed_pin_down_the_target_over_seeds():
+    """Periskopets kurs och fart (vinkel på bogen) gör lösningen rätt, inte bara säker:
+    med några tittar på 3 nm är kursfelet litet och farten nära sanningen."""
+    course_err, speed_err, without = [], [], []
+    for seed in range(8):
+        rng = random.Random(seed)
+        own = ShipState(x=0, y=0, course=0, speed=3)
+        tgt = ShipState(x=-1.5, y=3.0, course=120, speed=12)
+        obs = []
+        _looks(own, tgt, 420, rng, obs)
+        sol = solve(obs)
+        course_err.append(abs((sol.course - 120 + 180) % 360 - 180))
+        speed_err.append(abs(sol.speed - 12))
+        bare = [BearingObs(**{**o.__dict__, "course_obs": None, "speed_obs": None}) for o in obs]
+        without.append(abs(solve(bare).speed - 12))
+    assert sorted(course_err)[6] < 12
+    assert sorted(speed_err)[6] < 2.5
+    assert sum(speed_err) < sum(without)
+
+
+def test_plot_sees_a_turn_in_the_periscope():
+    """En titt som visar annan kurs än lösningen: plottet börjar om från titten."""
+    from sim.game import Game
+    from sim.scenario import default_scenario
+    from sim.stations.plot import PlotTeam
+    from sim.knowledge import ContactTrack
+    g = Game(default_scenario(random.Random(1)), seed=1)
+    plot = g.station(PlotTeam)
+    rng = random.Random(4)
+    own = ShipState(x=0, y=0, course=0, speed=3)
+    tgt = ShipState(x=-1.5, y=3.0, course=120, speed=12)
+    obs = []
+    _looks(own, tgt, 400, rng, obs)
+    tr = ContactTrack("S-9", 0, observations=list(obs))
+    assert plot._look_turn(tr) is None              # titten stämmer med lösningen
+    tgt.course = tgt.ordered_course = 60
+    more = []
+    _looks(own, tgt, 130, rng, more)
+    tr.observations += [BearingObs(**{**o.__dict__, "t": o.t + 400}) for o in more]
+    look = plot._look_turn(tr)
+    assert look is not None and look.t > 400

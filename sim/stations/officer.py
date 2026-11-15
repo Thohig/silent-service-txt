@@ -47,6 +47,7 @@ def is_big_ship(track) -> bool:
     return not track.civil and any(w in track.classification for w in BIG_SHIP_WORDS)
 
 
+PERISCOPE_SPEED_SIGMA = 2.0  # utkikens fartbedömning (bogvåg, varvtal), knop
 SHORT_LOOK_S = 8           # kort titt mot en bäring: mindre tid med masten uppe
 RADAR_S = 10
 RADAR_RANGE_NM = 12.0
@@ -468,13 +469,18 @@ class OfficerStation(Station):
                              range_quality(r_meas, 0.1 * r_meas + 0.03), lights=("ljus",))
 
     def _observe(self, v, bearing_sigma: float, range_sigma: float, source: str,
-                 label: str) -> dict:
+                 label: str, velocity=None) -> dict:
+        """En observation till plottet. velocity(): periskopets bedömning
+        (kurs, σ, fart, σ), dras efter bäring och avstånd."""
         world, rng = self.game.world, self.game.rng
         sonar = self._sonar().sensor
         desig = sonar.designate(v.id)
         bearing = norm360(world.true_bearing(v) + rng.gauss(0, bearing_sigma))
         r = world.true_range(v)
         r_meas = max(0.05, r + rng.gauss(0, range_sigma))
+        course = c_sig = speed = s_sig = None
+        if velocity is not None:
+            course, c_sig, speed, s_sig = velocity()
         tr = self.game.knowledge.tracks.get(desig)
         if tr is None:
             self.game.bus.publish(ContactDetected(self.now, desig, bearing, label, Quality.GOD))
@@ -484,8 +490,13 @@ class OfficerStation(Station):
         ex, ey = self.game.own_position_estimate()
         self.game.bus.publish(BearingObserved(self.now, BearingObs(
             self.now, bearing, bearing_sigma, ex, ey, self.own.state.course,
-            designation=desig, range_nm=r_meas, range_sigma=range_sigma, source=source)))
-        return {"designation": desig, "bearing": bearing, "range": r_meas}
+            designation=desig, range_nm=r_meas, range_sigma=range_sigma, source=source,
+            course_obs=course, course_sigma=c_sig or 0.0, speed_obs=speed,
+            speed_sigma=s_sig or 0.0)))
+        d = {"designation": desig, "bearing": bearing, "range": r_meas}
+        if velocity is not None:
+            d.update(course=course, speed=speed)
+        return d
 
     def _photo_targets(self):
         world = self.game.world
@@ -611,12 +622,15 @@ class OfficerStation(Station):
                 r = world.true_range(v)
                 full, short = SIGHTED.get(v.kind, ("ytfartyg", "fartyg"))
                 r_sigma = 0.08 * r + 0.03
-                d = self._observe(v, 0.5, r_sigma, "periskop", full)
                 part = visible_part(v.kind, r, eye) if day else "ljus"
                 c_sigma = AOB_SIGMA[part]
-                d.update(label=short,
-                         course=norm360(v.state.course + rng.gauss(0, c_sigma)),
-                         speed=max(0, round(v.state.speed + rng.gauss(0, 2))))
+
+                def velocity(v=v, c_sigma=c_sigma):
+                    return (norm360(v.state.course + rng.gauss(0, c_sigma)), c_sigma,
+                            max(0, round(v.state.speed + rng.gauss(0, PERISCOPE_SPEED_SIGMA))),
+                            PERISCOPE_SPEED_SIGMA + 0.3)
+                d = self._observe(v, 0.5, r_sigma, "periskop", full, velocity=velocity)
+                d.update(label=short)
                 self.say("off.periscope.contact", d, kind="contact", quality=Quality.GOD)
                 aob = angle_on_bow(d["bearing"], d["course"])
                 objects.append(SightedObject(

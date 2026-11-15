@@ -187,6 +187,11 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   chi² > 4 eller brytpunktstest > 15 (två raka ben före/efter 5 eller 10 min mot ett;
   raka mål ger median 2, max ~12). Plottlaget säger manöver högst var 5:e min per kontakt.
   Två ben i sicksack ska normalt ge god/säker lösning på ~20 min.
+- Periskopet i TMA: varje titt ger, utöver avstånd (σ 8 % + 0,03 nm), kurs (`AOB_SIGMA` efter synlig del)
+  och fart (σ 2 kn) som mätningar (`BearingObs.course_obs`/`speed_obs`). En titt vars kurs avviker mer
+  än max(20°, 3σ) från lösningen före titten ⇒ målet har girat, TMA börjar om från titten
+  (`PlotTeam._look_turn`). Konvoj, titt var 2:a min på 2–6 nm: lösningar säker hade läge median
+  0,48 nm, kurs 39°, fart 3 kn fel; nu 0,23 nm, 7°, 0,9 kn (p90 0,5 nm, 41°: girar mellan tittarna).
 - Civil trafik (Kuba, `KUBA_TRAFFIC` i `scenario.py`): tre leder, 1,8 fartyg/h plus 3 från
   start, 9–14 kn, källnivå `140 + fart`. Maskering: neutralt fartyg inom 4° av målets
   bäring adderar sitt brus; ubåt < 100 m inom 0,3 nm från ett handelsfartyg får −12 dB eko
