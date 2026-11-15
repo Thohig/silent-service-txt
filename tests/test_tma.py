@@ -1,10 +1,11 @@
+import dataclasses
 import random
 
 from sim.geo import bearing_to, distance
 from sim.reports import Quality
 from sim.ship import ShipState
-from sim.tma import (MANEUVER_CHI2, MANEUVER_SPLIT, MAX_TARGET_KN, BearingObs, maneuver_statistic,
-                     solve)
+from sim.tma import (HUNTER_MANEUVER_Q, MANEUVER_CHI2, MANEUVER_SPLIT, MAX_TARGET_KN, BearingObs,
+                     maneuver_statistic, quality_from, solve)
 
 
 def _run(own, tgt, seconds, rng, obs, sigma=1.0, every=10, t0=0):
@@ -215,3 +216,77 @@ def test_plot_sees_a_turn_in_the_periscope():
     tr.observations += [BearingObs(**{**o.__dict__, "t": o.t + 400}) for o in more]
     look = plot._look_turn(tr)
     assert look is not None and look.t > 400
+
+
+# --- ärlig kvalitet: girar som plottet inte sett --------------------------------------
+def test_course_uncertainty_caps_quality():
+    """Ett säkert avstånd duger inte om kursen är okänd och målet går."""
+    assert quality_from(0.05, 100, 600) == Quality.SAKER
+    assert quality_from(0.05, 100, 600, course_sigma=20, speed=10) == Quality.GOD
+    assert quality_from(0.05, 100, 600, course_sigma=40, speed=10) == Quality.OSAKER
+    assert quality_from(0.05, 100, 600, course_sigma=70, speed=10) == Quality.DALIG
+    # ett mål som nästan ligger still: kursen spelar ingen roll
+    assert quality_from(0.05, 100, 600, course_sigma=70, speed=1) == Quality.SAKER
+
+
+def test_solution_without_new_bearings_grows_uncertain():
+    """Utan nya bäringar kan målet ha girat: lösningen blir osäkrare för varje minut."""
+    for seed in range(6):
+        obs, t, own, tgt = _two_legs(seed)
+        now = solve(obs, t_now=t, own_now=(own.x, own.y))
+        later = solve(obs, t_now=t + 600, own_now=(own.x, own.y))
+        assert now.quality >= Quality.GOD
+        assert later.quality <= Quality.OSAKER
+        assert later.range_sigma > 2 * now.range_sigma
+        assert later.course_sigma > 30
+
+
+def test_unseen_turn_is_inside_the_stated_uncertainty():
+    """Målet girar 90° strax efter sista bäringen. Tio minuter senare ligger det sanna
+    läget inom tre σ av lösningen i nästan alla frön (förut: lösningen kallades god
+    med σ ~0,3 nm och felet var 2–3 nm)."""
+    inside = 0
+    n = 12
+    for seed in range(n):
+        obs, t, own, tgt = _two_legs(seed)
+        tgt.order_course(10)
+        for _ in range(600):
+            tgt.step(1)
+        sol = solve(obs, t_now=t + 600, own_now=(own.x, own.y))
+        err = distance(sol.x, sol.y, tgt.x, tgt.y)
+        inside += err < 3 * sol.range_sigma or sol.quality == Quality.DALIG
+    assert inside >= n - 1
+
+
+def test_hunting_target_gets_more_maneuver_noise():
+    """Ett mål som pingar jagar oss och girar hela tiden: större osäkerhet."""
+    obs, t, own, tgt = _two_legs(4)
+    calm = solve(obs, t_now=t, own_now=(own.x, own.y))
+    hunter = solve(obs, t_now=t, own_now=(own.x, own.y), maneuver_q=HUNTER_MANEUVER_Q)
+    assert hunter.range_sigma > 2 * calm.range_sigma
+    assert hunter.quality < calm.quality
+
+
+def test_knowledge_treats_pinging_contact_as_hunter():
+    from sim.knowledge import ContactTrack, Knowledge
+    obs, t, own, tgt = _two_legs(4)
+    k_calm, k_hunt = Knowledge(), Knowledge()
+    for k in (k_calm, k_hunt):
+        k.tracks["S-1"] = ContactTrack("S-1", 0)
+    for o in obs:
+        k_calm.on_bearing(dataclasses.replace(o, designation="S-1"))
+        k_hunt.on_bearing(dataclasses.replace(o, designation="S-1",
+                                              source="ping" if o.t > t - 120 else "sonar"))
+    calm = k_calm.resolve("S-1", t, (own.x, own.y))
+    hunt = k_hunt.resolve("S-1", t, (own.x, own.y))
+    assert hunt.range_sigma > 2 * calm.range_sigma
+
+
+def test_straight_target_error_matches_stated_uncertainty():
+    """Rakt mål, två ben: felet ligger inom tre σ i nästan alla frön."""
+    inside, n = 0, 20
+    for seed in range(n):
+        obs, t, own, tgt = _two_legs(200 + seed)
+        sol = solve(obs, t_now=t, own_now=(own.x, own.y))
+        inside += distance(sol.x, sol.y, tgt.x, tgt.y) < 3 * sol.range_sigma
+    assert inside >= n - 1

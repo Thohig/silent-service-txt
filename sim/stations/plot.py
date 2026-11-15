@@ -361,7 +361,7 @@ class PlotTeam(Station):
         if sol.quality < Quality.OSAKER and sol.speed <= MAX_TARGET_KN:
             return False
         obs = [o for o in tr.observations if o.t >= tr.tma_from_t]
-        return maneuver_statistic(obs, sol) > MANEUVER_SPLIT
+        return maneuver_statistic(obs) > MANEUVER_SPLIT
 
     def _look_turn(self, tr: ContactTrack) -> BearingObs | None:
         """Visar en ny periskoptitt en annan kurs än lösningen före titten? Då har målet

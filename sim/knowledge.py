@@ -17,7 +17,7 @@ from .periscope import PeriscopePicture
 from .seabed import Seabed
 from .environment import TidalStream
 from .reports import Quality
-from .tma import BearingObs, Solution, solve
+from .tma import HUNTER_MANEUVER_Q, BearingObs, Solution, solve
 from .zigzag import ConvoyEstimate, LegFix
 
 
@@ -71,6 +71,7 @@ class ContactTrack:
 
 HUNTED_WINDOW_S = 300          # så länge efter senaste tecknet räknar vi med att de har oss
 WAYPOINT_DRIFT_KN = 0.3          # isdrift åt okänt håll: så växer osäkerheten
+HUNTER_PING_S = 300            # ett mål som pingat så nyss räknas som jagande
 
 
 @dataclass
@@ -203,7 +204,10 @@ class Knowledge:
         if tr is None:
             return None
         obs = [o for o in tr.observations if o.t >= tr.tma_from_t]
-        tr.solution = solve(obs, t_now=t_now, own_now=own_now)
+        # ett mål som pingar jagar och girar hela tiden
+        hunting = any(o.source == "ping" and o.t >= t_now - HUNTER_PING_S for o in obs)
+        tr.solution = solve(obs, t_now=t_now, own_now=own_now,
+                            maneuver_q=HUNTER_MANEUVER_Q if hunting else None)
         return tr.solution
 
 

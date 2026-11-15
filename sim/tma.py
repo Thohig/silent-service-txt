@@ -18,6 +18,17 @@ numeriken stabil när problemet är obestämt:
   (faktor e i spridning). Det motverkar den kända dragningen mot orimligt
   korta avstånd vid brusiga bäringar, men är för svagt för att ensamt ge
   bättre kvalitet än "dålig".
+
+Målet kan ha manövrerat utan att plottlaget märkt det än. Därför räknar
+lösningen med processbrus (vit acceleration, TARGET_MANEUVER_Q): en bäring
+som är τ timmar gammal har en extra osäkerhet i målets läge på
+√(q·τ³/3) nm och i dess kurs/fart på √(q·τ) kn. Gamla bäringar väger alltså
+mindre, och en lösning som räknas fram utan nya bäringar blir osäkrare med
+tiden. Utan nya bäringar kan målet dessutom ha girat (UNSEEN_TURN_*), och
+ett mål som pingar (jagar) får större processbrus (HUNTER_MANEUVER_Q).
+Kursens osäkerhet sätter ett tak för kvaliteten (COURSE_SIGMA_LIMITS).
+Utan detta kallades lösningar säkra fast målet hade girat eller kursen var
+okänd (granskning 2026-11-15: grova fel bland god/säker 11 % ⇒ 7 %).
 """
 from __future__ import annotations
 
@@ -47,6 +58,21 @@ SPLIT_MIN_BEFORE = 12           # bäringar före brytpunkten
 SPLIT_MIN_BEFORE_SPAN_S = 300
 SPLIT_MIN_AFTER = 8
 MAX_TARGET_KN = 35.0            # snabbare än något fartyg: rak-kurs-modellen stämmer inte
+# Processbrus för målets manöver, kn²/h: hastighetens varians växer med q per timme.
+# 1 ⇒ σ ≈ 0,4 kn efter 10 min, läget σ ≈ 0,04 nm efter 10 min och 0,2 nm efter 30.
+# Bäringsbaserad TMA är känslig för detta: med 3 gav två ben ofta bara osäker, med 40
+# aldrig god. Girar som syns tar brytpunktstestet, girar utan nya bäringar UNSEEN_TURN_*.
+TARGET_MANEUVER_Q = 1.0
+# Gir som ingen hört medan lösningen räknas fram utan nya bäringar: sannolikheten
+# τ/(τ + benlängd) att målet girat, och då kanske så här mycket (1σ).
+UNSEEN_TURN_LEG_H = 10 / 60
+UNSEEN_TURN_DEG = 90.0
+# Processbrus för ett mål som jagar (pingar): girar hela tiden.
+HUNTER_MANEUVER_Q = 400.0
+# Kursens σ (grader) som tak för kvaliteten: ≥ 15 högst god, ≥ 30 högst osäker,
+# ≥ 60 dålig. Gäller mål som går minst COURSE_MATTERS_KN.
+COURSE_SIGMA_LIMITS = (15.0, 30.0, 60.0)
+COURSE_MATTERS_KN = 3.0
 _START_RANGES_NM = (1.0, 2.0, 3.5, 5.0, 7.0, 10.0, 14.0)
 
 
@@ -103,16 +129,25 @@ def predicted_bearing(state: Sequence[float], t_ref: int, t: int,
     return norm360(math.degrees(math.atan2(x + vx * tau - own_x, y + vy * tau - own_y)))
 
 
-def quality_from(rel_range_error: float, n_obs: int, span_s: int) -> Quality:
+def quality_from(rel_range_error: float, n_obs: int, span_s: int,
+                 course_sigma: float = 0.0, speed: float = 0.0) -> Quality:
+    """Kvaliteten ur avståndets relativa osäkerhet, med kursens osäkerhet som tak
+    när målet går (en lösning med okänd kurs duger inte att skjuta på)."""
     if n_obs < MIN_OBS or span_s < MIN_SPAN_S:
         return Quality.DALIG
     if rel_range_error < 0.10:
-        return Quality.SAKER
-    if rel_range_error < 0.25:
-        return Quality.GOD
-    if rel_range_error < 0.50:
-        return Quality.OSAKER
-    return Quality.DALIG
+        q = Quality.SAKER
+    elif rel_range_error < 0.25:
+        q = Quality.GOD
+    elif rel_range_error < 0.50:
+        q = Quality.OSAKER
+    else:
+        return Quality.DALIG
+    if speed >= COURSE_MATTERS_KN:
+        for limit, cap in zip(COURSE_SIGMA_LIMITS, (Quality.GOD, Quality.OSAKER, Quality.DALIG)):
+            if course_sigma >= limit:
+                q = min(q, cap)
+    return q
 
 
 def own_maneuvered(obs: Sequence[BearingObs], threshold_deg: float = 20.0) -> bool:
@@ -123,23 +158,40 @@ def own_maneuvered(obs: Sequence[BearingObs], threshold_deg: float = 20.0) -> bo
 
 
 class _Problem:
-    def __init__(self, obs: Sequence[BearingObs], t_ref: int):
+    """Minsta-kvadratproblemet. Med q > 0 och ett tillstånd att räkna avstånden ur
+    får varje mätning sitt manöverbrus efter sin ålder (se modulens beskrivning)."""
+
+    def __init__(self, obs: Sequence[BearingObs], t_ref: int, q: float = 0.0,
+                 state: np.ndarray | None = None):
         self.n_b = len(obs)
         self.tau = np.array([(o.t - t_ref) / 3600.0 for o in obs])
         self.ox = np.array([o.own_x for o in obs])
         self.oy = np.array([o.own_y for o in obs])
         self.meas = np.radians([o.bearing for o in obs])
-        w_b = 1.0 / np.radians([max(o.sigma, 0.05) for o in obs]) ** 2
+        age = np.maximum(-self.tau, 0.0)
+        pos_var = q * age ** 3 / 3.0          # nm², målets läge vid mätningen
+        vel_var = q * age                     # kn²
+        if q > 0 and state is not None:
+            x, y, vx, vy = state
+            r2 = np.maximum((x + vx * self.tau - self.ox) ** 2
+                            + (y + vy * self.tau - self.oy) ** 2, 0.01)
+            sp2 = max(vx * vx + vy * vy, 1.0)
+        else:
+            r2, sp2 = np.full(self.n_b, np.inf), np.inf
+        sig_b = np.radians([max(o.sigma, 0.05) for o in obs])
+        w_b = 1.0 / (sig_b ** 2 + pos_var / r2)
         ranged = [i for i, o in enumerate(obs) if o.range_nm is not None]
         self.r_idx = np.array(ranged, dtype=int)
         self.r_meas = np.array([obs[i].range_nm for i in ranged])
-        w_r = np.array([1.0 / max(obs[i].range_sigma, 0.01) ** 2 for i in ranged])
+        w_r = np.array([1.0 / (max(obs[i].range_sigma, 0.01) ** 2 + pos_var[i])
+                        for i in ranged])
         vel = [i for i, o in enumerate(obs) if o.course_obs is not None]
         self.c_meas = np.radians([obs[i].course_obs for i in vel])
-        w_c = np.array([1.0 / math.radians(max(obs[i].course_sigma, 1.0)) ** 2 for i in vel])
+        w_c = np.array([1.0 / (math.radians(max(obs[i].course_sigma, 1.0)) ** 2
+                               + vel_var[i] / sp2) for i in vel])
         spd = [i for i, o in enumerate(obs) if o.speed_obs is not None]
         self.s_meas = np.array([obs[i].speed_obs for i in spd], dtype=float)
-        w_s = np.array([1.0 / max(obs[i].speed_sigma, 0.5) ** 2 for i in spd])
+        w_s = np.array([1.0 / (max(obs[i].speed_sigma, 0.5) ** 2 + vel_var[i]) for i in spd])
         self.w = np.concatenate([w_b, w_r, w_c, w_s])
         self.prior_w = 1.0 / VELOCITY_PRIOR_KN ** 2
         last = obs[-1]
@@ -237,8 +289,13 @@ def _levenberg_marquardt(p: _Problem, s0: np.ndarray, iters: int = 60):
 
 
 def solve(observations: Sequence[BearingObs], t_now: int | None = None,
-          own_now: tuple[float, float] | None = None) -> Solution | None:
-    """Lös målrörelsen. own_now är egen position vid t_now (för avstånd/bäring)."""
+          own_now: tuple[float, float] | None = None,
+          maneuver_q: float | None = None) -> Solution | None:
+    """Lös målrörelsen. own_now är egen position vid t_now (för avstånd/bäring).
+    maneuver_q: processbrus för målets manöver (None = TARGET_MANEUVER_Q, 0 = målet
+    antas gå helt rakt)."""
+    if maneuver_q is None:
+        maneuver_q = TARGET_MANEUVER_Q
     obs = list(observations)[-MAX_OBS:]
     if obs:
         obs = [o for o in obs if o.t >= obs[-1].t - MAX_SPAN_S]
@@ -259,6 +316,12 @@ def solve(observations: Sequence[BearingObs], t_now: int | None = None,
             best = (s, c)
     assert best is not None
     s, _ = best
+    p_fit = p
+    if maneuver_q > 0:
+        # vikterna beror på avstånden: räkna om dem ur lösningen och lös igen
+        for _ in range(2):
+            p = _Problem(obs, t_ref, maneuver_q, s)
+            s, _ = _levenberg_marquardt(p, s)
 
     H, _ = p.normal_equations(s)
     try:
@@ -273,24 +336,31 @@ def solve(observations: Sequence[BearingObs], t_now: int | None = None,
     rng = math.hypot(dx, dy)
     ux, uy = (dx / rng, dy / rng) if rng > 1e-9 else (0.0, 0.0)
     g_r = np.array([ux, uy, ux * tau_n, uy * tau_n])
-    range_sigma = math.sqrt(max(float(g_r @ P @ g_r), 0.0))
-
+    # Målet kan ha manövrerat sedan senaste mätningen: dels jämnt (processbruset),
+    # dels en gir som ingen hört, sannolikheten turn_p efter benlängden.
     speed = math.hypot(vx, vy)
+    age_n = max(tau_n, 0.0)
+    turn_p = age_n / (age_n + UNSEEN_TURN_LEG_H)
+    range_sigma = math.sqrt(max(float(g_r @ P @ g_r), 0.0) + maneuver_q * age_n ** 3 / 3.0
+                            + turn_p * (speed * age_n) ** 2)
+
     course = norm360(math.degrees(math.atan2(vx, vy)))
     if speed > 1e-6:
         g_s = np.array([0, 0, vx / speed, vy / speed])
         g_c = np.array([0, 0, vy / speed ** 2, -vx / speed ** 2])
-        speed_sigma = math.sqrt(max(float(g_s @ P @ g_s), 0.0))
-        course_sigma = math.degrees(math.sqrt(max(float(g_c @ P @ g_c), 0.0)))
+        speed_sigma = math.sqrt(max(float(g_s @ P @ g_s), 0.0) + maneuver_q * age_n)
+        course_sigma = math.degrees(math.sqrt(max(float(g_c @ P @ g_c), 0.0)
+                                              + maneuver_q * age_n / speed ** 2))
     else:
         speed_sigma = math.sqrt(max(P[2, 2], 0.0))
         course_sigma = 180.0
-    course_sigma = min(course_sigma, 180.0)
+    course_sigma = min(math.hypot(course_sigma, UNSEEN_TURN_DEG * math.sqrt(turn_p)), 180.0)
 
-    e, _ = p.residuals_and_jacobian(s)
-    eb = e[: p.n_b]
+    # anpassningen mäts utan manöverbruset: den ska visa när målet girat
+    e, _ = p_fit.residuals_and_jacobian(s)
+    eb = e[: p_fit.n_b]
     rms = math.degrees(math.sqrt(float(np.mean(eb * eb))))
-    fit = float(np.mean(p.w * e * e))
+    fit = float(np.mean(p_fit.w * e * e))
     span = obs[-1].t - obs[0].t
     rel = range_sigma / max(rng, 1e-6)
 
@@ -300,7 +370,7 @@ def solve(observations: Sequence[BearingObs], t_now: int | None = None,
         bearing=norm360(math.degrees(math.atan2(dx, dy))),
         range_sigma=range_sigma, course_sigma=course_sigma, speed_sigma=speed_sigma,
         quality=Quality.DALIG if fit > MANEUVER_CHI2 or speed > MAX_TARGET_KN
-        else quality_from(rel, len(obs), span),
+        else quality_from(rel, len(obs), span, course_sigma, speed),
         n_obs=len(obs), span_s=span, own_maneuvered=own_maneuvered(obs),
         rms_residual=rms, fit=fit,
     )
@@ -321,13 +391,15 @@ def maneuver_statistic(observations: Sequence[BearingObs],
     anpassningen (fit), men två raka ben förklarar då bäringarna mycket
     bättre än ett. Returnerar största förbättringen över de prövade
     brytpunkterna; 0 om datan inte räcker. full: färdig lösning på samma
-    bäringar, om den redan finns.
+    bäringar räknad med maneuver_q=0, om den redan finns. Testet jämför
+    raka ben, så alla lösningar här räknas utan manöverbrus.
     """
     obs = list(observations)[-MAX_OBS:]
     if not obs:
         return 0.0
     obs = [o for o in obs if o.t >= obs[-1].t - MAX_SPAN_S]
-    full = full if full is not None else solve(obs)
+    if full is None:
+        full = solve(obs, maneuver_q=0.0)
     if full is None:
         return 0.0
     c_full = _bearing_cost(obs, full)
@@ -339,7 +411,7 @@ def maneuver_statistic(observations: Sequence[BearingObs],
         if len(before) < SPLIT_MIN_BEFORE or len(after) < SPLIT_MIN_AFTER \
                 or before[-1].t - before[0].t < SPLIT_MIN_BEFORE_SPAN_S:
             continue
-        sa, sb = solve(before), solve(after)
+        sa, sb = solve(before, maneuver_q=0.0), solve(after, maneuver_q=0.0)
         if sa is None or sb is None:
             continue
         best = max(best, c_full - _bearing_cost(before, sa) - _bearing_cost(after, sb))
