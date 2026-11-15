@@ -153,6 +153,11 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   (siluett, lanternor, flyg, is), längre bort än 8 nm bara ett tecken. Bäringsskala, 360°-remsa
   (`render_strip(window=...)`) och datarad om föremålet närmast blickens mitt (±12°). Utan bild säger
   vyn varför ur `StatusSnapshot.bridge` och djupet.
+  Utkiken ser också land (`LandBearing` var 3:e grad: strålar mot `seabed.depths` ≤ 0 ut till sikten,
+  på natten halva; avståndet ×(1 + σ 15 %) per minut), händelser bland `world.transients` varje tick
+  (`EVENT_KINDS`: `splash` i dagsljus, `column` = sjunkbomb, `hit` = torpedens explosion, natt bara
+  blixt/eld inom 12 nm; synliga 6/10/60 s) och spår efter ångtorpeder (inte SET-53) inom 1,5 nm i
+  dagsljus. Ropar ut land (en gång per 5 min), vattenpelare (övning eller skarpt) och träffar.
 - **Periskopbilden** (`sim/periscope.py`): vakthavande publicerar `PeriscopeSighted` med en
   `PeriscopePicture` när svepet är klart (inte om vi kom under periskopdjup); `Knowledge.periscope`
   håller den senaste. Synlig del (helt/överbyggnad/mastoppar) ur ögonhöjd (periskop 1,5 m, brygga 8 m)

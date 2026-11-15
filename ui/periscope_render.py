@@ -49,6 +49,11 @@ STYLE = {
     "label": "#c8d0b0",
     "selected": "bold reverse",
     "dim": "#4f6358",
+    "land_day": "#6f7a4a",
+    "land_night": "#2e3628",
+    "foam": "#d8e8ee",
+    "smoke": "#7a7a72",
+    "fire": "bold #ff8c2a",
 }
 
 # --- siluetter ------------------------------------------------------------------
@@ -215,6 +220,14 @@ def _marker(o: SightedObject, day: bool) -> tuple[str, str]:
         return "*", STYLE["station"]
     if o.kind == "net":
         return "o", STYLE["net"]
+    if o.kind == "splash":
+        return ",", STYLE["foam"]
+    if o.kind == "column":
+        return "¦", STYLE["foam"]
+    if o.kind == "hit":
+        return "*", STYLE["fire"]
+    if o.kind == "wake":
+        return "=", STYLE["foam"]
     if not day:
         if "grön" in o.lights:
             return "•", STYLE["light_green"]
@@ -227,6 +240,12 @@ def _marker(o: SightedObject, day: bool) -> tuple[str, str]:
 def _old(o: SightedObject, pic: PeriscopePicture) -> bool:
     """Föremålet är från ett tidigare svep (utanför en kort titt)."""
     return 0 <= o.seen_t < pic.t
+
+
+def _land_at(pic: PeriscopePicture, bearing: float, tol: float = 2.0):
+    """Land i denna riktning (bryggan), om någon riktning med land ligger inom tol grader."""
+    best = min(pic.land, key=lambda lb: abs(angle_diff(lb.bearing, bearing)), default=None)
+    return best if best is not None and abs(angle_diff(best.bearing, bearing)) <= tol else None
 
 
 def _ice_at(pic: PeriscopePicture, bearing: float) -> IceBearing | None:
@@ -245,7 +264,11 @@ def render_strip(pic: PeriscopePicture, w: int, selected: SightedObject | None,
         b = norm360(pic.own_course + x / (w - 1) * 360.0 - 180.0)
         looked = in_sector(b, pic.sector)
         ice = _ice_at(pic, b)
-        if ice is not None and ice.edge_nm is not None:
+        land = _land_at(pic, b)
+        if land is not None:
+            g.put(x, 1, "▄", STYLE["dim"] if stale or not looked
+                  else (STYLE["land_day"] if pic.day else STYLE["land_night"]))
+        elif ice is not None and ice.edge_nm is not None:
             g.put(x, 1, "^", STYLE["dim"] if stale or not looked
                   else (STYLE["ridge"] if ice.ridged else ice_st))
         else:

@@ -19,10 +19,10 @@ from rich.text import Text
 
 from sim.fmt import fmt_course, nm
 from sim.geo import angle_diff, norm360
-from sim.periscope import PeriscopePicture, SightedObject
+from sim.periscope import EVENT_KINDS, PeriscopePicture, SightedObject
 
-from .periscope_render import (STYLE, _draw_ice, _draw_object, _Grid, _marker, data_line,
-                               object_key, render_strip)
+from .periscope_render import (STYLE, _draw_ice, _draw_object, _Grid, _land_at, _marker,
+                               data_line, object_key, render_strip)
 
 FOV_DEG = 120.0             # synfältet från bryggan
 TURN_STEP_DEG = 15.0        # ← → vrider blicken så här mycket
@@ -103,6 +103,75 @@ def _sky(g: _Grid, horizon: int, day: bool, center: float, cols_per_deg: float,
                 g.put(x, y, "·", BRIDGE_STYLE["star"])
 
 
+PARTIAL = " ▁▂▃▄▅▆▇█"
+
+
+def _land(g: _Grid, pic: PeriscopePicture, horizon: int, center: float, cols_per_deg: float,
+          cx: float) -> None:
+    """Landets kontur ovanför horizonten: högre ju närmare, kullar fasta i världen."""
+    if not pic.land:
+        return
+    st = STYLE["land_day"] if pic.day else STYLE["land_night"]
+    for x in range(g.w):
+        b = norm360(center + (x - cx) / cols_per_deg)
+        land = _land_at(pic, b)
+        if land is None:
+            continue
+        hill = 0.5 + 0.3 * math.sin(math.radians(b) * 7) + 0.2 * math.sin(math.radians(b) * 19 + 1)
+        height = 0.7 + 3.0 * min(1.0, 1.5 / max(land.range_nm, 0.3)) * (0.5 + hill)
+        g.put(x, horizon, "█", st)
+        full = int(height)
+        for k in range(1, full + 1):
+            g.put(x, horizon - k, "█", st)
+        part = PARTIAL[round((height - full) * 8)]
+        if part != " ":
+            g.put(x, horizon - full - 1, part, st)
+
+
+def _draw_event(g: _Grid, inside, o: SightedObject, x: float, horizon: int, t: int,
+                day: bool = True) -> None:
+    """Plask, vattenpelare, träff och torpedspår. På natten bara blixten och elden."""
+    def put(px: int, py: int, ch: str, st: str) -> None:
+        if 0 <= py < g.h and 0 <= px < g.w and inside[py][px] and ch != " ":
+            g.put(px, py, ch, st)
+
+    xi = round(x)
+    age = max(0, t - o.seen_t)
+    if o.kind == "splash":
+        for dx, ch in ((-1, "'"), (0, ","), (1, "'")):
+            put(xi + dx, horizon - 1, ch, STYLE["foam"])
+    elif o.kind == "column" and not day:
+        if age <= 2:
+            put(xi, horizon - 1, "*", STYLE["light_white"])
+    elif o.kind == "column":
+        small = o.detail == "övning"
+        rows = ([" . ", r"\|/", "|||"] if not small else [r"\|/", " | "])
+        fall = min(len(rows) - 1, age // 4)            # pelaren sjunker ihop
+        rows = rows[fall:]
+        for i, ln in enumerate(rows):
+            for j, ch in enumerate(ln):
+                put(xi - 1 + j, horizon - len(rows) + i, ch, STYLE["foam"])
+    elif o.kind == "hit":
+        big = o.detail == "kärnladdning"
+        flame = "▲▲▲▲▲" if big else "▲▲▲"
+        for j, ch in enumerate(flame):
+            put(xi - len(flame) // 2 + j, horizon - 1, ch, STYLE["fire"])
+        height = min(8 if big else 5, 2 + age // 6) if day else 0   # röken stiger
+        for k in range(2, height + 2):
+            drift = k // 2                              # och driver undan
+            w = 1 + k // 2 + (2 if big else 0)
+            for dx in range(-w, w + 1):
+                if (dx + k + t // 2) % 3:
+                    put(xi + drift + dx, horizon - k, "░" if k > 3 else "▒", STYLE["smoke"])
+    elif o.kind == "wake":
+        rows_below = g.h - horizon - 4
+        dy = min(max(1, round(0.6 / max(o.range_nm, 0.05))), max(1, rows_below))
+        length = 1 + round(6 * abs(math.sin(math.radians(o.aob or 90.0))))
+        step = -1 if (o.aob or 0) < 0 else 1
+        for k in range(length):
+            put(xi - step * k, horizon + dy, "=" if k else "◦", STYLE["foam"])
+
+
 def _foreground(g: _Grid, horizon: int, view_rel: float, cx: float, cols_per_deg: float,
                 own_speed: float, t: int) -> None:
     """Fördäcket eller kölvattnet, och tornets räcke närmast oss."""
@@ -172,6 +241,7 @@ def render_scene(pic: PeriscopePicture, w: int, h: int, view_rel: float, t: int,
     for x in range(w):
         g.put(x, horizon, "─", STYLE["sea_day"] if pic.day else STYLE["sea_night"])
     _sea(g, horizon, sea_bottom, pic.day, t, center, cols_per_deg, cx)
+    _land(g, pic, horizon, center, cols_per_deg, cx)
     inside = [[y < h - FOOT_ROWS + 1 for _ in range(w)] for y in range(h)]
     if pic.ice:
         _draw_ice(g, inside, pic, center, cx, cols_per_deg, horizon, False)
@@ -183,7 +253,9 @@ def render_scene(pic: PeriscopePicture, w: int, h: int, view_rel: float, t: int,
     focus = focus_object(pic, view_rel)
     for o in sorted(seen, key=lambda o: -o.range_nm):
         x = col_of(o)
-        if o.designation is not None and o.range_nm >= FAR_NM and o.visible != "ljus":
+        if o.kind in EVENT_KINDS:
+            _draw_event(g, inside, o, x, horizon, t, pic.day)
+        elif o.designation is not None and o.range_nm >= FAR_NM and o.visible != "ljus":
             ch, st = _marker(o, pic.day)
             g.put(round(x), horizon, ch, st)
         else:

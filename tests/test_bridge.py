@@ -335,3 +335,114 @@ def test_tab_reaches_the_bridge_view_and_arrows_turn_it(tmp_path):
             assert not isinstance(app.screen, BridgeScreen)
 
     asyncio.run(run())
+
+
+# --- land, händelser och torpedspår (B3) -------------------------------------------
+from sim import acoustics  # noqa: E402
+from sim.entities import Transient  # noqa: E402
+from sim.periscope import LandBearing  # noqa: E402
+from sim.weapons import TORPEDO_TYPES, launch_torpedo  # noqa: E402
+
+
+def _emit_and_look(g, tr, ticks=3):
+    g.world.emit(tr)
+    for _ in range(ticks):
+        g.tick()
+    return g.knowledge.bridge
+
+
+def test_depth_charge_gives_a_water_column_and_a_call_out():
+    g, reports = _game()
+    _surface(g)
+    st = g.world.own.state
+    pic = _emit_and_look(g, Transient("explosion", st.x + 0.5, st.y + 1.0, 50.0,
+                                      acoustics.EXPLOSION_REAL, "DD1", g.now))
+    cols = [o for o in pic.objects if o.kind == "column"]
+    assert len(cols) == 1 and cols[0].designation is None and cols[0].detail == ""
+    assert abs(cols[0].range_nm - 1.12) < 0.6
+    for _ in range(15):
+        g.tick()
+    assert "bridge.column" in _types(reports)
+    assert not any(o.kind == "column" for o in g.knowledge.bridge.objects), "pelaren är borta"
+
+
+def test_practice_charge_is_marked_and_a_splash_is_seen_by_day_only():
+    g, _ = _game()
+    _surface(g)
+    st = g.world.own.state
+    pic = _emit_and_look(g, Transient("explosion", st.x, st.y + 1.0, 50.0,
+                                      acoustics.EXPLOSION_PRACTICE, "DD1", g.now, practice=True))
+    assert next(o for o in pic.objects if o.kind == "column").detail == "övning"
+    pic = _emit_and_look(g, Transient("splash", st.x, st.y + 1.0, 0.0, acoustics.SPLASH_LEVEL,
+                                      "DD1", g.now))
+    assert any(o.kind == "splash" for o in pic.objects)
+    g, _ = _game(day=False)
+    _surface(g)
+    st = g.world.own.state
+    pic = _emit_and_look(g, Transient("splash", st.x, st.y + 1.0, 0.0, acoustics.SPLASH_LEVEL,
+                                      "DD1", g.now))
+    assert not any(o.kind == "splash" for o in pic.objects)
+
+
+def test_torpedo_wake_is_seen_close_by_day_but_not_for_the_electric_torpedo():
+    g, _ = _game()
+    _surface(g)
+    launch_torpedo(g.world, TORPEDO_TYPES["53-61"], 90.0)
+    for _ in range(40):                 # 45 kn: 0,5 nm på 40 s
+        g.tick()
+    wakes = [o for o in g.knowledge.bridge.objects if o.kind == "wake"]
+    assert len(wakes) == 1 and 60 < wakes[0].bearing < 120
+    g, _ = _game()
+    _surface(g)
+    launch_torpedo(g.world, TORPEDO_TYPES["SET-53"], 90.0)
+    for _ in range(40):
+        g.tick()
+    assert not any(o.kind == "wake" for o in g.knowledge.bridge.objects)
+
+
+def test_torpedo_hit_is_fire_and_smoke():
+    g, reports = _game()
+    _surface(g)
+    t = launch_torpedo(g.world, TORPEDO_TYPES["53-61"], 0.0)
+    st = g.world.own.state
+    pic = _emit_and_look(g, Transient("explosion", st.x, st.y + 2.0, 5.0,
+                                      acoustics.EXPLOSION_TORPEDO, t.id, g.now))
+    assert any(o.kind == "hit" for o in pic.objects)
+    for _ in range(10):
+        g.tick()
+    assert "bridge.hit" in _types(reports)
+
+
+def test_land_is_seen_from_the_bridge_in_the_strait():
+    g = Game(build_scenario("sundet", random.Random(3)), seed=3)
+    for ai in g.world.ais:
+        ai.can_force = False
+    g.world.env.sunrise, g.world.env.sunset = 0, 24 * 3600
+    reports = []
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    _surface(g)
+    for _ in range(10):
+        g.tick()
+    land = g.knowledge.bridge.land
+    assert land, "kusten ligger inom sikt i sundet"
+    assert all(lb.range_nm > 0 for lb in land)
+    assert "bridge.land" in _types(reports)
+    # i Kuba finns inget land
+    g2, _ = _game()
+    _surface(g2)
+    assert g2.knowledge.bridge.land == ()
+
+
+def test_scene_draws_land_and_events():
+    land = tuple(LandBearing(float(b), 3.0) for b in range(330, 360, 3))
+    objs = (SightedObject("column", "vattenpelare", 20.0, 1.5, Quality.GOD, seen_t=100),
+            SightedObject("hit", "explosion", 10.0, 2.0, Quality.GOD, seen_t=100),
+            SightedObject("wake", "torpedspår", 5.0, 0.3, Quality.GOD, aob=60.0, seen_t=100))
+    pic = PeriscopePicture(100, True, 10.0, 0.0, "brygga", objs, land=land)
+    txt = _plain(render_bridge(pic, 110, 30, 0.0, 100))
+    assert "█" in txt and "|||" in txt and "▲▲▲" in txt and "===" in txt
+    later = _plain(render_scene(pic, 110, 24, 0.0, 130))
+    assert "░" in later or "▒" in later, "röken stiger efter en stund"
+    night = PeriscopePicture(100, False, 2.5, 0.0, "brygga", objs, land=land)
+    ntxt = _plain(render_scene(night, 110, 24, 0.0, 100))
+    assert "▲▲▲" in ntxt and "|||" not in ntxt and "░" not in ntxt
