@@ -8,7 +8,7 @@ och plottlagets målrörelseanalys.
 
 ```bash
 uv run main.py                     # scenarioväljare, slumpat frö
-uv run main.py --scenario kuba     # hoppa över väljaren (kuba, kuba-kort, jagad, jagad-kort, sundet, sundet-in, sundet-ut, konvoj, konvoj-kort, konvoj-mot, arktis)
+uv run main.py --scenario kuba     # hoppa över väljaren (kuba, kuba-kort, jagad, jagad-kort, sundet, sundet-in, sundet-ut, konvoj, konvoj-kort, konvoj-mot, arktis, arktis-kort)
 uv run main.py --seed 4            # reproducerbart scenario
 uv run main.py --tyst              # utan ljud
 uv run pytest             # snabba tester
@@ -97,6 +97,7 @@ en del säger de vilken, och resten verkställs ändå.
 | Konvojen, kort (`konvoj-kort`) | Samma läge, men vakthavande har redan gått på periskopdjup i 35 minuter och tittat var fjärde minut. Ni tar befälet 07:05 med konvojen 5–9 sjömil bort, plottet har grupperat den och eskorten har inte hittat er. Vakthavande ger en lägesrapport när ni tar över. Tiden är ute 45 minuter senare. Omkring en halvtimmes spel. |
 | Konvojen, motanfallet (`konvoj-mot`) | Vakthavande har gått på periskopdjup när konvojen var nästan tvärs, tittat varje minut och skjutit en salva. Ni tar befälet när torpederna är framme om ungefär en minut, och en eskort har redan sett torpedbanorna och vänder mot er. Eskorterna följer en anfallen konvoj längre än vanligt (6 sjömil). Målet är att bryta kontakten: ingen eskort får ha er tio minuter efter sänkningen. Missar salvan har uppdraget misslyckats. Tiden är ute 30 minuter efter överlämnandet. Omkring 20 minuters spel. |
 | Arktis: Nord-7 | Drivstationen driver med isen. Huvudstaben ger en ungefärlig position; generatorn hörs på några sjömil och ljuset syns i periskopet. Målet är ytläge inom 1,5 sjömil. En amerikansk atomubåt hör oss före vi hör den och skuggar oss, men skjuter inte. |
+| Arktis, kort (`arktis-kort`) | Vakthavande har gått mot Nord-7 under isen i tjugo minuter på 60 meter, och iskartan har några öppningar bakom er. Stationen ligger ett par sjömil fram, en amerikansk ubåt är på väg dit, och branden i turbinrummet kommer inom en kvart. Målet är detsamma: ytläge inom en och en halv sjömil från stationen. Tiden är ute efter 35 minuter. Omkring 25 minuters spel. |
 | Brand och rök (arktis) | En brand i turbinrummet stoppar turbinen. Röken stiger tills vi ventilerar i öppen luft och sänker besättningens förmåga; för tät rök kväver besättningen. |
 | Isljud (arktis) | Bakgrundsbruset beror på isen. Skruvis knakar och kan först tas för en kontakt. |
 | Packis (arktis) | Masterna kräver öppet vatten. Isekolodet lodar isen ovanför och navigatören loggar öppningar; deras läge blir osäkrare när isen driver. Kölar når 45 m: gå djupt i fart. Tunn is (≤ 1 m) kan brytas igenom i låg fart om råken är minst 120 m. Arktiskt hav saknar språngskikt; djupt gående hör och hörs längre. |

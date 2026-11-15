@@ -177,7 +177,9 @@ def _compass(b: float) -> str:
         int(((b % 360) + 22.5) // 45) % 8]
 
 
-def arctic_scenario(rng: random.Random) -> Scenario:
+def arctic_scenario(rng: random.Random, short: bool = False) -> Scenario:
+    """Under packisen till Nord-7. short (`arktis-kort`): stationen ligger nära, vakten har
+    gått mot den i 20 min, ubåten är närmare och branden kommer snart (arctic_short_scenario)."""
     start_clock = 2 * 3600
     ice = IceField(random.Random(rng.random()), drift_set=200.0, drift_kn=0.25)
     env = Environment(profile=ArcticProfile(), clock_start=start_clock, ice=ice,
@@ -191,7 +193,10 @@ def arctic_scenario(rng: random.Random) -> Scenario:
     own = OwnShip(ShipState(x=x, y=y, course=0, speed=5, depth=120, max_depth=400))
 
     # drivstationen: en isflak med en vak intill
-    sx, sy = x + rng.uniform(-2.5, 2.5), y + rng.uniform(10.5, 12.5)
+    if short:
+        sx, sy = x + rng.uniform(-1.0, 1.0), y + rng.uniform(*ARCTIC_SHORT_STATION_NM)
+    else:
+        sx, sy = x + rng.uniform(-2.5, 2.5), y + rng.uniform(10.5, 12.5)
     station = DriftStation("NORD7", sx, sy)
     b = rng.uniform(0, 360)
     ice.carve_polynya(sx + 0.3 * math.sin(math.radians(b)), sy + 0.3 * math.cos(math.radians(b)),
@@ -199,7 +204,8 @@ def arctic_scenario(rng: random.Random) -> Scenario:
 
     # amerikansk atomubåt på väg mot samma område
     ub = rng.uniform(40, 140)
-    ux, uy = sx + 9 * math.sin(math.radians(ub)), sy + 9 * math.cos(math.radians(ub))
+    ur = ARCTIC_SHORT_SUB_NM if short else 9
+    ux, uy = sx + ur * math.sin(math.radians(ub)), sy + ur * math.cos(math.radians(ub))
     us = EnemySub("SSN1", ShipState(x=ux, y=uy, course=bearing_to(ux, uy, sx, sy), speed=8,
                                     depth=150, turn_rate=1.5, accel=0.05, max_speed=25,
                                     max_depth=300))
@@ -232,12 +238,22 @@ def arctic_scenario(rng: random.Random) -> Scenario:
     world.mission["fire_at"] = rng.randint(40 * 60, 110 * 60)
     crew = _crew()
     windows = [(c - start_clock) for c in (3 * 3600, 4 * 3600 + 1800, 6 * 3600)]
+    known = [(STATION_NAME, ox, oy, 2.0, 0)]
+    if short:
+        r2 = random.Random(rng.random())
+        world.mission["fire_at"] = ARCTIC_SHORT_WARM_S + r2.randint(*ARCTIC_SHORT_FIRE_MIN) * 60
+        world.patrol_end = ARCTIC_SHORT_WARM_S + ARCTIC_SHORT_LIMIT_S
+        windows = []
+        # nödsignalen har redan kommit: vakten har stationens pejlade läge
+        t0 = 0
+        known = [(STATION_NAME, sx + r2.gauss(0, 0.4), sy + r2.gauss(0, 0.4), 0.6, t0)]
+        messages = []
     sb_rng = random.Random(rng.random())
     env.seabed = arctic_seabed(sb_rng, world.size_nm)
     chart = env.seabed.chart_copy(sb_rng, err_nm=0.8)
     return Scenario(world, crew, order, start_clock, chart_seabed=chart,
                     radio_windows=windows, radio_messages=messages,
-                    known_positions=[(STATION_NAME, ox, oy, 2.0, 0)],
+                    known_positions=known,
                     area_name="område Nord-3",
                     outcome_text={
                         "station_reached": "K-114 har gått upp genom isen vid Nord-7. En "
@@ -249,6 +265,30 @@ def arctic_scenario(rng: random.Random) -> Scenario:
                         "sank": "Den amerikanska ubåten är sänkt under isen. Vad som händer nu "
                                 "avgörs inte längre i Nord-3.",
                     })
+
+
+ARCTIC_SHORT_STATION_NM = (3.6, 4.2)    # stationen norrut vid start (2,0–2,6 nm vid överlämnandet)
+ARCTIC_SHORT_SUB_NM = 5.5               # amerikanska ubåten så långt från stationen vid start
+ARCTIC_SHORT_WARM_S = 20 * 60
+ARCTIC_SHORT_LIMIT_S = 35 * 60
+ARCTIC_SHORT_FIRE_MIN = (5, 12)         # branden så många minuter efter överlämnandet
+
+
+def _arctic_watch_pilot(game: Any, t: int) -> None:
+    """Vakten: mot Nord-7 i 5 knop på 60 m; isekolodet lodar och iskartan byggs bakom oss."""
+    if t == 0:
+        game.command("kurs mot Nord-7, djup 60")
+
+
+def arctic_short_scenario(rng: random.Random) -> Scenario:
+    sc = arctic_scenario(rng, short=True)
+    sc.warmup = Warmup(ARCTIC_SHORT_WARM_S, _arctic_watch_pilot)
+    sc.secret_order += ("\nVAKTJOURNALEN, 02.20: NORD-7 SÄNDE NÖDSIGNAL,\n"
+                        "PEJLAD. VAKTHAVANDE HAR GÅTT MOT STATIONEN I\n"
+                        "TJUGO MINUTER UNDER ISEN. KAPTENEN TAR BEFÄLET.\n")
+    sc.outcome_text["patrol_end"] = ("Tiden är ute. K-114 har inte kommit upp vid Nord-7, och "
+                                     "den amerikanska ubåten är redan där.")
+    return sc
 
 
 HUNTED_ORDER = """\
@@ -939,6 +979,11 @@ register(ScenarioDef(
     "Polarnatt vid 85° nord. Drivstationen Nord-7 har tystnat. Ta er dit under isen, "
     "hitta öppet vatten och gå upp. En amerikansk ubåt är på väg mot samma plats.",
     arctic_scenario))
+register(ScenarioDef(
+    "arktis-kort", "Under packisen – sista milen, oktober 1962",
+    "Kort variant. Vakten har gått mot Nord-7 under isen i tjugo minuter. Stationen ligger "
+    "några sjömil fram, en amerikansk ubåt är på väg dit och isen ovanför är tjock.",
+    arctic_short_scenario, minutes=25))
 register(ScenarioDef(
     "jagad", "Jagade, natten till 27 oktober 1962",
     "En amerikansk jagare har just fått kontakt och en till är på väg. Bryt kontakten "

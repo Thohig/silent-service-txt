@@ -1423,6 +1423,8 @@ class NavigationStation(Station):
     def _steer_to_station(self) -> None:
         if self.goal not in ("station", "circle") or self.vak is not None:
             return
+        if self.ship.ordered_depth <= PERISCOPE_DEPTH:
+            return          # på väg upp (ytläge, periskopdjup): ingen spiral som drar ned oss
         if self.goal == "circle":
             self._steer_circle()
             return

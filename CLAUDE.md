@@ -90,7 +90,10 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   `off.briefing` (konvoj, kontakter, besticket ur kunskapen). Tidsgränsen är `World.patrol_end`
   (uppvärmning + speltid). Piloten kan lämna över tidigare genom att returnera True (`seconds` är
   då ett tak). `ScenarioDef.minutes` visas i väljaren. Kort variant = egen nyckel
-  (`konvoj-kort`) som bygger på det långa scenariot. Plan för resten: `docs/korta-varianter.md`.
+  (`konvoj-kort`) som bygger på det långa scenariot. Alla sju scenarier har en kort variant (`-kort`, `-mot`,
+  `-in`, `-ut`). Ny kort variant: provkör 8 frön med passiv bot, ja-boten och en bot med besättningens
+  verktyg; riktmärken: första förslag eller kontakt inom 3 min, ja-boten ~2–4 av 8 (utom där följandet
+  är kaptenens sak), viktiga lösningar ≥ osäker vid överlämnandet. Siffrorna under Kalibrering.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen
@@ -292,7 +295,9 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   4:e min), sedan 45 min. 8 frön: plottet har konvojen vid överlämnandet i alla, 5–9 nm bort, ingen
   eskort har oss; första förslag 0–3 min efter; ja-boten i skjutläge i 4 (9–34 min). Bot som skjuter
   `salva` (upprepad) mot klassad transport/tanker ≤ 3 nm med lösning ≥ osäker: sänker 1 på 28 min
-  (samma bot i `konvoj`: 1, på 69 min). Uppvärmningen tar ~5–8 s.
+  (samma bot i `konvoj`: 1, på 69 min). Uppvärmningen tar ~5–8 s. Efter plottets periskoprättelse:
+  `konvoj` 2 av 8, `konvoj-kort` fortfarande 1 av 8; boten skjuter på gamla lösningar (titt var 4:e min,
+  ben på 5–10 min). Öppen fråga: ska besättningen föreslå en titt strax före skjutläge?
 - Konvojen motanfall (`konvoj-mot`, `convoy_counter_scenario`): ledpunkten 1–2 nm före tvärs, vi 1,8–2,4 nm
   vid sidan. Vakten (`_CounterattackWatch`): periskopdjup, titt var 60:e s, `salva` (två gånger) mot
   stort fartyg med lösning ≥ god, ≥ 60 s sedan senaste gir, titt ≤ 60 s gammal, fart ≤ 20 kn, ≤ 2,5 nm;
@@ -320,7 +325,14 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   i 5 kn. Tornets topp 13 m och skrovets 8 m över kölen. Tunn is ≤ 1 m bryts i
   ≤ 2 kn på 40 s. Isdrift 0,25 kn mot 200°. Isbrus 50 dB (fast is) till 72 dB.
 - Arktis: generatorn 142 dB, US-ubåt 125 + 1,5·fart med DT 0 och egenbrus 48 + fart.
-  Mål: ytläge inom 1,5 nm från Nord-7. Ja-boten når målet i ~10 av 12 frön.
+  Mål: ytläge inom 1,5 nm från Nord-7. Ja-boten når målet i 7 av 12 frön (2026-11-15; förut angivet
+  ~10, men koden före dagens ändringar gav 6).
+- Arktis kort (`arktis-kort`, `arctic_scenario(short=True)`): stationen 3,6–4,2 nm norrut vid start, vakt
+  20 min (`kurs mot Nord-7, djup 60`), alltså 1,7–2,6 nm kvar vid överlämnandet; nödsignalens läge känt
+  (σ 0,6). US-ubåten 5,5 nm från stationen vid start (2,5–5 nm från oss vid överlämnandet, oftast ohörd).
+  Branden 5–12 min efter överlämnandet, tidsgräns 35 min. Navigatörens sökspiral runt stationen och
+  maskinens förslag att ventilera vid en öppning tar inte över när vi är på väg upp (beordrat djup ≤
+  periskopdjup). Uppstigning stilla ~0,25 m/s, därför 60 m. 8 frön: passiv 0, ja-boten 2.
 - Brand (arktis, 40–110 min): rök 0,0009/s medan det brinner (7–13 min), sedan
   +0,2/h tills ventilation (−0,02/min på periskopdjup, −0,05/min i ytläge). Rök 1,0 = förlorad.
   Röken sänker `effective_skill()` med upp till 50 %.
