@@ -265,7 +265,18 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   ordlista, Avsluta. Inställningar (`ui/settings.py`): ljud, talets språk, slumpfrö (`SubApp.sound_wanted`,
   `language`, `fixed_seed`; `--seed`/`--tyst` sätter startvärdena, fröet gäller alla uppdrag tills det
   ändras). Order och ordlista (`ui/manual.py`) hämtar orderna ur stationernas `COMMANDS` per roll. Nytt scenario hamnar
-  i menyn av sig självt om nyckel och titel följer mönstret. Flödet: menyn → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
+  i menyn av sig självt om nyckel och titel följer mönstret. Stämningen (`ui/menutext.py`): sidhuvud som
+  hemlig handling på rött fält (ryska med svensk översättning), stämpel per uppdrag efter datumet
+  (`stamp_for`: övning ДСП, före 22 okt СЕКРЕТНО, 22–26 СОВ. СЕКРЕТНО, 27– ОСОБОЙ ВАЖНОСТИ), fjärrskrivarremsa
+  (`DISPATCHES`, `ticker_at(t)`: kalendern 1–28 okt, 24 tecken/s, börjar om) och stridsberedskapen i
+  sidhuvudet efter meddelandet (ständig, höjd, krigsfara, full; de två sista blinkar). Den 28 okt följer
+  spelets historia: kriget har börjat. Färger ockra/flaggrött (`BG`, `INK`, `RED` …), även inställningar och
+  ordlista. Ljud (`ui/menu_audio.py`, `MenuSound`, bara med ljudet på): egen musik (kör i d-moll, hjärtslag
+  i basen, klocka, horn andra varvet; 64 s), hamnen (vind, vågor, mistlur, knarr; 40 s) och fjärrskrivaren
+  medan remsan skriver; slingorna är cirkulära (efterklangen viks runt). Syntesen (~2 s) i en tråd,
+  `lru_cache`. `MenuMixer` (en `Ambience` med `extra`-kroken) lägger enstaka ljud ovanpå. Uppdrag valt ⇒
+  `depart()`: telegrafklockan, musiken tonar bort, fjärrskrivaren låter medan ordern skrivs ut; stängs när
+  kaptenen tar befälet. `ctrl+t` och Inställningar slår av och på (`SubApp.menu_sound_sync`). Flödet: menyn → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
   huvudmenyn. `SubApp` håller spelet, ljudet och inställningarna (ljud, talets språk) över uppdragen;
   widgetarna nås med `app.gs().query_one(...)` (`app.query_one` ser bara standardskärmen). Efter
   slutrapporten går vyerna att titta på; Enter med tom orderrad (även i en vy) ⇒ `return_to_menu()`:

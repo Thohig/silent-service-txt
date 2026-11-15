@@ -181,7 +181,11 @@ class Ambience:
             out[:, 0] += mono * env * np.cos(a) * np.sqrt(2)
             out[:, 1] += mono * env * np.sin(a) * np.sqrt(2)
         out *= np.linspace(m0, self._master, n, endpoint=False)[:, None]
+        self.extra(out)
         return np.tanh(out)                            # mjuk begränsning, aldrig klipp
+
+    def extra(self, out: np.ndarray) -> None:
+        """Krok för underklasser: lägg till ljud utöver slingorna (stereo, på plats)."""
 
     @property
     def layers(self) -> dict[str, _Layer]:

@@ -156,9 +156,11 @@ class MenuScreen(Screen):
             yield OptionList(*options, id="scenarios")
             yield Static("", id="brief")
         yield Static("", id="ticker")
-        yield Static("↑ ↓ välj · Enter starta eller öppna · ctrl+q avsluta", id="menu-keys")
+        yield Static("↑ ↓ välj · Enter starta eller öppna · ctrl+t ljud · ctrl+q avsluta", id="menu-keys")
 
     def on_mount(self) -> None:
+        if hasattr(self.app, "menu_sound_sync"):
+            self.app.menu_sound_sync()
         self.set_interval(FRAME_S, self.animate)
         self.animate()
         options = self.query_one("#scenarios", OptionList)
@@ -174,6 +176,9 @@ class MenuScreen(Screen):
         """Fjärrskrivaren och beredskapen. t: sekunder sedan menyn visades (tester)."""
         t = self.elapsed() if t is None else t
         self.ticker = ticker_at(t)
+        menu_sound = getattr(self.app, "menu_sound", None)
+        if menu_sound is not None and self.is_current:
+            menu_sound.set_typing(self.ticker.typing)
         lit = int(t / BLINK_S) % 2 == 0
         width = self.size.width or 100
         try:
@@ -193,6 +198,12 @@ class MenuScreen(Screen):
                                 "och besättningens ryska ord.", style="dim"))
         elif key == QUIT_ID:
             brief_w.update(Text("Stäng programmet.", style="dim"))
+
+    def on_screen_suspend(self) -> None:
+        """Inställningar eller ordlistan ovanpå: fjärrskrivaren tystnar, musiken går vidare."""
+        menu_sound = getattr(self.app, "menu_sound", None)
+        if menu_sound is not None and not menu_sound.departing:
+            menu_sound.set_typing(False)
 
     def on_screen_resume(self) -> None:
         """Tillbaka från inställningarna: visa de nya värdena."""

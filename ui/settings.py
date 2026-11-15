@@ -116,6 +116,8 @@ class SettingsScreen(Screen):
         key = event.option.id
         if key == SOUND:
             app.sound_wanted = not app.sound_wanted
+            if hasattr(app, "menu_sound_sync"):
+                app.menu_sound_sync()
         elif key == SPEECH:
             app.language = "sv" if app.language in (None, "ru") else "ru"
         elif key == SEED:

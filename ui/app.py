@@ -29,6 +29,7 @@ from .audio import SoundBoard, make_soundboard
 from .chart import ChartScreen
 from .logview import LogScreen
 from .menu import MenuScreen
+from .menu_audio import MenuSound
 from .bridge import BridgeScreen
 from .periscope import PeriscopeScreen
 from .profile import ProfileScreen
@@ -137,6 +138,7 @@ class SubApp(App):
         self._last = 0.0
         self.sound_wanted = sound
         self.sound: SoundBoard | None = None
+        self.menu_sound: MenuSound | None = None   # musiken och hamnen i huvudmenyn
         self._sound_note: str | None = None
         self._gauge_t = 0.0
         self._central_t = 0.0
@@ -180,6 +182,8 @@ class SubApp(App):
         """Huvudmenyn: skapa spelet och visa den hemliga ordern."""
         if self.game is not None:
             return
+        if self.menu_sound is not None:
+            self.menu_sound.depart()         # telegrafen ringer, musiken tonar bort
         self._create_game(key)
         self._show_game()
 
@@ -199,6 +203,8 @@ class SubApp(App):
         tt = gs.query_one(Teletype)
         tt.full_text = game.secret_order
         tt.start()
+        if self.menu_sound is not None:
+            self.menu_sound.set_typing(True)
         if game.warmup_pending:
             self.run_worker(self._run_warmup, thread=True, exclusive=True, group="warmup")
         else:
@@ -237,6 +243,8 @@ class SubApp(App):
             else "Vakthavande gör klart vakten …")
 
     def on_teletype_finished(self, _: Teletype.Finished) -> None:
+        if self.menu_sound is not None:
+            self.menu_sound.set_typing(False)
         self._show_footer()
 
     # ------------------------------------------------------------------ order
@@ -300,6 +308,7 @@ class SubApp(App):
         return True
 
     def _start(self) -> None:
+        self.close_menu_sound()
         self.gs().query_one(Teletype).display = False
         self.gs().query_one("#main").display = True
         log = self.gs().query_one(ReportLog)
@@ -379,8 +388,30 @@ class SubApp(App):
             self.pop_screen()
 
     # ------------------------------------------------------------------ ljud
+    def menu_sound_sync(self) -> None:
+        """Huvudmenyn visas: musik och hamn om ljudet är påslaget, annars tyst."""
+        if self.game is not None:
+            return
+        if self.sound_wanted and self.menu_sound is None:
+            self.menu_sound = MenuSound()
+        elif not self.sound_wanted:
+            self.close_menu_sound()
+
+    def close_menu_sound(self) -> None:
+        if self.menu_sound is not None:
+            self.menu_sound.close()
+            self.menu_sound = None
+
     def action_sound(self, want: bool | None = None) -> None:
         """ctrl+t eller "ljud": slå av och på tal och larm."""
+        if self.game is None:                # huvudmenyn
+            self.sound_wanted = not self.sound_wanted if want is None else want
+            self.menu_sound_sync()
+            self.notify("Ljudet på." if self.sound_wanted else "Ljudet av.", timeout=2)
+            for refresh in ("on_screen_resume", "_refresh"):   # menyn, inställningarna
+                if hasattr(self.screen, refresh):
+                    getattr(self.screen, refresh)()
+            return
         if not self.running or self.sound is None:
             return
         if not self.sound.available:
@@ -506,6 +537,7 @@ class SubApp(App):
         self._acc = 0.0
 
     def on_unmount(self) -> None:
+        self.close_menu_sound()
         if self.sound:
             self.sound.close()
         if self.truth_log:
