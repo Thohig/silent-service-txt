@@ -22,18 +22,12 @@ Flytta en variant från **Kvar** till **Klart** när den är byggd, testad och k
   - Tester: `tests/test_warmup.py`.
 - **`konvoj-kort`, "Skjutläge":** konvojen 13–15 nm bort, vakt i 35 min (periskopdjup, fart 3,
   svep var 4:e min), sedan 45 min. Kalibrering står i CLAUDE.md.
+- **`jagad-kort`, "Skarpt":** utan uppvärmning, kvadraten 7 nm, båda jagarna skarpa från start,
+  DD2 spärrar den korta vägen ut. Tidsgräns 30 min. Kalibrering står i CLAUDE.md.
 
 ## Kvar, i byggordning
 
 ### Steg 3 – utan (eller med mycket kort) uppvärmning
-
-**`jagad-kort`, "Skarpt", ~15 min**
-- **Start:** som `hunted_scenario`, men skarpa bomber från start (`roe="lethal"` eller
-  `escalate_after=0`) och DD1 1,5 nm bort i anfallsgång. Sonaren hör snabb pingtakt direkt.
-- **Kvadraten:** mindre, så att det tar ~15 min att komma ut djupt och fort.
-- **Mål:** samma `escape` som Jagade.
-- **Tidsgräns:** ~25 min.
-- **Nytt i koden:** troligen bara parametrar till `hunted_scenario` (storlek, avstånd, roe).
 
 **`konvoj-mot`, "Motanfallet", ~15 min**
 - **Start:** salvan har just gått mot ett konvojfartyg och en torped träffar efter 30–60 s.
@@ -102,3 +96,6 @@ Flytta en variant från **Kvar** till **Klart** när den är byggd, testad och k
   transport/tanker inom 3 nm med lösning minst osäker sänker 1 av 8, både i `konvoj` och
   `konvoj-kort`. CLAUDE.md anger 3 av 8 för konvojboten (`convoy_bots.py`, som inte finns
   kvar). Reda ut om skillnaden ligger i boten eller i spelet.
+- **Långa Jagade har glidit:** med samma botar som för `jagad-kort` (12 000 s) ger `jagad` i dag
+  ja-boten 1 av 8 och djupt och fort 1 av 8 (oftast sänkta, `lost`), mot 3 och 7 i CLAUDE.md.
+  Samma resultat före och efter `jagad-kort`, så det har kommit med någon tidigare ändring.

@@ -160,3 +160,53 @@ def test_escape_counts_when_hunter_chases_a_decoy_far_away():
     ai.start_hunt(1.5, 10, 150, 0.08)          # datum på ett skenmål 3,5 nm bort
     w._check_outcome()
     assert w.outcome["outcome"] == "escaped"
+
+
+def test_hunted_short_starts_with_live_charges_close_in():
+    from sim.scenario import HUNTED_SHORT_LIMIT_S, HUNTED_SHORT_SIZE, SCENARIOS
+    assert SCENARIOS["jagad-kort"].minutes
+    for seed in range(4):
+        sc = build_scenario("jagad-kort", random.Random(seed))
+        w = sc.world
+        dd1, dd2 = [a for a in w.ais if isinstance(a, DestroyerAI)]
+        assert dd1.aware() and dd1.roe == "lethal" and dd2.roe == "lethal"
+        assert 1.3 < w.true_range(dd1.vessel) < 1.8
+        assert w.size_nm == HUNTED_SHORT_SIZE and w.patrol_end == HUNTED_SHORT_LIMIT_S
+        o = w.own.state
+        assert min(o.x, w.size_nm - o.x) < 2.6         # nära en kant, men DD2 är där
+        assert w.true_range(dd2.vessel) < 4.0
+
+
+def test_hunted_short_time_limit_ends_the_game():
+    from sim.scenario import HUNTED_SHORT_LIMIT_S
+    g = Game(build_scenario("jagad-kort", random.Random(2)), seed=2)
+    g.world.time = HUNTED_SHORT_LIMIT_S
+    g.tick()
+    assert g.over and g.world.outcome["outcome"] == "patrol_end"
+    assert "Uppdraget har misslyckats" in g.scenario.outcome_text["patrol_end"]
+
+
+def test_crew_hears_the_short_hunt_in_the_first_minute():
+    for seed in range(3):
+        g = Game(build_scenario("jagad-kort", random.Random(seed)), seed=seed)
+        for _ in range(60):
+            g.tick()
+        assert g.knowledge.hunted(g.now) and g.knowledge.threat_held()
+
+
+def test_plot_does_not_ask_for_tma_legs_while_hunted():
+    from sim.stations.plot import PlotTeam
+    g = Game(build_scenario("jagad", random.Random(0)), seed=0)
+    for _ in range(60):
+        g.tick()
+    assert g.knowledge.hunted(g.now)
+    assert g.station(PlotTeam).idle_proposals() == []
+
+
+def test_sprint_proposal_always_orders_the_turbine():
+    """Förslaget levereras sent; har kaptenen hunnit beordra smygmotor ska ja ändå ge turbin."""
+    from sim.stations.engineering import EngineeringStation
+    g = Game(build_scenario("jagad", random.Random(0)), seed=0)
+    eng = g.station(EngineeringStation)
+    order, data = eng._sprint()
+    assert "turbin" in order and f"fart {data['speed']}" in order

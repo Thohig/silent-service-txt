@@ -218,6 +218,12 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   inom max(1 nm, 3σ) från oss (ett skenmål räknas inte). Navigatören (`exit_route`) föreslår
   närmaste kant, +4 nm straff inom 40° från en hotkontakt. 8 frön: passiv 0, ja-boten 3,
   djupt och fort (turbin 12 kn, 200 m, rakt ut) 7.
+- Jagade kort (`jagad-kort`, `hunted_scenario(short=True)`): kvadraten 7 nm, ubåten 2–2,5 nm från
+  djupvattensidans kant, DD1 1,4–1,7 nm bort i anfall, DD2 3–3,8 nm bort på djupvattensidan, båda
+  skarpa från start; tidsgräns 30 min. 8 frön: passiv 0, ja-boten 4 (24–26 min), djupt och fort
+  (navigatörens `exit_route` var 60:e s) 6 (19–27 min). Sonar hör jakten efter 6–8 s.
+  Medan vi är jagade (`Knowledge.hunted`) föreslår plottet inga TMA-girar, och maskinens sprintförslag
+  har alltid med `turbin` (förslaget levereras sent).
 - Kust (`seabed.Coast`, `strait_seabed`): land har negativt djup (`Seabed.min_depth` < 0),
   sjökortet ritar land (`░`) och kustlinje. Tidvatten (`environment.TidalStream`, period 12 h 25 min)
   skalar med djupet: `peak·clamp(60/djup, 0,2, 1,5)`; `Environment.current_at(x, y, t)` används för

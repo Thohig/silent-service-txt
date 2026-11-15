@@ -519,8 +519,9 @@ class EngineeringStation(Station):
                 abs(st.ordered_depth - depth) <= 40:
             return None
         parts = [] if abs(st.ordered_depth - depth) <= 40 else [f"djup {depth:.0f}"]
-        if s.propulsion != "turbine":
-            parts.append("turbin")
+        # alltid med: förslaget levereras med fördröjning, och smygmotor kan ha
+        # beordrats under tiden
+        parts.append("turbin")
         parts.append(f"fart {speed}")
         return ", ".join(parts), {"speed": speed, "depth": depth}
 
