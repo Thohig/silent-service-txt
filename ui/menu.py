@@ -6,6 +6,7 @@ titeln är "Rubrik – variant, datum". Övningen står först, sedan i registre
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 
 from rich.text import Text
@@ -18,8 +19,8 @@ from textual.widgets.option_list import Option
 from sim.scenario import SCENARIOS, ScenarioDef
 
 from .manual import ManualScreen
-from .menutext import (BG, DIM, HIGHLIGHT_BG, HIGHLIGHT_FG, INK, RULE, header, stamp_for,
-                       stamp_text)
+from .menutext import (BG, DIM, HIGHLIGHT_BG, HIGHLIGHT_FG, INK, RULE, TickerState, header,
+                       stamp_for, stamp_text, ticker_at, ticker_text)
 from .settings import SettingsScreen
 
 FIRST_GROUPS = ("ovning",)        # övningen först: den lär känna båten
@@ -29,6 +30,8 @@ MANUAL_ID = "_ordlista"
 SHORT_PREFIX = "Kort variant. "
 LIST_WIDTH = 44
 LABEL_WIDTH = 26
+FRAME_S = 0.1               # menyns klocka: fjärrskrivaren och beredskapens blinkning
+BLINK_S = 0.6
 
 
 @dataclass
@@ -126,6 +129,7 @@ class MenuScreen(Screen):
         background: {HIGHLIGHT_BG}; color: {HIGHLIGHT_FG}; }}
     MenuScreen #brief      {{ width: 1fr; height: 1fr; padding: 0 2 0 3; color: {INK};
                              background: {BG}; border-left: vkey {RULE}; }}
+    MenuScreen #ticker     {{ height: 1; margin: 1 2 0 2; background: #1e1510; color: {INK}; }}
     MenuScreen #menu-keys  {{ height: 1; padding: 0 2; color: {DIM}; background: {BG}; }}
     """
 
@@ -134,6 +138,8 @@ class MenuScreen(Screen):
         self.selected = selected
         self.groups = mission_groups()
         self._group_of = {sd.key: g for g in self.groups for sd in g.variants}
+        self._t0 = time.monotonic()
+        self.ticker: TickerState = ticker_at(0.0)
 
     def compose(self) -> ComposeResult:
         yield Static(header(), id="menu-title")
@@ -149,18 +155,32 @@ class MenuScreen(Screen):
         with Horizontal(id="menu-body"):
             yield OptionList(*options, id="scenarios")
             yield Static("", id="brief")
+        yield Static("", id="ticker")
         yield Static("↑ ↓ välj · Enter starta eller öppna · ctrl+q avsluta", id="menu-keys")
 
-    def on_resize(self) -> None:
-        self.query_one("#menu-title", Static).update(header(self.size.width))
-
     def on_mount(self) -> None:
-        self.query_one("#menu-title", Static).update(header(self.size.width))
+        self.set_interval(FRAME_S, self.animate)
+        self.animate()
         options = self.query_one("#scenarios", OptionList)
         key = self.selected if self.selected in SCENARIOS else self.groups[0].variants[0].key
         options.highlighted = options.get_option_index(key)
         options.focus()
         self._show(key)
+
+    def elapsed(self) -> float:
+        return time.monotonic() - self._t0
+
+    def animate(self, t: float | None = None) -> None:
+        """Fjärrskrivaren och beredskapen. t: sekunder sedan menyn visades (tester)."""
+        t = self.elapsed() if t is None else t
+        self.ticker = ticker_at(t)
+        lit = int(t / BLINK_S) % 2 == 0
+        width = self.size.width or 100
+        try:
+            self.query_one("#menu-title", Static).update(header(width, self.ticker.level, lit))
+            self.query_one("#ticker", Static).update(ticker_text(self.ticker, width - 4, lit))
+        except Exception:                             # noqa: BLE001 – under nedstängning
+            pass
 
     def _show(self, key: str | None) -> None:
         brief_w = self.query_one("#brief", Static)

@@ -143,3 +143,53 @@ def test_header_fits_the_width_and_translates_the_russian():
     plain = header(120).plain
     assert "СОВЕРШЕННО СЕКРЕТНО" in plain and "Strängt hemligt" in plain
     assert "СЕВЕРНЫЙ ФЛОТ" in plain and "Norra flottan" in plain
+
+
+def test_ticker_types_the_calendar_in_order_and_starts_over():
+    from ui.menutext import DISPATCHES, TICKER_CYCLE_S, TICKER_CPS, ticker_at
+    s = ticker_at(0.0)
+    assert (s.index, s.chars, s.typing, s.blank) == (0, 0, True, False)
+    s = ticker_at(10 / TICKER_CPS)
+    assert s.chars == 10 and s.typing
+    seen, levels, t = [], [], 0.0
+    while t < TICKER_CYCLE_S:
+        s = ticker_at(t)
+        if not seen or seen[-1] != s.index:
+            seen.append(s.index)
+            levels.append(s.level)
+        t += 0.25
+    assert seen == list(range(len(DISPATCHES)))
+    assert levels == sorted(levels) and levels[0] == 0 and levels[-1] == 3   # bara uppåt
+    assert ticker_at(TICKER_CYCLE_S + 0.01).index == 0                          # börjar om
+    days = [int(d.stamp[:2]) for d in DISPATCHES]
+    assert days == sorted(days) and days[-1] == 28
+
+
+def test_ticker_line_fits_and_readiness_follows_the_dispatch():
+    from ui.menutext import DISPATCHES, READINESS, TickerState, header, ticker_text
+    for i, d in enumerate(DISPATCHES):
+        full = TickerState(i, len(d.text), False, False)
+        assert len(ticker_text(full, 80).plain) <= 80
+        assert d.stamp in ticker_text(full, 80).plain
+    assert ticker_text(TickerState(0, 0, False, True), 80).plain.strip() == "ТЕЛЕТАЙП"
+    assert "ПОЛНАЯ" in header(120, 3).plain and "stridsberedskap: full" in header(120, 3).plain
+    assert all(len(header(120, lvl).plain.split("\n")[3]) == 120 for lvl in range(len(READINESS)))
+
+
+def test_menu_screen_shows_the_ticker_and_readiness(tmp_path):
+    from ui.app import SubApp
+    from ui.menutext import DISPATCHES, dispatch_duration
+
+    async def run():
+        app = SubApp(seed=1, log_dir=tmp_path)
+        async with app.run_test(size=(110, 36)) as pilot:
+            await pilot.pause()
+            menu = app.screen
+            last = len(DISPATCHES) - 1
+            t = sum(dispatch_duration(i) for i in range(last)) + 2.0
+            menu.animate(t)
+            assert menu.ticker.index == last
+            assert "ПОЛНАЯ" in str(menu.query_one("#menu-title").render())
+            assert "СЕВФЛОТ 28.10" in str(menu.query_one("#ticker").render())
+
+    asyncio.run(run())
