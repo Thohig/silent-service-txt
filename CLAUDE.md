@@ -186,6 +186,9 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   inom 1,5 nm. Jagare hör inte sina egna sidans pingar. Kuba efter detta: ja-boten hittas
   fortfarande 8 av 8, men jagaren tappar och återfinner kontakt 2–20 gånger (förut 1) och
   anfaller 1–19 gånger (förut 2–37).
+- Sonarrummets takt: samma kontakts bäring ropas högst var 60:e s (`BEARING_MIN_GAP_S`), annars vid
+  5° ändring eller var 5:e min. Pingtakt snabb vid ≤ 13 s, långsam först efter två mellanrum ≥ 20 s
+  i rad (en missad ping vänder den inte). Jagade, ja-boten: ~5 rapporter/min under jakten (förut ~11).
 - Sonar publicerar `HuntSigns` vid snabb pingtakt och plask; `Knowledge.hunted()` (5 min). Då
   föreslår maskin `eng.suggest.sprint` (turbin, djup ≤ 220 m, fart = kavitationsfart − 1)
   i stället för smygmotor, och sonar föreslår inte fart 4 när en kontakt tappas.

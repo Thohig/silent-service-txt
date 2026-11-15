@@ -29,8 +29,10 @@ from .base import Proposal, Station
 
 BEARING_REPORT_DELTA = 5.0
 BEARING_REPORT_MAX_AGE = 300
+BEARING_MIN_GAP_S = 60       # samma kontakts bäring ropas inte oftare (jakt nära: annars var 5:e s)
 SMOOTH_OBS = 6
 FAST_PING_S = 13
+SLOW_PING_S = 20            # så här långt mellan pingarna två gånger i rad: takten har minskat
 PING_SAME_DEG = 8.0         # okända pingar inom så här många grader räknas som samma pingare
 PING_DRIFT_DEG_PER_S = 0.15 # ... plus så här mycket per sekund sedan förra pingen (pingaren rör sig)
 PING_SAME_MAX_DEG = 20.0
@@ -401,7 +403,8 @@ class SonarRoom(Station):
             key = ev.designation or unknown or f"okänd{self._unknown_pingers}"
             if key not in self._pings and unknown and ev.designation:
                 self._pings[key] = self._pings.pop(unknown)      # samma pingare, nu identifierad
-            p = self._pings.setdefault(key, {"last": None, "fast": False, "close_t": -10**9})
+            p = self._pings.setdefault(key, {"last": None, "fast": False, "close_t": -10**9,
+                                             "slow_n": 0})
             # utjämnad bäring: en enstaka brusig ping drar inte iväg grinden
             p["bearing"] = ev.bearing if "bearing" not in p else \
                 norm360(p["bearing"] + PING_SMOOTH * angle_diff(ev.bearing, p["bearing"]))
@@ -410,12 +413,14 @@ class SonarRoom(Station):
                 self._suggest_layer()
             else:
                 interval = self.now - p["last"]
+                # en missad ping ger ett långt mellanrum: minskad takt först efter två i rad
+                p["slow_n"] = p["slow_n"] + 1 if interval >= SLOW_PING_S else 0
                 if interval <= FAST_PING_S and not p["fast"]:
                     p["fast"] = True
                     detail = "fast"
                     self.say("sonar.ping.fast", d, kind="contact", alarm=True)
                     self._evasive_depth()
-                elif interval >= 20 and p["fast"]:
+                elif p["slow_n"] >= 2 and p["fast"]:
                     p["fast"] = False
                     self.say("sonar.ping.slow", d, kind="contact")
             if p["fast"]:
@@ -493,6 +498,8 @@ class SonarRoom(Station):
         prev, prev_t = self._last_called.get(designation, (None, -10**9))
         delta = angle_diff(bearing, prev) if prev is not None else 0.0
         if abs(delta) < BEARING_REPORT_DELTA and self.now - prev_t < BEARING_REPORT_MAX_AGE:
+            return
+        if self.now - prev_t < BEARING_MIN_GAP_S:
             return
         self._last_called[designation] = (bearing, self.now)
         se = sum(o.se for o in recent) / len(recent)
