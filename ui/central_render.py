@@ -413,11 +413,12 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
     c.text(g.body, g.officer - 1, "▐ ▌", officer or p["crew"])
     rud = shown["rudder"]
     lean = 1 if rud > 5 else -1 if rud < -5 else 0
-    seats = g.seated()
-    _seated(c, g, seats["ror"], p, None, lean)
-    _seated(c, g, seats["djupror"], p, None)
-    for role in ("engineer", "navigator", "plot"):
-        _seated(c, g, seats[role], p, lit.get(role))
+    if not g.big:                                   # stor: instrumenten står ensamma vid pulpeterna
+        seats = g.seated()
+        _seated(c, g, seats["ror"], p, None, lean)
+        _seated(c, g, seats["djupror"], p, None)
+        for role in ("engineer", "navigator", "plot"):
+            _seated(c, g, seats[role], p, lit.get(role))
 
     # larmlampor i taket: stridslarm rött, brand gult
     alarm = RED if s.hunted else AMBER if s.fire else None

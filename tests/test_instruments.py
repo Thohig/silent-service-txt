@@ -113,3 +113,10 @@ def test_readouts_show_the_exact_value_while_needles_lag():
                      render_central(BASE, width=150, height=29, shown=shown))
     assert "GYRO 090" in text and "DJUP 100 m" in text
     assert math.isclose(shown["course"], 80.0)
+
+
+def test_big_room_has_no_seated_crew_only_the_officer():
+    big = "\n".join(line.plain for line in render_central(BASE, width=150, height=29))
+    small = "\n".join(line.plain for line in render_central(BASE))
+    assert big.count("▟█▙") == 1                # vakthavande vid periskopet
+    assert small.count("▟█▙") == 6
