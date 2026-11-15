@@ -104,6 +104,21 @@ def ambient_targets(st, tracks: Iterable = ()) -> dict[str, Target]:
     if st.ventilating:
         out["vent"] = Target("vent", 0.25)
 
+    # --- centralen: luften, besättningen och det som hotar -------------------
+    quiet = st.propulsion == "electric" or st.hunted       # tyst gång: ingen pratar
+    if st.reactor == "online":
+        out["aircon"] = Target("aircon", 0.035 if quiet else 0.07)
+    if not quiet and not st.over:
+        out["crew"] = Target("crew", 0.05)
+    menace = 0.0
+    if st.hunted:
+        menace = 0.11
+    elif any(tr.held and tr.warship and tr.observations and tr.observations[-1].se > 10
+             for tr in tracks):
+        menace = 0.05
+    if menace:
+        out["dread"] = Target("dread", menace)
+
     # --- kontakter sonaren håller -------------------------------------------
     heard = []
     for tr in tracks:
@@ -181,7 +196,11 @@ class Ambience:
             out[:, 0] += mono * env * np.cos(a) * np.sqrt(2)
             out[:, 1] += mono * env * np.sin(a) * np.sqrt(2)
         out *= np.linspace(m0, self._master, n, endpoint=False)[:, None]
+        self.extra(out)
         return np.tanh(out)                            # mjuk begränsning, aldrig klipp
+
+    def extra(self, out: np.ndarray) -> None:
+        """Krok för underklasser: lägg till ljud utöver slingorna (stereo, på plats)."""
 
     @property
     def layers(self) -> dict[str, _Layer]:
@@ -403,6 +422,56 @@ def synth_generator() -> np.ndarray:
     return _norm(knock * _lfo(12.5, 0.6) + _shaped(56, 100, 1500, -2) * 0.3)
 
 
+def _syllable(rng) -> np.ndarray:
+    """En stavelse långt bort i båten: formantfärgat brus med tonfall."""
+    n = int(RATE * rng.uniform(0.08, 0.22))
+    t = np.arange(n) / RATE
+    f0 = rng.uniform(95, 140)
+    voice = np.sign(np.sin(2 * np.pi * f0 * t)) * 0.5 + rng.standard_normal(n) * 0.2
+    return voice * np.sin(np.pi * t / t[-1]) * rng.uniform(0.3, 1.0)
+
+
+def _phrase_events(seed: int, phrases: int) -> np.ndarray:
+    """Korta repliker: några stavelser tätt, sedan tystnad."""
+    rng = np.random.default_rng(seed)
+    out = np.zeros(_N)
+    for _ in range(phrases):
+        at = rng.uniform(0, LOOP_S)
+        for _k in range(rng.integers(3, 8)):
+            snd = _syllable(rng)
+            idx = (int(at * RATE) + np.arange(len(snd))) % _N
+            out[idx] += snd
+            at += len(snd) / RATE + rng.uniform(0.02, 0.09)
+    return out
+
+
+def synth_crew() -> np.ndarray:
+    """Besättningen i grannavdelningarna: dämpat mummel bakom skotten."""
+    talk = _phrase_events(61, 5) + 0.6 * _phrase_events(62, 4)
+    spec = np.fft.rfft(talk)
+    f = _F
+    spec *= np.exp(-0.5 * ((f - 500) / 260) ** 2) + 0.5 * np.exp(-0.5 * ((f - 1200) / 300) ** 2)
+    murmur = np.fft.irfft(spec, _N)
+    clank = _events(63, 2, lambda r: np.sin(2 * np.pi * r.uniform(600, 900)
+                                            * np.arange(int(RATE * 0.4)) / RATE)
+                    * np.exp(-np.arange(int(RATE * 0.4)) / RATE * 12) * 0.3)
+    return _norm(_norm(murmur) + clank)
+
+
+def synth_aircon() -> np.ndarray:
+    """Luftkonditioneringen och fläktarna som alltid går: jämnt sus med brum."""
+    return _norm(_shaped(64, 120, 2500, -3) * _lfo(0.5, 0.08) + _tone(100) * 0.08
+                 + _tone(200) * 0.04)
+
+
+def synth_dread() -> np.ndarray:
+    """Något som hotar: ett lågt sväv (två toner som slår mot varandra) som andas."""
+    drone = _tone(41.0) + _tone(41.5) + 0.4 * _tone(61.5)
+    breath = _lfo(1 / 6, 0.6)
+    rumble = _shaped(65, 25, 120, -6) * 0.5
+    return _norm((drone * 0.6 + rumble) * breath)
+
+
 def synth_ambience() -> dict[str, np.ndarray]:
     return {
         "reactor": synth_reactor(), "turbine": synth_turbine(), "electric": synth_electric(),
@@ -412,4 +481,5 @@ def synth_ambience() -> dict[str, np.ndarray]:
         "screws_merchant": synth_screws_merchant(), "screws_warship": synth_screws_warship(),
         "screws_sub": synth_screws_sub(), "screws_unknown": synth_screws_unknown(),
         "generator": synth_generator(),
+        "crew": synth_crew(), "aircon": synth_aircon(), "dread": synth_dread(),
     }

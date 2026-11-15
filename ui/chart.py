@@ -9,6 +9,7 @@ from textual.widgets import Static
 from sim.fmt import nm
 
 from .chart_render import STYLE, fmt_grid, grid_step, render_chart
+from .placards import view_title
 from .viewbase import ViewScreen
 from .widgets import QUALITY_STYLE
 
@@ -95,8 +96,7 @@ class ChartScreen(ViewScreen):
         lines = render_chart(view, *self.center, self.scale, w, h)
         body.update(Text("\n").join(lines))
 
-        t = Text()
-        t.append(" NAVIGATÖRENS SJÖKORT ", style="bold")
+        t = view_title("NAVIGATÖRENS SJÖKORT", " ")
         t.append(f" {view.area_name} · {view.clock[:5]}")
         for n in view.notes:
             t.append(" · ")

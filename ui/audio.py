@@ -70,6 +70,9 @@ CUE_BY_TYPE = {
     "surfaced": "klaxon",
     # brandlarm
     "fire": "fire",
+    # radiomannen vrider in Moskva på kortvåg
+    "radio.moscow": "shortwave",
+    "radio.moscow.silent": "shortwave",
 }
 
 # Hydrofonljud: SoundHeard.kind -> (ljud, signalöverskott i dB som ger full volym).
@@ -225,6 +228,7 @@ class SoundBoard:
     _now: float = 0.0
     _cue_until: float = 0.0
     _last_played: dict[str, float] = field(default_factory=dict)
+    _half_hour: int | None = None       # senaste halvtimmen klockan slagit (eller sett)
 
     def __post_init__(self) -> None:
         self.bus.subscribe(ReportDelivered, self._on_report)
@@ -234,12 +238,32 @@ class SoundBoard:
     # -- bakgrundsljud --------------------------------------------------------
     def ambient(self, status, tracks=()) -> None:
         """Uppdatera bakgrundsljudet ur statusraden och kontaktspåren (kunskap)."""
+        if status is not None and not status.over:
+            self._ship_bell(status)
         if self.ambience is None:
             return
         if status is None or status.over:
             self.ambience.set_targets({})
         else:
             self.ambience.set_targets(ambient_targets(status, tracks))
+
+    def _ship_bell(self, status) -> None:
+        """Vid varje hel och halv timme slår klockan glasen, utom vid tyst gång och jakt."""
+        half = status.clock // 1800
+        if self._half_hour is None or half == self._half_hour:
+            self._half_hour = half
+            return
+        self._half_hour = half
+        if self.enabled and status.propulsion != "electric" and not status.hunted:
+            self.player.play(f"bells{bells_for(status.clock)}", 0.0, 0.6)
+
+    def announce(self, ru: str, sv: str) -> None:
+        """Högtalarutrop till besättningen (vakthavande): ryska med den ryska rösten, annars svenska."""
+        if not self.enabled or not self.speech:
+            return
+        parts = [(self.ru_voice, ru)] if self.speaks_russian else [(None, speech_text(sv))]
+        self.queue.append(Line(parts, ROLE_RATE["officer"], urgent=True, queued_at=self._now,
+                               not_before=self._now + 1.0))
 
     # -- hydrofonen ----------------------------------------------------------
     def _play_once(self, cue: str, pan: float = 0.0, volume: float = 1.0) -> None:
@@ -503,10 +527,41 @@ def synth_suggest() -> np.ndarray:
     return 0.3 * _speaker(tone, 1.0)
 
 
+def synth_ship_bell(strikes: int) -> np.ndarray:
+    """Skeppsklockan slår glasen (склянки): slagen två och två, ett ensamt sist vid udda tal."""
+    t = _t(1.6)
+    partials = ((1.0, 1.0, 2.0), (2.0, 0.5, 3.0), (2.76, 0.35, 4.0), (5.4, 0.15, 6.0))
+    strike = sum(a * np.sin(2 * np.pi * 1180 * k * t) * np.exp(-t * d) for k, a, d in partials)
+    strike = strike * np.minimum(1.0, t / 0.002)
+    starts, at = [], 0.0
+    for i in range(strikes):
+        starts.append(at)
+        at += 0.32 if i % 2 == 0 else 0.95
+    out = np.zeros(int(RATE * (starts[-1] + 1.6)) + 1)
+    for a in starts:
+        i = int(a * RATE)
+        out[i:i + len(strike)] += strike[: len(out) - i]
+    return 0.45 * out / max(1e-9, float(np.max(np.abs(out))))
+
+
+def synth_shortwave() -> np.ndarray:
+    """Kortvågsmottagaren: ratten vrids, visslingar och brus (samma som i menyns radio)."""
+    from .menu_audio import synth_static, synth_tuning
+    return 0.6 * np.concatenate([synth_tuning(), synth_static()[: RATE]])
+
+
+def bells_for(clock: int) -> int:
+    """Hur många glas klockan slår vid en halvtimme: 1–8 under varje fyratimmarsvakt."""
+    return (clock // 1800) % 8 or 8
+
+
 def synth_cues() -> dict[str, np.ndarray]:
-    return {"general": synth_general(), "klaxon": synth_klaxon(), "fire": synth_fire(),
+    cues = {"general": synth_general(), "klaxon": synth_klaxon(), "fire": synth_fire(),
             "revun": synth_revun(),
             "attention": synth_attention(), "suggest": synth_suggest()}
+    cues.update({f"bells{n}": synth_ship_bell(n) for n in range(1, 9)})
+    cues["shortwave"] = synth_shortwave()
+    return cues
 
 
 def write_wav(path: Path, samples: np.ndarray) -> None:

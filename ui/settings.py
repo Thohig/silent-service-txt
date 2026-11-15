@@ -24,19 +24,21 @@ def _row(name: str, value: str) -> Text:
 
 class SettingsScreen(Screen):
     DEFAULT_CSS = """
-    SettingsScreen { background: #0b0f0c; }
-    SettingsScreen #settings-title { height: 3; padding: 1 2 0 2; color: #c8d0b0; }
+    SettingsScreen { background: #120b09; }
+    SettingsScreen #settings-help, SettingsScreen #settings-title,
+    SettingsScreen #settings-keys { background: #120b09; }
+    SettingsScreen #settings-title { height: 3; padding: 1 2 0 2; color: #d8c8a0; }
     SettingsScreen #settings-body { height: 1fr; padding: 1 2 0 2; }
     SettingsScreen #settings-left { width: 40; }
-    SettingsScreen #settings-list { height: auto; background: #0b0f0c; border: none;
-                                    color: #c8d0b0; scrollbar-size-vertical: 0; }
+    SettingsScreen #settings-list { height: auto; background: #120b09; border: none;
+                                    color: #d8c8a0; scrollbar-size-vertical: 0; }
     SettingsScreen #settings-list > .option-list--option-highlighted {
-        background: #2f4a36; color: #e8f0d0; }
-    SettingsScreen #seed-input { border: tall #2f4a36; background: #0f1611; margin-top: 1; }
-    SettingsScreen #seed-input:focus { border: tall #5f8a66; }
-    SettingsScreen #settings-help { width: 1fr; padding: 0 2 0 3; color: #c8d0b0;
-                                    border-left: vkey #2f4a36; }
-    SettingsScreen #settings-keys { height: 1; padding: 0 2; color: #7f9a80; }
+        background: #4a1a12; color: #f4e6c4; }
+    SettingsScreen #seed-input { border: tall #6a2a20; background: #1a100c; margin-top: 1; }
+    SettingsScreen #seed-input:focus { border: tall #b8281c; }
+    SettingsScreen #settings-help { width: 1fr; padding: 0 2 0 3; color: #d8c8a0;
+                                    border-left: vkey #6a2a20; }
+    SettingsScreen #settings-keys { height: 1; padding: 0 2; color: #8a7a5c; }
     """
     BINDINGS = [Binding("escape", "back", "Tillbaka")]
 
@@ -114,6 +116,8 @@ class SettingsScreen(Screen):
         key = event.option.id
         if key == SOUND:
             app.sound_wanted = not app.sound_wanted
+            if hasattr(app, "menu_sound_sync"):
+                app.menu_sound_sync()
         elif key == SPEECH:
             app.language = "sv" if app.language in (None, "ru") else "ru"
         elif key == SEED:

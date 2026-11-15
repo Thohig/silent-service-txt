@@ -20,6 +20,7 @@ from sim.game import StatusSnapshot
 
 from . import instruments as ins
 from .canvas import Canvas as _Canvas
+from .placards import PLATE_STYLE, central_plate
 
 W, H = 40, 13                   # minsta storlek (och den lilla bilden bredvid loggen)
 CRUSH_M = 450.0
@@ -351,6 +352,11 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
         c.put(r, 0, "▐", p["wall"])
         c.put(r, g.w - 1, "▌", p["wall"])
     c.text(g.deck, 0, "▀" * g.w, p["deck"])
+
+    # mässingsskylten i taket, mellan väggen och stegen
+    plate = central_plate()
+    if g.ladder - 4 >= len(plate):
+        c.text(0, max(2, (g.ladder - 2 - len(plate)) // 2), plate, PLATE_STYLE)
 
     # tornluckan och stegen
     if s.bridge != "shut":

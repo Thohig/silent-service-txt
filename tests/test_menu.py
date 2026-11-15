@@ -74,7 +74,7 @@ def test_manual_lists_every_command_and_only_real_view_words():
     assert "avbryt uppdraget" in listed and "ja" in listed
     all_views = (ui_app.CHART_WORDS | ui_app.PROFILE_WORDS | ui_app.SYSTEM_WORDS
                  | ui_app.PERISCOPE_WORDS | ui_app.BRIDGE_WORDS | ui_app.LOG_WORDS
-                 | ui_app.CENTRAL_WORDS)
+                 | ui_app.CENTRAL_WORDS | ui_app.TELEGRAM_WORDS)
     assert set(VIEW_WORDS) <= all_views
     assert set(SOUND_WORDS) <= ui_app.SOUND_WORDS | set(ui_app.SPEECH_WORDS)
 
@@ -120,3 +120,109 @@ def test_settings_change_sound_speech_and_seed_for_the_next_mission(tmp_path):
             assert app.seed == 4711 and app.last_seed == 4711
 
     asyncio.run(run())
+
+
+def test_stamps_grow_more_secret_towards_28_october():
+    from ui.menutext import (STAMP_SECRET, STAMP_SPECIAL, STAMP_TOP_SECRET, STAMP_TRAINING,
+                             mission_day, stamp_for)
+    assert mission_day("Jagade, natten till 27 oktober 1962") == 27
+    assert mission_day("Kvadrat 7, oktober 1962") is None
+    assert stamp_for("ovning-kort", SCENARIOS["ovning-kort"].title) is STAMP_TRAINING
+    assert stamp_for("kuba", SCENARIOS["kuba"].title) is STAMP_SECRET
+    assert stamp_for("sundet", SCENARIOS["sundet"].title) is STAMP_TOP_SECRET
+    assert stamp_for("konvoj-mot", SCENARIOS["konvoj-mot"].title) is STAMP_SPECIAL
+    text = brief(SCENARIOS["jagad"], None).plain
+    assert text.startswith(" СОВ. СЕКРЕТНО") and "strängt hemligt" in text
+
+
+def test_header_fits_the_width_and_translates_the_russian():
+    from ui.menutext import header
+    for width in (80, 120, 200):
+        lines = header(width).plain.split("\n")
+        assert len(lines[0]) == width and len(lines[1]) == width
+    plain = header(120).plain
+    assert "СОВЕРШЕННО СЕКРЕТНО" in plain and "Strängt hemligt" in plain
+    assert "СЕВЕРНЫЙ ФЛОТ" in plain and "Norra flottan" in plain
+
+
+def test_ticker_types_the_calendar_in_order_and_starts_over():
+    from ui.menutext import DISPATCHES, TICKER_CYCLE_S, TICKER_CPS, ticker_at
+    s = ticker_at(0.0)
+    assert (s.index, s.chars, s.typing, s.blank) == (0, 0, True, False)
+    s = ticker_at(10 / TICKER_CPS)
+    assert s.chars == 10 and s.typing
+    seen, levels, t = [], [], 0.0
+    while t < TICKER_CYCLE_S:
+        s = ticker_at(t)
+        if not seen or seen[-1] != s.index:
+            seen.append(s.index)
+            levels.append(s.level)
+        t += 0.25
+    assert seen == list(range(len(DISPATCHES)))
+    assert levels == sorted(levels) and levels[0] == 0 and levels[-1] == 3   # bara uppåt
+    assert ticker_at(TICKER_CYCLE_S + 0.01).index == 0                          # börjar om
+    days = [int(d.stamp[:2]) for d in DISPATCHES]
+    assert days == sorted(days) and days[-1] == 28
+
+
+def test_ticker_line_fits_and_readiness_follows_the_dispatch():
+    from ui.menutext import DISPATCHES, READINESS, TickerState, header, ticker_text
+    for i, d in enumerate(DISPATCHES):
+        full = TickerState(i, len(d.text), False, False)
+        assert len(ticker_text(full, 80).plain) <= 80
+        assert d.stamp in ticker_text(full, 80).plain
+    assert ticker_text(TickerState(0, 0, False, True), 80).plain.strip() == "ТЕЛЕТАЙП"
+    assert "ПОЛНАЯ" in header(120, 3).plain and "stridsberedskap: full" in header(120, 3).plain
+    for width in (80, 100, 120):
+        for lvl in range(len(READINESS)):
+            line = header(width, lvl).plain.split("\n")[3]
+            assert len(line) == width and READINESS[lvl].ru in line
+
+
+def test_menu_screen_shows_the_ticker_and_readiness(tmp_path):
+    from ui.app import SubApp
+    from ui.menutext import DISPATCHES, dispatch_duration
+
+    async def run():
+        app = SubApp(seed=1, log_dir=tmp_path)
+        async with app.run_test(size=(110, 36)) as pilot:
+            await pilot.pause()
+            menu = app.screen
+            last = len(DISPATCHES) - 1
+            t = sum(dispatch_duration(i) for i in range(last)) + 2.0
+            menu.animate(t)
+            assert menu.ticker.index == last
+            assert "ПОЛНАЯ" in str(menu.query_one("#menu-title").render())
+            assert "СЕВФЛОТ 28.10" in str(menu.query_one("#ticker").render())
+
+    asyncio.run(run())
+
+
+def test_radio_moscow_comes_on_schedule_and_grows_more_ominous():
+    from ui.menutext import (BULLETINS, RADIO_EVERY_S, RADIO_FIRST_S, RADIO_TUNE_S, radio_at,
+                             radio_show_s, radio_text)
+    assert radio_at(RADIO_FIRST_S - 1) is None
+    first = radio_at(RADIO_FIRST_S + 0.5)
+    assert first.number == 0 and first.bulletin is BULLETINS[0]
+    assert "brus" in radio_text(first, 100).plain                     # ratten först
+    speaking = radio_at(RADIO_FIRST_S + RADIO_TUNE_S + 1)
+    assert BULLETINS[0].sv[:30] in radio_text(speaking, 120).plain
+    assert radio_at(RADIO_FIRST_S + radio_show_s(BULLETINS[0]) + 1) is None
+    late = radio_at(RADIO_FIRST_S + 40 * RADIO_EVERY_S + 1)
+    assert late.bulletin is BULLETINS[-1]                              # det sista upprepas
+    for b in BULLETINS:
+        assert radio_show_s(b) < RADIO_EVERY_S
+        assert not any("a" <= c.lower() <= "z" for c in b.ru)          # rösten läser bara kyrilliska
+        assert len(radio_text(radio_at(RADIO_FIRST_S + RADIO_TUNE_S + 1), 80).plain) <= 80
+
+
+def test_scene_draws_the_boat_at_the_quay_and_the_snow_moves():
+    from ui.menu_scene import MIN_COLS, render_scene
+    a = render_scene(80, 10, 0.5)   # lampan fladdrar ibland
+    assert len(a) == 10 and all(len(line.plain) == 80 for line in a)
+    text = "\n".join(line.plain for line in a)
+    assert "★" in text and "✦" in text and "К-114" in text
+    assert "⣿" in text                                             # skrovet är fyllt
+    assert [l.plain for l in render_scene(80, 10, 0.5)] == [l.plain for l in a]   # ingen slump
+    assert [l.plain for l in render_scene(80, 10, 1.5)] != [l.plain for l in a]   # snön faller
+    assert render_scene(MIN_COLS - 1, 10, 0.0) == []

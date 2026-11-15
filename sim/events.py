@@ -172,6 +172,14 @@ class ListeningExercise(Event):
 
 
 @dataclass(frozen=True)
+class TelegramReceived(Event):
+    """Radion har tagit emot något: ett telegram från staben eller en rundradiosändning."""
+    text: str               # svensk text, som loggen och telegramvyn visar den
+    kind: str = "telegram"  # telegram (staben), broadcast (Radio Moskva)
+    number: int = 0         # mottagningsnummer ombord
+
+
+@dataclass(frozen=True)
 class PositionReported(Event):
     """En position på något vi söker (t.ex. drivstationen), i beräknade koordinater."""
     name: str

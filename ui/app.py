@@ -22,17 +22,21 @@ from textual.widgets import Input
 from sim.events import GameEnded, ReportDelivered, TimeScaleChanged
 from sim.game import Game
 from sim.fmt import fmt_course, kn
-from sim.scenario import build_scenario
+from sim.scenario import SCENARIOS, build_scenario
 from sim.truthlog import TruthLog
 
 from .audio import SoundBoard, make_soundboard
 from .chart import ChartScreen
 from .logview import LogScreen
 from .menu import MenuScreen
+from .menu_audio import MenuSound
 from .bridge import BridgeScreen
 from .periscope import PeriscopeScreen
 from .profile import ProfileScreen
 from .systems import SystemScreen
+from .menutext import INK as PAPER_INK
+from .telegram import crew_announcement, order_header, order_signature, report_header
+from .telegrams import TelegramScreen
 from .teletype import Teletype
 from .widgets import CentralView, DepthGauge, ReportLog, StatusBar
 
@@ -44,8 +48,9 @@ PERISCOPE_WORDS = {"periskopbild", "periskopvy", "bild"}
 BRIDGE_WORDS = {"brygga", "bryggan", "bryggvy", "utsikt"}
 LOG_WORDS = {"logg", "loggen", "loggbok", "loggboken"}
 CENTRAL_WORDS = {"central", "centralen"}
+TELEGRAM_WORDS = {"telegram", "telegrammen", "telegrammet", "radiogram", "radiogrammen"}
 VIEWS = (LogScreen, ChartScreen, ProfileScreen, SystemScreen, PeriscopeScreen,
-         BridgeScreen)
+         BridgeScreen, TelegramScreen)
 GAUGE_EVERY_S = 0.5
 CENTRAL_EVERY_S = 0.1                  # centralens instrument: tio gånger i sekunden
 CENTRAL_MIN_WIDTH = 100                # smalare terminal: bara djupmätaren
@@ -97,7 +102,7 @@ class SubApp(App):
     CSS = """
     Screen { background: #0b0f0c; }
     #status { height: 2; background: #1c2a20; color: #c8d0b0; }
-    #intro  { height: 1fr; padding: 2 6; }
+    #intro  { height: 1fr; padding: 2 6; background: #120b09; }
     #main   { height: 1fr; }
     #central-big { height: 1fr; display: none; background: #0b0f0c; }
     #lower  { height: 1fr; }
@@ -137,6 +142,7 @@ class SubApp(App):
         self._last = 0.0
         self.sound_wanted = sound
         self.sound: SoundBoard | None = None
+        self.menu_sound: MenuSound | None = None   # musiken och hamnen i huvudmenyn
         self._sound_note: str | None = None
         self._gauge_t = 0.0
         self._central_t = 0.0
@@ -180,6 +186,8 @@ class SubApp(App):
         """Huvudmenyn: skapa spelet och visa den hemliga ordern."""
         if self.game is not None:
             return
+        if self.menu_sound is not None:
+            self.menu_sound.depart()         # telegrafen ringer, musiken tonar bort
         self._create_game(key)
         self._show_game()
 
@@ -198,7 +206,13 @@ class SubApp(App):
         gs.query_one("#order", Input).focus()
         tt = gs.query_one(Teletype)
         tt.full_text = game.secret_order
+        title = SCENARIOS[self.scenario_key].title if self.scenario_key in SCENARIOS else ""
+        tt.header = order_header(self.scenario_key or "", title, game.secret_order, self.seed)
+        tt.signature = order_signature(game.secret_order)
+        tt.style = f"bold {PAPER_INK}"
         tt.start()
+        if self.menu_sound is not None:
+            self.menu_sound.set_typing(True)
         if game.warmup_pending:
             self.run_worker(self._run_warmup, thread=True, exclusive=True, group="warmup")
         else:
@@ -237,6 +251,8 @@ class SubApp(App):
             else "Vakthavande gör klart vakten …")
 
     def on_teletype_finished(self, _: Teletype.Finished) -> None:
+        if self.menu_sound is not None:
+            self.menu_sound.set_typing(False)
         self._show_footer()
 
     # ------------------------------------------------------------------ order
@@ -287,6 +303,8 @@ class SubApp(App):
             self.action_periscope()
         elif text in BRIDGE_WORDS:
             self.action_bridge()
+        elif text in TELEGRAM_WORDS:
+            self._toggle_view(TelegramScreen)
         elif text in LOG_WORDS:
             if self.gs().big:
                 self._toggle_view(LogScreen)
@@ -300,6 +318,7 @@ class SubApp(App):
         return True
 
     def _start(self) -> None:
+        self.close_menu_sound()
         self.gs().query_one(Teletype).display = False
         self.gs().query_one("#main").display = True
         log = self.gs().query_one(ReportLog)
@@ -317,6 +336,11 @@ class SubApp(App):
         else:
             log.add_system(self.game.clock_str(), "Tab växlar mellan logg, sjökort, djupprofil, "
                            "systemtavla och periskopbild, i ytläge också bryggan.")
+        key = self.scenario_key or ""
+        ru, sv = crew_announcement(key, SCENARIOS[key].title if key in SCENARIOS else "")
+        log.add_system(self.game.clock_str(), f"Vakthavande i högtalaren: {sv}")
+        if self.sound is not None:
+            self.sound.announce(ru, sv)
         if self._sound_note:
             log.add_system(self.game.clock_str(), self._sound_note)
         elif self.sound and self.sound.enabled:
@@ -379,8 +403,30 @@ class SubApp(App):
             self.pop_screen()
 
     # ------------------------------------------------------------------ ljud
+    def menu_sound_sync(self) -> None:
+        """Huvudmenyn visas: musik och hamn om ljudet är påslaget, annars tyst."""
+        if self.game is not None:
+            return
+        if self.sound_wanted and self.menu_sound is None:
+            self.menu_sound = MenuSound()
+        elif not self.sound_wanted:
+            self.close_menu_sound()
+
+    def close_menu_sound(self) -> None:
+        if self.menu_sound is not None:
+            self.menu_sound.close()
+            self.menu_sound = None
+
     def action_sound(self, want: bool | None = None) -> None:
         """ctrl+t eller "ljud": slå av och på tal och larm."""
+        if self.game is None:                # huvudmenyn
+            self.sound_wanted = not self.sound_wanted if want is None else want
+            self.menu_sound_sync()
+            self.notify("Ljudet på." if self.sound_wanted else "Ljudet av.", timeout=2)
+            for refresh in ("on_screen_resume", "_refresh"):   # menyn, inställningarna
+                if hasattr(self.screen, refresh):
+                    getattr(self.screen, refresh)()
+            return
         if not self.running or self.sound is None:
             return
         if not self.sound.available:
@@ -472,7 +518,10 @@ class SubApp(App):
         if isinstance(self.screen, VIEWS):
             self.pop_screen()               # slutrapporten visas i loggen
         gs = self.gs()
-        gs.query_one(ReportLog).add_ending(e.summary)
+        key = self.scenario_key or ""
+        title = SCENARIOS[key].title if key in SCENARIOS else ""
+        gs.query_one(ReportLog).add_ending(
+            e.summary, header=report_header(key, title, self.game.secret_order))
         if gs.big:
             self.push_screen(LogScreen())    # slutrapporten får inte plats i remsan
         inp = gs.query_one("#order", Input)
@@ -506,6 +555,7 @@ class SubApp(App):
         self._acc = 0.0
 
     def on_unmount(self) -> None:
+        self.close_menu_sound()
         if self.sound:
             self.sound.close()
         if self.truth_log:

@@ -6,11 +6,12 @@ titeln är "Rubrik – variant, datum". Övningen står först, sedan i registre
 """
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 
 from rich.text import Text
 from textual.app import ComposeResult
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import OptionList, Static
 from textual.widgets.option_list import Option
@@ -18,6 +19,10 @@ from textual.widgets.option_list import Option
 from sim.scenario import SCENARIOS, ScenarioDef
 
 from .manual import ManualScreen
+from .menu_scene import scene_text
+from .menutext import (BG, DIM, HIGHLIGHT_BG, HIGHLIGHT_FG, INK, RULE, RadioState, TickerState,
+                       header, radio_at, radio_text, stamp_for, stamp_text, ticker_at,
+                       ticker_text)
 from .settings import SettingsScreen
 
 FIRST_GROUPS = ("ovning",)        # övningen först: den lär känna båten
@@ -27,6 +32,10 @@ MANUAL_ID = "_ordlista"
 SHORT_PREFIX = "Kort variant. "
 LIST_WIDTH = 44
 LABEL_WIDTH = 26
+FRAME_S = 0.1               # menyns klocka: fjärrskrivaren och beredskapens blinkning
+BLINK_S = 0.6
+SCENE_ROWS = 10             # bilden av båten vid kaj, under beskrivningen
+SCENE_MIN_HEIGHT = 34       # lägre fönster: ingen bild
 
 
 @dataclass
@@ -80,7 +89,9 @@ def heading_label(g: MissionGroup) -> Text:
 
 def brief(sd: ScenarioDef, group: MissionGroup | None) -> Text:
     """Beskrivningen till höger om listan."""
-    t = Text(sd.title, style="bold")
+    t = stamp_text(stamp_for(sd.key, sd.title))
+    t.append("\n\n")
+    t.append(sd.title, style="bold")
     t.append("\n")
     short = sd.minutes is not None
     t.append((f"Kort variant · ~{sd.minutes} min" if short else "Hela uppdraget · flera timmar")
@@ -111,29 +122,37 @@ def settings_brief(app) -> Text:
 class MenuScreen(Screen):
     """Huvudmenyn. selected: scenariot som markeras (det man nyss spelade)."""
 
-    DEFAULT_CSS = """
-    MenuScreen { background: #0b0f0c; }
-    MenuScreen #menu-title { height: 3; padding: 1 2 0 2; color: #c8d0b0; }
-    MenuScreen #menu-body  { height: 1fr; padding: 1 2 0 2; }
-    MenuScreen #scenarios  { width: %d; height: 1fr; background: #0b0f0c; border: none;
-                             color: #c8d0b0; scrollbar-size-vertical: 1; }
-    MenuScreen #scenarios > .option-list--option-disabled { color: #c8d0b0; }
-    MenuScreen #scenarios > .option-list--option-highlighted { background: #2f4a36; color: #e8f0d0; }
-    MenuScreen #brief      { width: 1fr; height: 1fr; padding: 0 2 0 3; color: #c8d0b0;
-                             border-left: vkey #2f4a36; }
-    MenuScreen #menu-keys  { height: 1; padding: 0 2; color: #7f9a80; }
-    """ % LIST_WIDTH
+    DEFAULT_CSS = f"""
+    MenuScreen {{ background: {BG}; }}
+    MenuScreen #menu-title {{ height: 4; color: {INK}; background: {BG}; }}
+    MenuScreen #menu-body  {{ height: 1fr; padding: 1 2 0 2; background: {BG}; }}
+    MenuScreen #scenarios  {{ width: {LIST_WIDTH}; height: 1fr; background: {BG}; border: none;
+                             color: {INK}; scrollbar-size-vertical: 1;
+                             scrollbar-color: {RULE}; scrollbar-background: {BG}; }}
+    MenuScreen #scenarios > .option-list--option-disabled {{ color: {INK}; }}
+    MenuScreen #scenarios > .option-list--option-highlighted {{
+        background: {HIGHLIGHT_BG}; color: {HIGHLIGHT_FG}; }}
+    MenuScreen #right      {{ width: 1fr; height: 1fr; background: {BG}; }}
+    MenuScreen #scene      {{ height: {SCENE_ROWS}; padding: 0 0 0 3; background: {BG};
+                             border-left: vkey {RULE}; }}
+    MenuScreen #brief      {{ width: 1fr; height: 1fr; padding: 0 2 0 3; color: {INK};
+                             background: {BG}; border-left: vkey {RULE}; }}
+    MenuScreen #ticker     {{ height: 1; margin: 1 2 0 2; background: #1e1510; color: {INK}; }}
+    MenuScreen #menu-keys  {{ height: 1; padding: 0 2; color: {DIM}; background: {BG}; }}
+    """
 
     def __init__(self, selected: str | None = None) -> None:
         super().__init__()
         self.selected = selected
         self.groups = mission_groups()
         self._group_of = {sd.key: g for g in self.groups for sd in g.variants}
+        self._t0 = time.monotonic()
+        self.ticker: TickerState = ticker_at(0.0)
+        self.radio: RadioState | None = None
+        self._radio_heard = -1               # senaste sändningen som skickats till ljudet
 
     def compose(self) -> ComposeResult:
-        title = Text("K-114", style="bold")
-        title.append("   Projekt 627A · Norra flottan · oktober 1962", style="dim")
-        yield Static(title, id="menu-title")
+        yield Static(header(), id="menu-title")
         options: list[Option | None] = []
         for g in self.groups:
             if options:
@@ -145,15 +164,51 @@ class MenuScreen(Screen):
                     Option(Text("Avsluta", style="bold"), id=QUIT_ID)]
         with Horizontal(id="menu-body"):
             yield OptionList(*options, id="scenarios")
-            yield Static("", id="brief")
-        yield Static("↑ ↓ välj · Enter starta eller öppna · ctrl+q avsluta", id="menu-keys")
+            with Vertical(id="right"):
+                yield Static("", id="brief")
+                yield Static("", id="scene")
+        yield Static("", id="ticker")
+        yield Static("↑ ↓ välj · Enter starta eller öppna · ctrl+t ljud · ctrl+q avsluta", id="menu-keys")
 
     def on_mount(self) -> None:
+        if hasattr(self.app, "menu_sound_sync"):
+            self.app.menu_sound_sync()
+        self.set_interval(FRAME_S, self.animate)
+        self.animate()
         options = self.query_one("#scenarios", OptionList)
         key = self.selected if self.selected in SCENARIOS else self.groups[0].variants[0].key
         options.highlighted = options.get_option_index(key)
         options.focus()
         self._show(key)
+
+    def elapsed(self) -> float:
+        return time.monotonic() - self._t0
+
+    def animate(self, t: float | None = None) -> None:
+        """Fjärrskrivaren och beredskapen. t: sekunder sedan menyn visades (tester)."""
+        t = self.elapsed() if t is None else t
+        self.ticker = ticker_at(t)
+        self.radio = radio_at(t)
+        menu_sound = getattr(self.app, "menu_sound", None)
+        if menu_sound is not None and self.is_current:
+            menu_sound.set_typing(self.ticker.typing and self.radio is None)
+            if self.radio is not None and self.radio.number != self._radio_heard:
+                menu_sound.radio(self.radio.bulletin.ru)
+        if self.radio is not None:
+            self._radio_heard = self.radio.number
+        lit = int(t / BLINK_S) % 2 == 0
+        width = self.size.width or 100
+        line = (radio_text(self.radio, width - 4) if self.radio is not None
+                else ticker_text(self.ticker, width - 4, lit))
+        try:
+            scene = self.query_one("#scene", Static)
+            scene.display = self.size.height >= SCENE_MIN_HEIGHT
+            if scene.display and scene.size.width:
+                scene.update(scene_text(scene.size.width - 3, SCENE_ROWS, t))
+            self.query_one("#menu-title", Static).update(header(width, self.ticker.level, lit))
+            self.query_one("#ticker", Static).update(line)
+        except Exception:                             # noqa: BLE001 – under nedstängning
+            pass
 
     def _show(self, key: str | None) -> None:
         brief_w = self.query_one("#brief", Static)
@@ -166,6 +221,12 @@ class MenuScreen(Screen):
                                 "och besättningens ryska ord.", style="dim"))
         elif key == QUIT_ID:
             brief_w.update(Text("Stäng programmet.", style="dim"))
+
+    def on_screen_suspend(self) -> None:
+        """Inställningar eller ordlistan ovanpå: fjärrskrivaren tystnar, musiken går vidare."""
+        menu_sound = getattr(self.app, "menu_sound", None)
+        if menu_sound is not None and not menu_sound.departing:
+            menu_sound.set_typing(False)
 
     def on_screen_resume(self) -> None:
         """Tillbaka från inställningarna: visa de nya värdena."""

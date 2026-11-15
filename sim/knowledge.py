@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from .events import (BearingObserved, BridgeSighted, ClassificationChanged, ContactDetected,
                      ConvoyAssessed, ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound,
                      PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported,
-                     ListeningExercise)
+                     ListeningExercise, TelegramReceived)
 from .icemap import IceMap
 from .periscope import PeriscopePicture
 from .seabed import Seabed
@@ -105,6 +105,7 @@ class Knowledge:
     listening: bool = False              # lyssningsövning pågår: plottet tar in vårt eget fartyg
     periscope_blocked: tuple[int, str] | None = None   # (tid, skäl) när periskopet inte kom upp
     convoy: ConvoyEstimate | None = None   # plottets bild av en konvoj
+    telegrams: list[TelegramReceived] = field(default_factory=list)   # det radion tagit emot
 
     def attach(self, bus: EventBus) -> None:
         bus.subscribe(ContactDetected, self._on_detected)
@@ -114,6 +115,7 @@ class Knowledge:
         bus.subscribe(IceSounded, lambda e: self.ice.on_sounding(e.obs))
         bus.subscribe(OpeningNotFound, self._on_opening_not_found)
         bus.subscribe(PositionReported, self._on_position)
+        bus.subscribe(TelegramReceived, self.telegrams.append)
         bus.subscribe(HuntSigns, self._on_hunt)
         bus.subscribe(PhotoTaken, self._on_photo)
         bus.subscribe(PeriscopeSighted, self._on_periscope)

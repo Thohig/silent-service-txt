@@ -140,3 +140,24 @@ def test_soundboard_feeds_ambience_from_a_real_game():
     assert not amb.enabled
     board.ambient(replace(st, over=True))
     assert amb._targets == {}
+
+
+# --- centralen: luften, besättningen, hotet --------------------------------------------
+def test_crew_murmurs_until_we_go_quiet_and_the_air_always_runs():
+    normal = ambient_targets(_st())
+    assert "crew" in normal and "aircon" in normal and "dread" not in normal
+    creeping = ambient_targets(_st(propulsion="electric"))
+    assert "crew" not in creeping and creeping["aircon"].gain < normal["aircon"].gain
+    assert "crew" not in ambient_targets(_st(hunted=True))
+    assert "aircon" not in ambient_targets(_st(reactor="scram"))
+
+
+def test_menace_when_hunted_or_a_warship_is_loud_in_the_sonar():
+    hunted = ambient_targets(_st(hunted=True))["dread"]
+    dd = _track("S-1", "jagare, ångturbiner, två axlar", 90, se=20)
+    from sim.reports import Quality
+    dd.class_quality = Quality.GOD
+    near = ambient_targets(_st(), [dd])["dread"]
+    assert hunted.gain > near.gain > 0
+    dd.observations[-1] = BearingObs(0, 90, 1.0, 0.0, 0.0, 0.0, se=3)
+    assert "dread" not in ambient_targets(_st(), [dd])                # svag: inget hot än

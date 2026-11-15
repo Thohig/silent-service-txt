@@ -10,6 +10,7 @@ from textual.app import ComposeResult
 from textual.css.query import NoMatches
 from textual.widgets import Static
 
+from .placards import view_title
 from .viewbase import ViewScreen
 from .widgets import ReportLog
 
@@ -23,7 +24,7 @@ class LogScreen(ViewScreen):
     PREFIX = "logview"
 
     def compose(self) -> ComposeResult:
-        head = Text(" LOGGBOKEN", style="bold")
+        head = view_title("LOGGBOKEN")
         head.append("   Tab sjökort · Esc centralen", style="dim")
         yield Static(head, id="logview-head")
         yield ReportLog(id="logview-log", wrap=True, markup=False, max_lines=2000)

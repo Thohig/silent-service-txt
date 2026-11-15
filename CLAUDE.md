@@ -149,6 +149,12 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   `tl_to_own`, jagarens och US-ubåtens `_tl`), bryggan och periskopet ser inte fartyg bakom land.
   Djupgående i ytläge 7 m (`SURFACE_DRAFT_M`): ytläge kan gå på grund. Med bryggan bemannad föreslår
   vakthavande inget periskopsvep och sonar ingen fart 4; i ytläge föreslår maskin inget om kavitation.
+- **Radion och telegrammen:** allt radion tar emot publiceras som `TelegramReceived` (text, `kind`
+  telegram/broadcast, mottagningsnummer ombord) ⇒ `Knowledge.telegrams`; vyn `telegram` (`ui/telegrams.py`,
+  inte i Tab-ordningen) visar remsorna. Radio Moskva (`sim/broadcasts.py`): `lyssna radio` på antenndjup
+  (masten fri, radion hel) ⇒ efter `LISTEN_S` (20 s) säger radiomannen en sändning för orderns datum
+  (`order_day` ur `DATUM:`-raden, `broadcasts_for`); bara stämning, aldrig information. Den 28 okt bara
+  bärvåg. Ljudet `shortwave` (menyns ratt och brus) före rösten.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen
@@ -213,6 +219,9 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   (nio avdelningar, maskin), `TubeRack` (torpedrum), `Flooding`. Ur egna instrument
   (`own.sys`), aldrig om fienden. `Game.systems()` samlar, `ui/systems_render.py` ritar
   genomskärningen och panelerna (okända paneler hamnar sist, så nytt system ritar sig självt).
+  Ryska skyltar (`ui/placards.py`): panelerna efter stridsavdelning (`PANEL_RU`: БЧ-5, БЧ-1 …, utelämnas när
+  de inte får plats), vyernas rubriker (`view_title`, `VIEW_RU`: svenskan först) och mässingsskylten
+  ЦЕНТРАЛЬНЫЙ ПОСТ i centralens tak när det finns plats före stegen. Ny panel eller vy: lägg till där.
 - **Bryggan** (`stations/bridge.py`, `BridgeWatch`, roll vakthavande): tornluckan är sanning
   (`OwnSystems.bridge`: shut → manning 20 s i ytläge → manned → clearing 20 s vid order att dyka → shut);
   `OwnShip.bridge_open` håller djupet (depth_rate 0). Utkiken är en sensor: varannan sekund medan bryggan
@@ -268,12 +277,33 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   ordlista, Avsluta. Inställningar (`ui/settings.py`): ljud, talets språk, slumpfrö (`SubApp.sound_wanted`,
   `language`, `fixed_seed`; `--seed`/`--tyst` sätter startvärdena, fröet gäller alla uppdrag tills det
   ändras). Order och ordlista (`ui/manual.py`) hämtar orderna ur stationernas `COMMANDS` per roll. Nytt scenario hamnar
-  i menyn av sig självt om nyckel och titel följer mönstret. Flödet: menyn → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
+  i menyn av sig självt om nyckel och titel följer mönstret. Stämningen (`ui/menutext.py`): sidhuvud som
+  hemlig handling på rött fält (ryska med svensk översättning), stämpel per uppdrag efter datumet
+  (`stamp_for`: övning ДСП, före 22 okt СЕКРЕТНО, 22–26 СОВ. СЕКРЕТНО, 27– ОСОБОЙ ВАЖНОСТИ), fjärrskrivarremsa
+  (`DISPATCHES`, `ticker_at(t)`: kalendern 1–28 okt, 24 tecken/s, börjar om) och stridsberedskapen i
+  sidhuvudet efter meddelandet (ständig, höjd, krigsfara, full; de två sista blinkar). Den 28 okt följer
+  spelets historia: kriget har börjat. Färger ockra/flaggrött (`BG`, `INK`, `RED` …), även inställningar och
+  ordlista. Ljud (`ui/menu_audio.py`, `MenuSound`, bara med ljudet på): egen musik (kör i d-moll, hjärtslag
+  i basen, klocka, horn andra varvet; 64 s), hamnen (vind, vågor, mistlur, knarr; 40 s) och fjärrskrivaren
+  medan remsan skriver; slingorna är cirkulära (efterklangen viks runt). Syntesen (~2 s) i en tråd,
+  `lru_cache`. `MenuMixer` (en `Ambience` med `extra`-kroken) lägger enstaka ljud ovanpå. Uppdrag valt ⇒
+  `depart()`: telegrafklockan, musiken tonar bort, fjärrskrivaren låter medan ordern skrivs ut; stängs när
+  kaptenen tar befälet. `ctrl+t` och Inställningar slår av och på (`SubApp.menu_sound_sync`).
+  Radio Moskva (`BULLETINS`, `radio_at(t)`): påhittade sändningar efter 25 s och sedan var 95:e s, allt
+  mer olycksbådande (den sista upprepas); remsan visar översättningen. Ljud: ratten (`synth_tuning`),
+  kortvågsbrus, musiken sänks; rösten är Milena via `say -o` genom `radio_voice` (smalt band, fading).
+  Utan Milena bara brus. Bilden (`ui/menu_scene.py`, `render_scene(cols, rows, t)`): К-114 vid kaj i
+  braille under beskrivningen (10 rader, bara när fönstret är ≥ 34 rader): stjärnor, fjällen, kajen med kran
+  och lampa, ubåten med röd stjärna och lanterna, glitter på vattnet, snö i vinden; ingen slump (`_hash`). Flödet: menyn → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
   huvudmenyn. `SubApp` håller spelet, ljudet och inställningarna (ljud, talets språk) över uppdragen;
   widgetarna nås med `app.gs().query_one(...)` (`app.query_one` ser bara standardskärmen). Efter
   slutrapporten går vyerna att titta på; Enter med tom orderrad (även i en vy) ⇒ `return_to_menu()`:
   timern stoppas, ljud och sanningslogg stängs, `game = None`, menyn markerar scenariot. Nytt uppdrag =
   nytt `Game`, ny buss, nytt frö om inget är inställt, logg `truth-<tid>-<frö>.log`.
+  Den hemliga ordern (`ui/telegram.py`) visas som chiffertelegram: `order_header` (ШИФРОГРАММА, mottagningsnr
+  ur fröet, uppdragets stämpel, avsändaren ur orderns `FRÅN:`-rad via `staff_of`) och `order_signature` under
+  texten när den är utskriven (`Teletype.header`/`signature`/`style`, ockra papper). Slutrapporten börjar med
+  `report_header` (ДОНЕСЕНИЕ till samma stab, stämpeln; `ReportLog.add_ending(summary, header=...)`).
   `avbryt uppdraget`/`avsluta` ⇒ vakthavande frågar (`off.confirm_quit`, förslag `avbryt uppdraget
   bekräftat`), `ja` ⇒ utfallet `quit`.
 - **Order i alla vyer** (`ui/viewbase.py`): vyerna ärver `ViewScreen` (rapportraden, `Esc`, orderrad
@@ -288,6 +318,12 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   Bakgrundsljud (`ui/ambience.py`): `ambient_targets(status, tracks)` ur `StatusSnapshot`
   (inkl. `sea_noise`, `fire`, `smoke`, `ventilating`) och hållna kontaktspår; `Ambience`
   mixar sömlösa slingor i en sounddevice-ström. Kontaktljudet följer klassificeringen.
+  Centralen: `aircon` (alltid med reaktorn, svagare vid tyst gång), `crew` (mummel bakom skotten; tyst vid
+  smygmotor eller jagade), `dread` (lågt sväv: jagade 0,11, hållen klassad örlogskontakt med se > 10 0,05).
+  Skeppsklockan slår glasen (`bells_for`, 1–8 per fyratimmarsvakt) vid varje halvtimme på spelklockan,
+  inte vid tyst gång eller jakt (`SoundBoard._ship_bell`). Vid överlämnandet läser vakthavande ett utrop i
+  högtalaren (`crew_announcement` i `ui/telegram.py`: övning, operation eller krig efter stämpeln;
+  `SoundBoard.announce`, ryska med Milena annars svenska; översättningen i loggen).
 - **Ryska** (`sim/russian.py`): fasta fraser i `WORDS` (translitterering, kyrilliska, svensk
   betydelse). Skriv dem med `ru("Jest")` i fraserna; betydelsen ska framgå av svensk text bredvid,
   aldrig siffror eller bedömningar på ryska. `segments()` delar texten; talet läser ryskan med

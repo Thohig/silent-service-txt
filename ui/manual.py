@@ -18,7 +18,8 @@ from sim.russian import WORDS
 from sim.stations import DEFAULT_STATIONS
 
 # gränssnittets egna ord (ui/app.py) och tangenter
-VIEW_WORDS = ["central", "logg", "sjökort", "profil", "system", "periskopbild", "brygga"]
+VIEW_WORDS = ["central", "logg", "sjökort", "profil", "system", "periskopbild", "brygga",
+              "telegram"]
 SOUND_WORDS = ["ljud", "ljud av", "ljud på", "tal ryska", "tal svenska"]
 KEYS = [("Tab", "nästa vy"), ("Esc", "tillbaka till huvudvyn"), ("ctrl+t", "ljud av och på"),
         ("ctrl+q", "stäng programmet")]
@@ -71,12 +72,12 @@ class ManualScreen(Screen):
     """Order och ordlista. Esc eller Enter tillbaka till huvudmenyn."""
 
     DEFAULT_CSS = """
-    ManualScreen { background: #0b0f0c; }
-    ManualScreen #manual-title { height: 3; padding: 1 2 0 2; color: #c8d0b0; }
+    ManualScreen { background: #120b09; }
+    ManualScreen #manual-title { height: 3; padding: 1 2 0 2; color: #d8c8a0; }
     ManualScreen #manual-scroll { height: 1fr; padding: 1 2 0 2; scrollbar-size-vertical: 1;
-                                  scrollbar-color: #2f4a36; scrollbar-background: #0b0f0c; }
-    ManualScreen #manual-body { color: #c8d0b0; }
-    ManualScreen #manual-keys { height: 1; padding: 0 2; color: #7f9a80; }
+                                  scrollbar-color: #6a2a20; scrollbar-background: #120b09; }
+    ManualScreen #manual-body { color: #d8c8a0; }
+    ManualScreen #manual-keys { height: 1; padding: 0 2; color: #8a7a5c; }
     """
     BINDINGS = [Binding("escape", "back", "Tillbaka"), Binding("enter", "back", "Tillbaka")]
 

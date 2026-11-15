@@ -19,6 +19,9 @@ class Teletype(Static):
         self.done = False
         self._timer: Timer | None = None
         self.footer = ""
+        self.header: Text | None = None      # står kvar ovanför texten (telegrammets huvud)
+        self.signature: Text | None = None   # visas under texten när den är utskriven
+        self.style = "bold #c8d0b0"
 
     def start(self) -> None:
         self._timer = self.set_interval(1.0 / self.cps, self._advance)
@@ -48,9 +51,16 @@ class Teletype(Static):
         self._redraw()
 
     def _redraw(self) -> None:
-        t = Text(self.full_text[: self.pos], style="bold #c8d0b0")
+        t = Text()
+        if self.header is not None:
+            t.append_text(self.header)
+            t.append("\n\n")
+        t.append(self.full_text[: self.pos], style=self.style)
         if not self.done:
-            t.append("█", style="#c8d0b0 blink")
+            t.append("█", style=f"{self.style.split()[-1]} blink")
+        elif self.signature is not None:
+            t.append("\n")
+            t.append_text(self.signature)
         if self.footer:
             t.append("\n\n" + self.footer, style="dim italic")
         self.update(t)

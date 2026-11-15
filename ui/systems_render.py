@@ -6,6 +6,8 @@ from rich.text import Text
 from sim.systems import (DANGER, INFO, OFF, OK, WARN, Compartment, Flooding, Gauge,
                          SystemsView, TubeRack)
 
+from .placards import PANEL_RU, RU_STYLE, view_title
+
 STATE_STYLE = {OK: "#8fbf8f", INFO: "#c8d0b0", OFF: "#6f7f70", WARN: "bold yellow",
                DANGER: "bold red"}
 STATE_MARK = {OK: "·", INFO: " ", OFF: "○", WARN: "▲", DANGER: "■"}
@@ -115,7 +117,10 @@ def _tubes(rack: TubeRack, w: int) -> list[Text]:
 
 def _panel(view: SystemsView, name: str, w: int) -> list[Text]:
     head = Text(f"─ {name} ", style=TITLE, no_wrap=True)
-    head.append("─" * max(0, w - len(name) - 3), style="#2f4a36")
+    ru = PANEL_RU.get(name)
+    if ru and len(name) + len(ru) + 6 <= w:
+        head.append(f"{ru} ", style=RU_STYLE)
+    head.append("─" * max(0, w - len(head.plain)), style="#2f4a36")
     rows = [head]
     if name == "VAPEN" and (rack := view.first(TubeRack)) is not None:
         rows.extend(_tubes(rack, w))
@@ -162,7 +167,7 @@ WORST_TEXT = {OK: ("allt normalt", STATE_STYLE[OK]), INFO: ("allt normalt", STAT
 
 
 def header(view: SystemsView) -> Text:
-    t = Text(" SYSTEMTAVLA ", style="bold")
+    t = view_title("SYSTEMTAVLA", " ")
     t.append(f" {view.clock} · ")
     word, style = WORST_TEXT[view.worst()]
     t.append(f" {word} ", style=style)
