@@ -64,7 +64,8 @@ class Warmup:
     """Vakten före kaptenen. Game kör så många sekunder med en fast plan (pilot) innan
     spelaren tar befälet: plottet, sonaren och besticket byggs av sensorerna som vanligt,
     så att en kort variant kan börja mitt i läget utan att kunskapen skrivs in för hand.
-    pilot(game, t) ger order med game.command(...) som vakthavande gjort före oss."""
+    pilot(game, t) ger order med game.command(...) som vakthavande gjort före oss.
+    Returnerar piloten True lämnar vakten över före `seconds` (som då är ett tak)."""
     seconds: int
     pilot: Callable[[Any, int], None]
 
@@ -545,7 +546,8 @@ CONVOY_RADIO = [
 ]
 
 
-def convoy_scenario(rng: random.Random, run_in_nm: tuple[float, float] = (16.0, 20.0)) -> Scenario:
+def convoy_scenario(rng: random.Random, run_in_nm: tuple[float, float] = (16.0, 20.0),
+                    side_nm: tuple[float, float] = (1.5, 5.0)) -> Scenario:
     """Konvojen: krig, en eskorterad konvoj sicksackar förbi; sänk ett fartyg och kom undan."""
     start_clock = 6 * 3600 + 30 * 60                   # 06:30, just efter gryningen
     size = 20.0
@@ -558,7 +560,7 @@ def convoy_scenario(rng: random.Random, run_in_nm: tuple[float, float] = (16.0, 
     base = rng.uniform(190.0, 230.0)
     ux, uy = math.sin(math.radians(base)), math.cos(math.radians(base))
     nx, ny = uy, -ux
-    side = rng.choice((-1.0, 1.0)) * rng.uniform(1.5, 5.0)
+    side = rng.choice((-1.0, 1.0)) * rng.uniform(*side_nm)
     run_in = rng.uniform(*run_in_nm)
     cx, cy = ox + side * nx - run_in * ux, oy + side * ny - run_in * uy
     convoy = make_convoy(world, ConvoyDef(start=(cx, cy), base_course=base),
@@ -630,6 +632,107 @@ def convoy_short_scenario(rng: random.Random) -> Scenario:
     return sc
 
 
+COUNTER_MAX_WARM_S = 15 * 60          # vakten lämnar över senast så här långt in
+COUNTER_LIMIT_S = 30 * 60             # efter överlämnandet
+COUNTER_LOOK_S = 60                   # periskoptitt så här ofta före salvan
+COUNTER_RUN_IN_NM = (1.0, 2.0)        # konvojens ledpunkt så långt före tvärs vid start
+COUNTER_SIDE_NM = (1.8, 2.4)          # vi ligger så långt vid sidan av baskursen
+COUNTER_LEASH_NM = 6.0                # eskortens koppel från konvojen (annars 4)
+COUNTER_WAKE_SIGMA_NM = 0.1          # eskortens datum ur torpedbanorna
+COUNTER_FIRE_NM = 2.5                 # vakten skjuter på ett stort fartyg så här nära
+COUNTER_MIN_SPAN_S = 60               # med minst så lång plottning sedan målets senaste gir
+COUNTER_LOOK_FRESH_S = 60             # och en periskoptitt (kurs och fart) så här färsk
+COUNTER_MAX_KN = 20.0                 # och en rimlig fart (snabbare: plottet har blandat ihop)
+COUNTER_HANDOVER_S = 45               # kaptenen tar över så här långt före beräknad träff
+
+
+class _CounterattackWatch:
+    """Vakten före kaptenen i Motanfallet: periskopdjup, korta svep, och salvan mot det
+    första stora fartyget inom COUNTER_FIRE_NM med en lösning minst osäker. Kaptenen tar
+    befälet när torpedrummets gångtid säger att torpederna är framme om ~45 s.
+    Allt går via order och besättningens kunskap; ingen torped läggs in i världen."""
+
+    def __init__(self) -> None:
+        self.handover_t: int | None = None
+
+    def __call__(self, game: Any, t: int) -> bool:
+        from .stations.officer import is_big_ship
+        from .stations.torpedo_room import TorpedoRoom
+        if self.handover_t is not None:
+            if t >= self.handover_t:
+                game.world.patrol_end = game.now + COUNTER_LIMIT_S
+                self._wakes_seen(game.world)
+                return True
+            return False
+        if t == 0:
+            game.command("periskopdjup, fart 3")
+            return False
+        if t >= COUNTER_MAX_WARM_S - 1:
+            game.world.patrol_end = game.now + COUNTER_LIMIT_S
+            return True
+        own = game.world.own.state
+        if t % COUNTER_LOOK_S == 0 and own.depth <= 18:
+            game.command("periskop")
+        torp = game.station(TorpedoRoom)
+        best = None
+        for tr in game.knowledge.tracks.values():
+            if not tr.held or not is_big_ship(tr):
+                continue
+            _, sol = torp._solution_for(tr.designation)
+            looked = any(o.course_obs is not None and o.t >= tr.tma_from_t
+                         and t - o.t <= COUNTER_LOOK_FRESH_S for o in tr.observations)
+            if sol is None or sol.quality < Quality.GOD or sol.span_s < COUNTER_MIN_SPAN_S \
+                    or not looked or sol.speed > COUNTER_MAX_KN or sol.range_nm > COUNTER_FIRE_NM:
+                continue
+            aim = torp._aim(sol, "53-61")
+            if aim is None:
+                continue
+            if best is None or aim[1] < best[1]:
+                best = (tr.designation, aim[1])
+        if best is None:
+            return False
+        game.command(f"salva {best[0]}")
+        game.command(f"salva {best[0]}")       # torpedrummet frågar en gång om målet
+        if game.world.mission.get("hostile_act"):
+            self.handover_t = t + max(0, int(best[1]) - COUNTER_HANDOVER_S)
+        return False
+
+
+    @staticmethod
+    def _wakes_seen(world: Any) -> None:
+        """Startläget (sanning): utkiken på närmaste eskort har sett torpedbanorna i
+        dagsljuset och följer dem tillbaka mot avfyringsplatsen."""
+        from .convoy import EscortAI
+        escorts = [a for a in world.ais if isinstance(a, EscortAI) and not a.vessel.sunk]
+        if not escorts or any(world._hunting_us(a) for a in escorts):
+            return
+        ai = min(escorts, key=lambda a: world.true_range(a.vessel))
+        o = world.own.state
+        ai.start_hunt(o.x + ai.rng.gauss(0, COUNTER_WAKE_SIGMA_NM),
+                      o.y + ai.rng.gauss(0, COUNTER_WAKE_SIGMA_NM), 30.0,
+                      COUNTER_WAKE_SIGMA_NM, t=world.time, contact=True)
+
+
+def convoy_counter_scenario(rng: random.Random) -> Scenario:
+    """Motanfallet: vakten har skjutit en salva mot konvojen; torpederna är framme om
+    en knapp minut och eskorten vänder mot oss."""
+    sc = convoy_scenario(rng, run_in_nm=COUNTER_RUN_IN_NM, side_nm=COUNTER_SIDE_NM)
+    sc.warmup = Warmup(COUNTER_MAX_WARM_S, _CounterattackWatch())
+    from .convoy import EscortAI
+    for ai in sc.world.ais:
+        if isinstance(ai, EscortAI):        # anfallen konvoj: eskorten följer längre efter
+            ai.leash_nm = COUNTER_LEASH_NM
+    sc.world.patrol_end = COUNTER_MAX_WARM_S + COUNTER_LIMIT_S
+    sc.secret_order += ("\nVAKTJOURNALEN: VAKTHAVANDE HAR FÖLJT KONVOJEN PÅ\n"
+                        "PERISKOPDJUP OCH SKJUTIT EN SALVA. TORPEDERNA\n"
+                        "ÄR PÅ VÄG. KAPTENEN TAR BEFÄLET.\n")
+    sc.outcome_text["convoy_missed"] = ("Salvan missade och konvojen har passerat. Trupperna "
+                                        "når Kuba.")
+    sc.outcome_text["patrol_end"] = ("Tiden är ute. Eskorten har fortfarande K-114 och "
+                                     "konvojen är borta.")
+    return sc
+
+
 # --- scenarioregister ----------------------------------------------------------
 @dataclass(frozen=True)
 class ScenarioDef:
@@ -687,3 +790,8 @@ register(ScenarioDef(
     "Kort variant. Vakten har följt konvojen i en halvtimme och plottet har den. Ni tar "
     "befälet med målen några sjömil bort: kom i skjutläge, sänk och bryt kontakten.",
     convoy_short_scenario, minutes=30))
+register(ScenarioDef(
+    "konvoj-mot", "Konvojen – motanfallet, 28 oktober 1962",
+    "Kort variant. Vakten har skjutit en salva mot konvojen och torpederna är framme om "
+    "en knapp minut. Eskorten vänder redan mot er: bryt kontakten.",
+    convoy_counter_scenario, minutes=20))

@@ -87,7 +87,8 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   skapar `Game(..., warm_up=False)`, kör `game.warm_up()` i en tråd medan ordern skrivs ut och
   prenumererar först efteråt. Loggboken börjar vid överlämnandet. `Handover` ⇒ vakthavande säger
   `off.briefing` (konvoj, kontakter, besticket ur kunskapen). Tidsgränsen är `World.patrol_end`
-  (uppvärmning + speltid). `ScenarioDef.minutes` visas i väljaren. Kort variant = egen nyckel
+  (uppvärmning + speltid). Piloten kan lämna över tidigare genom att returnera True (`seconds` är
+  då ett tak). `ScenarioDef.minutes` visas i väljaren. Kort variant = egen nyckel
   (`konvoj-kort`) som bygger på det långa scenariot. Plan för resten: `docs/korta-varianter.md`.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
@@ -276,6 +277,17 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   eskort har oss; första förslag 0–3 min efter; ja-boten i skjutläge i 4 (9–34 min). Bot som skjuter
   `salva` (upprepad) mot klassad transport/tanker ≤ 3 nm med lösning ≥ osäker: sänker 1 på 28 min
   (samma bot i `konvoj`: 1, på 69 min). Uppvärmningen tar ~5–8 s.
+- Konvojen motanfall (`konvoj-mot`, `convoy_counter_scenario`): ledpunkten 1–2 nm före tvärs, vi 1,8–2,4 nm
+  vid sidan. Vakten (`_CounterattackWatch`): periskopdjup, titt var 60:e s, `salva` (två gånger) mot
+  stort fartyg med lösning ≥ god, ≥ 60 s sedan senaste gir, titt ≤ 60 s gammal, fart ≤ 20 kn, ≤ 2,5 nm;
+  överlämnar när torpedrummets gångtid − 45 s gått (2–4 min in) och sätter `patrol_end` +30 min. Har ingen
+  eskort oss då ger närmaste eskort färsk kontakt (σ 0,1 nm, torpedbanorna). Eskortens koppel 6 nm.
+  Eskorternas ping hittar oss på 1,3–1,9 nm även under skiktet, så att gömma vakten går inte.
+  8 frön: vakten skjuter i 8, träff i 6 (25–155 s efter överlämnandet); passiv 3, ja-boten 4,
+  djupt och bort (turbin 12 kn, 200 m, bort från hotet) 6.
+- Eskorter (alla konvojer): en eskort med egen kontakt ≤ 40 s gammal och < 0,8 × den jagandes avstånd till
+  datumet tar över jakten (`_closer_than`); i anfall går eskorten `SPEED_CLOSE` tills den är 1 nm från
+  datumet (förut anfallsfart 15 kn hela vägen, så den hann sällan fram innan kopplet släppte).
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m.
 - Packis (`ice.py`): rutor 0,05 nm, flerårsis 2–4,5 m, kölar 8–25 m (6 % 30–45 m),
   170 råkar, 28 polynyor ⇒ ~4–5 % öppet vatten, en öppning ungefär var 30:e minut

@@ -22,22 +22,12 @@ Flytta en variant från **Kvar** till **Klart** när den är byggd, testad och k
   - Tester: `tests/test_warmup.py`.
 - **`konvoj-kort`, "Skjutläge":** konvojen 13–15 nm bort, vakt i 35 min (periskopdjup, fart 3,
   svep var 4:e min), sedan 45 min. Kalibrering står i CLAUDE.md.
+- **`konvoj-mot`, "Motanfallet":** vakten skjuter salvan inom 2–4 min, kaptenen tar över ~45 s före
+  träff med en eskort i anfall. Kalibrering står i CLAUDE.md.
 - **`jagad-kort`, "Skarpt":** utan uppvärmning, kvadraten 7 nm, båda jagarna skarpa från start,
   DD2 spärrar den korta vägen ut. Tidsgräns 30 min. Kalibrering står i CLAUDE.md.
 
 ## Kvar, i byggordning
-
-### Steg 3 – utan (eller med mycket kort) uppvärmning
-
-**`konvoj-mot`, "Motanfallet", ~15 min**
-- **Start:** salvan har just gått mot ett konvojfartyg och en torped träffar efter 30–60 s.
-  En eskort girar mot oss från 1,5 nm med skarpa bomber.
-- **Mål:** att bryta kontakten. Variant av `strike` eller `escape`: ingen jägare har oss
-  10 min efter sänkningen.
-- **Uppvärmning:** kort. Pilot som avfyrar salvan från ett skjutläge, så att torpedrummet och
-  sonaren känner till torpederna. Lägg inte in torpeder direkt i världen.
-- **Nytt i koden:** konvojen placerad i skjutläge vid start, plus pilot som skjuter (salvan
-  måste upprepas, eftersom torpedrummet vill ha bekräftelse när målet inte är säkert klassat).
 
 ### Steg 4 – uppvärmning med fast plan
 
