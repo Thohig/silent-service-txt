@@ -23,6 +23,7 @@ from sim.periscope import EVENT_KINDS, PeriscopePicture, SightedObject
 
 from .periscope_render import (STYLE, _draw_ice, _draw_object, _Grid, _land_at, _marker,
                                data_line, object_key, render_strip)
+from .placards import view_title
 
 FOV_DEG = 120.0             # synfältet från bryggan
 TURN_STEP_DEG = 15.0        # ← → vrider blicken så här mycket
@@ -299,7 +300,7 @@ def no_picture(status_bridge: str, depth: float) -> list[Text]:
 
 
 def header(pic: PeriscopePicture | None, clock: str, view_rel: float) -> Text:
-    t = Text(" BRYGGAN", style="bold")
+    t = view_title("BRYGGAN")
     if pic is None:
         t.append("   ingen på bryggan", style="dim")
         return t

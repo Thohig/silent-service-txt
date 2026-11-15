@@ -14,6 +14,8 @@ from rich.text import Text
 from sim.fmt import clock, fmt_course, kn
 from sim.profile import ProfileView
 
+from .placards import view_title
+
 MARGIN = 7                  # djupetiketter till vänster: "  450 ┤"
 RIGHT = 14                  # etiketter för djupen till höger
 DEPTH_ZOOM = (40, 80, 150, 300, 500)          # största djup i bilden, meter
@@ -397,7 +399,7 @@ def legend() -> Text:
 
 
 def header(view: ProfileView) -> Text:
-    t = Text(" DJUPPROFIL ", style="bold")
+    t = view_title("DJUPPROFIL", " ")
     t.append(f" djup {view.depth:.0f} m", style="bold")
     if abs(view.ordered_depth - view.depth) >= 1:
         t.append(f" ▸{view.ordered_depth:.0f} m", style="yellow")

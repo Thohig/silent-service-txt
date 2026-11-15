@@ -210,6 +210,9 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   (nio avdelningar, maskin), `TubeRack` (torpedrum), `Flooding`. Ur egna instrument
   (`own.sys`), aldrig om fienden. `Game.systems()` samlar, `ui/systems_render.py` ritar
   genomskärningen och panelerna (okända paneler hamnar sist, så nytt system ritar sig självt).
+  Ryska skyltar (`ui/placards.py`): panelerna efter stridsavdelning (`PANEL_RU`: БЧ-5, БЧ-1 …, utelämnas när
+  de inte får plats), vyernas rubriker (`view_title`, `VIEW_RU`: svenskan först) och mässingsskylten
+  ЦЕНТРАЛЬНЫЙ ПОСТ i centralens tak när det finns plats före stegen. Ny panel eller vy: lägg till där.
 - **Bryggan** (`stations/bridge.py`, `BridgeWatch`, roll vakthavande): tornluckan är sanning
   (`OwnSystems.bridge`: shut → manning 20 s i ytläge → manned → clearing 20 s vid order att dyka → shut);
   `OwnShip.bridge_open` håller djupet (depth_rate 0). Utkiken är en sensor: varannan sekund medan bryggan
