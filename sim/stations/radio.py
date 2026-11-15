@@ -11,7 +11,8 @@ from .. import phrases
 from .. import russian as R
 from ..crew import Role
 from ..entities import Emission
-from ..events import Handover, PositionReported
+from ..broadcasts import broadcasts_for, order_day
+from ..events import Handover, PositionReported, TelegramReceived
 from ..fmt import fmt_course, nm
 from ..icemap import thickness_words
 from ..ice import masts_clear
@@ -27,6 +28,7 @@ TRANSMIT_S = 30
 PREWARN_S = 600
 RADIO_SAFE_NM = 5.0          # en hotkontakt närmare än så enligt plottet: vänta med att gå upp
 REPORT_SUGGEST_S = 180       # förslaget att sända upprepas högst så här ofta
+LISTEN_S = 20                # så länge radiomannen letar upp Moskva på kortvåg
 RADIO_VAK_MAX_M = 2500        # öppningar längre bort hinner vi inte till
 
 
@@ -37,6 +39,11 @@ class SendReport(Order):
 
 @dataclass(frozen=True)
 class RadioStatus(Order):
+    pass
+
+
+@dataclass(frozen=True)
+class ListenBroadcast(Order):
     pass
 
 
@@ -70,6 +77,10 @@ PHRASES = {
     "radio.clear": lambda d: f"Kapten, radio. Plottet har nu {d['designation']} på {nm(d['range'])} "
     "sjömil" + (f", och sambandstillfället stänger kl {d['close']}" if d.get("close") else "")
     + ". Föreslår antenndjup.",
+    "radio.listen": lambda d: "Lyssnar på kortvåg efter Moskva.",
+    "radio.listen.lost": lambda d: "Tappade Moskva, antennen kom under ytan.",
+    "radio.moscow": lambda d: f"Kapten, radio. Radio Moskva: «{d['text']}»",
+    "radio.moscow.silent": lambda d: f"Kapten, radio. {d['text']}",
     "radio.status": lambda d: (f"Nästa sambandstillfälle kl {d['next']}. " if d.get("next")
                                else "Inga fler sambandstillfällen inplanerade. ")
     + f"{d['received']} meddelanden mottagna."
@@ -85,6 +96,10 @@ RU_PHRASES = {
     "radio.nothing": lambda d: "Сеанс связи: новых радиограмм для нас нет.",
     "radio.missed": lambda d: f"{R.CAPTAIN}, мы пропустили сеанс связи. Радиограммы могли "
     "пропасть до следующего.",
+    "radio.listen": lambda d: "Есть, слушаем Москву на коротких волнах.",
+    "radio.listen.lost": lambda d: "Москву потеряли, антенна ушла под воду.",
+    "radio.moscow": lambda d: d["ru"],
+    "radio.moscow.silent": lambda d: f"{R.CAPTAIN}, радист. Только несущая. Москва молчит.",
     "radio.sending": lambda d: "Есть, передаём донесение на коротких волнах. Тридцать секунд.",
     "radio.sent": lambda d: "Донесение передано, квитанция получена.",
     "radio.aborted": lambda d: "Передача прервана, антенна ушла под воду.",
@@ -104,6 +119,8 @@ class RadioStation(Station):
     COMMANDS = [
         CommandSpec(r"sänd rapport|sand rapport|rapportera|sänd", lambda m: SendReport(), "sänd rapport"),
         CommandSpec(r"radio|meddelanden", lambda m: RadioStatus(), "radio"),
+        CommandSpec(r"lyssna(?: på)? (?:radio|moskva|radio moskva)|radio moskva|moskva",
+                    lambda m: ListenBroadcast(), "lyssna radio"),
     ]
 
     def __init__(self, game):
@@ -124,6 +141,10 @@ class RadioStation(Station):
         self._waiting: set[int] = set()       # fönster där vi väntar på djupet på grund av ett hot
         # ordern kräver en rapport under sambandstillfället (kuba-kort)
         self.report_required = bool(sc and sc.report_required)
+        self.broadcasts = broadcasts_for(order_day(sc.secret_order) if sc else None)
+        self._broadcast_n = 0
+        self._listen_until: int | None = None   # radiomannen letar upp Moskva
+        self.received = 0                       # mottagningsnummer ombord
 
     @property
     def own(self):
@@ -154,6 +175,18 @@ class RadioStation(Station):
                     self.tx_done_t = self.now + TRANSMIT_S
                     self.game.world.emit_em(Emission("hf", st.x, st.y, self.own.id, self.now))
                     self.say("radio.sending", kind="ack")
+            case ListenBroadcast():
+                st, sys = self.own.state, self.own.sys
+                if st.depth > ANTENNA_DEPTH:
+                    self.say("radio.refused", {"reason": "vi måste upp på antenndjup för att höra "
+                                                         "Moskva"})
+                elif sys.health["radio"] < 0.3:
+                    self.say("radio.refused", {"reason": "radion är skadad"})
+                elif not masts_clear(self.game.world):
+                    self.say("radio.refused", {"reason": "det är is ovanför, antennen kommer inte upp"})
+                elif self._listen_until is None:
+                    self._listen_until = self.now + LISTEN_S
+                    self.say("radio.listen", kind="ack")
             case RadioStatus():
                 nxt = next((w for w in self.windows if w + self.window_len > self.now), None)
                 self.say("radio.status", {
@@ -230,8 +263,28 @@ class RadioStation(Station):
                                  d, cooldown=900)]
         return []
 
+    def _broadcast(self) -> None:
+        """Radiomannen har hittat Moskva (eller bara bärvågen)."""
+        self._listen_until = None
+        if not self.broadcasts:
+            return
+        b = self.broadcasts[self._broadcast_n % len(self.broadcasts)]
+        self._broadcast_n += 1
+        self.received += 1
+        self.game.bus.publish(TelegramReceived(self.now, b.sv, "broadcast", self.received))
+        if b.ru:
+            self.say("radio.moscow", {"text": b.sv, "ru": b.ru}, kind="info")
+        else:
+            self.say("radio.moscow.silent", {"text": b.sv}, kind="info")
+
     def update(self) -> None:
         st = self.own.state
+        if self._listen_until is not None:
+            if st.depth > ANTENNA_DEPTH + 1 or not masts_clear(self.game.world):
+                self._listen_until = None
+                self.say("radio.listen.lost")
+            elif self.now >= self._listen_until:
+                self._broadcast()
         i = self.window_pending()
         nav = self._nav()
         if i is not None and nav is not None and nav.opening_now() is not None \
@@ -346,6 +399,8 @@ class RadioStation(Station):
             msg = self.messages[self._next_msg]
             self._next_msg += 1
             self.delivered.append(msg.text)
+            self.received += 1
+            self.game.bus.publish(TelegramReceived(self.now, msg.text, "telegram", self.received))
             self.game.world.mission.update(msg.flags)
             if msg.waypoint is not None:
                 name, x, y, sigma, t_pos = msg.waypoint

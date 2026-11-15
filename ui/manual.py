@@ -18,7 +18,8 @@ from sim.russian import WORDS
 from sim.stations import DEFAULT_STATIONS
 
 # gränssnittets egna ord (ui/app.py) och tangenter
-VIEW_WORDS = ["central", "logg", "sjökort", "profil", "system", "periskopbild", "brygga"]
+VIEW_WORDS = ["central", "logg", "sjökort", "profil", "system", "periskopbild", "brygga",
+              "telegram"]
 SOUND_WORDS = ["ljud", "ljud av", "ljud på", "tal ryska", "tal svenska"]
 KEYS = [("Tab", "nästa vy"), ("Esc", "tillbaka till huvudvyn"), ("ctrl+t", "ljud av och på"),
         ("ctrl+q", "stäng programmet")]

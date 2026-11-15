@@ -18,6 +18,7 @@ VIEW_RU = {
     "DJUPMÄTARE": "ГЛУБИНОМЕР",
     "SYSTEMTAVLA": "ПУЛЬТ ЖИВУЧЕСТИ",
     "BRYGGAN": "МОСТИК",
+    "TELEGRAM": "РАДИОГРАММЫ",
 }
 
 # systemtavlans paneler ⇒ stridsavdelning eller tjänst

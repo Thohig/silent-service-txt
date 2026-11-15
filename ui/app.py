@@ -36,6 +36,7 @@ from .profile import ProfileScreen
 from .systems import SystemScreen
 from .menutext import INK as PAPER_INK
 from .telegram import crew_announcement, order_header, order_signature, report_header
+from .telegrams import TelegramScreen
 from .teletype import Teletype
 from .widgets import CentralView, DepthGauge, ReportLog, StatusBar
 
@@ -47,8 +48,9 @@ PERISCOPE_WORDS = {"periskopbild", "periskopvy", "bild"}
 BRIDGE_WORDS = {"brygga", "bryggan", "bryggvy", "utsikt"}
 LOG_WORDS = {"logg", "loggen", "loggbok", "loggboken"}
 CENTRAL_WORDS = {"central", "centralen"}
+TELEGRAM_WORDS = {"telegram", "telegrammen", "telegrammet", "radiogram", "radiogrammen"}
 VIEWS = (LogScreen, ChartScreen, ProfileScreen, SystemScreen, PeriscopeScreen,
-         BridgeScreen)
+         BridgeScreen, TelegramScreen)
 GAUGE_EVERY_S = 0.5
 CENTRAL_EVERY_S = 0.1                  # centralens instrument: tio gånger i sekunden
 CENTRAL_MIN_WIDTH = 100                # smalare terminal: bara djupmätaren
@@ -301,6 +303,8 @@ class SubApp(App):
             self.action_periscope()
         elif text in BRIDGE_WORDS:
             self.action_bridge()
+        elif text in TELEGRAM_WORDS:
+            self._toggle_view(TelegramScreen)
         elif text in LOG_WORDS:
             if self.gs().big:
                 self._toggle_view(LogScreen)

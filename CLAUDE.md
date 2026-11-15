@@ -146,6 +146,12 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   `tl_to_own`, jagarens och US-ubåtens `_tl`), bryggan och periskopet ser inte fartyg bakom land.
   Djupgående i ytläge 7 m (`SURFACE_DRAFT_M`): ytläge kan gå på grund. Med bryggan bemannad föreslår
   vakthavande inget periskopsvep och sonar ingen fart 4; i ytläge föreslår maskin inget om kavitation.
+- **Radion och telegrammen:** allt radion tar emot publiceras som `TelegramReceived` (text, `kind`
+  telegram/broadcast, mottagningsnummer ombord) ⇒ `Knowledge.telegrams`; vyn `telegram` (`ui/telegrams.py`,
+  inte i Tab-ordningen) visar remsorna. Radio Moskva (`sim/broadcasts.py`): `lyssna radio` på antenndjup
+  (masten fri, radion hel) ⇒ efter `LISTEN_S` (20 s) säger radiomannen en sändning för orderns datum
+  (`order_day` ur `DATUM:`-raden, `broadcasts_for`); bara stämning, aldrig information. Den 28 okt bara
+  bärvåg. Ljudet `shortwave` (menyns ratt och brus) före rösten.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen

@@ -70,6 +70,9 @@ CUE_BY_TYPE = {
     "surfaced": "klaxon",
     # brandlarm
     "fire": "fire",
+    # radiomannen vrider in Moskva på kortvåg
+    "radio.moscow": "shortwave",
+    "radio.moscow.silent": "shortwave",
 }
 
 # Hydrofonljud: SoundHeard.kind -> (ljud, signalöverskott i dB som ger full volym).
@@ -541,6 +544,12 @@ def synth_ship_bell(strikes: int) -> np.ndarray:
     return 0.45 * out / max(1e-9, float(np.max(np.abs(out))))
 
 
+def synth_shortwave() -> np.ndarray:
+    """Kortvågsmottagaren: ratten vrids, visslingar och brus (samma som i menyns radio)."""
+    from .menu_audio import synth_static, synth_tuning
+    return 0.6 * np.concatenate([synth_tuning(), synth_static()[: RATE]])
+
+
 def bells_for(clock: int) -> int:
     """Hur många glas klockan slår vid en halvtimme: 1–8 under varje fyratimmarsvakt."""
     return (clock // 1800) % 8 or 8
@@ -551,6 +560,7 @@ def synth_cues() -> dict[str, np.ndarray]:
             "revun": synth_revun(),
             "attention": synth_attention(), "suggest": synth_suggest()}
     cues.update({f"bells{n}": synth_ship_bell(n) for n in range(1, 9)})
+    cues["shortwave"] = synth_shortwave()
     return cues
 
 
