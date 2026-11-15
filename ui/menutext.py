@@ -212,3 +212,75 @@ def ticker_text(state: TickerState, width: int, cursor: bool = True) -> Text:
     if state.typing and cursor:
         t.append("█", style=INK)
     return t
+
+
+# --- Radio Moskva -------------------------------------------------------------------
+@dataclass(frozen=True)
+class Bulletin:
+    ru: str             # det rösten läser (kyrilliska)
+    sv: str             # det remsan visar
+
+
+# Påhittade sändningar, allt mer olycksbådande ju längre kaptenen dröjer i menyn.
+BULLETINS = [
+    Bulletin("Говорит Москва. Передаём сообщение ТАСС. Правительство Соединённых Штатов "
+             "объявило морскую блокаду Кубы.",
+             "Här är Moskva. Ett meddelande från TASS: USA:s regering har utlyst sjöblockad "
+             "mot Kuba."),
+    Bulletin("Говорит Москва. Советское правительство заявляет: блокада — это акт пиратства.",
+             "Här är Moskva. Sovjetregeringen förklarar: blockaden är sjöröveri."),
+    Bulletin("Говорит Москва. Американские корабли останавливают суда в открытом море.",
+             "Här är Moskva. Amerikanska örlogsfartyg stoppar fartyg på öppet hav."),
+    Bulletin("Говорит Москва. Над Кубой сбит американский самолёт-разведчик.",
+             "Här är Moskva. Ett amerikanskt spaningsplan har skjutits ned över Kuba."),
+    Bulletin("Говорит Москва. Вооружённые силы Советского Союза приведены в полную боевую "
+             "готовность.",
+             "Här är Moskva. Sovjetunionens väpnade styrkor har satts i full stridsberedskap."),
+    Bulletin("Внимание. Говорит Москва. Слушайте важное правительственное сообщение.",
+             "Uppmärksamhet. Här är Moskva. Lyssna på ett viktigt meddelande från regeringen …"),
+]
+
+RADIO_FIRST_S = 25.0        # första sändningen efter så lång tid i menyn
+RADIO_EVERY_S = 95.0        # sedan med det här mellanrummet
+RADIO_TUNE_S = 2.5          # brus och visslingar innan rösten kommer
+
+
+def radio_show_s(b: Bulletin) -> float:
+    """Så länge remsan visar sändningen: inställningen och rösten (~13 tecken/s)."""
+    return RADIO_TUNE_S + len(b.ru) / 13.0 + 2.0
+
+
+@dataclass(frozen=True)
+class RadioState:
+    number: int         # sändningens ordning sedan menyn visades (0, 1, 2 …)
+    since: float        # sekunder sedan sändningen började
+
+    @property
+    def bulletin(self) -> Bulletin:
+        return BULLETINS[min(self.number, len(BULLETINS) - 1)]   # det sista upprepas
+
+
+def radio_at(t: float) -> RadioState | None:
+    """Pågående sändning t sekunder efter att menyn visades, annars None."""
+    if t < RADIO_FIRST_S:
+        return None
+    k = int((t - RADIO_FIRST_S) // RADIO_EVERY_S)
+    since = t - RADIO_FIRST_S - k * RADIO_EVERY_S
+    r = RadioState(k, since)
+    return r if since < radio_show_s(r.bulletin) else None
+
+
+def radio_text(r: RadioState, width: int) -> Text:
+    """Remsan under en sändning: först bara brus, sedan översättningen."""
+    t = Text(no_wrap=True, overflow="crop")
+    t.append(" РАДИО ", style=f"bold {HIGHLIGHT_FG} on {RED}")
+    t.append(" ГОВОРИТ МОСКВА ", style=f"bold {RED}")
+    if r.since < RADIO_TUNE_S:
+        t.append("… brus, visslingar …", style=f"italic {DIM}")
+        return t
+    body = r.bulletin.sv
+    room = max(10, width - len(t.plain) - 1)
+    if len(body) > room:
+        body = body[: room - 1] + "…"
+    t.append(body, style=f"italic {INK}")
+    return t

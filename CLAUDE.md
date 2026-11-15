@@ -276,7 +276,11 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   medan remsan skriver; slingorna är cirkulära (efterklangen viks runt). Syntesen (~2 s) i en tråd,
   `lru_cache`. `MenuMixer` (en `Ambience` med `extra`-kroken) lägger enstaka ljud ovanpå. Uppdrag valt ⇒
   `depart()`: telegrafklockan, musiken tonar bort, fjärrskrivaren låter medan ordern skrivs ut; stängs när
-  kaptenen tar befälet. `ctrl+t` och Inställningar slår av och på (`SubApp.menu_sound_sync`). Flödet: menyn → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
+  kaptenen tar befälet. `ctrl+t` och Inställningar slår av och på (`SubApp.menu_sound_sync`).
+  Radio Moskva (`BULLETINS`, `radio_at(t)`): påhittade sändningar efter 25 s och sedan var 95:e s, allt
+  mer olycksbådande (den sista upprepas); remsan visar översättningen. Ljud: ratten (`synth_tuning`),
+  kortvågsbrus, musiken sänks; rösten är Milena via `say -o` genom `radio_voice` (smalt band, fading).
+  Utan Milena bara brus. Flödet: menyn → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
   huvudmenyn. `SubApp` håller spelet, ljudet och inställningarna (ljud, talets språk) över uppdragen;
   widgetarna nås med `app.gs().query_one(...)` (`app.query_one` ser bara standardskärmen). Efter
   slutrapporten går vyerna att titta på; Enter med tom orderrad (även i en vy) ⇒ `return_to_menu()`:

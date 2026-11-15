@@ -193,3 +193,21 @@ def test_menu_screen_shows_the_ticker_and_readiness(tmp_path):
             assert "СЕВФЛОТ 28.10" in str(menu.query_one("#ticker").render())
 
     asyncio.run(run())
+
+
+def test_radio_moscow_comes_on_schedule_and_grows_more_ominous():
+    from ui.menutext import (BULLETINS, RADIO_EVERY_S, RADIO_FIRST_S, RADIO_TUNE_S, radio_at,
+                             radio_show_s, radio_text)
+    assert radio_at(RADIO_FIRST_S - 1) is None
+    first = radio_at(RADIO_FIRST_S + 0.5)
+    assert first.number == 0 and first.bulletin is BULLETINS[0]
+    assert "brus" in radio_text(first, 100).plain                     # ratten först
+    speaking = radio_at(RADIO_FIRST_S + RADIO_TUNE_S + 1)
+    assert BULLETINS[0].sv[:30] in radio_text(speaking, 120).plain
+    assert radio_at(RADIO_FIRST_S + radio_show_s(BULLETINS[0]) + 1) is None
+    late = radio_at(RADIO_FIRST_S + 40 * RADIO_EVERY_S + 1)
+    assert late.bulletin is BULLETINS[-1]                              # det sista upprepas
+    for b in BULLETINS:
+        assert radio_show_s(b) < RADIO_EVERY_S
+        assert not any("a" <= c.lower() <= "z" for c in b.ru)          # rösten läser bara kyrilliska
+        assert len(radio_text(radio_at(RADIO_FIRST_S + RADIO_TUNE_S + 1), 80).plain) <= 80

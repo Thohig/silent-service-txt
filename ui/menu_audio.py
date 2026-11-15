@@ -13,12 +13,19 @@ de går runt utan skarv.
 """
 from __future__ import annotations
 
+import shutil
+import subprocess
+import tempfile
 import threading
+import time
+import wave
 from functools import lru_cache
+from pathlib import Path
 
 import numpy as np
 
 from .ambience import RATE, Ambience, AmbientOut
+from .menutext import RADIO_TUNE_S
 
 MUSIC_BEAT_S = 1.0          # 60 slag i minuten
 MUSIC_BARS = 16             # 4/4, alltså 64 s
@@ -26,7 +33,10 @@ CHORD_BARS = 2
 HARBOR_S = 40.0
 TELEPRINTER_S = 4.0
 
-GAIN = {"music": 0.55, "harbor": 0.4, "teleprinter": 0.14}
+GAIN = {"music": 0.55, "harbor": 0.4, "teleprinter": 0.14, "static": 0.12}
+MUSIC_UNDER_RADIO = 0.25    # musiken sänks medan radion talar
+RADIO_VOICE = "Milena"
+RADIO_RATE_WPM = 150
 
 
 def midi(m: float) -> float:
@@ -292,13 +302,92 @@ def synth_telegraph() -> np.ndarray:
     return _norm(_spectral(out, _band(200, 7000)), 0.9)
 
 
+# --------------------------------------------------------------------------- radion
+@lru_cache(maxsize=1)
+def synth_static() -> np.ndarray:
+    """Kortvågsbrus: sus, knaster och en svag bärvåg som svävar."""
+    n = int(RATE * 3.0)
+    t = np.arange(n) / RATE
+    rng = _rng(121)
+    hiss = _noise(n, 122, 400, 4000, -1) * (0.8 + 0.2 * np.sin(2 * np.pi * t / 3.0))
+    crackle = np.zeros(n)
+    for _ in range(40):
+        m = int(RATE * rng.uniform(0.002, 0.01))
+        _place(crackle, rng.standard_normal(m) * rng.uniform(0.3, 1.0), rng.uniform(0, 3.0))
+    carrier = 0.15 * np.sin(2 * np.pi * (1000 + 4 * np.sin(2 * np.pi * t / 3.0)) * t)
+    return _norm(hiss + 0.6 * _norm(crackle) + carrier, 0.8)
+
+
+def synth_tuning() -> np.ndarray:
+    """Någon vrider på ratten: visslingar som glider ned och brus som kommer och går."""
+    n = int(RATE * RADIO_TUNE_S)
+    t = np.arange(n) / RATE
+    f = 2800 * (700 / 2800) ** (t / RADIO_TUNE_S) * (1 + 0.05 * np.sin(2 * np.pi * 3 * t))
+    whistle = np.sin(2 * np.pi * np.cumsum(f) / RATE) * (0.5 + 0.5 * np.sin(2 * np.pi * 0.9 * t))
+    hiss = _noise(n, 123, 300, 4500, -1) * (0.6 + 0.4 * np.abs(np.sin(2 * np.pi * 1.3 * t)))
+    return _norm((0.35 * whistle + hiss) * _env(n, 0.05, 0.4), 0.7)
+
+
+def radio_voice(x: np.ndarray, seed: int = 0) -> np.ndarray:
+    """Rösten genom en kortvågsmottagare: smalt band, lätt överstyrd, fading och knaster."""
+    pad = np.zeros(int(RATE * 0.3))
+    y = np.concatenate([pad, x.astype(np.float64), pad])
+    y = _spectral(_norm(y), _band(350, 2800))
+    y = np.tanh(2.0 * _norm(y))
+    t = np.arange(len(y)) / RATE
+    fading = 0.75 + 0.25 * np.sin(2 * np.pi * 0.35 * t + seed)
+    hiss = 0.04 * _rng(124 + seed).standard_normal(len(y))
+    return _norm(y * fading + hiss, 0.8)
+
+
+@lru_cache(maxsize=1)
+def russian_voice_available() -> bool:
+    if shutil.which("say") is None:
+        return False
+    try:
+        out = subprocess.run(["say", "-v", "?"], capture_output=True, text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return any(line.split()[:1] == [RADIO_VOICE] for line in out.splitlines())
+
+
+def read_wav(path: Path) -> np.ndarray:
+    """Mono flyttal i RATE. Annan takt räknas om linjärt."""
+    with wave.open(str(path), "rb") as w:
+        rate, ch, width = w.getframerate(), w.getnchannels(), w.getsampwidth()
+        raw = w.readframes(w.getnframes())
+    if width != 2:
+        raise ValueError("bara 16 bitar")
+    x = np.frombuffer(raw, dtype="<i2").astype(np.float64) / 32768.0
+    if ch > 1:
+        x = x.reshape(-1, ch).mean(axis=1)
+    if rate != RATE and len(x):
+        x = np.interp(np.arange(int(len(x) * RATE / rate)) * rate / RATE, np.arange(len(x)), x)
+    return x
+
+
+def speak_to_samples(text: str) -> np.ndarray | None:
+    """Läs texten med den ryska rösten (macOS `say`) till ljud. None utan röst."""
+    if not russian_voice_available():
+        return None
+    with tempfile.TemporaryDirectory() as d:
+        path = Path(d) / "radio.wav"
+        try:
+            subprocess.run(["say", "-v", RADIO_VOICE, "-r", str(RADIO_RATE_WPM),
+                            "--file-format=WAVE", f"--data-format=LEI16@{RATE}", "-o", str(path),
+                            text], capture_output=True, timeout=30, check=True)
+            return read_wav(path)
+        except (OSError, subprocess.SubprocessError, ValueError, wave.Error):
+            return None
+
+
 def synth_menu() -> dict[str, np.ndarray]:
     return {"music": synth_music(), "harbor": synth_harbor(),
-            "teleprinter": synth_teleprinter()}
+            "teleprinter": synth_teleprinter(), "static": synth_static()}
 
 
 def synth_oneshots() -> dict[str, np.ndarray]:
-    return {"telegraph": synth_telegraph()}
+    return {"telegraph": synth_telegraph(), "tuning": synth_tuning()}
 
 
 # --------------------------------------------------------------------------- mixern
@@ -343,11 +432,15 @@ class MenuSound:
     out_factory: ljudströmmen (AmbientOut), utbytbar i tester.
     """
 
-    def __init__(self, out_factory=AmbientOut, threaded: bool = True):
+    def __init__(self, out_factory=AmbientOut, threaded: bool = True, voice=speak_to_samples):
         self.mixer = MenuMixer()
         self.out = out_factory(self.mixer)
+        self.voice = voice                           # text -> ljud eller None
+        self.threaded = threaded
         self.typing = False
         self.departing = False
+        self.on_air = False                          # radion sänder
+        self.radio_count = 0
         self.oneshots: dict[str, np.ndarray] = {}
         self.ready = threading.Event()
         if threaded:
@@ -370,8 +463,11 @@ class MenuSound:
         from .ambience import Target
         targets = {}
         if not self.departing:
-            targets["music"] = Target("music", GAIN["music"])
+            music = GAIN["music"] * (MUSIC_UNDER_RADIO if self.on_air else 1.0)
+            targets["music"] = Target("music", music)
             targets["harbor"] = Target("harbor", GAIN["harbor"])
+            if self.on_air:
+                targets["static"] = Target("static", GAIN["static"])
         if self.typing:
             targets["teleprinter"] = Target("teleprinter", GAIN["teleprinter"])
         self.mixer.set_targets(targets)
@@ -385,9 +481,41 @@ class MenuSound:
         if name in self.oneshots:
             self.mixer.oneshot(self.oneshots[name], gain)
 
+    def radio(self, text: str) -> None:
+        """Radio Moskva: inställning och brus, sedan rösten (om den finns), sedan tyst igen."""
+        if self.departing or self.out is None or self.on_air:
+            return
+        self.radio_count += 1
+        if self.threaded:
+            threading.Thread(target=self._broadcast, args=(text,), daemon=True).start()
+        else:
+            self._broadcast(text, sleep=lambda _s: None)
+
+    def _broadcast(self, text: str, sleep=time.sleep) -> None:
+        t0 = time.monotonic()
+        self.ready.wait(10)
+        self.on_air = True
+        self.play("tuning", 0.7)
+        self._targets()
+        speech = self.voice(text)
+        length = 2.5
+        if speech is not None and len(speech):
+            sleep(max(0.0, t0 + RADIO_TUNE_S - time.monotonic()))
+            if self.out is None or self.departing:
+                self.on_air = False
+                return
+            voice = radio_voice(speech, seed=self.radio_count)
+            self.mixer.oneshot(voice, 0.9)
+            length = len(voice) / RATE
+        sleep(length + 0.8)
+        self.on_air = False
+        if self.out is not None:
+            self._targets()
+
     def depart(self) -> None:
         """Ett uppdrag är valt: telegrafen ringer, musiken och hamnen tonar bort."""
         self.departing = True
+        self.on_air = False
         self.play("telegraph", 0.8)
         self._targets()
 

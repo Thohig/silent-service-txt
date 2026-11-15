@@ -19,8 +19,9 @@ from textual.widgets.option_list import Option
 from sim.scenario import SCENARIOS, ScenarioDef
 
 from .manual import ManualScreen
-from .menutext import (BG, DIM, HIGHLIGHT_BG, HIGHLIGHT_FG, INK, RULE, TickerState, header,
-                       stamp_for, stamp_text, ticker_at, ticker_text)
+from .menutext import (BG, DIM, HIGHLIGHT_BG, HIGHLIGHT_FG, INK, RULE, RadioState, TickerState,
+                       header, radio_at, radio_text, stamp_for, stamp_text, ticker_at,
+                       ticker_text)
 from .settings import SettingsScreen
 
 FIRST_GROUPS = ("ovning",)        # övningen först: den lär känna båten
@@ -140,6 +141,8 @@ class MenuScreen(Screen):
         self._group_of = {sd.key: g for g in self.groups for sd in g.variants}
         self._t0 = time.monotonic()
         self.ticker: TickerState = ticker_at(0.0)
+        self.radio: RadioState | None = None
+        self._radio_heard = -1               # senaste sändningen som skickats till ljudet
 
     def compose(self) -> ComposeResult:
         yield Static(header(), id="menu-title")
@@ -176,14 +179,21 @@ class MenuScreen(Screen):
         """Fjärrskrivaren och beredskapen. t: sekunder sedan menyn visades (tester)."""
         t = self.elapsed() if t is None else t
         self.ticker = ticker_at(t)
+        self.radio = radio_at(t)
         menu_sound = getattr(self.app, "menu_sound", None)
         if menu_sound is not None and self.is_current:
-            menu_sound.set_typing(self.ticker.typing)
+            menu_sound.set_typing(self.ticker.typing and self.radio is None)
+            if self.radio is not None and self.radio.number != self._radio_heard:
+                menu_sound.radio(self.radio.bulletin.ru)
+        if self.radio is not None:
+            self._radio_heard = self.radio.number
         lit = int(t / BLINK_S) % 2 == 0
         width = self.size.width or 100
+        line = (radio_text(self.radio, width - 4) if self.radio is not None
+                else ticker_text(self.ticker, width - 4, lit))
         try:
             self.query_one("#menu-title", Static).update(header(width, self.ticker.level, lit))
-            self.query_one("#ticker", Static).update(ticker_text(self.ticker, width - 4, lit))
+            self.query_one("#ticker", Static).update(line)
         except Exception:                             # noqa: BLE001 – under nedstängning
             pass
 

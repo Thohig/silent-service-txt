@@ -22,9 +22,10 @@ class FakeOut:
 def tiny_samples(monkeypatch):
     """Snabba slingor i stället för den riktiga syntesen."""
     loops = {"music": np.full(100, 0.1), "harbor": np.full(100, 0.1),
-             "teleprinter": np.full(100, 0.1)}
+             "teleprinter": np.full(100, 0.1), "static": np.full(100, 0.1)}
     monkeypatch.setattr(menu_audio, "synth_menu", lambda: loops)
-    monkeypatch.setattr(menu_audio, "synth_oneshots", lambda: {"telegraph": np.full(300, 0.2)})
+    monkeypatch.setattr(menu_audio, "synth_oneshots", lambda: {"telegraph": np.full(300, 0.2),
+                                                             "tuning": np.full(300, 0.2)})
 
 
 def _seam_ok(x: np.ndarray) -> bool:
@@ -36,7 +37,7 @@ def _seam_ok(x: np.ndarray) -> bool:
 @pytest.mark.slow
 def test_loops_are_finite_quiet_enough_and_seamless():
     loops = menu_audio.synth_menu()
-    assert set(loops) == {"music", "harbor", "teleprinter"}
+    assert set(loops) == {"music", "harbor", "teleprinter", "static"}
     assert len(loops["music"]) == RATE * 64 and len(loops["harbor"]) == RATE * 40
     for name, x in loops.items():
         assert np.isfinite(x).all() and np.max(np.abs(x)) <= 1.0, name
@@ -108,3 +109,59 @@ def test_app_starts_menu_music_toggles_it_and_stops_it_when_command_is_taken(
             assert app.menu_sound is None and snd.out is None
 
     asyncio.run(run())
+
+
+def test_radio_voice_is_narrow_band_and_bounded():
+    t = np.arange(RATE) / RATE
+    x = np.sin(2 * np.pi * 120 * t) + np.sin(2 * np.pi * 1000 * t) + np.sin(2 * np.pi * 6000 * t)
+    y = menu_audio.radio_voice(x)
+    assert np.max(np.abs(y)) <= 0.8 + 1e-9 and len(y) > len(x)
+    spec = np.abs(np.fft.rfft(y))
+    f = np.fft.rfftfreq(len(y), 1 / RATE)
+
+    def power(c):
+        return spec[(f > c - 20) & (f < c + 20)].sum()
+    assert power(1000) > 5 * power(120) and power(1000) > 5 * power(6000)
+
+
+def test_read_wav_resamples_to_the_mixer_rate(tmp_path):
+    import wave
+    path = tmp_path / "x.wav"
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(11025)
+        w.writeframes((np.full(11025, 0.5) * 32767).astype("<i2").tobytes())
+    x = menu_audio.read_wav(path)
+    assert abs(len(x) - RATE) <= 1 and abs(x.mean() - 0.5) < 0.01
+
+
+def test_broadcast_tunes_in_speaks_and_goes_quiet(tiny_samples):
+    spoken = []
+
+    def voice(text):
+        spoken.append(text)
+        return np.full(RATE // 2, 0.3)
+
+    snd = MenuSound(out_factory=FakeOut, threaded=False, voice=voice)
+    snd.radio("Говорит Москва.")
+    assert spoken == ["Говорит Москва."]
+    assert snd.mixer.busy and len(snd.mixer._shots) == 2                # ratten och rösten
+    assert not snd.on_air and "static" not in snd.mixer._targets        # klart: bruset borta
+    assert snd.mixer._targets["music"].gain == GAIN["music"]
+    # utan rysk röst: bara brus
+    quiet = MenuSound(out_factory=FakeOut, threaded=False, voice=lambda _t: None)
+    quiet.radio("Говорит Москва.")
+    assert len(quiet.mixer._shots) == 1
+    # inte efter avfärden
+    quiet.depart()
+    quiet.radio("Говорит Москва.")
+    assert quiet.radio_count == 1
+
+
+def test_music_ducks_and_static_plays_while_on_air(tiny_samples):
+    snd = MenuSound(out_factory=FakeOut, threaded=False, voice=lambda _t: None)
+    snd.on_air = True
+    snd._targets()
+    assert "static" in snd.mixer._targets
+    assert snd.mixer._targets["music"].gain < GAIN["music"]
