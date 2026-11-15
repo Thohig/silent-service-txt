@@ -82,6 +82,16 @@ LAND_MARK_STEP_NM = 0.25   # land på sjökortet: en prick per ruta
 LAND_CLEAR_M = 21          # grundare än så framåt: inte ens periskopdjup går, gir i stället
 LAND_TURNS = (30, 60, 90, 120, 150, 180)
 FOLLOW_STEP_S = 15         # följ: ny kurs på kontaktens bäring så här ofta
+WAIT_NAME = "Väntläget"    # punkten utanför grinden där vi väntar på ett fartyg in
+WAIT_OUT_NM = 1.4          # så långt ut från nätet längs farleden (innanför patrullbåtens skärm)
+WAIT_SIDE_NM = 0.35        # så långt vid sidan av leden (fartyget passerar nära, inte över oss)
+WAIT_MIN_DEPTH_M = 40      # kortets djup vid väntläget minst så här
+WAIT_STEP_S = 15
+WAIT_ARRIVED_NM = 0.1
+WAIT_TRANSIT_KN = 5.0      # dit i smygmotorns högsta fart ...
+WAIT_QUIET_NM = 5.0        # ... tills vi är så här nära nätet,
+WAIT_QUIET_KN = 3.0        # sedan så här tyst
+WAIT_SUGGEST_S = 900
 ATTACK_STEP_S = 30         # anfall: ny kurs mot skjutläget så här ofta
 ATTACK_OFFSET_NM = 1.2     # skjutläget ligger så här långt från målets väg
 ATTACK_LEAD_H = 4 / 60     # framme så här länge innan målet är tvärs
@@ -109,6 +119,11 @@ CONTOUR_LABEL_SPOTS = ((5, 5), (15, 5), (5, 15), (15, 15), (10, 10))   # andelar
 @dataclass(frozen=True)
 class SteerTo(Order):
     name: str
+
+
+@dataclass(frozen=True)
+class GoToWait(Order):
+    pass
 
 
 @dataclass(frozen=True)
@@ -265,6 +280,18 @@ PHRASES = {
                                       ", farten håller vi tills plottet har en lösning") + ".",
     "nav.follow.none": lambda d: f"Kapten, vi har ingen bäring på {d['designation']}.",
     "nav.follow.lost": lambda d: f"Kapten, vi har tappat {d['designation']}. Slutar följa.",
+    "nav.suggest.wait": lambda d: f"Kapten, navigatören. Grinden i nätet öppnas bara för fartyg. "
+    f"Föreslår att vi väntar {nm(d['out'])} sjömil ut från nätet, vid sidan av farleden och "
+    f"innanför patrullbåtens skärm, och lyssnar efter ett fartyg på väg in. "
+    f"{nm(d['range'])} sjömil dit, i smygmotor.",
+    "nav.wait": lambda d: f"{ru('Jest')}, till väntläget, kurs {fmt_course(d['course'])}, "
+    f"{nm(d['range'])} sjömil.",
+    "nav.wait.arrived": lambda d: "Kapten, vi ligger vid väntläget och håller läget i låg fart. "
+    f"Bestickets osäkerhet är {nm(d['sigma'])} sjömil"
+    + (", så leden kan ligga närmare eller längre bort än vi tror" if d["sigma"] > WAIT_SIDE_NM
+       else "") + ". Sonar lyssnar efter fartyg på väg in.",
+    "nav.wait.none": lambda d: "Kapten, vi känner inte nätets och ankarplatsens läge, "
+    "så jag kan inte lägga ut något väntläge.",
     "nav.attack": lambda d: f"Anfall mot {_att_what(d)}. Skjutläge {nm(d['offset'])} sjömil om "
     f"{_att_side(d)} om {_att_path(d)}. Kurs {fmt_course(d['course'])}, framme om "
     f"{_minutes(d['minutes'])} i {kn(d['speed'])} knop.",
@@ -480,6 +507,12 @@ RU_PHRASES = {
     f"{'Конвой' if d.get('convoy') else R.contact(d['designation']).capitalize()} идёт курсом "
     f"{R.course(d['course'])}, мы впереди. Предлагаю выйти в атаку по "
     f"{R.contact(d['designation'], True)}.",
+    "nav.suggest.wait": lambda d: f"{R.CAPTAIN}, штурман. Ворота в сети открывают только для "
+    "судов. Предлагаю ждать у фарватера и слушать, не идёт ли судно в гавань.",
+    "nav.wait": lambda d: f"Есть, идём в точку ожидания, курс {R.course(d['course'])}.",
+    "nav.wait.arrived": lambda d: f"{R.CAPTAIN}, мы в точке ожидания. Держим место малым ходом.",
+    "nav.wait.none": lambda d: f"{R.CAPTAIN}, место сети неизвестно. Точку ожидания "
+    "назначить не могу.",
     "nav.follow.lost": lambda d: f"{R.CAPTAIN}, мы потеряли {R.contact(d['designation'])}. "
     "Прекращаем следование.",
     "nav.suggest.fix": lambda d: f"{R.CAPTAIN}, штурман. Ошибка счисления {R.dec(d['sigma'], R.MILE)}. "
@@ -538,6 +571,8 @@ class NavigationStation(Station):
         CommandSpec(r"anfall (?:mot )?(s-?\d+)|anfallsläge (s-?\d+)|anfallslage (s-?\d+)",
                     lambda m: AttackApproach(m.group(1) or m.group(2) or m.group(3)),
                     "anfall S-1"),
+        CommandSpec(r"(?:gå till |ga till |till )?(?:väntläget|vantlaget|väntläge|vantlage)",
+                    lambda m: GoToWait(), "väntläget"),
         CommandSpec(r"följ (s-?\d+)|folj (s-?\d+)",
                     lambda m: FollowContact(m.group(1) or m.group(2)), "följ S-1"),
         CommandSpec(r"(?:kurs|styr|gå|ga) mot (.+)", lambda m: SteerTo(m.group(1)), "kurs mot <plats>"),
@@ -578,6 +613,7 @@ class NavigationStation(Station):
         self.follow_speed = True
         self.attack: str | None = None        # kontakten vi går till skjutläge mot (goal "attack")
         self._attack_arrived_t = -10**9
+        self._wait_arrived = False
         self._attack_behind = 0
         self._water = None                    # sjökortets vattenrutnät för vägsökning
         self._exit_cache: tuple[int, tuple | None, str | None] | None = None
@@ -976,6 +1012,8 @@ class NavigationStation(Station):
                 self._ack("course", {"course": c}, s.course == s.ordered_course)
             case SetSpeed(speed=v):
                 self.vak = None
+                if self.goal == "wait":
+                    self.goal = None            # kaptenen tar över farten: vi håller inte läget
                 self.follow_speed = False       # kaptenen sätter farten själv
                 if v > 0:
                     self._lift()
@@ -1019,6 +1057,8 @@ class NavigationStation(Station):
                 self._go_to_station()
             case SteerTo(name=name):
                 self._steer_to(name)
+            case GoToWait():
+                self._start_wait()
             case FollowContact(designation=d):
                 self._start_follow(d)
             case AttackApproach(designation=d):
@@ -1645,6 +1685,89 @@ class NavigationStation(Station):
             data.update(course=course, minutes=t_h * 60, side=side)
             self.say("nav.attack", data, kind="ack", quality=q)
 
+    # --- väntläget utanför grinden -------------------------------------------------
+    def _wait_point(self) -> tuple[float, float, float] | None:
+        """Väntläget utanför nätet: ut längs farleden (dit kortet visar djupast vatten), åt vår sida."""
+        k = self.game.knowledge
+        net = next((w for n, w in k.waypoints.items() if n.lower() == "nätet"), None)
+        chart = k.bathymetry
+        if net is None or chart is None:
+            return None
+        dirs = [math.radians(a) for a in range(0, 360, 10)]
+        depth, b = max((float(chart.depth_at(net.x + WAIT_OUT_NM * math.sin(b),
+                                             net.y + WAIT_OUT_NM * math.cos(b))), b) for b in dirs)
+        if depth < WAIT_MIN_DEPTH_M:
+            return None
+        ux, uy = math.sin(b), math.cos(b)                       # ut mot havet längs farleden
+        nx, ny = uy, -ux
+        side = 1.0 if (self.est_x - net.x) * nx + (self.est_y - net.y) * ny >= 0 else -1.0
+        for sd in (side, -side):
+            x = net.x + ux * WAIT_OUT_NM + sd * nx * WAIT_SIDE_NM
+            y = net.y + uy * WAIT_OUT_NM + sd * ny * WAIT_SIDE_NM
+            if float(chart.depth_at(x, y)) >= WAIT_MIN_DEPTH_M:
+                return x, y, net.sigma(self.now)
+        return None
+
+    def _publish_wait_point(self) -> tuple[float, float] | None:
+        wp = self._wait_point()
+        if wp is None:
+            return None
+        x, y, sigma = wp
+        from ..events import PositionReported
+        self.game.bus.publish(PositionReported(self.now, WAIT_NAME, x, y, sigma, self.now,
+                                               "navigatören"))
+        return x, y
+
+    def _harbor_watch(self) -> None:
+        """Före bilderna, utanför nätet: föreslå väntläget (resten upptäcker kaptenen själv)."""
+        k = self.game.knowledge
+        if k.best_photo is not None or self.goal is not None or k.hunted(self.now):
+            return
+        net = next((w for n, w in k.waypoints.items() if n.lower() == "nätet"), None)
+        if net is None or distance(self.est_x, self.est_y, net.x, net.y) < WAIT_OUT_NM - 0.3:
+            return
+        p = self._publish_wait_point()
+        if p is None or distance(self.est_x, self.est_y, *p) < 0.3:
+            return
+        self.suggest("harbor_wait", "nav.suggest.wait",
+                     {"out": WAIT_OUT_NM, "range": distance(self.est_x, self.est_y, *p)},
+                     order="smygmotor, väntläget", cooldown=WAIT_SUGGEST_S)
+
+    def _start_wait(self) -> None:
+        p = self._publish_wait_point()
+        if p is None:
+            self.say("nav.wait.none")
+            return
+        self.vak = None
+        self.goal = "wait"
+        self._wait_arrived = False
+        c = round(bearing_to(self.est_x, self.est_y, *p)) % 360
+        self.ship.order_course(c)
+        self._wait_step()
+        self.say("nav.wait", {"course": c, "range": distance(self.est_x, self.est_y, *p)},
+                 kind="ack")
+
+    def _wait_step(self) -> None:
+        """Styr mot väntläget och håll det mot tidvattnet: 3 kn dit, 1–2 kn när vi är framme."""
+        wp = self.game.knowledge.waypoints.get(WAIT_NAME)
+        if wp is None:
+            self.goal = None
+            return
+        s = self.ship
+        d = distance(self.est_x, self.est_y, wp.x, wp.y)
+        s.order_course(round(bearing_to(self.est_x, self.est_y, wp.x, wp.y)) % 360)
+        if d <= WAIT_ARRIVED_NM and not self._wait_arrived:
+            self._wait_arrived = True
+            self.say("nav.wait.arrived", {"sigma": self.uncertainty()}, alarm=True)
+        if self._wait_arrived:
+            s.order_speed(1.0 if d <= WAIT_ARRIVED_NM else 2.0)
+        else:
+            # fortare långt ute; tyst genom patrullbåtens skärm (1,5–2,5 nm ut) och sista biten
+            net = next((w for n, w in self.game.knowledge.waypoints.items()
+                        if n.lower() == "nätet"), None)
+            far = net is not None and distance(self.est_x, self.est_y, net.x, net.y) > WAIT_QUIET_NM
+            s.order_speed(min(WAIT_TRANSIT_KN, self.own.max_speed()) if far else WAIT_QUIET_KN)
+
     def _convoy_watch(self) -> None:
         """Plottet har en konvoj och vi ligger framför den: föreslå anfall (aldrig avfyring)."""
         from .officer import is_big_ship
@@ -1828,6 +1951,9 @@ class NavigationStation(Station):
             self._attack_step()
         elif self.now % ATTACK_STEP_S == 0:
             self._convoy_watch()
+            self._harbor_watch()
+        if self.goal == "wait" and self.now % WAIT_STEP_S == 0:
+            self._wait_step()
         self._log_depth()
         if self.now % DR_TRACK_INTERVAL_S == 0:
             self.dr_track[-1].append((self.est_x, self.est_y))

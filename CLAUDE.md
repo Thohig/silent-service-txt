@@ -232,6 +232,13 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   besättningens verktyg klarar 3 (goda bilder i 6), bot som läser sanningen 5 (bilder i 8);
   ja-boten och den som försöker smyga genom skärmen utan fartyg klarar 0. Botarna i scratchpad
   (`follow_bot.py`, `strait_bot.py`).
+  Väntläget (första steget, `_harbor_watch`/`_wait_point`): före fotot och utanför nätet föreslår
+  navigatören `smygmotor, väntläget`: 1,4 nm ut från nätet åt det håll kortet visar djupast vatten
+  (farleden), 0,35 nm vid sidan åt vår sida, ≥ 40 m på kortet; ritas som känd plats `Väntläget`.
+  `väntläget` styr dit (5 kn, 3 kn inom 5 nm från nätet) och håller läget i 1–2 kn; `kurs` eller `fart`
+  avbryter. Resten (följ, foto, ut) föreslås inte. 8 frön, bara detta förslag: framme i 8 efter
+  ~100 min, första fartyget in passerar 0,1–0,6 nm (oftast 0,3–0,55); patrullbåten får kontakt
+  under passagen genom skärmen i 7 (passiv bot 3), oberoende av djup.
 - Konvojen (`konvoj`, `convoy_scenario`): 28 okt, krig, 06:30 (dagsljus). Konvoj (2 trupptransporter,
   1 tanker) och 2 eskorter, baskurs 190–230°, start 16–20 nm bort, vägen passerar oss på 1,5–5 nm;
   ordern ger läge (±2 nm) och kurs avrundad. Mål `mission["strike"]`: minst ett mål sänkt och ingen

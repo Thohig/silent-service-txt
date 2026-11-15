@@ -234,3 +234,48 @@ def test_follow_order_steers_on_the_contacts_bearing():
     g.command("kurs 090")
     g.tick()
     assert nav.goal is None
+
+
+# --- väntläget utanför grinden (första steget i grindtricket) -----------------------
+def _harbor(g):
+    return next(sp for sp in g.world.spawners if isinstance(sp, HarborDefense))
+
+
+def test_navigator_suggests_a_wait_point_seaward_of_the_gate():
+    for seed in range(1, 6):
+        g = _game(seed)
+        said = _said(g)
+        for _ in range(40):
+            g.tick()
+        sug = [r for r in said if r.type == "nav.suggest.wait"]
+        assert sug and "[ja: smygmotor, väntläget]" in sug[0].text, seed
+        wp = g.knowledge.waypoints["Väntläget"]
+        net, anchor = g.knowledge.waypoints["Nätet"], g.knowledge.waypoints["Ankarplatsen"]
+        assert float(g.knowledge.bathymetry.depth_at(wp.x, wp.y)) >= 40, seed
+        assert 1.2 <= ((wp.x - net.x) ** 2 + (wp.y - net.y) ** 2) ** 0.5 <= 1.6, seed
+        assert wp.y < net.y < anchor.y + 0.5, seed          # ute på havssidan om nätet
+        assert abs(wp.x - _harbor(g).net.gate_x) <= 0.6, seed   # nära farleden, vid sidan av
+
+
+def test_wait_order_takes_us_there_and_holds_station():
+    g = _game(2)
+    said = _said(g)
+    for _ in range(40):
+        g.tick()
+    nav = g.station(NavigationStation)
+    wp = g.knowledge.waypoints["Väntläget"]
+    o = g.world.own.state
+    o.x, o.y = wp.x - 0.3, wp.y - 0.3                      # nära, med besticket i fas
+    nav.est_x, nav.est_y = o.x, o.y
+    g.command("väntläget")
+    assert nav.goal == "wait"
+    for _ in range(15 * 60):
+        g.tick()
+        if any(r.type == "nav.wait.arrived" for r in said):
+            break
+    assert any(r.type == "nav.wait.arrived" for r in said)
+    for _ in range(30):
+        g.tick()
+    assert o.ordered_speed <= 2.0 and nav.goal == "wait"
+    g.command("fart 8")                                    # kaptenen tar över
+    assert nav.goal is None
