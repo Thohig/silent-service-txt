@@ -13,7 +13,7 @@ from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.css.query import NoMatches
 from textual.screen import Screen
 from textual.timer import Timer
@@ -33,7 +33,7 @@ from .periscope import PeriscopeScreen
 from .profile import ProfileScreen
 from .systems import SystemScreen
 from .teletype import Teletype
-from .widgets import DepthGauge, ReportLog, StatusBar
+from .widgets import CentralView, DepthGauge, ReportLog, StatusBar
 
 MAX_TICKS_PER_FRAME = 20
 CHART_WORDS = {"sjökort", "sjokort", "kort", "karta"}
@@ -45,6 +45,7 @@ LOG_WORDS = {"logg", "loggen"}
 VIEWS = (ChartScreen, ProfileScreen, SystemScreen, PeriscopeScreen,
          BridgeScreen)   # Tab-ordningen efter loggen
 GAUGE_EVERY_S = 0.5
+CENTRAL_MIN_WIDTH = 100                # smalare terminal: bara djupmätaren
 SOUND_WORDS = {"ljud", "ljud av", "ljud på", "ljud pa"}
 SPEECH_WORDS = {"tal ryska": "ru", "tal svenska": "sv"}
 SOUND_KEY = "ctrl+t"                   # t som i tal
@@ -63,12 +64,19 @@ class GameScreen(Screen):
         yield Teletype("", id="intro")
         with Horizontal(id="main"):
             yield ReportLog(id="log", wrap=True, markup=False, max_lines=2000)
-            yield DepthGauge(id="gauge")
+            with Vertical(id="side"):
+                yield CentralView(id="central")
+                yield DepthGauge(id="gauge")
         yield Input(placeholder="Order …   (skriv hjälp för en lista)", id="order")
 
     def on_mount(self) -> None:
         self.query_one("#main").display = False
         self.app._begin()
+
+    def on_resize(self, event) -> None:
+        wide = event.size.width >= CENTRAL_MIN_WIDTH
+        self.query_one("#central").display = wide
+        self.query_one("#side").set_class(not wide, "narrow")
 
 
 class SubApp(App):
@@ -79,7 +87,10 @@ class SubApp(App):
     #intro  { height: 1fr; padding: 2 6; }
     #main   { height: 1fr; }
     #log    { width: 1fr; padding: 0 1; background: #0b0f0c; scrollbar-size-vertical: 1; }
-    #gauge  { width: 24; padding: 1 1 0 1; background: #0f1611; color: #7f9a80; }
+    #side   { width: 42; background: #0f1611; }
+    #side.narrow { width: 24; }
+    #central { height: 13; padding: 0 1; }
+    #gauge  { width: 100%; height: 1fr; padding: 1 1 0 1; background: #0f1611; color: #7f9a80; }
     #order  { border: tall #2f4a36; background: #0f1611; }
     #order:focus { border: tall #5f8a66; }
     """
@@ -108,6 +119,7 @@ class SubApp(App):
         self.sound: SoundBoard | None = None
         self._sound_note: str | None = None
         self._gauge_t = 0.0
+        self._spoke: dict[str, float] = {}   # roll → när den senast rapporterade (väggklocka)
         self.language: str | None = None     # talets språk, gäller över uppdragen
         self.scenario_key: str | None = None
         self._screen: GameScreen | None = None
@@ -187,8 +199,10 @@ class SubApp(App):
         if self.language is not None:
             self.sound.set_language(self.language)
         self._game_ready = True
+        self._spoke = {}
         try:
             self.gs().query_one(StatusBar).show(game.status())
+            self._show_central(game.status(), time.monotonic())
             if self.gs().query_one(Teletype).done:
                 self._show_footer()
         except NoMatches:
@@ -389,11 +403,17 @@ class SubApp(App):
             if now - self._gauge_t >= GAUGE_EVERY_S:
                 self._gauge_t = now
                 self.gs().query_one(DepthGauge).show(self.game.profile())
+                self._show_central(status, now)
         except NoMatches:
             pass
 
+    def _show_central(self, status, now: float) -> None:
+        speaking = {role: now - t for role, t in self._spoke.items()}
+        self.gs().query_one(CentralView).show(status, speaking, now)
+
     # ------------------------------------------------------------------ händelser
     def _on_report(self, e: ReportDelivered) -> None:
+        self._spoke[e.report.role] = time.monotonic()
         self.gs().query_one(ReportLog).add_report(self.game.clock_str(), e.report)
         if isinstance(self.screen, VIEWS):
             self.screen.add_report(self.game.clock_str(), e.report)

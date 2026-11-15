@@ -186,6 +186,13 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   samlar, `ui/profile_render.py` ritar sidovyn (tid vågrätt, botten i eget band under
   bruten axel) och djupmätaren bredvid loggen. Tab växlar logg → sjökort → profil → systemtavla → periskopbild → logg, med luckan öppen brygga före
   periskopbild (`SubApp.tab_views`; `VIEWS` är alla vyer).
+- **Centralen** (`ui/central_render.py`, `CentralView` i `ui/widgets.py`): bild av центральный пост
+  ovanför djupmätaren (40 × 13, döljs under 100 kolumner). Ren funktion `render_central(status, speaking, t)`
+  ur `StatusSnapshot` (bara egna instrument) och vem som rapporterat senaste 3 s (`SubApp._spoke`, roll ⇒
+  plats eller snabbtelefonens lampa). Mätare kurs/sidroder/djup/djuproder (rodren härledda ur beordrat mot
+  verkligt), periskopet hissas med `periscope_up_s`, stegen och luckan (himlen syns), maskintelegrafen,
+  julgranen (lucka, periskop, master), rött ljus på natten eller jagade (`night`, `hunted`), larmlampor,
+  rök och vatten.
 - **Systemtavlan** (`system`): `Station.system_items()` ger element (`sim/systems.py`):
   `Gauge` (panel, etikett, text, tillstånd ok/info/av/varning/fara, ev. stapel), `Compartment`
   (nio avdelningar, maskin), `TubeRack` (torpedrum), `Flooding`. Ur egna instrument

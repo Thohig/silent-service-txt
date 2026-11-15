@@ -11,6 +11,7 @@ from sim.geo import fmt_course
 from sim.profile import ProfileView
 from sim.reports import Quality, Report
 
+from .central_render import render_central
 from .profile_render import render_gauge
 
 QUALITY_STYLE = {
@@ -185,3 +186,10 @@ class DepthGauge(Static):
 
     def show(self, view: ProfileView) -> None:
         self.update(Text("\n").join(render_gauge(view)))
+
+
+class CentralView(Static):
+    """Centralen som bild ovanför djupmätaren (ui/central_render.py)."""
+
+    def show(self, status: StatusSnapshot, speaking: dict[str, float], t: float) -> None:
+        self.update(Text("\n").join(render_central(status, speaking, t)))

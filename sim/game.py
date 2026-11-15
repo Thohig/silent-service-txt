@@ -81,6 +81,8 @@ class StatusSnapshot:
     periscope_train: float = 0.0    # okularets bäring (periskopets gradring)
     periscope_up_s: int = 0         # så länge masten varit uppe
     periscope_optic: str = "periskop"   # periskop, eller kikare från bryggan
+    night: bool = False             # mörkt ute (centralen går på rött ljus)
+    hunted: bool = False            # sonar hör att fienden har oss
 
 
 def build_registry(station_classes: list[type[Station]]) -> CommandRegistry:
@@ -430,4 +432,5 @@ class Game:
             fire=sy.fire, smoke=sy.smoke, ventilating=sy.ventilating, on_bottom=sy.on_bottom,
             bridge=sy.bridge, periscope=pmode, periscope_train=ptrain, periscope_up_s=pup,
             periscope_optic=poptic,
+            night=not self.world.env.is_day(self.now), hunted=self.knowledge.hunted(self.now),
         )
