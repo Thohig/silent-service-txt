@@ -311,6 +311,7 @@ def test_tab_reaches_the_bridge_view_and_arrows_turn_it(tmp_path):
 
     from ui.app import SubApp
     from ui.bridge import BridgeScreen
+    from ui.periscope import PeriscopeScreen
 
     async def run():
         app = SubApp(seed=3, log_dir=tmp_path, scenario="kuba")
@@ -321,7 +322,7 @@ def test_tab_reaches_the_bridge_view_and_arrows_turn_it(tmp_path):
                 ai.can_force = False
             g.world.env.sunrise, g.world.env.sunset = 0, 24 * 3600
             _surface(g)
-            await pilot.press("tab", "tab", "tab", "tab", "tab")
+            await pilot.press("tab", "tab", "tab", "tab")       # i ytläge före periskopet
             assert isinstance(app.screen, BridgeScreen)
             await pilot.pause(0.6)
             body = str(app.screen.query_one("#bridge-body").render())
@@ -332,7 +333,9 @@ def test_tab_reaches_the_bridge_view_and_arrows_turn_it(tmp_path):
             assert app.screen.view_rel == 0.0
             app.save_screenshot(str(tmp_path / "brygga.svg"))
             await pilot.press("tab")
-            assert not isinstance(app.screen, BridgeScreen)
+            assert isinstance(app.screen, PeriscopeScreen)
+            await pilot.press("tab")
+            assert not isinstance(app.screen, (BridgeScreen, PeriscopeScreen))
 
     asyncio.run(run())
 
@@ -554,3 +557,17 @@ def test_periscope_view_shows_the_bridge_and_shares_the_look(tmp_path):
             assert 60 <= app.screen.view_rel <= 120
 
     asyncio.run(run())
+
+
+def test_the_last_bridge_picture_becomes_the_periscope_picture_on_diving():
+    g, reports = _game(dd_at=(0.5, 3.0))
+    _surface(g)
+    assert g.knowledge.periscope is None
+    last = g.knowledge.bridge
+    g.command("djup 40")
+    for _ in range(BRIDGE_CLEAR_S + 5):
+        g.tick()
+    assert g.knowledge.bridge is None
+    pic = g.knowledge.periscope
+    assert pic is not None and pic.eye == "brygga" and pic.t >= last.t
+    assert pic.ships()

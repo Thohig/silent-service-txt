@@ -60,6 +60,11 @@ RANGE_ABS_SIGMA = 0.03
 SPEED_SIGMA = 2.0            # fart ur bogvåg och varvtal, knop
 CLOSE_NM = 3.0               # en jagare så nära: föreslå djupt
 HOLD_MAX_KN = 7              # fortare vibrerar masten och ger svall
+RECALL_S = 300               # samma fartyg, oförändrat, så nyss utropat: bara en kort rapport
+RECALL_COURSE_DEG = 15
+RECALL_SPEED_KN = 3
+MAST_WARN_S = 60             # masten uppe så länge med ett hot i plottet: föreslå periskop ned
+MAST_WARN_EVERY_S = 180
 
 
 @dataclass(frozen=True)
@@ -106,6 +111,11 @@ PHRASES = {
     "off.periscope.lowered": lambda d: f"Periskop ner, {d['reason']}.",
     "off.periscope.contact": lambda d: "Periskop: "
     + (_lights_contact(d) if d.get("lights") else _contact(d)),
+    "off.periscope.again": lambda d: f"Periskop: {d['designation']} som förut, i bäring "
+    f"{fmt_course(d['bearing'])}, cirka {nm(d['range'])} sjömil.",
+    "off.suggest.mast_down": lambda d: f"Kapten, vakthavande. Periskopet har varit uppe i "
+    f"{d['seconds'] // 60} minut{'er' if d['seconds'] >= 120 else ''} och plottet har "
+    f"{d['designation']}. Masten kan synas på deras radar. Föreslår periskop ned.",
     "off.periscope.none": lambda d: (f"Periskop: inget i sikte i bäring {fmt_course(d['sector'])}. "
                                      if d.get("sector") is not None else "Periskop: inget i sikte. ")
     + f"{'Dagsljus' if d['day'] else 'Mörkt'}, sikt cirka {nm(d['visibility'])} sjömil. Periskop ner.",
@@ -136,6 +146,10 @@ RU_PHRASES = {
     "off.periscope.contact": lambda d: f"Перископ: {R.contact(d['designation'])}, пеленг "
     f"{R.course(d['bearing'])}, дистанция {R.dec(d['range'], R.MILE)}.",
     "off.periscope.none": lambda d: "Перископ: горизонт чист. Перископ опущен.",
+    "off.periscope.again": lambda d: f"Перископ: {R.contact(d['designation'])} без изменений, "
+    f"пеленг {R.course(d['bearing'])}.",
+    "off.suggest.mast_down": lambda d: f"{R.CAPTAIN}, вахтенный офицер. Перископ поднят давно. "
+    "Предлагаю опустить перископ.",
     "off.periscope.station": lambda d: f"Перископ: огни на льду, пеленг {R.course(d['bearing'])}. "
     "Это станция!",
     "off.suggest.surface_station": lambda d: f"{R.CAPTAIN}, вахтенный офицер. Станция рядом. "
@@ -182,6 +196,7 @@ class PeriscopeWatch(Station):
         self._up_t = 0                      # när masten hissades (en hissning = en bedömning)
         self._sweep_from = 0.0
         self._judges = Judges(JUDGE_EVERY_S)
+        self._last_call: dict[str, tuple[int, float, float]] = {}   # (t, kurs, fart) senast utropat
         self._new_raising()
 
     @property
@@ -326,11 +341,22 @@ class PeriscopeWatch(Station):
                 self._lower(final=True)
                 return
             sys.periscope_until = max(sys.periscope_until, self.now + 1)
+            self._mast_watch()
         elif self.mode == "sweep":
             done = min(self.now - self._start_t, LOOK_S)
             self.train = norm360(self._sweep_from + SWEEP_DEG_S * done)
         self._observe()
         self._step()
+
+    def _mast_watch(self) -> None:
+        """Masten länge uppe och ett hot i plottet: föreslå att fälla den."""
+        if self.up_s < MAST_WARN_S:
+            return
+        threats = [t for t in self.game.knowledge.tracks.values() if t.threat]
+        if threats:
+            self.suggest("mast_down", "off.suggest.mast_down",
+                         {"seconds": self.up_s, "designation": threats[0].designation},
+                         order="periskop ned", cooldown=MAST_WARN_EVERY_S)
 
     def _step(self) -> None:
         if self.t_end is not None and self.now >= self.t_end:
@@ -422,10 +448,19 @@ class PeriscopeWatch(Station):
                        course, c_sig, speed)
         if v.id not in self._called:
             self._called.add(v.id)
-            self.say("off.periscope.contact",
-                     {"designation": desig_, "label": short, "bearing": bearing, "range": r_meas,
-                      "course": course, "speed": speed, "lights": list(ls)},
-                     kind="contact", quality=Quality.GOD)
+            prev = self._last_call.get(v.id)
+            if prev is not None and self.now - prev[0] <= RECALL_S \
+                    and abs(angle_diff(course, prev[1])) < RECALL_COURSE_DEG \
+                    and abs(speed - prev[2]) <= RECALL_SPEED_KN:
+                self.say("off.periscope.again",
+                         {"designation": desig_, "bearing": bearing, "range": r_meas},
+                         kind="contact", quality=Quality.GOD)
+            else:
+                self._last_call[v.id] = (self.now, course, speed)
+                self.say("off.periscope.contact",
+                         {"designation": desig_, "label": short, "bearing": bearing,
+                          "range": r_meas, "course": course, "speed": speed, "lights": list(ls)},
+                         kind="contact", quality=Quality.GOD)
             if v.kind == PHOTO_TARGET_KIND:
                 self.game.station(OfficerStation)._suggest_photo()
         if v.kind == "destroyer" and r_meas < CLOSE_NM:

@@ -228,7 +228,7 @@ class SubApp(App):
             log.add_system(self.game.clock_str(), "Besättningen talar ryska, loggen är på svenska. "
                            "tal svenska byter språk.")
         log.add_system(self.game.clock_str(), "Tab växlar mellan logg, sjökort, djupprofil, "
-                       "systemtavla, periskopbild och brygga.")
+                       "systemtavla och periskopbild, i ytläge också bryggan.")
         if self._sound_note:
             log.add_system(self.game.clock_str(), self._sound_note)
         elif self.sound and self.sound.enabled:
@@ -264,15 +264,26 @@ class SubApp(App):
     def action_bridge(self) -> None:
         self._toggle_view(BridgeScreen)
 
+    def tab_views(self) -> tuple[type[Screen], ...]:
+        """Tab-ordningen efter läget: under ytan ingen brygga; med folk på väg upp eller på
+        bryggan kommer bryggan före periskopbilden (kikaren)."""
+        base = (ChartScreen, ProfileScreen, SystemScreen)
+        if self.game is None or self.game.status().bridge == "shut":
+            return base + (PeriscopeScreen,)
+        return base + (BridgeScreen, PeriscopeScreen)
+
     def action_cycle(self) -> None:
-        """Tab: logg → sjökort → djupprofil → systemtavla → periskop → brygga → logg."""
+        """Tab: logg → sjökort → djupprofil → systemtavla → periskop (och brygga) → logg."""
         if not self.running or self.game is None:
             return
-        cur = next((i for i, cls in enumerate(VIEWS) if isinstance(self.screen, cls)), None)
+        views = self.tab_views()
+        cur = next((i for i, cls in enumerate(views) if isinstance(self.screen, cls)), None)
+        if cur is None and isinstance(self.screen, VIEWS):
+            cur = len(views) - 1            # en vy utanför ordningen (bryggan under ytan)
         if cur is None:
-            self._toggle_view(VIEWS[0])
-        elif cur + 1 < len(VIEWS):
-            self._toggle_view(VIEWS[cur + 1])
+            self._toggle_view(views[0])
+        elif cur + 1 < len(views):
+            self._toggle_view(views[cur + 1])
         else:
             self.pop_screen()
 

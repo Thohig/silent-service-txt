@@ -116,7 +116,7 @@ class Knowledge:
         bus.subscribe(HuntSigns, self._on_hunt)
         bus.subscribe(PhotoTaken, self._on_photo)
         bus.subscribe(PeriscopeSighted, self._on_periscope)
-        bus.subscribe(BridgeSighted, lambda e: setattr(self, "bridge", e.picture))
+        bus.subscribe(BridgeSighted, self._on_bridge)
         bus.subscribe(ConvoyAssessed, lambda e: setattr(self, "convoy", e.estimate))
         bus.subscribe(PeriscopeBlocked, lambda e: setattr(self, "periscope_blocked", (e.t, e.reason)))
         bus.subscribe(ListeningExercise, lambda e: setattr(self, "listening", e.active))
@@ -124,6 +124,15 @@ class Knowledge:
     # --- händelser ------------------------------------------------------------
     def _on_periscope(self, e: PeriscopeSighted) -> None:
         self.periscope = e.picture
+
+    def _on_bridge(self, e: BridgeSighted) -> None:
+        """Utryms bryggan blir dess sista bild periskopbilden (om den är nyare): det
+        senaste vi såg ovanför ytan."""
+        last = self.bridge
+        self.bridge = e.picture
+        if e.picture is None and last is not None and \
+                (self.periscope is None or last.t > self.periscope.t):
+            self.periscope = last
 
     def _on_photo(self, e: PhotoTaken) -> None:
         if self.best_photo is None or e.quality > self.best_photo:

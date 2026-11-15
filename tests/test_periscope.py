@@ -503,3 +503,42 @@ def test_live_periscope_view_turns_with_the_arrows(tmp_path):
             assert g.status().periscope is None
 
     asyncio.run(run())
+
+
+# --- L4: korta utrop, mastvarning --------------------------------------------------
+from sim.events import ReportDelivered  # noqa: E402
+
+
+def _report_types(g):
+    out = []
+    g.bus.subscribe(ReportDelivered, lambda e: out.append(e.report.type))
+    return out
+
+
+def test_a_second_look_soon_after_gives_a_short_report():
+    g = _game_at_periscope_depth(day=True)
+    types = _report_types(g)
+    v = next(v for v in g.world.contacts if v.kind == "destroyer")
+    for _ in range(2):
+        g.command("periskop")
+        for _ in range(LOOK_S + 30):
+            v.state.course = v.state.ordered_course = 270.0
+            g.tick()
+    assert types.count("off.periscope.contact") >= 1
+    assert "off.periscope.again" in types
+    # den korta rapporten är inte det första om jagaren
+    assert types.index("off.periscope.contact") < types.index("off.periscope.again")
+
+
+def test_crew_suggests_lowering_a_mast_held_up_with_a_threat_in_the_plot():
+    g = _game_at_periscope_depth(day=True)
+    types = _report_types(g)
+    g.command("periskop upp")
+    g.command("vrid periskop 000")          # jagaren rakt norrut: nu ett hot i plottet
+    for _ in range(90):
+        g.tick()
+    assert any(t.threat for t in g.knowledge.tracks.values())
+    assert "off.suggest.mast_down" in types
+    assert g.active_suggestion()[0] == "periskop ned"
+    g.command("ja")
+    assert g.station(PeriscopeWatch).mode is None
