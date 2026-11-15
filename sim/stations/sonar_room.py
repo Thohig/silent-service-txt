@@ -31,7 +31,10 @@ BEARING_REPORT_DELTA = 5.0
 BEARING_REPORT_MAX_AGE = 300
 SMOOTH_OBS = 6
 FAST_PING_S = 13
-PING_SAME_DEG = 3.0         # okända pingar inom så här många grader räknas som samma pingare
+PING_SAME_DEG = 8.0         # okända pingar inom så här många grader räknas som samma pingare
+PING_DRIFT_DEG_PER_S = 0.15 # ... plus så här mycket per sekund sedan förra pingen (pingaren rör sig)
+PING_SAME_MAX_DEG = 20.0
+PING_SMOOTH = 0.5           # ny ping väger så här mycket i pingarens bäring
 ICE_REPORT_S = 1800          # knakande is rapporteras inte oftare
 PROFILE_KEEP_S = 3 * 3600    # djupprofilen minns hörda ljud så här länge
 # Djupprofilens symboler för hörda ljud (och våra egna): (symbol, stil)
@@ -183,6 +186,7 @@ class SonarRoom(Station):
         self.sensor = SonarStation(self.member, random.Random(game.rng.random()))
         self._last_called: dict[str, tuple[float, int]] = {}
         self._pings: dict[str, dict] = {}
+        self._unknown_pingers = 0
         self._last_sound: dict[str, int] = {}
         self.heard: list[HeardEvent] = []          # för djupprofilen
 
@@ -382,14 +386,25 @@ class SonarRoom(Station):
         detail = ""
         if ev.kind == "ping":
             # okända pingare hålls isär på bäringen: två jagare i skärm är inte en snabb pingare
-            unknown = next((k for k, q in self._pings.items() if k.startswith("okänd")
-                            and abs(angle_diff(q.get("bearing", ev.bearing), ev.bearing))
-                            <= PING_SAME_DEG), None)
-            key = ev.designation or unknown or f"okänd{len(self._pings)}"
+            # bäringen brusar ett par grader per ping och pingaren rör sig: närmaste inom grinden
+            unknown, best = None, None
+            for k, q in self._pings.items():
+                if not k.startswith("okänd"):
+                    continue
+                off = abs(angle_diff(q.get("bearing", ev.bearing), ev.bearing))
+                since = self.now - q["last"] if q["last"] is not None else 0
+                gate = min(PING_SAME_MAX_DEG, PING_SAME_DEG + PING_DRIFT_DEG_PER_S * since)
+                if off <= gate and (best is None or off < best):
+                    unknown, best = k, off
+            if unknown is None and not ev.designation:
+                self._unknown_pingers += 1
+            key = ev.designation or unknown or f"okänd{self._unknown_pingers}"
             if key not in self._pings and unknown and ev.designation:
                 self._pings[key] = self._pings.pop(unknown)      # samma pingare, nu identifierad
             p = self._pings.setdefault(key, {"last": None, "fast": False, "close_t": -10**9})
-            p["bearing"] = ev.bearing
+            # utjämnad bäring: en enstaka brusig ping drar inte iväg grinden
+            p["bearing"] = ev.bearing if "bearing" not in p else \
+                norm360(p["bearing"] + PING_SMOOTH * angle_diff(ev.bearing, p["bearing"]))
             if p["last"] is None or self.now - p["last"] > 900:
                 self.say("sonar.ping.first", d, kind="contact", alarm=True)
                 self._suggest_layer()

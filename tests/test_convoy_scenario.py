@@ -104,3 +104,20 @@ def test_two_unknown_pingers_on_different_bearings_are_not_a_fast_pinger():
     for _ in range(5):
         g.tick()
     assert not any(r.type == "sonar.ping.fast" for r in reports)
+
+
+def test_one_unknown_pinger_with_noisy_bearings_is_one_pinger():
+    from sim.sonar import TransientHeard
+    for seed in SEEDS:
+        g, reports = _game(seed)
+        sonar = g.station(SonarRoom)
+        rng = random.Random(seed)
+        for k in range(30):                               # en jagare, 20 s mellan pingarna, 10 min
+            g.world.time = 100 + 20 * k
+            b = 90.0 + 1.0 * k + rng.gauss(0, 2.5)        # drar 1°/ping, svag signal
+            sonar._on_sound(TransientHeard("ping", b, 2.0, None))
+        for _ in range(5):
+            g.tick()
+        firsts = [r for r in reports if r.type == "sonar.ping.first"
+                  and 80 <= r.data["bearing"] <= 130]      # scenariots egna eskorter räknas inte
+        assert len(firsts) == 1, seed
