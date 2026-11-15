@@ -351,7 +351,10 @@ PHRASES = {
     + (" Sista benet ut." if d["legs"] == 1 else ""),
     "nav.fairway.done": lambda d: "Kapten, vi är ute ur farleden"
     + (f", {d['depth']:.0f} meter vatten enligt kortet" if d.get("depth") else "")
-    + ". Fritt att dyka här." + (f" {d['to']} ligger framför oss." if d.get("to") else ""),
+    + (". Fritt att dyka här." if d.get("surfaced") else ".")
+    + (f" {d['to']} ligger framför oss." if d.get("to") else ""),
+    "nav.fjord_dive": lambda d: "Kapten, navigatören! Vi är inne i fjorden. Ordern förbjuder "
+    "dykning innanför mynningen!",
     "nav.fairway.none": lambda d: "Kapten, vi har redan gått farleden ut." if d["done"]
     else "Kapten, det finns ingen farled framför oss på kortet.",
     "nav.suggest.fairway": lambda d: "Kapten, navigatören. Jag föreslår att vi följer farleden ut"
@@ -511,6 +514,7 @@ RU_PHRASES = {
     "nav.fairway.leg": lambda d: f"Поворотная точка. Новый курс {R.course(d['course'])}.",
     "nav.fairway.done": lambda d: f"{R.CAPTAIN}, фарватер пройден. Можно погружаться.",
     "nav.fairway.none": lambda d: f"{R.CAPTAIN}, фарватера впереди нет.",
+    "nav.fjord_dive": lambda d: f"{R.CAPTAIN}, штурман! Мы в заливе. Погружение здесь запрещено!",
     "nav.suggest.fairway": lambda d: f"{R.CAPTAIN}, штурман. Предлагаю идти по фарватеру, "
     "правой стороной.",
     "nav.suggest.fairway_to": lambda d: f"{R.CAPTAIN}, предлагаю курс {R.course(d['course'])} "
@@ -1079,6 +1083,8 @@ class NavigationStation(Station):
                 if d > s.max_depth:
                     self.say("nav.limit", {"what": "depth", "limit": s.max_depth})
                     return
+                if d > 0 and self._dive_forbidden_here():
+                    self.say("nav.fjord_dive", alarm=True)
                 s.order_depth(d)
                 data = {"depth": d, "below_test": d > TEST_DEPTH}
                 latest = self.icemap.latest(self.now)
@@ -1218,6 +1224,15 @@ class NavigationStation(Station):
             self._pending.discard(what)
         else:
             self._pending.add(what)
+
+    def _dive_forbidden_here(self) -> bool:
+        """Ordern förbjuder dykning i fjorden, och kortet säger att vi är där."""
+        sc = self.game.scenario
+        chart = self.game.knowledge.bathymetry
+        if sc is None or not getattr(sc, "no_dive_in_fjord", False) or chart is None:
+            return False
+        return any(hasattr(f, "in_fjord") and bool(f.in_fjord(self.est_x, self.est_y, 0.0))
+                   for f in chart.features)
 
     def _bridge_bearings(self) -> bool:
         """I ytläge med folk på bryggan och land i sikte: fix med pejlskivan, inget periskop."""
@@ -1913,7 +1928,7 @@ class NavigationStation(Station):
                 self._fw_done = True
                 k = self.game.knowledge
                 depth = self.chart_depth_at(self.est_x, self.est_y)
-                self.say("nav.fairway.done", {"to": k.fairway_to,
+                self.say("nav.fairway.done", {"to": k.fairway_to, "surfaced": self.own.surfaced,
                                               "depth": round(depth, -1) if depth else None})
                 if k.fairway_to and k.fairway_to in k.waypoints:
                     wp = k.waypoints[k.fairway_to]

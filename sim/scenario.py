@@ -94,6 +94,10 @@ class Scenario:
     # farleden ut enligt sjökortet (beräknade koordinater, i gångriktningen) och vart den leder
     fairway: list[tuple[float, float]] = field(default_factory=list)
     fairway_to: str | None = None
+    # övningsprogram (stegen i sim/stations/training.py) och var det görs
+    training: tuple[str, ...] = ()
+    training_area: str | None = None
+    no_dive_in_fjord: bool = False      # ordern förbjuder dykning innanför mynningen
 
 
 def _crew() -> dict[Role, CrewMember]:
@@ -959,7 +963,10 @@ DATUM: 8 OKTOBER 1962
 2. DYKNING ÄR TILLÅTEN FÖRST UTANFÖR
    MYNNINGEN.
 3. GÅ TILL ÖVNINGSOMRÅDET NORR OM
-   MYNNINGEN OCH ÖVA MED BÅTEN.
+   MYNNINGEN. GENOMFÖR PROGRAMMET:
+   DYKNING, PERISKOPSVEP, FIX, DJUP 100,
+   PROVDJUP 300 METER, SMYGMOTOR,
+   UPPSTIGNING. ANMÄL NÄR DET ÄR KLART.
 4. INGA SKARPA VAPEN.
 
 SLUT
@@ -969,7 +976,8 @@ TRAINING_CLOCK = 10 * 3600
 TRAINING_SIZE = 16.0
 TRAINING_AREA = "Övningsområdet"
 TRAINING_AREA_OUT_NM = 4.5          # övningsområdet så långt norr om mynningen
-TRAINING_AREA_R_NM = 0.8            # framme så här nära övningsområdets mitt
+TRAINING_STEPS = ("dyk", "svep", "fix", "framme", "djup100", "provdjup", "smyg", "pd", "upp")
+TRAINING_AREA_SIDE_NM = (1.5, 2.5)  # övningsområdet så långt vid sidan av leden
 TRAINING_KEEP_RIGHT_NM = 0.15       # fartygen håller så här långt till styrbord om farledens mitt
 TRAINING_KN = 10.0                  # fart ut genom fjorden
 TRAINING_START_Y = 1.2              # vi lägger ut från Poljarnyj här (nm norr om kortets kant)
@@ -1015,11 +1023,12 @@ def training_scenario(rng: random.Random) -> Scenario:
     traffic.next_t[1] = rng.randint(20 * 60, 50 * 60)
     world.spawners.append(traffic)
 
-    area_x = path[-1][0] + rng.uniform(-0.8, 0.8)
+    area_x = path[-1][0] + rng.choice((-1.0, 1.0)) * rng.uniform(*TRAINING_AREA_SIDE_NM)
     area_y = mouth_y + TRAINING_AREA_OUT_NM
     world.mission["nuclear_authorized"] = False
-    world.mission["reach"] = {"x": area_x, "y": area_y, "radius_nm": TRAINING_AREA_R_NM,
-                              "outcome": "training_area"}
+    world.mission["training"] = {"outcome": "training_done"}
+    world.mission["no_dive_fjord"] = "dived_in_fjord"
+    world.mission["fail_grounding"] = "grounded"
     # farleden enligt kortet: från första punkten framför oss ut genom mynningen
     fairway = [p for p in cfj.path if p[1] > TRAINING_START_Y + 0.3]
     known = [(TRAINING_AREA, area_x, area_y, 0.1, 0),
@@ -1028,11 +1037,18 @@ def training_scenario(rng: random.Random) -> Scenario:
                     known_positions=known, chart_seabed=chart,
                     tide_table=tide.table_copy(random.Random(rng.random())),
                     area_name="Kolafjorden", fairway=fairway, fairway_to=TRAINING_AREA,
+                    training=TRAINING_STEPS, training_area=TRAINING_AREA, no_dive_in_fjord=True,
                     outcome_text={
-                        "training_area": "K-114 är framme i övningsområdet norr om Kolafjorden. "
-                                         "Övningarna kan börja.",
-                        "patrol_end": "Tiden är ute. K-114 nådde aldrig övningsområdet; "
+                        "training_done": "Övningsprogrammet är genomfört. K-114 ligger i "
+                                         "ytläge i övningsområdet och anmäler till staben i "
+                                         "Severomorsk. Båten och besättningen är klara för "
+                                         "patrull.",
+                        "patrol_end": "Tiden är ute innan programmet var genomfört; "
                                       "staben i Severomorsk vill ha en förklaring.",
+                        "dived_in_fjord": "K-114 har dykt inne i Kolafjorden, mot ordern. "
+                                          "Övningen avbryts och befälhavaren kallas till staben.",
+                        "grounded": "K-114 har gått på grund. Övningen avbryts; båten går "
+                                    "tillbaka till Poljarnyj för dockning.",
                         "neutral_sunk": "Ett sovjetiskt fartyg har sänkts i Kolafjorden. "
                                         "Befälhavaren kallas till staben.",
                         "quit": "Kaptenen har avbrutit övningen. K-114 går tillbaka till "
@@ -1126,5 +1142,6 @@ register(ScenarioDef(
 register(ScenarioDef(
     "ovning", "Övning – ut från Poljarnyj, oktober 1962",
     "Övning för att lära känna båten. Gå ut genom Kolafjorden i ytläge, möt trafiken, "
-    "dyk utanför mynningen och gå till övningsområdet.",
+    "dyk utanför mynningen och gå igenom övningsprogrammet: periskop, fix, provdjup, "
+    "smygmotor.",
     training_scenario))

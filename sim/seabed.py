@@ -236,10 +236,10 @@ class Fjord:
         tc = np.clip(t, 0.0, 1.0)
         return hw[i] + (hw[j] - hw[i]) * tc, dp[i] + (dp[j] - dp[i]) * tc, d
 
-    def in_fjord(self, x, y):
-        """Innanför mynningen (söder om strandlinjen) och i fjorden."""
+    def in_fjord(self, x, y, margin: float = 0.0):
+        """Innanför mynningen (söder om strandlinjen + margin nm) och i fjorden."""
         hw, _, d = self._along(x, y)
-        return (y < self.shore(x)) & (d < hw)
+        return (y < self.shore(x) + margin) & (d < hw + max(margin, 0.0))
 
     def apply(self, x, y, d):
         s = y - self.shore(x)                       # nm till havs från stranden
@@ -386,7 +386,7 @@ ISLAND_CLEAR_NM = 0.5           # holmarnas insida minst så långt från fjorde
 def kola_seabed(rng: random.Random, size: float = 16.0) -> Seabed:
     """Kolafjorden från Poljarnyj ut till Barents hav (stiliserad): fjorden går från
     södra kanten norrut med en böj åt öster, ett par holmar, mynningen ungefär 7 nm norrut
-    och sedan kustbanken som stupar mot 200–300 m."""
+    och sedan kustbanken som stupar mot 350–420 m (provdjup 300 m går)."""
     x0 = size * 0.4 + rng.uniform(-0.5, 0.5)
     mouth_y = 8.0 + rng.uniform(-0.4, 0.4)
     bend = rng.uniform(0.8, 1.6)                    # så långt åt öster vid mynningen
@@ -412,7 +412,7 @@ def kola_seabed(rng: random.Random, size: float = 16.0) -> Seabed:
     fjord = Fjord(shore_y=mouth_y - 0.3, wave_amp=rng.uniform(0.2, 0.4),
                   wave_nm=rng.uniform(4.0, 7.0), wave_phase=rng.uniform(0, 2 * math.pi),
                   path=path, half_w=half_w, depth=depth, islands=tuple(islands))
-    return Seabed(base=rng.uniform(220, 300), gradient=(0.0, 4.0), features=(fjord,),
+    return Seabed(base=rng.uniform(330, 370), gradient=(0.0, 4.0), features=(fjord,),
                   rough=_rough(rng, 4, 0.04), min_depth=-30.0,
                   contour_levels=FJORD_CONTOUR_LEVELS)
 
@@ -542,6 +542,7 @@ def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
         own.alert("bottom.touch", where=where, back_to=round(st.ordered_depth))
         return
     st.speed = st.ordered_speed = 0.0
+    world.mission.setdefault("grounded_t", world.time)
     sys.hull -= 0.015 * speed
     hit = ["sonar"] if where == "förskeppet" else ["planes"] if where == "akterskeppet" \
         else [world.rng.choice(["sonar", "planes"])]

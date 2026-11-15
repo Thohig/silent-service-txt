@@ -103,9 +103,20 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   `nav.fairway.done` (fritt att dyka) och föreslår `kurs mot övningsområdet`; föreslår `farleden` i
   fjorden (var 10:e min). Landvarningen tiger om landet ligger bortom girpunkten. Fix från bryggan
   (`_bridge_bearings`: ytläge, bemannad, land i sikte): ingen mast, ingen fartgräns, var 3:e min av sig
-  själv, rättelse < 0,15 nm sägs inte. Trafik in/ut med brytpunkter 0,2 nm till styrbord. Mål
-  `mission["reach"]` (inom 0,8 nm från övningsområdet) ⇒ `training_area`. Ingen kort variant än.
-  8 frön, ja-boten: framme i alla på 60–65 min, ingen grundstötning, möten på 0,3–0,4 nm.
+  själv, rättelse < 0,15 nm sägs inte. Trafik in/ut med brytpunkter 0,2 nm till styrbord.
+  Övningsområdet 4,5 nm norr om mynningen, 1,5–2,5 nm vid sidan av leden; botten 350–420 m.
+  Övningsledaren (`stations/training.py`, `TrainingOfficer`, roll vakthavande, tyst utan
+  `Scenario.training`): stegen `dyk` (fart 6, periskopdjup), `svep`, `fix`, `framme` (fart 4), `djup100`,
+  `provdjup` (300 m, bara där kortet visar ≥ 340), `smyg`, `pd`, `upp` (bara med en titt ≤ 2 min gammal
+  och inget fartyg < 1,5 nm). Varje steg föreslås som ja-order med förklaring, bockas av ur egna
+  instrument, navigatörens fix eller periskopbilden; 30 s paus mellan stegen. Stegen från `framme`
+  görs inom 1,5 nm från övningsområdet; inget föreslås förrän kortet visar oss 0,5 nm utanför
+  mynningen. Klart ⇒ `train.done` och `mission["training"]["done_t"]` (+30 s) ⇒ `training_done`.
+  Dykning i fjorden (`Scenario.no_dive_in_fjord`): navigatören varnar (`nav.fjord_dive`), sanningen
+  avbryter om djup > 3 m 0,2 nm innanför strandlinjen (`dived_in_fjord`). Grundstötning i mer än 2 kn
+  (`mission["grounded_t"]`, sätts alltid) avbryter med `fail_grounding` (`grounded`). Ingen kort
+  variant än. 8 frön: ja-boten klar i alla på 85–95 min, ingen grundstötning, inga fartyg < 0,3 nm;
+  passiv kapten går på grund i första böjen (~17 min).
 - **Land skymmer** (`World.land_between`, prov var 0,05 nm): ljud genom land +60 dB (`land_loss` i
   `tl_to_own`, jagarens och US-ubåtens `_tl`), bryggan och periskopet ser inte fartyg bakom land.
   Djupgående i ytläge 7 m (`SURFACE_DRAFT_M`): ytläge kan gå på grund. Med bryggan bemannad föreslår

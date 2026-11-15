@@ -28,6 +28,8 @@ from .weapons import Torpedo, step_weapons
 
 LAND_STEP_NM = 0.05         # land mellan två punkter: prov så här tätt längs linjen
 LAND_BLOCK_DB = 60.0        # ljud genom ett berg: i praktiken inget
+NO_DIVE_MARGIN_NM = 0.2     # förbudet gäller klart innanför mynningen
+NO_DIVE_M = 3.0             # djupare än så räknas som dykt (förbud i fjorden)
 
 SINK_ENDING_DELAY = 45      # sekunder brytningsljud innan spelet slutar
 HUNT_NEAR_NM = 1.0          # ett datum så nära oss räknas som att jägaren har oss
@@ -165,6 +167,17 @@ class World:
             if target is not None and self.true_range(target) <= goal["radius_nm"]:
                 self.end(goal["outcome"])
                 return
+        if self.mission.get("fail_grounding") and "grounded_t" in self.mission:
+            self.end(self.mission["fail_grounding"])
+            return
+        nd = self.mission.get("no_dive_fjord")
+        if nd and self.own.state.depth > NO_DIVE_M and self._in_fjord():
+            self.end(nd)
+            return
+        tr = self.mission.get("training")
+        if tr and "done_t" in tr and self.time >= tr["done_t"]:
+            self.end(tr["outcome"])
+            return
         reach = self.mission.get("reach")
         if reach and distance(self.own.state.x, self.own.state.y, reach["x"], reach["y"]) \
                 <= reach["radius_nm"]:
@@ -239,6 +252,13 @@ class World:
     def true_bearing(self, v: Vessel) -> float:
         o = self.own.state
         return bearing_to(o.x, o.y, v.state.x, v.state.y)
+
+    def _in_fjord(self) -> bool:
+        sb = self.env.seabed
+        o = self.own.state
+        return sb is not None and any(
+            hasattr(f, "in_fjord") and bool(f.in_fjord(o.x, o.y, -NO_DIVE_MARGIN_NM))
+            for f in sb.features)
 
     def land_between(self, x0: float, y0: float, x1: float, y1: float) -> bool:
         """Ligger land mellan punkterna? Sanning: ljud och syn går inte genom berg."""

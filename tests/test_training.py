@@ -115,23 +115,63 @@ def test_fairway_order_steers_and_fixes_from_the_bridge():
     assert math.dist((nav.est_x, nav.est_y), (o.x, o.y)) < 0.25
 
 
+def test_diving_in_the_fjord_is_warned_and_ends_the_exercise():
+    g = _game(1)
+    said = []
+    g.bus.subscribe(ReportDelivered, lambda e: said.append(e.report.type))
+    g.command("djup 40")
+    for _ in range(120):
+        g.tick()
+        if g.over:
+            break
+    assert "nav.fjord_dive" in said
+    assert g.world.outcome["outcome"] == "dived_in_fjord"
+
+
+def test_training_officer_is_silent_without_a_programme():
+    g = Game(build_scenario("kuba", random.Random(1)), seed=1)
+    said = []
+    g.bus.subscribe(ReportDelivered, lambda e: said.append(e.report.type))
+    for _ in range(600):
+        g.tick()
+    assert not any(t.startswith("train.") for t in said)
+
+
+def _yes_bot(seed, minutes):
+    g = _game(seed)
+    said = []
+    g.bus.subscribe(ReportDelivered, lambda e: said.append(e.report.type))
+    bot_t, closest = 0, 99.0
+    for _ in range(minutes * 60):
+        g.tick()
+        o = g.world.own.state
+        if g.world.own.surfaced:
+            for v in g.world.neutral_ships:
+                closest = min(closest, math.dist((o.x, o.y), (v.state.x, v.state.y)))
+        if g.suggestion and g.suggestion[2] > bot_t:
+            bot_t = g.suggestion[2]
+            g.command("ja")
+        if g.over:
+            break
+    return g, said, closest
+
+
 @pytest.mark.slow
-def test_yes_bot_gets_out_and_can_dive_outside():
+def test_yes_bot_gets_out_and_completes_the_programme():
     for seed in range(1, 5):
-        g = _game(seed)
-        nav = g.station(NavigationStation)
-        bot_t, dived = 0, False
-        for _ in range(90 * 60):
-            g.tick()
-            if g.suggestion and g.suggestion[2] > bot_t:
-                bot_t = g.suggestion[2]
-                g.command("ja")
-            if nav._fw_done and not dived:
-                g.command("djup 40")                       # fritt att dyka utanför mynningen
-                dived = True
-            assert not g.world.own.sys.bottom_contact, seed
-            if g.over:
-                break
-        assert g.world.outcome["outcome"] == "training_area", seed
-        assert dived and g.world.own.state.depth > 20, seed
-        assert g.now < 80 * 60, seed
+        g, said, closest = _yes_bot(seed, 110)
+        assert g.world.outcome["outcome"] == "training_done", seed
+        assert said.count("train.step.done") == 9, seed
+        assert "train.done" in said, seed
+        assert closest > 0.2, seed                    # inga fartyg nära i ytläge
+        assert g.now < 100 * 60, seed
+
+
+@pytest.mark.slow
+def test_passive_captain_runs_aground_in_the_first_bend():
+    g = _game(1)
+    for _ in range(40 * 60):
+        g.tick()
+        if g.over:
+            break
+    assert g.world.outcome["outcome"] == "grounded"
