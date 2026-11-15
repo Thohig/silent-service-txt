@@ -144,7 +144,8 @@ class PlotTeam(Station):
                 continue
             sol = tr.solution
             style = "merchant" if tr.civil else "contact"
-            if sol is not None and sol.quality >= Quality.OSAKER and (tr.threat or tr.civil):
+            if sol is not None and sol.quality >= Quality.OSAKER and \
+                    (tr.threat or tr.civil or tr.friendly):
                 dt = (self.now - sol.t) / 3600.0
                 vx, vy = sol.state[2], sol.state[3]
                 x, y = sol.x + vx * dt, sol.y + vy * dt
@@ -178,7 +179,7 @@ class PlotTeam(Station):
             return
         for tr in self.game.knowledge.tracks.values():
             civil = tr.civil and tr.held
-            if not (tr.threat or civil) or len(tr.observations) < 3:
+            if not (tr.threat or civil or tr.held and tr.friendly) or len(tr.observations) < 3:
                 continue
             prev_q = tr.solution.quality if tr.solution else None
             sol = self._resolve(tr)
@@ -211,6 +212,7 @@ class PlotTeam(Station):
                          {"designation": tr.designation, "solution": solution_data(sol)},
                          kind="solution", quality=sol.quality)
             elif (sol.quality < Quality.GOD and sol.n_obs >= 12 and sol.span_s >= 120
+                  and (tr.threat or self.game.knowledge.listening)
                   and not self._maneuvered_recently(tr) and not self._convoy_sibling(tr)
                   and not self.game.knowledge.hunted(self.now)
                   and self.now - self._last_suggest.get(tr.designation, -10**9) >= SUGGEST_COOLDOWN):
@@ -339,7 +341,8 @@ class PlotTeam(Station):
             return out          # jagade: kursen behövs för att komma undan, inte för TMA
         for tr in self.game.knowledge.tracks.values():
             sol = tr.solution
-            if not tr.threat or sol is None or sol.quality >= Quality.GOD:
+            if not (tr.threat or tr.held and tr.friendly and self.game.knowledge.listening) \
+                    or sol is None or sol.quality >= Quality.GOD:
                 continue
             if self._maneuvered_recently(tr):
                 continue

@@ -19,6 +19,7 @@ _SOURCE = {
     "merchant": (140.0, 1.0),
     "submarine": (110.0, 1.5),
     "patrol": (125.0, 1.5),
+    "guardship": (132.0, 1.25),      # sovjetiskt bevakningsfartyg (övningsmål)
     "moored": (100.0, 0.0),          # till ankars: bara hjälpmaskiner
     "transport": (145.0, 1.0),       # stor trupptransport, ångturbiner
     "tanker": (143.0, 1.0),          # tungt lastat tankfartyg
@@ -26,7 +27,7 @@ _SOURCE = {
 
 # Målstyrka (ekostyrka) för aktiv sonar
 TARGET_STRENGTH = {"destroyer": 25.0, "merchant": 28.0, "submarine": 15.0, "decoy": 15.0,
-                   "patrol": 18.0, "moored": 28.0, "transport": 31.0, "tanker": 32.0}
+                   "patrol": 18.0, "guardship": 22.0, "moored": 28.0, "transport": 31.0, "tanker": 32.0}
 
 # Transienter (momentana ljud)
 PING_LEVEL_SHIP = 230.0

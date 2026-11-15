@@ -107,16 +107,27 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   Övningsområdet 4,5 nm norr om mynningen, 1,5–2,5 nm vid sidan av leden; botten 350–420 m.
   Övningsledaren (`stations/training.py`, `TrainingOfficer`, roll vakthavande, tyst utan
   `Scenario.training`): stegen `dyk` (fart 6, periskopdjup), `svep`, `fix`, `framme` (fart 4), `djup100`,
-  `provdjup` (300 m, bara där kortet visar ≥ 340), `smyg`, `pd`, `upp` (bara med en titt ≤ 2 min gammal
-  och inget fartyg < 1,5 nm). Varje steg föreslås som ja-order med förklaring, bockas av ur egna
-  instrument, navigatörens fix eller periskopbilden; 30 s paus mellan stegen. Stegen från `framme`
-  görs inom 1,5 nm från övningsområdet; inget föreslås förrän kortet visar oss 0,5 nm utanför
+  `provdjup` (300 m, bara där kortet visar ≥ 340), `smyg`, `lyssna`, `pd`, `upp` (bara med en titt
+  ≤ 2 min gammal och inget fartyg < 1,0 nm). Varje steg föreslås som ja-order med förklaring, bockas av ur egna
+  instrument, navigatörens fix eller periskopbilden; 30 s paus mellan stegen. Stegen `framme`–`lyssna`
+  görs i övningsområdet (inom 1,5 nm, kvar tills 3 nm; utanför föreslås kurs dit); inget föreslås förrän kortet visar oss 0,5 nm utanför
   mynningen. Klart ⇒ `train.done` och `mission["training"]["done_t"]` (+30 s) ⇒ `training_done`.
   Dykning i fjorden (`Scenario.no_dive_in_fjord`): navigatören varnar (`nav.fjord_dive`), sanningen
   avbryter om djup > 3 m 0,2 nm innanför strandlinjen (`dived_in_fjord`). Grundstötning i mer än 2 kn
   (`mission["grounded_t"]`, sätts alltid) avbryter med `fail_grounding` (`grounded`). Ingen kort
-  variant än. 8 frön: ja-boten klar i alla på 85–95 min, ingen grundstötning, inga fartyg < 0,3 nm;
-  passiv kapten går på grund i första böjen (~17 min).
+  variant än. Passiv kapten går på grund i första böjen (~17 min).
+  Lyssningsövningen: bevakningsfartyget SKR-112 (`exercise.py`, typ `guardship`, 132 + 1,25·fart dB,
+  `side="neutral"`, ingen radar, `ExerciseShipAI`: raka ben 2,5–4,5 nm i 9–12 kn inom 3 nm från
+  området). Klassat "bevakningsfartyg" ⇒ `ContactTrack.friendly` (inget hot: inga förslag om att
+  gömma sig, ingen torpedberedskap; plottet räknar ändå på det, men föreslår TMA-girar bara medan
+  `Knowledge.listening`, händelsen `ListeningExercise`). Steget `lyssna` (djup 40) klart efter minst
+  8 min med lösning ≥ god, eller avbrutet efter 25 min. Sedan undervattenstelefonen
+  (`exercise.partner_report`, en sensor, ≤ 5 nm, partnerns läge σ 0,1): kurs, fart och läge mot
+  plottets lösning ("stämmer" om kurs < 20°, fart < 4 kn, läge < max(0,5 nm, 30 % av avståndet)).
+  Förslagsveto (`Station.vetoes`): navigatören stoppar alla dykförslag där ordern förbjuder dykning;
+  i ytläge föreslår maskin ingen smygmotor och navigatören inte botten.
+  8 frön, ja-boten: klar i alla på 92–106 min, ingen grundstötning; lyssningen 8–16 min, plottets
+  kurs inom 7° i alla, läget 0,1–1,4 nm fel (efter ändrade gränser stämmer fler än 4 av 8).
 - **Land skymmer** (`World.land_between`, prov var 0,05 nm): ljud genom land +60 dB (`land_loss` i
   `tl_to_own`, jagarens och US-ubåtens `_tl`), bryggan och periskopet ser inte fartyg bakom land.
   Djupgående i ytläge 7 m (`SURFACE_DRAFT_M`): ytläge kan gå på grund. Med bryggan bemannad föreslår

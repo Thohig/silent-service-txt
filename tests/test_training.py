@@ -159,12 +159,13 @@ def _yes_bot(seed, minutes):
 @pytest.mark.slow
 def test_yes_bot_gets_out_and_completes_the_programme():
     for seed in range(1, 5):
-        g, said, closest = _yes_bot(seed, 110)
+        g, said, closest = _yes_bot(seed, 130)
         assert g.world.outcome["outcome"] == "training_done", seed
-        assert said.count("train.step.done") == 9, seed
+        assert said.count("train.step.done") == 10, seed
+        assert "train.partner" in said, seed
         assert "train.done" in said, seed
         assert closest > 0.2, seed                    # inga fartyg nära i ytläge
-        assert g.now < 100 * 60, seed
+        assert g.now < 115 * 60, seed
 
 
 @pytest.mark.slow
@@ -175,3 +176,41 @@ def test_passive_captain_runs_aground_in_the_first_bend():
         if g.over:
             break
     assert g.world.outcome["outcome"] == "grounded"
+
+
+def test_exercise_ship_is_friendly_and_stays_in_the_area():
+    from sim.exercise import ExerciseShipAI
+    g = _game(3)
+    ship = next(v for v in g.world.contacts if v.kind == "guardship")
+    ai = next(a for a in g.world.ais if isinstance(a, ExerciseShipAI))
+    assert ship.side == "neutral" and not ai.aware() and not ai.can_force
+    for _ in range(40 * 60):
+        g.world.tick()
+        assert math.dist((ship.state.x, ship.state.y), ai.center) < ai.radius + 1.0
+
+
+def test_guardship_track_is_friendly_not_a_threat():
+    from sim.knowledge import ContactTrack
+    tr = ContactTrack("S-2", 0, classification="ytfartyg, tvåskruv, trolig bevakningsfartyg")
+    assert tr.friendly and not tr.threat
+    assert ContactTrack("S-3", 0, classification="ytfartyg").threat
+
+
+def test_nobody_suggests_diving_in_the_fjord():
+    g = _game(1)
+    assert any(st.vetoes("djup 100") for st in g.stations)
+    assert any(st.vetoes("turbin, djup 40") for st in g.stations)
+    assert not any(st.vetoes("kurs 090") for st in g.stations)
+    assert not any(st.vetoes("djup 0") for st in g.stations)
+
+
+def test_partner_report_only_within_telephone_range():
+    from sim.exercise import UK_RANGE_NM, partner_report
+    g = _game(2)
+    ship = next(v for v in g.world.contacts if v.kind == "guardship")
+    o = g.world.own.state
+    rep = partner_report(g.world, random.Random(1))
+    assert (rep is None) == (math.dist((o.x, o.y), (ship.state.x, ship.state.y)) > UK_RANGE_NM)
+    o.x, o.y = ship.state.x + 1.0, ship.state.y
+    rep = partner_report(g.world, random.Random(1))
+    assert rep is not None and rep["course"] % 5 == 0

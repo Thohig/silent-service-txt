@@ -72,6 +72,10 @@ class Station:
         """Förslag att ge om kaptenen varit tyst länge. Bara ur kunskap och eget läge."""
         return []
 
+    def vetoes(self, order: str) -> bool:
+        """Får inte ett förslag med denna order ges (t.ex. dykning där ordern förbjuder det)?"""
+        return False
+
     def chart_items(self) -> list:
         """Sjökortselement (sim.chart) ur stationens kunskap. Aldrig ur World."""
         return []
@@ -110,6 +114,8 @@ class Station:
         väntetiden fördubblas för varje obesvarad upprepning (larm undantagna).
         """
         if order and self.game.suggestion_redundant(order, self.now):
+            return False
+        if order and any(st.vetoes(order) for st in self.game.stations):
             return False
         last = self._suggested.get(key)
         n = 0

@@ -12,6 +12,7 @@ from .entities import Vessel
 from .environment import ArcticProfile, Environment, TidalStream
 from .arctic import DriftStation, EnemySub, SubmarineAI
 from .convoy import ConvoyDef, make_convoy, make_escorts
+from .exercise import make_exercise_ship
 from .fmt import nm
 from .ice import IceField, clearance
 from .seabed import Seabed, arctic_seabed, kola_seabed, kuba_seabed, strait_seabed
@@ -966,8 +967,11 @@ DATUM: 8 OKTOBER 1962
    MYNNINGEN. GENOMFÖR PROGRAMMET:
    DYKNING, PERISKOPSVEP, FIX, DJUP 100,
    PROVDJUP 300 METER, SMYGMOTOR,
-   UPPSTIGNING. ANMÄL NÄR DET ÄR KLART.
-4. INGA SKARPA VAPEN.
+   LYSSNINGSÖVNING, UPPSTIGNING.
+   ANMÄL NÄR DET ÄR KLART.
+4. BEVAKNINGSFARTYGET SKR-112 ÖVAR I
+   OMRÅDET SOM MÅL FÖR LYSSNINGEN.
+5. INGA SKARPA VAPEN.
 
 SLUT
 """
@@ -976,7 +980,9 @@ TRAINING_CLOCK = 10 * 3600
 TRAINING_SIZE = 16.0
 TRAINING_AREA = "Övningsområdet"
 TRAINING_AREA_OUT_NM = 4.5          # övningsområdet så långt norr om mynningen
-TRAINING_STEPS = ("dyk", "svep", "fix", "framme", "djup100", "provdjup", "smyg", "pd", "upp")
+TRAINING_STEPS = ("dyk", "svep", "fix", "framme", "djup100", "provdjup", "smyg", "lyssna", "pd",
+                  "upp")
+TRAINING_SHIP_R_NM = 3.0            # bevakningsfartyget håller sig inom så här långt från området
 TRAINING_AREA_SIDE_NM = (1.5, 2.5)  # övningsområdet så långt vid sidan av leden
 TRAINING_KEEP_RIGHT_NM = 0.15       # fartygen håller så här långt till styrbord om farledens mitt
 TRAINING_KN = 10.0                  # fart ut genom fjorden
@@ -1026,6 +1032,10 @@ def training_scenario(rng: random.Random) -> Scenario:
     area_x = path[-1][0] + rng.choice((-1.0, 1.0)) * rng.uniform(*TRAINING_AREA_SIDE_NM)
     area_y = mouth_y + TRAINING_AREA_OUT_NM
     world.mission["nuclear_authorized"] = False
+    ship, ship_ai = make_exercise_ship(random.Random(rng.random()), (area_x, area_y),
+                                       TRAINING_SHIP_R_NM)
+    world.contacts.append(ship)
+    world.ais.append(ship_ai)
     world.mission["training"] = {"outcome": "training_done"}
     world.mission["no_dive_fjord"] = "dived_in_fjord"
     world.mission["fail_grounding"] = "grounded"
@@ -1049,7 +1059,7 @@ def training_scenario(rng: random.Random) -> Scenario:
                                           "Övningen avbryts och befälhavaren kallas till staben.",
                         "grounded": "K-114 har gått på grund. Övningen avbryts; båten går "
                                     "tillbaka till Poljarnyj för dockning.",
-                        "neutral_sunk": "Ett sovjetiskt fartyg har sänkts i Kolafjorden. "
+                        "neutral_sunk": "Ett sovjetiskt fartyg har sänkts under övningen. "
                                         "Befälhavaren kallas till staben.",
                         "quit": "Kaptenen har avbrutit övningen. K-114 går tillbaka till "
                                 "Poljarnyj.",
@@ -1143,5 +1153,5 @@ register(ScenarioDef(
     "ovning", "Övning – ut från Poljarnyj, oktober 1962",
     "Övning för att lära känna båten. Gå ut genom Kolafjorden i ytläge, möt trafiken, "
     "dyk utanför mynningen och gå igenom övningsprogrammet: periskop, fix, provdjup, "
-    "smygmotor.",
+    "smygmotor och lyssning mot ett eget bevakningsfartyg.",
     training_scenario))

@@ -109,6 +109,7 @@ ART["tanker"] = {
           "h \\____________/ "],
 }
 ART["moored"] = ART["merchant"]
+ART["guardship"] = ART["destroyer"]
 AIRCRAFT_ART = ["   _|_   ", "--=(o)=--"]
 MIRROR = str.maketrans("/\\()[]<>", "\\/)(][><")
 

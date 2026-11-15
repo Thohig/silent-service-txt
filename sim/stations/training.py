@@ -9,15 +9,18 @@ uppdraget (`mission["training"]`) räknas som genomfört en halv minut senare.
 """
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 
 from .. import phrases
 from .. import russian as R
 from ..crew import Role
-from ..events import PeriscopeSighted
-from ..fmt import nm
+from ..events import ListeningExercise, PeriscopeSighted
+from ..exercise import partner_report
+from ..fmt import fmt_course, kn, nm
 from ..geo import bearing_to, distance
 from ..ownship import TEST_DEPTH
+from ..reports import Quality
 from .base import Station
 from .navigation import NavigationStation
 
@@ -25,13 +28,18 @@ CHECK_S = 5                  # stegen kontrolleras så här ofta
 PAUSE_S = 30                 # efter ett avklarat steg: så länge innan nästa föreslås
 SUGGEST_S = 300              # obesvarat förslag upprepas (glesas ut av Station.suggest)
 AREA_NM = 1.5                # inom så här långt från övningsområdets mitt är vi framme
+AREA_LEAVE_NM = 3.0          # ... och kvar i området tills vi är så här långt bort
 PROOF_MARGIN_M = 40          # provdjup bara där kortet visar så här mycket vatten under
 DIVED_M = 10                 # så djupt: vi har dykt
 DEPTH_DONE_M = 5             # beordrat djup nått inom så här många meter
 FJORD_MARGIN_NM = 0.5        # kortet och besticket kan fela: ute först så här långt utanför
 LOOK_FRESH_S = 120           # före uppstigning: periskopbilden högst så här gammal
-SURFACE_CLEAR_NM = 1.5       # och inget fartyg närmare än så
+SURFACE_CLEAR_NM = 1.0       # och inget fartyg närmare än så
 PD_SPEED = 6                 # på periskopdjup: inte fortare (kavitation, periskopet vibrerar)
+LISTEN_DEPTH = 40            # lyssningsövningen: över språngskiktet, där ytfartyget hörs
+LISTEN_MIN_S = 8 * 60        # lyssna minst så här länge efter förslaget
+LISTEN_MAX_S = 25 * 60       # så länge får plottet hålla på innan övningen avbryts
+LISTEN_TARGET = "bevakningsfartyg"
 DONE_DELAY_S = 30            # anmälan levereras innan övningen räknas som klar
 
 
@@ -50,8 +58,9 @@ STEPS: dict[str, Step] = {
     "djup100": Step("djup 100", "djup 100", area=True),
     "provdjup": Step(f"djup {TEST_DEPTH:.0f}", "provdjup", area=True),
     "smyg": Step("smygmotor", "smygmotorn", area=True),
-    "pd": Step("periskopdjup", "periskopdjup", area=True),
-    "upp": Step("ytläge", "uppstigning", area=True),
+    "lyssna": Step(f"djup {LISTEN_DEPTH}", "lyssning", area=True),
+    "pd": Step("periskopdjup", "periskopdjup"),
+    "upp": Step("ytläge", "uppstigning"),
 }
 
 
@@ -70,6 +79,8 @@ class TrainingOfficer(Station):
         self.done: list[tuple[str, int]] = []
         self._in_area = False
         self._look_t = -10**9
+        self._listen_t: int | None = None     # när lyssningsövningen föreslogs första gången
+        self.rng = random.Random(1962)          # undervattenstelefonens fel: egen slump
 
     def attach(self, bus) -> None:
         super().attach(bus)
@@ -98,6 +109,15 @@ class TrainingOfficer(Station):
             return None
         return chart.depth_at(*self.game.own_position_estimate())
 
+    def _listen_track(self):
+        """Bevakningsfartyget i plottet, med en lösning minst god."""
+        for tr in self.game.knowledge.tracks.values():
+            sol = tr.solution
+            if tr.held and LISTEN_TARGET in tr.classification and sol is not None \
+                    and sol.quality >= Quality.GOD:
+                return tr
+        return None
+
     def _step_done(self, key: str) -> bool:
         st, sys = self.own.state, self.own.sys
         match key:
@@ -116,6 +136,12 @@ class TrainingOfficer(Station):
                 return st.depth >= TEST_DEPTH - DEPTH_DONE_M
             case "smyg":
                 return sys.propulsion == "electric"
+            case "lyssna":
+                if self._listen_t is None:
+                    return False
+                spent = self.now - self._listen_t
+                return spent >= LISTEN_MAX_S or \
+                    spent >= LISTEN_MIN_S and self._listen_track() is not None
             case "pd":
                 return st.depth <= 18 and not self.own.surfaced
             case "upp":
@@ -126,26 +152,37 @@ class TrainingOfficer(Station):
     def update(self) -> None:
         if not self.steps or self.i >= len(self.steps) or self.now % CHECK_S:
             return
-        if not self._in_area and (a := self._area()) is not None:
+        a = self._area()
+        if a is not None:
             x, y = self.game.own_position_estimate()
-            self._in_area = distance(x, y, a.x, a.y) <= AREA_NM
+            d = distance(x, y, a.x, a.y)
+            self._in_area = d <= (AREA_LEAVE_NM if self._in_area else AREA_NM)
         key = self.steps[self.i]
-        if self.now >= self.started_t and self._step_done(key):
+        step = STEPS[key]
+        if self.now >= self.started_t and (self._in_area or not step.area) \
+                and self._step_done(key):
             self._finish(key)
             return
         if self.now < self.step_t:
             return
-        step = STEPS[key]
         if self._in_fjord():
             return                          # ordern: dykning först utanför mynningen
         if step.area and not self._in_area:
-            return                          # navigatören föreslår vägen dit
+            if a is not None and self.done:     # vi har dykt men är inte i området
+                self.suggest("train_area", "train.suggest.area",
+                             {"name": a.name, "course": bearing_to(x, y, a.x, a.y), "range": d},
+                             order=f"kurs mot {a.name.lower()}", cooldown=SUGGEST_S)
+            return
         data: dict = {}
         order = step.order
         if key == "svep" and self.own.state.ordered_speed > PD_SPEED + 1:
             order = f"fart {PD_SPEED}, periskop"
             data["slow"] = PD_SPEED
         if key == "upp":
+            if self.own.state.depth > 18:
+                self.suggest("train_pd", "train.suggest.pd", {}, order="periskopdjup",
+                             cooldown=SUGGEST_S)
+                return
             pic = self.game.knowledge.periscope
             if pic is None or self.now - pic.t > LOOK_FRESH_S or pic.t < self.started_t:
                 self.suggest("train_look", "train.suggest.look", {}, order="periskop",
@@ -172,8 +209,31 @@ class TrainingOfficer(Station):
                                  order=f"kurs mot {a.name.lower()}", cooldown=SUGGEST_S)
                 return
             data["depth"] = round(TEST_DEPTH)
+        if key == "lyssna" and self._listen_t is None:
+            self._listen_t = self.now
+            self.game.bus.publish(ListeningExercise(self.now, True))
         self.suggest(f"train_{key}", f"train.suggest.{key}", data, order=order,
                      cooldown=SUGGEST_S)
+
+    def _partner_check(self, data: dict, tr) -> None:
+        """Bevakningsfartyget meddelar kurs, fart och läge på undervattenstelefonen; vi
+        jämför med plottet. Telefonen är en sensor (exercise.partner_report)."""
+        rep = partner_report(self.game.world, self.rng)
+        if rep is None or self.own.state.depth > 100:
+            self.say("train.partner.none", {}, extra_delay=8)
+            return
+        ex, ey = self.game.own_position_estimate()
+        rep = {**rep, "range": distance(ex, ey, rep["x"], rep["y"])}
+        out = {"course": rep["course"], "speed": rep["speed"], "range": rep["range"]}
+        if tr is not None and tr.solution is not None:
+            sol = tr.solution
+            dt = (self.now - sol.t) / 3600.0
+            sx, sy = sol.x + sol.state[2] * dt, sol.y + sol.state[3] * dt
+            out.update(designation=tr.designation,
+                       d_course=abs((sol.course - rep["course"] + 180) % 360 - 180),
+                       d_speed=abs(sol.speed - rep["speed"]),
+                       d_pos=distance(sx, sy, rep["x"], rep["y"]))
+        self.say("train.partner", out, extra_delay=8)
 
     def _finish(self, key: str) -> None:
         self.done.append((key, self.now))
@@ -183,6 +243,14 @@ class TrainingOfficer(Station):
         sys = self.own.sys
         data = {"step": key, "name": STEPS[key].name, "last": self.i >= len(self.steps),
                 "leak": sys.leak_rate > 0, "depth": round(self.own.state.depth)}
+        if key == "lyssna":
+            self.game.bus.publish(ListeningExercise(self.now, False))
+            tr = self._listen_track()
+            if tr is not None:
+                sol = tr.solution
+                data.update(designation=tr.designation, range=sol.range_nm, course=sol.course,
+                            speed=sol.speed, quality=sol.quality.label)
+            self._partner_check(data, tr)
         self.say("train.step.done", data, kind="done")
         if self.i >= len(self.steps):
             first = self.done[0][1]
@@ -194,7 +262,26 @@ class TrainingOfficer(Station):
                 tr["done_t"] = self.now + DONE_DELAY_S
 
 
+def _partner_text(d: dict) -> str:
+    head = (f"Sonar: bevakningsfartyget på undervattenstelefonen. De går kurs "
+            f"{fmt_course(d['course'])}, {d['speed']} knop, {nm(d['range'])} sjömil från oss.")
+    if d.get("designation") is None:
+        return head
+    ok = d["d_course"] < 20 and d["d_speed"] < 4 and d["d_pos"] < max(0.5, 0.3 * d["range"])
+    return head + (f" Plottets lösning på {d['designation']} stämmer: kursen {d['d_course']:.0f}°, "
+                   f"farten {kn(d['d_speed'])} knop och läget {nm(d['d_pos'])} sjömil fel." if ok else
+                   f" Plottets lösning på {d['designation']} låg fel: kursen {d['d_course']:.0f}°, "
+                   f"farten {kn(d['d_speed'])} knop och läget {nm(d['d_pos'])} sjömil. "
+                   "Fler och större girar ger bättre avstånd.")
+
+
 def _step_done_text(d: dict) -> str:
+    if d["step"] == "lyssna":
+        if d.get("designation") is None:
+            return "Lyssningsövningen avbruten: plottet fick ingen god lösning på bevakningsfartyget."
+        return (f"Lyssningsövningen genomförd. Plottet har {d['designation']}, bevakningsfartyget, "
+                f"på {nm(d['range'])} sjömil, kurs {fmt_course(d['course'])}, fart "
+                f"{kn(d['speed'])} knop, {d['quality']}.")
     if d["step"] == "provdjup":
         return (f"Provdjup, {d['depth']} meter. "
                 + ("Läckage, länsning pågår!" if d["leak"] else "Avdelningarna: inga läckor."))
@@ -217,6 +304,8 @@ PHRASES = {
        "oss sämre, och vi dem." if d.get("layer") else ""),
     "train.suggest.provdjup": lambda d: f"Kapten, vakthavande. Nästa övning: provdjup, "
     f"{d['depth']} meter. Skrovet kommer att knaka. Avdelningarna rapporterar läckor.",
+    "train.suggest.area": lambda d: f"Kapten, vakthavande. Vi är utanför övningsområdet, "
+    f"{nm(d['range'])} sjömil bort. Föreslår kurs mot {d['name'].lower()} innan nästa övning.",
     "train.suggest.deeper": lambda d: f"Kapten, vakthavande. Bara {d['depth']:.0f} meter här enligt "
     f"kortet, för grunt för provdjup. {d['name']} ligger {nm(d['range'])} sjömil bort. "
     f"Föreslår kurs mot {d['name'].lower()}.",
@@ -228,9 +317,16 @@ PHRASES = {
     "så att ytan är fri.",
     "train.wait_ship": lambda d: f"Kapten, vakthavande. {d['designation']} är bara "
     f"{nm(d['range'])} sjömil bort. Vi väntar med ytläget tills det har passerat.",
+    "train.suggest.lyssna": lambda d: "Kapten, vakthavande. Nästa övning: lyssning. "
+    "Bevakningsfartyget rör sig i området. Vi går upp till "
+    f"{LISTEN_DEPTH} meter, över språngskiktet, och lyssnar. Plottet räknar fram avstånd, kurs "
+    "och fart ur bäringarna; för det måste vi gira, och plottet föreslår när.",
     "train.suggest.upp": lambda d: "Kapten, vakthavande. Ytan är fri. Upp till ytläge: vi blåser "
     "barlast, och bryggan bemannas igen.",
     "train.step.done": _step_done_text,
+    "train.partner": _partner_text,
+    "train.partner.none": lambda d: "Sonar: vi når inte bevakningsfartyget på "
+    "undervattenstelefonen.",
     "train.done": lambda d: f"Kapten, övningsprogrammet är genomfört på {d['minutes']} minuter: "
     f"{', '.join(d['steps'])}. Jag anmäler till staben.",
 }
@@ -249,6 +345,10 @@ RU_PHRASES = {
     "train.suggest.deeper": lambda d: f"{R.CAPTAIN}, здесь мелко. Предлагаю курс "
     f"{R.course(d['course'])} в район учений.",
     "train.suggest.smyg": lambda d: f"{R.CAPTAIN}, предлагаю перейти на электромотор.",
+    "train.suggest.area": lambda d: f"{R.CAPTAIN}, мы вне района учений. Предлагаю курс "
+    f"{R.course(d['course'])}.",
+    "train.suggest.lyssna": lambda d: f"{R.CAPTAIN}, предлагаю глубину "
+    f"{R.count(LISTEN_DEPTH, R.METER)}. Слушаем сторожевой корабль.",
     "train.suggest.pd": lambda d: f"{R.CAPTAIN}, предлагаю всплыть на перископную глубину.",
     "train.suggest.look": lambda d: f"{R.CAPTAIN}, перед всплытием предлагаю осмотреться "
     "в перископ.",
@@ -259,6 +359,9 @@ RU_PHRASES = {
                                   + ("Поступление воды!" if d["leak"] else "Замечаний нет."))
     if d["step"] == "provdjup" else "Упражнение выполнено.",
     "train.done": lambda d: f"{R.CAPTAIN}, программа учений выполнена. Докладываю в штаб.",
+    "train.partner": lambda d: f"{R.CAPTAIN}, акустик. Сторожевой корабль по звукоподводной "
+    f"связи: курс {R.course(d['course'])}, ход {R.count(d['speed'], R.KNOT)}.",
+    "train.partner.none": lambda d: f"{R.CAPTAIN}, акустик. Связи со сторожевым кораблём нет.",
 }
 
 phrases.register(PHRASES)

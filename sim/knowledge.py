@@ -10,7 +10,8 @@ from dataclasses import dataclass, field
 
 from .events import (BearingObserved, BridgeSighted, ClassificationChanged, ContactDetected,
                      ConvoyAssessed, ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound,
-                     PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported)
+                     PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported,
+                     ListeningExercise)
 from .icemap import IceMap
 from .periscope import PeriscopePicture
 from .seabed import Seabed
@@ -53,9 +54,15 @@ class ContactTrack:
             ("isljud" in c or "isskruvning" in c or "drivstation" in c or self.civil)
 
     @property
+    def friendly(self) -> bool:
+        """Klassad som eget bevakningsfartyg (övningsmålet ordern nämner): inget hot,
+        men plottet räknar på det."""
+        return "bevakningsfartyg" in self.classification
+
+    @property
     def threat(self) -> bool:
-        """En hållen kontakt som kan vara ett fartyg."""
-        return self.held and not self.benign
+        """En hållen kontakt som kan vara ett fiendefartyg."""
+        return self.held and not self.benign and not self.friendly
 
     @property
     def last_bearing(self) -> float | None:
@@ -94,6 +101,7 @@ class Knowledge:
     hunt_t: int = -10**9                 # senast sonar hörde att fienden har oss
     periscope: PeriscopePicture | None = None   # utkikens senaste bild
     bridge: PeriscopePicture | None = None      # bryggans bild just nu (None: ingen på bryggan)
+    listening: bool = False              # lyssningsövning pågår: plottet tar in vårt eget fartyg
     periscope_blocked: tuple[int, str] | None = None   # (tid, skäl) när periskopet inte kom upp
     convoy: ConvoyEstimate | None = None   # plottets bild av en konvoj
 
@@ -111,6 +119,7 @@ class Knowledge:
         bus.subscribe(BridgeSighted, lambda e: setattr(self, "bridge", e.picture))
         bus.subscribe(ConvoyAssessed, lambda e: setattr(self, "convoy", e.estimate))
         bus.subscribe(PeriscopeBlocked, lambda e: setattr(self, "periscope_blocked", (e.t, e.reason)))
+        bus.subscribe(ListeningExercise, lambda e: setattr(self, "listening", e.active))
 
     # --- händelser ------------------------------------------------------------
     def _on_periscope(self, e: PeriscopeSighted) -> None:

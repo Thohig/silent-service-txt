@@ -493,7 +493,7 @@ class EngineeringStation(Station):
             order, data = p
             out.append(Proposal(2, "idle_sprint", "eng.suggest.sprint", order, data, cooldown=600))
         elif not hunted and s.propulsion == "turbine" and not s.on_bottom and \
-                self.game.knowledge.threat_held():
+                not self.own.surfaced and self.game.knowledge.threat_held():
             out.append(Proposal(2, "idle_creep", "eng.suggest.creep", "smygmotor"))
         return out
 
@@ -591,6 +591,8 @@ class EngineeringStation(Station):
         if hunted and (p := self._sprint()) is not None:
             order, data = p
             self.suggest("sprint", "eng.suggest.sprint", data, order=order, cooldown=600)
+        # i ytläge syns vi ändå: smygmotorn hjälper inte
         elif not hunted and s.propulsion == "turbine" and not s.on_bottom and \
-                self.game.knowledge.tracks and self.game.knowledge.threat_held():
+                not own.surfaced and self.game.knowledge.tracks and \
+                self.game.knowledge.threat_held():
             self.suggest("creep", "eng.suggest.creep", order="smygmotor", cooldown=3600)

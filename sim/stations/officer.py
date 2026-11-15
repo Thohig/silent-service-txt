@@ -89,6 +89,7 @@ PHOTO_TARGET_KIND = "moored"
 SIGHTED = {"destroyer": ("jagare, amerikansk", "jagare"),
            "merchant": ("handelsfartyg", "handelsfartyg"),
            "patrol": ("patrullbåt, amerikansk", "patrullbåt"),
+           "guardship": ("bevakningsfartyg, sovjetiskt", "bevakningsfartyg"),
            "moored": ("fartyg till ankars", "fartyg till ankars"),
            "transport": ("trupptransport, amerikansk", "trupptransport"),
            "tanker": ("tankfartyg, amerikanskt", "tankfartyg")}

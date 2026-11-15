@@ -33,6 +33,8 @@ _CLASS_STAGES = {
                   "jagare, ångturbiner, två axlar"],
     "merchant": ["okänd kontakt", "ytfartyg", "ytfartyg, enskruv, trolig handelsfartyg",
                  "handelsfartyg, diesel, en axel"],
+    "guardship": ["okänd kontakt", "ytfartyg", "ytfartyg, tvåskruv, trolig bevakningsfartyg",
+                  "bevakningsfartyg, ångturbiner, två axlar"],
     "patrol": ["okänd kontakt", "ytfartyg", "ytfartyg, tvåskruv, snabbgående, trolig patrullbåt",
                "patrullbåt, diesel, två axlar"],
     "transport": ["okänd kontakt", "ytfartyg", "ytfartyg, stort, två axlar, långsamt varvtal",

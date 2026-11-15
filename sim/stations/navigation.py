@@ -92,6 +92,7 @@ WAIT_TRANSIT_KN = 5.0      # dit i smygmotorns högsta fart ...
 WAIT_QUIET_NM = 5.0        # ... tills vi är så här nära nätet,
 WAIT_QUIET_KN = 3.0        # sedan så här tyst
 WAIT_SUGGEST_S = 900
+DIVE_ORDER = re.compile(r"(?:^|,\s*)(?:(?:djup|d)\s+[1-9]|periskopdjup|pd\b|antenndjup|botten)")
 FAIRWAY_STEP_S = 15        # farleden: ny kurs mot nästa punkt så här ofta
 FAIRWAY_RIGHT_NM = 0.15    # håll så här långt till styrbord om farledens mitt
 FAIRWAY_TURN_NM = 0.25     # gir mot nästa ben så här långt före brytpunkten
@@ -913,7 +914,8 @@ class NavigationStation(Station):
     def _settle_proposal(self) -> Proposal | None:
         """Förslag att lägga oss på botten: hot hållet, grunt och mjukt enligt kortet."""
         sys = self.own.sys
-        if sys.settle or sys.on_bottom or not self.game.knowledge.threat_held():
+        if sys.settle or sys.on_bottom or not self.game.knowledge.threat_held() \
+                or self.own.surfaced or self._dive_forbidden_here():
             return None
         here = self.bottom_here()
         if here is None or here[1] is None or here[1] == "klippa" or here[0] > SETTLE_SUGGEST_MAX_M:
@@ -1224,6 +1226,10 @@ class NavigationStation(Station):
             self._pending.discard(what)
         else:
             self._pending.add(what)
+
+    def vetoes(self, order: str) -> bool:
+        """Ingen i besättningen föreslår dykning där ordern förbjuder det."""
+        return bool(DIVE_ORDER.search(order.lower())) and self._dive_forbidden_here()
 
     def _dive_forbidden_here(self) -> bool:
         """Ordern förbjuder dykning i fjorden, och kortet säger att vi är där."""

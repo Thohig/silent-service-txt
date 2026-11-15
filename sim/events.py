@@ -164,6 +164,12 @@ class OpeningNotFound(Event):
 
 
 @dataclass(frozen=True)
+class ListeningExercise(Event):
+    """Lyssningsövningen mot det egna bevakningsfartyget pågår (eller är slut)."""
+    active: bool
+
+
+@dataclass(frozen=True)
 class PositionReported(Event):
     """En position på något vi söker (t.ex. drivstationen), i beräknade koordinater."""
     name: str
