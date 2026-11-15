@@ -236,7 +236,8 @@ def _ice_at(pic: PeriscopePicture, bearing: float) -> IceBearing | None:
 
 
 def render_strip(pic: PeriscopePicture, w: int, selected: SightedObject | None,
-                 stale: bool) -> list[Text]:
+                 stale: bool, window: tuple[float, float] | None = None) -> list[Text]:
+    """window: (mitt, bredd) för klamrarna; annars okularet kring det valda föremålet."""
     g = _Grid(w, STRIP_ROWS)
     sea = STYLE["dim"] if stale else (STYLE["sea_day"] if pic.day else STYLE["sea_night"])
     ice_st = STYLE["ice"] if pic.day else STYLE["ice_night"]
@@ -261,9 +262,11 @@ def render_strip(pic: PeriscopePicture, w: int, selected: SightedObject | None,
         if abs(x - mid) > 5:
             g.text(x - 1, 2, fmt_course(b), STYLE["dim"])
     g.text(mid - 2, 2, "förut", STYLE["reticle"])
-    if selected is not None:
+    if window is None and selected is not None:
+        window = (selected.bearing, FOV_DEG)
+    if window is not None:
         for side in (-1, 1):
-            x = _strip_col(norm360(selected.bearing + side * FOV_DEG / 2), pic.own_course, w)
+            x = _strip_col(norm360(window[0] + side * window[1] / 2), pic.own_course, w)
             g.put(x, 1, "[" if side < 0 else "]", STYLE["label"])
     taken: set[int] = set()
     # det valda först, sedan närmast först: en beteckning som skulle krocka utelämnas

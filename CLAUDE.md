@@ -132,7 +132,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   fasta djup (`Level`), navigatörens djuplogg (var 10:e s), ekolodets bottenlodningar
   (bara efter `ekolod`), isekolodets lodningar och sonarrummets hörda ljud. `Game.profile()`
   samlar, `ui/profile_render.py` ritar sidovyn (tid vågrätt, botten i eget band under
-  bruten axel) och djupmätaren bredvid loggen. Tab växlar logg → sjökort → profil → systemtavla → periskopbild → logg (`VIEWS` i `ui/app.py`).
+  bruten axel) och djupmätaren bredvid loggen. Tab växlar logg → sjökort → profil → systemtavla → periskopbild → brygga → logg (`VIEWS` i `ui/app.py`).
 - **Systemtavlan** (`system`): `Station.system_items()` ger element (`sim/systems.py`):
   `Gauge` (panel, etikett, text, tillstånd ok/info/av/varning/fara, ev. stapel), `Compartment`
   (nio avdelningar, maskin), `TubeRack` (torpedrum), `Flooding`. Ur egna instrument
@@ -147,6 +147,12 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   observation (`source="brygga"`). Egen `random.Random` så att resten av spelets dragningar inte flyttas.
   Ropar ut nytt eller > 5 min ur sikte; flyg i sikte eller jagare < 3 nm ⇒ förslag `djup 60`.
   Sonar skriver inte över en bättre klassning (utkikens GOD) med sämre.
+  Vyn (`ui/bridge.py`, `ui/bridge_render.py`, `brygga`): 120° synfält åt `view_rel` relativt fören (← → 15°,
+  mellanslag förut), himmel (moln/stjärnor), horisont, sjö med vågor fasta i världen som driver med tiden,
+  fördäck förut och kölvatten akterut, räcket nederst; föremål ritas med periskopets `_draw_object`
+  (siluett, lanternor, flyg, is), längre bort än 8 nm bara ett tecken. Bäringsskala, 360°-remsa
+  (`render_strip(window=...)`) och datarad om föremålet närmast blickens mitt (±12°). Utan bild säger
+  vyn varför ur `StatusSnapshot.bridge` och djupet.
 - **Periskopbilden** (`sim/periscope.py`): vakthavande publicerar `PeriscopeSighted` med en
   `PeriscopePicture` när svepet är klart (inte om vi kom under periskopdjup); `Knowledge.periscope`
   håller den senaste. Synlig del (helt/överbyggnad/mastoppar) ur ögonhöjd (periskop 1,5 m, brygga 8 m)

@@ -223,3 +223,115 @@ def test_range_by_eye_is_rough_but_honest_over_seeds():
     rel.sort()
     median = rel[len(rel) // 2]
     assert 0.03 < median < 0.2, median
+
+
+# --- vyn (B2) ------------------------------------------------------------------------
+from sim.periscope import PeriscopePicture, SightedObject  # noqa: E402
+from ui.bridge_render import (FOV_DEG, focus_object, render_bridge,  # noqa: E402
+                              render_scene, view_text)
+
+
+def _obj(desig="S-1", bearing=20.0, rng=1.8, kind="destroyer", visible="helt", aob=70.0,
+         lights=()):
+    return SightedObject(kind, "jagare", bearing, rng, Quality.GOD, designation=desig,
+                         visible=visible, aob=aob, course=250.0, speed=12, lights=lights)
+
+
+def _bpic(*objs, day=True, course=0.0):
+    return PeriscopePicture(100, day, 10.0 if day else 2.5, course, "brygga", tuple(objs))
+
+
+def _plain(rows):
+    return "\n".join(r.plain for r in rows)
+
+
+def test_view_text():
+    assert view_text(0) == "rakt förut"
+    assert view_text(180) == "rakt akterut"
+    assert view_text(45) == "styrbord 45°"
+    assert view_text(300) == "babord 60°"
+
+
+def test_focus_is_the_object_nearest_the_middle_of_the_view():
+    a, b = _obj("S-1", 20.0), _obj("S-2", 95.0)
+    pic = _bpic(a, b)
+    assert focus_object(pic, 0.0) is None
+    assert focus_object(pic, 15.0) is a
+    assert focus_object(pic, 90.0) is b
+    # blicken är relativ fören: vi går 080, S-2 i bäring 095 är 15° styrbord
+    assert focus_object(_bpic(a, b, course=80.0), 15.0) is b
+
+
+def test_scene_shows_ships_in_view_with_labels_and_the_bow_ahead():
+    pic = _bpic(_obj("S-1", 20.0), _obj("S-4", 200.0))
+    ahead = _plain(render_scene(pic, 110, 24, 0.0, 0))
+    assert "S-1 1,8" in ahead and "S-4" not in ahead
+    assert "▒" in ahead and "╤" in ahead, "fördäcket och räcket syns förut"
+    astern = _plain(render_scene(pic, 110, 24, 180.0, 0, own_speed=8.0))
+    assert "S-4" in astern and "S-1" not in astern
+    assert "▒" not in astern and "≈" in astern, "akterut syns kölvattnet, inte fördäcket"
+
+
+def test_far_ships_are_a_mark_and_night_ships_only_lights():
+    far = _plain(render_scene(_bpic(_obj("S-1", 0.0, rng=9.0)), 110, 24, 0.0, 0))
+    assert "▲" in far and "S-1 9,0" in far and "_|_" not in far
+    night = _plain(render_scene(_bpic(_obj("S-1", 0.0, rng=2.0, visible="ljus",
+                                           lights=("topp", "grön")), day=False),
+                                110, 24, 0.0, 0))
+    assert "●" in night and "_|_" not in night
+
+
+def test_waves_move_with_time():
+    pic = _bpic()
+    assert _plain(render_scene(pic, 110, 24, 0.0, 0)) != _plain(render_scene(pic, 110, 24, 0.0, 4))
+
+
+def test_full_view_has_scale_strip_and_data_line_without_truth():
+    pic = _bpic(_obj("S-1", 20.0))
+    rows = render_bridge(pic, 110, 30, 20.0, 0)
+    txt = _plain(rows)
+    assert "‹020›" in txt and "förut" in txt
+    assert rows[-1].plain.startswith(" S-1 jagare · bäring 020")
+    assert "DD" not in txt
+
+
+def test_no_picture_says_why():
+    assert "Under ytan" in _plain(render_bridge(None, 110, 30, 0.0, 0, depth=60.0))
+    assert "öppnas" in _plain(render_bridge(None, 110, 30, 0.0, 0, status_bridge="manning"))
+    assert "utryms" in _plain(render_bridge(None, 110, 30, 0.0, 0, status_bridge="clearing"))
+
+
+def test_fov_is_wide():
+    assert FOV_DEG >= 90
+
+
+@pytest.mark.slow
+def test_tab_reaches_the_bridge_view_and_arrows_turn_it(tmp_path):
+    import asyncio
+
+    from ui.app import SubApp
+    from ui.bridge import BridgeScreen
+
+    async def run():
+        app = SubApp(seed=3, log_dir=tmp_path, scenario="kuba")
+        async with app.run_test(size=(110, 40)) as pilot:
+            await pilot.press("enter", "enter")
+            g = app.game
+            for ai in g.world.ais:
+                ai.can_force = False
+            g.world.env.sunrise, g.world.env.sunset = 0, 24 * 3600
+            _surface(g)
+            await pilot.press("tab", "tab", "tab", "tab", "tab")
+            assert isinstance(app.screen, BridgeScreen)
+            await pilot.pause(0.6)
+            body = str(app.screen.query_one("#bridge-body").render())
+            assert "╤" in body and "förut" in body
+            await pilot.press("right", "right")
+            assert app.screen.view_rel == pytest.approx(30.0)
+            await pilot.press("space")
+            assert app.screen.view_rel == 0.0
+            app.save_screenshot(str(tmp_path / "brygga.svg"))
+            await pilot.press("tab")
+            assert not isinstance(app.screen, BridgeScreen)
+
+    asyncio.run(run())

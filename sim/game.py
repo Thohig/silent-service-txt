@@ -75,6 +75,7 @@ class StatusSnapshot:
     smoke: float = 0.0
     ventilating: bool = False
     on_bottom: bool = False
+    bridge: str = "shut"            # tornluckan: shut, manning, manned, clearing
 
 
 def build_registry(station_classes: list[type[Station]]) -> CommandRegistry:
@@ -406,4 +407,5 @@ class Game:
             suggestion=sug[0] if sug else None, over=self.over,
             sea_noise=sea_noise, under_ice=under_ice,
             fire=sy.fire, smoke=sy.smoke, ventilating=sy.ventilating, on_bottom=sy.on_bottom,
+            bridge=sy.bridge,
         )

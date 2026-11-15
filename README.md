@@ -62,7 +62,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `salva S-1` eller `eld tub 1-3 mot S-1` (raka torpeder i solfjäder efter lösningens osäkerhet) · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
 | Ljud | `ctrl+t` eller `ljud` / `ljud av` / `ljud på`: besättningen talar (macOS-rösten Alva, de ryska fraserna med Milena om den finns), larmen går det sonaren hör spelas i stereo (babord till vänster) och båten låter: reaktor, turbin, skrov, is, brand och kontakternas propellrar |
-| Vyer | `Tab` växlar logg → sjökort → djupprofil → systemtavla → periskopbild → logg; `Esc` eller `logg` går tillbaka till loggen. Orden `sjökort`, `profil`, `system` och `periskopbild` öppnar en vy direkt. Order kan ges i alla vyer: varje vy har en orderrad, som också visar ett väntande förslag (`ja`/`nej`). Vyns tangenter (pilar, `+`/`-`, mellanslag, `Esc`) styr vyn när orderraden är tom; har den text redigerar de texten och `Esc` tömmer den. I periskopbilden byter ← → föremål i okularet |
+| Vyer | `Tab` växlar logg → sjökort → djupprofil → systemtavla → periskopbild → brygga → logg; `Esc` eller `logg` går tillbaka till loggen. Orden `sjökort`, `profil`, `system`, `periskopbild` och `brygga` öppnar en vy direkt. Order kan ges i alla vyer: varje vy har en orderrad, som också visar ett väntande förslag (`ja`/`nej`). Vyns tangenter (pilar, `+`/`-`, mellanslag, `Esc`) styr vyn när orderraden är tom; har den text redigerar de texten och `Esc` tömmer den. I periskopbilden byter ← → föremål i okularet; på bryggan vrider ← → blicken 15° och mellanslag tittar rakt förut igen |
 | Sjökort | Navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, mellanslag centrerar |
 | Systemtavla | Ubåtens system på en tavla: genomskärning av de nio avdelningarna (brand, rök, skador, reaktorns läge, vatten i kölsvinet), maskin (reaktor, framdrivning, batteri, tryckluft, skrov, vatten, koldioxid, rök), skador och reparationer per komponent, navigation, torpedtuberna med laddning, sonar och samband. Allt ur besättningens egna instrument; ▲ varning, ■ fara |
 | Djupprofil | Visar ubåten från sidan över tid: vårt djup, beordrat djup, ytan, periskopdjup, språngskiktet, prov- och krossdjup, isen ovanför, botten där ekolodet lodat och det sonar hört; `+`/`-` djupskala, pilarna tidsskala, mellanslag automatisk skala. Djupmätaren till höger om loggen visar samma sak i kort form |
@@ -163,6 +163,7 @@ sim/                 ren Python, ingen Textual
     engineering.py   maskin och skadekontroll
     sonar_room.py    sonar, transienter, aktiv sonar
     officer.py       periskop, radar, radarvarnare
+    bridge.py        tornluckan och utkiken på bryggan i ytläge
     radio.py         sambandstillfällen och rapporter
     plot.py          plottlaget
     torpedo_room.py  torpedrum och eldledning
@@ -177,6 +178,8 @@ ui/                  Textual
   systems_render.py  genomskärning och paneler till tecken
   periscope.py       periskopbilden i helskärm (utkikens senaste svep)
   periscope_render.py remsa, okular och siluetter till tecken
+  bridge.py          utsikten från bryggan i helskärm (utkikens bild, varannan sekund)
+  bridge_render.py   himmel, sjö, fördäck och kölvatten, föremålen med periskopets siluetter
 ```
 
 ### Lägga till ett system
