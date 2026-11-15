@@ -58,7 +58,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Plott | `läge S-1` · `plot S-1` |
 | Navigation | `position` · `fix` (periskopdjup) · `kurs mot <plats>` · `följ S-1` (i kontaktens kölvatten) · `anfall S-1` (till skjutläge 1,2 nm från målets väg, efter konvojens baskurs om plottet har den) · `ekolod` · `isekolod` · `vak` (gå till och stoppa under en loggad öppning i isen) · `drivstationen` (styr mot Nord-7) · `botten` (lägg oss stilla på botten; `djup` eller `fart` lättar) · `bottenfix` (nio lodningar på tre minuter jämförs med sjökortets djup) |
 | Maskin | `smygmotor` · `turbin` · `stäng reaktorn` · `starta reaktorn` · `nödblåsning` · `maskin` · `ventilera` (periskopdjup i öppen luft) |
-| Vakthavande | `periskop` · `periskop 047` eller `periskop S-3` (kort titt, ±16°, kortare tid med masten uppe) · `radar` (periskopdjup; radarvarnaren är automatisk) · `foto` (periskopfoto av ankarplatsen) |
+| Vakthavande | `periskop` (svep runt, 15 s) · `periskop 047` eller `periskop S-3` (kort titt, ±16°, kortare tid med masten uppe) · `periskop upp` (står uppe tills `periskop ned`; `vrid periskop 047` vrider okularet) · `radar` (periskopdjup; radarvarnaren är automatisk) · `foto` (periskopfoto av ankarplatsen) |
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `salva S-1` eller `eld tub 1-3 mot S-1` (raka torpeder i solfjäder efter lösningens osäkerhet) · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
 | Ljud | `ctrl+t` eller `ljud` / `ljud av` / `ljud på`: besättningen talar (macOS-rösten Alva, de ryska fraserna med Milena om den finns), larmen går det sonaren hör spelas i stereo (babord till vänster) och båten låter: reaktor, turbin, skrov, is, brand och kontakternas propellrar |
@@ -162,7 +162,8 @@ sim/                 ren Python, ingen Textual
     navigation.py    kurs, fart, djup, bestick, fix, ekolod, isekolod, vak
     engineering.py   maskin och skadekontroll
     sonar_room.py    sonar, transienter, aktiv sonar
-    officer.py       periskop, radar, radarvarnare
+    officer.py       radar, radarvarnare, kamera
+    periscope.py     periskopet i realtid: svep, titt, hålläge
     bridge.py        tornluckan och utkiken på bryggan i ytläge
     radio.py         sambandstillfällen och rapporter
     plot.py          plottlaget

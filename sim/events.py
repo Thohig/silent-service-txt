@@ -75,8 +75,10 @@ class PhotoTaken(Event):
 
 @dataclass(frozen=True)
 class PeriscopeSighted(Event):
-    """Utkikens bild när periskopsvepet är klart (se sim/periscope.py)."""
+    """Utkikens bild i periskopet (se sim/periscope.py). Medan masten är uppe kommer en
+    bild varannan sekund (live); live=False när svepet eller titten är klar."""
     picture: PeriscopePicture
+    live: bool = False
 
 
 @dataclass(frozen=True)

@@ -94,6 +94,37 @@ def range_quality(range_nm: float, sigma_nm: float) -> Quality:
     return Quality.DALIG
 
 
+@dataclass
+class Judgement:
+    """Utkikens bedömningsfel för ett föremål (i σ), fasta en stund så att bilden
+    inte fladdrar. Varje fält skalas med sensorns egen σ."""
+    t: int
+    bearing: float
+    range_rel: float
+    range_abs: float
+    course: float
+    speed: float
+
+
+class Judges:
+    """Bedömningarna per föremål. En ny dras när den gamla är hold_s gammal, eller
+    inte är yngre än `since` (när periskopet hissades: varje titt är en ny bedömning)."""
+
+    def __init__(self, hold_s: int):
+        self.hold_s = hold_s
+        self._j: dict[str, Judgement] = {}
+
+    def get(self, key: str, now: int, rng, since: int = -10**9) -> tuple[Judgement, bool]:
+        """Bedömningen för key; sant om den är ny (dragen nu)."""
+        j = self._j.get(key)
+        if j is not None and now - j.t < self.hold_s and j.t > since:
+            return j, False
+        g = rng.gauss
+        j = Judgement(now, g(0, 1), g(0, 1), g(0, 1), g(0, 1), g(0, 1))
+        self._j[key] = j
+        return j, True
+
+
 @dataclass(frozen=True)
 class SightedObject:
     """Ett föremål i periskopet, som utkiken bedömde det."""
@@ -152,12 +183,13 @@ def in_sector(bearing: float, sector: float | None) -> bool:
     return sector is None or abs(angle_diff(bearing, sector)) <= SECTOR_HALF_DEG
 
 
-def carried(prev: PeriscopePicture | None, now: int, sector: float,
+def carried(prev: PeriscopePicture | None, now: int, looked,
             fresh: list[SightedObject]) -> list[SightedObject]:
-    """Föremål från förra bilden utanför den korta tittens sektor (och inte sedda nu)."""
+    """Föremål från förra bilden där okularet inte har varit (looked(bäring) falskt)
+    och som inte syns nu: de ritas som äldre (seen_t)."""
     if prev is None:
         return []
     seen = {o.designation for o in fresh if o.designation}
     return [o for o in prev.objects
-            if not in_sector(o.bearing, sector) and now - o.seen_t <= CARRY_S
+            if not looked(o.bearing) and 0 <= o.seen_t and now - o.seen_t <= CARRY_S
             and (o.designation is None or o.designation not in seen)]

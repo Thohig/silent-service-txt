@@ -4,6 +4,7 @@ import random
 import pytest
 
 from sim.game import Game
+from sim.geo import angle_diff
 from sim.periscope import (EYE_BRIDGE_M, EYE_PERISCOPE_M, angle_on_bow, aob_quality,
                            hidden_height_m, horizon_nm, lights, range_quality, visible_part)
 from sim.reports import Quality
@@ -112,15 +113,20 @@ def test_no_picture_when_deep_or_when_diving_during_sweep():
 
 
 def test_far_targets_give_worse_angle_on_bow_over_seeds():
-    """Långt bort syns bara överbyggnaden: kursbedömningen sprider mer."""
+    """Långt bort syns bara överbyggnaden: kursbedömningen sprider mer. Jagaren hålls på
+    kurs 270 under svepet, så att felet är utkikens och inte en gir."""
     near, far = [], []
-    for seed in range(8):
+    for seed in range(12):
         for rng_nm, out in ((2.0, near), (7.5, far)):
             g = _game_at_periscope_depth(seed=seed, day=True, dd_range=rng_nm)
             g.world.env.day_visibility_nm = 12.0
-            _look(g)
+            v = next(v for v in g.world.contacts if v.kind == "destroyer")
+            g.command("periskop")
+            for _ in range(20):
+                v.state.course = v.state.ordered_course = 270.0
+                g.tick()
             dd = next(o for o in g.knowledge.periscope.ships() if o.kind == "destroyer")
-            out.append((dd.visible, abs(dd.aob + 90.0)))
+            out.append((dd.visible, abs(angle_diff(dd.course, 270.0))))
     assert all(v == "helt" for v, _ in near)
     assert all(v == "överbyggnad" for v, _ in far)
     assert sum(e for _, e in far) > sum(e for _, e in near)
@@ -221,18 +227,18 @@ def test_tab_reaches_the_periscope_view(tmp_path):
 
 # --- kort titt, is och sektor (P3) -----------------------------------------------
 from sim.scenario import arctic_scenario  # noqa: E402
-from sim.stations.officer import OfficerStation, SHORT_LOOK_S  # noqa: E402
+from sim.stations.periscope import PeriscopeWatch, SHORT_LOOK_S  # noqa: E402
 
 
 def test_short_look_parses_bearing_and_contact():
     g = _game_at_periscope_depth(day=True)
     g.command("periskop 180")
-    off = g.station(OfficerStation)
-    assert off.look_sector == 180
-    assert off.look_done_t == g.now + SHORT_LOOK_S
+    ps = g.station(PeriscopeWatch)
+    assert ps.mode == "look" and ps.train == 180
+    assert ps.t_end == g.now + SHORT_LOOK_S
     g2 = _game_at_periscope_depth(day=True)
     g2.command("periskop S-7")
-    assert g2.station(OfficerStation).look_done_t is None     # ingen sådan kontakt
+    assert g2.station(PeriscopeWatch).mode is None     # ingen sådan kontakt
 
 
 def test_short_look_sees_only_its_sector_and_keeps_the_rest_as_older():
@@ -291,3 +297,138 @@ def test_periscope_sees_the_ice_around_an_opening():
     rows = [r.plain for r in render_periscope(pic, 100, 30, None, 0)]
     eye = "\n".join(rows[4:-1])
     assert "▂" in eye and "^" in rows[1]
+
+
+# --- periskopet i realtid (L1) ------------------------------------------------------
+from sim.events import BearingObserved, PeriscopeSighted  # noqa: E402
+from sim.stations.periscope import LOOK_S  # noqa: E402
+
+
+def _frames(g):
+    out = []
+    g.bus.subscribe(PeriscopeSighted, out.append)
+    return out
+
+
+def _periscope_obs(g):
+    out = []
+    g.bus.subscribe(BearingObserved,
+                    lambda e: out.append(e.obs) if e.obs.source == "periskop" else None)
+    return out
+
+
+def test_sweep_gives_live_frames_then_a_full_picture():
+    g = _game_at_periscope_depth(day=True)
+    frames = _frames(g)
+    g.command("periskop")
+    trains = []
+    for _ in range(LOOK_S):
+        g.tick()
+        trains.append(g.station(PeriscopeWatch).train)
+    live = [e for e in frames if e.live]
+    done = [e for e in frames if not e.live]
+    assert len(live) >= LOOK_S // 2 - 1 and len(done) == 1
+    assert done[0].picture.sector is None                 # helt svep
+    assert all(e.picture.sector is not None for e in live)   # okularet under svepet
+    assert g.station(PeriscopeWatch).mode is None
+    assert not g.world.own.masts_up(g.now + 1)
+    # okularet har gått runt
+    steps = [(b - a) % 360 for a, b in zip(trains, trains[1:])]
+    assert sum(steps) > 300 and all(0 < s <= 30 for s in steps)
+
+
+def test_short_look_sees_only_its_sector_live():
+    g = _game_at_periscope_depth(day=True)          # jagaren rakt norrut
+    frames = _frames(g)
+    g.command("periskop 180")
+    for _ in range(SHORT_LOOK_S):
+        g.tick()
+    assert frames and all(not e.picture.ships() for e in frames)
+    assert frames[-1].picture.sector == 180 and not frames[-1].live
+
+
+def test_one_judgement_and_one_plot_observation_per_look():
+    """Under ett svep står bedömningen still (bilden fladdrar inte), och plottet får
+    en observation per fartyg och titt, med samma värden som bilden."""
+    g = _game_at_periscope_depth(day=True)
+    frames, obs = _frames(g), _periscope_obs(g)
+    g.command("periskop")
+    for _ in range(LOOK_S):
+        g.tick()
+    dd = [o for e in frames for o in e.picture.ships() if o.kind == "destroyer"]
+    assert len({(round(o.course, 3), o.speed) for o in dd}) == 1
+    mine = [o for o in obs if o.designation == dd[0].designation]
+    assert len(mine) == 1
+    assert mine[0].course_obs == pytest.approx(dd[-1].course)
+    # en ny titt är en ny bedömning
+    g.command("periskop")
+    for _ in range(LOOK_S):
+        g.tick()
+    mine = [o for o in obs if o.designation == dd[0].designation]
+    assert len(mine) == 2 and mine[1].course_obs != mine[0].course_obs
+
+
+def test_hold_keeps_the_mast_up_and_turns_where_ordered():
+    g = _game_at_periscope_depth(day=True)
+    frames, obs = _frames(g), _periscope_obs(g)
+    g.command("periskop upp")
+    ps = g.station(PeriscopeWatch)
+    g.command("vrid periskop 180")
+    for _ in range(30):
+        g.tick()
+        assert g.world.own.masts_up(g.now)
+    assert ps.mode == "hold" and ps.train == 180
+    assert not any(e.picture.ships() for e in frames)      # jagaren är rakt norrut
+    g.command("vrid periskop 000")
+    for _ in range(4):
+        g.tick()
+    assert frames[-1].live and frames[-1].picture.ships()
+    dd = next(o for o in frames[-1].picture.ships() if o.kind == "destroyer").designation
+    assert sum(o.designation == dd for o in obs) == 1
+    # i hålläge kommer en ny bedömning efter en minut
+    for _ in range(62):
+        g.tick()
+    assert sum(o.designation == dd for o in obs) == 2
+    g.command("periskop ned")
+    assert ps.mode is None and not frames[-1].live
+    g.tick()
+    assert not g.world.own.masts_up(g.now)
+
+
+def test_hold_comes_down_when_we_go_deep_or_fast():
+    g = _game_at_periscope_depth()
+    reports = []
+    g.bus.subscribe(__import__("sim.events", fromlist=["ReportDelivered"]).ReportDelivered,
+                    lambda e: reports.append(e.report.type))
+    g.command("periskop upp")
+    g.tick()
+    g.world.own.state.speed = 9.0
+    g.tick()
+    ps = g.station(PeriscopeWatch)
+    assert ps.mode is None
+    g.world.own.state.speed = 3.0
+    g.command("periskop upp")
+    g.tick()
+    g.world.own.state.depth = 40.0
+    g.tick()
+    assert ps.mode is None
+    for _ in range(30):
+        g.tick()
+    assert reports.count("off.periscope.lowered") == 2
+
+
+def test_turning_takes_over_a_sweep_and_is_refused_when_down():
+    g = _game_at_periscope_depth(day=True)
+    reports = []
+    g.bus.subscribe(__import__("sim.events", fromlist=["ReportDelivered"]).ReportDelivered,
+                    lambda e: reports.append(e.report.type))
+    g.command("vrid periskop 090")
+    ps = g.station(PeriscopeWatch)
+    assert ps.mode is None
+    g.command("periskop")
+    g.tick()
+    g.command("vrid periskop 090")
+    assert ps.mode == "hold" and ps.train == 90
+    for _ in range(30):
+        g.tick()
+    assert "off.periscope.is_down" in reports

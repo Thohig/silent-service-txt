@@ -1,0 +1,441 @@
+"""Periskopet: vakthavandes öga ovanför ytan, i realtid.
+
+Masten är uppe (`OwnSystems.periscope_until`) under ett svep, en kort titt eller så
+länge kaptenen håller den uppe. Okularet ser FOV_HALF_DEG åt var sida om sin bäring
+(`train`, sann bäring):
+- svep (`periskop`): vakthavande vrider runt från rätt förut på LOOK_S sekunder, sedan ner
+- kort titt (`periskop 047`, `periskop S-3`): mot bäringen i SHORT_LOOK_S sekunder
+- hålla (`periskop upp` … `periskop ned`): okularet står där kaptenen vrider det
+  (`vrid periskop 047`); masten är uppe tills den fälls eller inte kan vara uppe
+  (under periskopdjup, för hög fart, is, skadat periskop)
+
+Periskopet är en sensor: varje sekund läser det World för det som ligger i okularet, och
+varannan sekund publiceras en `PeriscopeSighted` (live). När svepet eller titten är klar
+kommer en sista bild (live=False). Bedömningsfelen (`Judges`) dras en gång per hissning
+och föremål (i hålläge om var JUDGE_EVERY_S), och då får plottet en observation. Samma
+fel ritas i bilden, så bilden och rapporterna stämmer. Nytt i okularet ropas ut en gång
+per hissning. Egen slump, så att periskopet inte flyttar resten av spelets dragningar.
+"""
+from __future__ import annotations
+
+import random
+from dataclasses import dataclass, replace
+
+from .. import phrases
+from .. import russian as R
+from ..arctic import STATION_LIGHT_NM
+from ..crew import Role
+from ..events import (BearingObserved, ClassificationChanged, ContactDetected, PeriscopeBlocked,
+                      PeriscopeSighted, PositionReported)
+from ..fmt import fmt_course, kn, nm
+from ..geo import angle_diff, norm360, velocity
+from ..ice import ice_view, masts_clear
+from ..orders import DESIG, CommandSpec, Order, desig
+from ..ownship import PERISCOPE_DEPTH
+from ..periscope import (AOB_SIGMA, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
+                         Judges, PeriscopePicture, SightedObject, angle_on_bow, aob_quality,
+                         carried, lights, range_quality, visible_part)
+from ..reports import Quality
+from ..tma import BearingObs
+from .base import Station
+from .officer import PHOTO_TARGET_KIND, SIGHTED, OfficerStation, _view_object, mast_refusal
+from .sonar_room import SonarRoom
+
+LOOK_S = 15                  # ett svep runt
+SHORT_LOOK_S = 8             # kort titt mot en bäring: mindre tid med masten uppe
+FOV_HALF_DEG = SECTOR_HALF_DEG
+SWEEP_DEG_S = 360.0 / LOOK_S
+FRAME_S = 2                  # en bild så här ofta medan masten är uppe
+JUDGE_EVERY_S = 60           # i hålläge: ny bedömning (och observation) så här ofta
+ICE_EVERY_S = 60
+BEARING_SIGMA = 0.5          # periskopets bäring, grader
+RANGE_REL_SIGMA = 0.08       # avstånd ur stadimetern: σ = 8 % + 0,03 nm
+RANGE_ABS_SIGMA = 0.03
+SPEED_SIGMA = 2.0            # fart ur bogvåg och varvtal, knop
+CLOSE_NM = 3.0               # en jagare så nära: föreslå djupt
+HOLD_MAX_KN = 7              # fortare vibrerar masten och ger svall
+
+
+@dataclass(frozen=True)
+class PeriscopeLook(Order):
+    bearing: float | None = None     # kort titt mot en bäring
+    target: str | None = None        # kort titt mot en kontakts senaste bäring
+
+
+@dataclass(frozen=True)
+class PeriscopeHold(Order):
+    pass
+
+
+@dataclass(frozen=True)
+class PeriscopeDown(Order):
+    pass
+
+
+@dataclass(frozen=True)
+class PeriscopeTrain(Order):
+    bearing: float | None = None
+    target: str | None = None
+
+
+def _contact(d: dict) -> str:
+    return (f"{d['designation']}: {d['label']} i bäring {fmt_course(d['bearing'])}, avstånd cirka "
+            f"{nm(d['range'])} sjömil. Vinkel på bogen ger kurs ungefär {fmt_course(d['course'])}, "
+            f"fart cirka {kn(d['speed'])} knop.")
+
+
+def _lights_contact(d: dict) -> str:
+    return (f"{d['designation']}: lanternor i bäring {fmt_course(d['bearing'])}, avstånd cirka "
+            f"{nm(d['range'])} sjömil. Kurs ungefär {fmt_course(d['course'])}.")
+
+
+PHRASES = {
+    "off.periscope.up": lambda d: "Periskop upp." if d.get("bearing") is None
+    else f"Periskop upp, kort titt i bäring {fmt_course(d['bearing'])}.",
+    "off.periscope.hold": lambda d: "Periskop upp. Det står uppe tills ni fäller det, kapten.",
+    "off.periscope.down": lambda d: "Periskop ner.",
+    "off.periscope.is_down": lambda d: "Kapten, periskopet är nere.",
+    "off.periscope.lowered": lambda d: f"Periskop ner, {d['reason']}.",
+    "off.periscope.contact": lambda d: "Periskop: "
+    + (_lights_contact(d) if d.get("lights") else _contact(d)),
+    "off.periscope.none": lambda d: (f"Periskop: inget i sikte i bäring {fmt_course(d['sector'])}. "
+                                     if d.get("sector") is not None else "Periskop: inget i sikte. ")
+    + f"{'Dagsljus' if d['day'] else 'Mörkt'}, sikt cirka {nm(d['visibility'])} sjömil. Periskop ner.",
+    "off.periscope.station": lambda d: f"Periskop: ljus på isen i bäring {fmt_course(d['bearing'])}, "
+    f"avstånd cirka {nm(d['range'])} sjömil. Baracker och radiomaster. Det måste vara Nord-7! "
+    "Inga rörelser, inget ljus i fönstren.",
+    "off.suggest.surface_station": lambda d: "Kapten, vakthavande. Vi har öppet vatten ovanför och "
+    f"Nord-7 på {nm(d['range'])} sjömil, nära nog att gå över isen. Föreslår ytläge.",
+    "off.periscope.aircraft": lambda d: f"Periskop: flygplan i bäring {fmt_course(d['bearing'])}, "
+    f"cirka {nm(d['range'])} sjömil, " + ("lågt över vattnet" if d["low"] else "på höjd")
+    + ". Tvåmotorigt patrullplan.",
+}
+phrases.register(PHRASES)
+
+RU_PHRASES = {
+    "off.periscope.up": lambda d: "Есть, поднять перископ.",
+    "off.periscope.hold": lambda d: "Есть, перископ поднят.",
+    "off.periscope.down": lambda d: "Есть, опустить перископ.",
+    "off.periscope.is_down": lambda d: f"{R.CAPTAIN}, перископ опущен.",
+    "off.periscope.lowered": lambda d: "Перископ опущен.",
+    "off.periscope.contact": lambda d: f"Перископ: {R.contact(d['designation'])}, пеленг "
+    f"{R.course(d['bearing'])}, дистанция {R.dec(d['range'], R.MILE)}.",
+    "off.periscope.none": lambda d: "Перископ: горизонт чист. Перископ опущен.",
+    "off.periscope.station": lambda d: f"Перископ: огни на льду, пеленг {R.course(d['bearing'])}. "
+    "Это станция!",
+    "off.suggest.surface_station": lambda d: f"{R.CAPTAIN}, вахтенный офицер. Станция рядом. "
+    "Предлагаю всплыть.",
+    "off.periscope.aircraft": lambda d: f"Перископ: самолёт, пеленг {R.course(d['bearing'])}"
+    + (", низко над водой!" if d["low"] else "."),
+}
+phrases.register_ru(RU_PHRASES)
+
+
+class PeriscopeWatch(Station):
+    """Periskopet. Vakthavande sköter det, därför samma roll."""
+    role = Role.OFFICER
+    COMMANDS = [
+        CommandSpec(r"periskop|titta", lambda m: PeriscopeLook(), "periskop"),
+        CommandSpec(rf"(?:periskop|titta)\s+(?:mot\s+)?{DESIG}",
+                    lambda m: PeriscopeLook(target=desig(m[1])), "periskop S-3"),
+        CommandSpec(r"(?:periskop|titta)\s+(?:mot\s+|bäring\s+|baring\s+)?(\d{1,3})",
+                    lambda m: PeriscopeLook(bearing=int(m[1]) % 360), "periskop 047"),
+        CommandSpec(r"periskop upp|håll periskopet uppe|hall periskopet uppe",
+                    lambda m: PeriscopeHold(), "periskop upp"),
+        CommandSpec(r"periskop (?:ned|ner|in)|periskopet (?:ned|ner)|fäll periskopet|fall periskopet",
+                    lambda m: PeriscopeDown(), "periskop ned"),
+        CommandSpec(rf"vrid periskop(?:et)?\s+(?:mot\s+)?{DESIG}",
+                    lambda m: PeriscopeTrain(target=desig(m[1]))),
+        CommandSpec(r"vrid periskop(?:et)?\s+(?:mot\s+|bäring\s+|baring\s+)?(\d{1,3})",
+                    lambda m: PeriscopeTrain(bearing=int(m[1]) % 360)),
+    ]
+
+    def __init__(self, game):
+        super().__init__(game)
+        # egen slump (fröet ur spelets oanvända tillstånd, skilt från bryggans)
+        self.rng = random.Random(hash(game.rng.getstate()) ^ 0x9E3779B9)
+        self.mode: str | None = None        # sweep, look, hold; None = nere
+        self.train = 0.0                    # okularets bäring (sann)
+        self.t_end: int | None = None
+        self.last_look_t = -10**9
+        self._start_t = 0                   # när svepet, titten eller hållet började
+        self._up_t = 0                      # när masten hissades (en hissning = en bedömning)
+        self._sweep_from = 0.0
+        self._judges = Judges(JUDGE_EVERY_S)
+        self._new_raising()
+
+    @property
+    def own(self):
+        return self.game.world.own
+
+    @property
+    def busy(self) -> bool:
+        """Ett svep eller en titt pågår (inte hålläge)."""
+        return self.mode in ("sweep", "look")
+
+    def _new_raising(self) -> None:
+        self._before: PeriscopePicture | None = None
+        self._covered: set[int] = set()
+        self._seen: dict[str, SightedObject] = {}
+        self._called: set[str] = set()
+        self._views: list | None = None
+        self._ice: tuple[IceBearing, ...] = ()
+        self._ice_t = -10**9
+
+    # --- order ------------------------------------------------------------------------
+    def on_order(self, order: Order) -> None:
+        match order:
+            case PeriscopeLook(bearing=bearing, target=target):
+                if not self._may_raise():
+                    return
+                if target is not None:
+                    bearing = self._target_bearing(target)
+                    if bearing is None:
+                        return
+                look_s = LOOK_S if bearing is None else SHORT_LOOK_S
+                self._raise("sweep" if bearing is None else "look",
+                            self.own.state.course if bearing is None else bearing, look_s)
+                self.say("off.periscope.up", {"bearing": bearing}, kind="ack")
+            case PeriscopeHold():
+                if self.mode != "hold" and not self._may_raise():
+                    return
+                self._raise("hold", self.train if self.mode else self.own.state.course, None)
+                self.say("off.periscope.hold", kind="ack")
+            case PeriscopeDown():
+                if self.mode is None:
+                    self.say("off.periscope.is_down", kind="ack")
+                    return
+                self._lower(final=True)
+                self.say("off.periscope.down", kind="ack")
+            case PeriscopeTrain(bearing=bearing, target=target):
+                if self.mode is None:
+                    self.say("off.periscope.is_down", kind="ack")
+                    return
+                if target is not None:
+                    bearing = self._target_bearing(target)
+                    if bearing is None:
+                        return
+                if self.mode != "hold":         # kaptenen tar periskopet: det står kvar uppe
+                    self._raise("hold", self.train, None)
+                self.train = float(bearing)
+
+    def _may_raise(self) -> bool:
+        if reason := mast_refusal(self.game, "periskopet"):
+            self.say("off.refused", {"reason": reason})
+            if self.own.state.depth <= PERISCOPE_DEPTH and not masts_clear(self.game.world):
+                self.game.bus.publish(PeriscopeBlocked(self.now, "is"))
+            return False
+        return True
+
+    def _target_bearing(self, target: str) -> float | None:
+        tr = self.game.knowledge.track(target)
+        if tr is None or tr.last_bearing is None:
+            self.say("off.refused", {"reason": f"vi har ingen bäring på {target}"})
+            return None
+        return tr.last_bearing
+
+    def _raise(self, mode: str, train: float, seconds: int | None) -> None:
+        sys = self.own.sys
+        if self.mode is None or mode != "hold":     # en ny titt: nya bedömningar
+            self._new_raising()
+            self._before = self.game.knowledge.periscope
+            self._up_t = self.now
+        self.mode = mode
+        self.train = float(train)
+        self._sweep_from = float(train)
+        self._start_t = self.now
+        self.last_look_t = self.now
+        self.t_end = None if seconds is None else self.now + seconds
+        sys.periscope_until = max(sys.periscope_until, self.now + (seconds or 1))
+
+    def _lower(self, final: bool) -> None:
+        if final and self._covered:
+            self._publish(live=False)
+        self.mode = None
+        self.t_end = None
+        sys = self.own.sys
+        if self.game.station(OfficerStation).photo_done_t is None:
+            sys.periscope_until = min(sys.periscope_until, self.now)
+
+    # --- varje sekund -------------------------------------------------------------------
+    def update(self) -> None:
+        if self.mode is None:
+            return
+        st, sys = self.own.state, self.own.sys
+        if st.depth > PERISCOPE_DEPTH + 1:
+            if self.mode == "hold":
+                self.say("off.periscope.lowered", {"reason": "vi är under periskopdjup"})
+            self.mode = self.t_end = None           # svep och titt: ingen bild
+            return
+        if self.mode == "hold":
+            reason = mast_refusal(self.game, "periskopet")
+            if reason is not None:
+                self.say("off.periscope.lowered", {"reason": reason})
+                self._lower(final=True)
+                return
+            sys.periscope_until = max(sys.periscope_until, self.now + 1)
+        elif self.mode == "sweep":
+            done = min(self.now - self._start_t, LOOK_S)
+            self.train = norm360(self._sweep_from + SWEEP_DEG_S * done)
+        self._observe()
+        if self.t_end is not None and self.now >= self.t_end:
+            self._finish()
+        elif (self.now - self._start_t) % FRAME_S == 1:
+            self._publish(live=True)
+
+    def _finish(self) -> None:
+        world = self.game.world
+        if not self._seen:
+            self.say("off.periscope.none", {"day": world.env.is_day(self.now),
+                                            "visibility": world.env.visibility_nm(self.now),
+                                            "sector": self.train if self.mode == "look" else None})
+        self._publish(live=False)
+        self.mode = self.t_end = None
+
+    def _looked(self, bearing: float) -> bool:
+        return abs(angle_diff(bearing, self.train)) <= FOV_HALF_DEG
+
+    def _observe(self) -> None:
+        """Det som ligger i okularet just nu (World: periskopet är en sensor)."""
+        world, now = self.game.world, self.now
+        day, vis = world.env.is_day(now), world.env.visibility_nm(now)
+        eye = EYE_BRIDGE_M if self.own.surfaced else EYE_PERISCOPE_M
+        c = round(self.train)
+        self._covered.update(int(norm360(c + d)) for d in range(-int(FOV_HALF_DEG),
+                                                                 int(FOV_HALF_DEG) + 1))
+        for v in world.contacts:
+            if v.side == "own" or v.sunk or getattr(v, "gone", False):
+                continue
+            if not self._looked(world.true_bearing(v)):
+                continue
+            r = world.true_range(v)
+            if v.is_ship and v.depth < 10 and r <= vis and world.in_sight(v.state.x, v.state.y):
+                self._seen[v.id] = self._ship(v, r, day, eye)
+            elif v.kind == "aircraft" and day and r <= vis:
+                self._seen[v.id] = self._aircraft(v, r)
+            elif v.kind == "station" and r <= STATION_LIGHT_NM:
+                self._seen[v.id] = self._station(v, r)
+        if self._views is None:
+            self._views = [v for sp in world.spawners if hasattr(sp, "periscope_view")
+                           for v in sp.periscope_view(world, self.rng)]
+        for i, (type_, d) in enumerate(self._views):
+            key = f"view{i}"
+            if key in self._called or not self._looked(d.get("bearing", 0.0)):
+                continue
+            self._called.add(key)
+            self.say(type_, d, kind="contact", alarm=True)
+            if obj := _view_object(type_, d):
+                self._seen[key] = replace(obj, seen_t=now)
+        if now - self._ice_t >= ICE_EVERY_S:
+            self._ice_t = now
+            self._ice = tuple(IceBearing(b, None if e is None else e * self.rng.uniform(0.85, 1.15), rd)
+                              for b, e, rd in ice_view(world))
+
+    def _judgement(self, key: str):
+        return self._judges.get(key, self.now, self.rng, since=self._up_t)
+
+    def _ship(self, v, r: float, day: bool, eye: float) -> SightedObject:
+        world = self.game.world
+        desig_ = self.game.station(SonarRoom).sensor.designate(v.id)
+        j, fresh = self._judgement(v.id)
+        full, short = SIGHTED.get(v.kind, ("ytfartyg", "fartyg"))
+        part = visible_part(v.kind, r, eye) if day else "ljus"
+        c_sig = AOB_SIGMA[part]
+        r_sig = RANGE_REL_SIGMA * r + RANGE_ABS_SIGMA
+        bearing = norm360(world.true_bearing(v) + j.bearing * BEARING_SIGMA)
+        r_meas = max(0.05, r + j.range_rel * r_sig)
+        course = norm360(v.state.course + j.course * c_sig)
+        speed = max(0, round(v.state.speed + j.speed * SPEED_SIGMA))
+        aob = angle_on_bow(bearing, course)
+        ls = () if day else lights(aob)
+        if fresh:
+            self._plot(desig_, full if day else "ytfartyg", day, bearing, r_meas, r_sig,
+                       course, c_sig, speed)
+        if v.id not in self._called:
+            self._called.add(v.id)
+            self.say("off.periscope.contact",
+                     {"designation": desig_, "label": short, "bearing": bearing, "range": r_meas,
+                      "course": course, "speed": speed, "lights": list(ls)},
+                     kind="contact", quality=Quality.GOD)
+            if v.kind == PHOTO_TARGET_KIND:
+                self.game.station(OfficerStation)._suggest_photo()
+        if v.kind == "destroyer" and r_meas < CLOSE_NM:
+            self.suggest("down_close", "off.suggest.down",
+                         {"reason": f"{desig_} är nära.", "depth": 100}, order="djup 100",
+                         cooldown=300)
+        return SightedObject(v.kind, short, bearing, r_meas, range_quality(r_meas, r_sig),
+                             designation=desig_, visible=part, aob=aob,
+                             aob_quality=aob_quality(c_sig), course=course, speed=speed,
+                             lights=ls, seen_t=self.now)
+
+    def _plot(self, desig_: str, label: str, day: bool, bearing: float, r_meas: float,
+              r_sig: float, course: float, c_sig: float, speed: float) -> None:
+        """En observation till plottet: bäring, avstånd, kurs och fart med periskopets σ."""
+        bus, now = self.game.bus, self.now
+        tr = self.game.knowledge.tracks.get(desig_)
+        if tr is None:
+            bus.publish(ContactDetected(now, desig_, bearing, label,
+                                        Quality.GOD if day else Quality.OSAKER))
+        elif day and tr.class_quality < Quality.GOD:
+            bus.publish(ClassificationChanged(now, desig_, label, Quality.GOD))
+        ex, ey = self.game.own_position_estimate()
+        bus.publish(BearingObserved(now, BearingObs(
+            now, bearing, BEARING_SIGMA, ex, ey, self.own.state.course, designation=desig_,
+            range_nm=r_meas, range_sigma=r_sig, source="periskop", course_obs=course,
+            course_sigma=c_sig, speed_obs=speed, speed_sigma=SPEED_SIGMA + 0.3)))
+
+    def _aircraft(self, v, r: float) -> SightedObject:
+        world = self.game.world
+        j, _ = self._judgement(v.id)
+        bearing = norm360(world.true_bearing(v) + j.bearing * 2.0)
+        r_meas = max(0.2, r * (1 + 0.2 * j.range_rel))
+        low = v.altitude < 150
+        if v.id not in self._called:
+            self._called.add(v.id)
+            self.say("off.periscope.aircraft", {"bearing": bearing, "range": r_meas, "low": low},
+                     kind="contact", alarm=True)
+        self.suggest("down_air", "off.suggest.down", {"reason": "Flygplan i sikte.", "depth": 60},
+                     order="djup 60", cooldown=300, alarm=True)
+        return SightedObject("aircraft", "flygplan", bearing, r_meas, Quality.OSAKER,
+                             detail="lågt" if low else "", seen_t=self.now)
+
+    def _station(self, v, r: float) -> SightedObject:
+        """Stationens ljus: bäring och avstånd, och läget till navigatören."""
+        world = self.game.world
+        j, fresh = self._judgement(v.id)
+        bearing = norm360(world.true_bearing(v) + j.bearing * 1.0)
+        r_sig = 0.1 * r + 0.03
+        r_meas = max(0.05, r + j.range_rel * r_sig)
+        if fresh:
+            ex, ey = self.game.own_position_estimate()
+            dx, dy = velocity(bearing, r_meas * 3600)      # en timme i r_meas knop = r_meas nm
+            self.game.bus.publish(PositionReported(self.now, "Nord-7", ex + dx, ey + dy,
+                                                   0.1 * r_meas + 0.05, self.now, "periskop"))
+        if v.id not in self._called:
+            self._called.add(v.id)
+            self.say("off.periscope.station", {"bearing": bearing, "range": r_meas},
+                     kind="contact", quality=Quality.GOD, alarm=True)
+        from .navigation import NavigationStation
+        try:
+            room = self.game.station(NavigationStation).surface_ok()
+        except KeyError:
+            room = True
+        if r_meas < 1.4 and self.own.state.depth > 1.0 and room:
+            self.suggest("surface_station", "off.suggest.surface_station", {"range": r_meas},
+                         order="ytläge", cooldown=300)
+        return SightedObject("station", "drivstation", bearing, r_meas,
+                             range_quality(r_meas, r_sig), lights=("ljus",), seen_t=self.now)
+
+    # --- bilden ---------------------------------------------------------------------
+    def _publish(self, live: bool) -> None:
+        world, now = self.game.world, self.now
+        one_look = self.mode in ("sweep", "look")   # ett svep eller en titt är en bild
+        objects = [replace(o, seen_t=now) if one_look else o for o in self._seen.values()]
+        covered = self._covered
+        objects += carried(self._before, now,
+                           lambda b: int(norm360(round(b))) in covered, objects)
+        sector = None if (self.mode == "sweep" and not live) else self.train
+        self.game.bus.publish(PeriscopeSighted(now, PeriscopePicture(
+            now, world.env.is_day(now), world.env.visibility_nm(now), self.own.state.course,
+            "brygga" if self.own.surfaced else "periskop", tuple(objects), sector, self._ice),
+            live=live))

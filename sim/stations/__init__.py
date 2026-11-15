@@ -4,6 +4,7 @@ from .bridge import BridgeWatch
 from .engineering import EngineeringStation
 from .navigation import NavigationStation, SetCourse, SetDepth, SetSpeed
 from .officer import OfficerStation
+from .periscope import PeriscopeWatch
 from .plot import PlotTeam, QuerySolution, ShowPlot
 from .radio import RadioStation
 from .sonar_room import SonarRoom
@@ -13,13 +14,13 @@ from .training import TrainingOfficer
 # Ordningen är uppdateringsordningen varje tick:
 # egen rörelse och teknik först, sedan sensorer, sedan analys och vapen.
 DEFAULT_STATIONS: list[type[Station]] = [
-    NavigationStation, EngineeringStation, SonarRoom, OfficerStation, BridgeWatch,
+    NavigationStation, EngineeringStation, SonarRoom, OfficerStation, PeriscopeWatch, BridgeWatch,
     RadioStation, PlotTeam, TorpedoRoom, TrainingOfficer,
 ]
 
 __all__ = [
     "Station", "DEFAULT_STATIONS",
     "NavigationStation", "SetCourse", "SetSpeed", "SetDepth",
-    "EngineeringStation", "SonarRoom", "OfficerStation", "BridgeWatch", "RadioStation",
+    "EngineeringStation", "SonarRoom", "OfficerStation", "PeriscopeWatch", "BridgeWatch", "RadioStation",
     "PlotTeam", "QuerySolution", "ShowPlot", "TorpedoRoom", "TrainingOfficer",
 ]

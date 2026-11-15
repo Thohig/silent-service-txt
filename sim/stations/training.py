@@ -90,7 +90,8 @@ class TrainingOfficer(Station):
 
     def attach(self, bus) -> None:
         super().attach(bus)
-        bus.subscribe(PeriscopeSighted, lambda e: setattr(self, "_look_t", e.t))
+        bus.subscribe(PeriscopeSighted,
+                      lambda e: None if e.live else setattr(self, "_look_t", e.t))
         bus.subscribe(OwnSoundMade, self._on_own_sound)
 
     def _on_own_sound(self, e: OwnSoundMade) -> None:

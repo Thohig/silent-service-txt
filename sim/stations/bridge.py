@@ -15,7 +15,6 @@ och flyg i sikte eller en jagare nära ger förslag att dyka.
 from __future__ import annotations
 
 import random
-from dataclasses import dataclass
 
 import numpy as np
 
@@ -29,9 +28,9 @@ from ..fmt import fmt_course, kn, nm
 from ..geo import bearing_to, distance, norm360, velocity
 from ..ice import ice_view
 from ..ownship import BRIDGE_CLEAR_S
-from ..periscope import (AOB_SIGMA, EYE_BRIDGE_M, IceBearing, LandBearing, PeriscopePicture,
-                         SightedObject, angle_on_bow, aob_quality, lights, range_quality,
-                         visible_part)
+from ..periscope import (AOB_SIGMA, EYE_BRIDGE_M, IceBearing, Judgement, Judges, LandBearing,
+                         PeriscopePicture, SightedObject, angle_on_bow, aob_quality, lights,
+                         range_quality, visible_part)
 from ..reports import Quality
 from ..systems import INFO, OK, WARN, Gauge
 from ..tma import BearingObs
@@ -125,17 +124,6 @@ RU_PHRASES = {
 phrases.register_ru(RU_PHRASES)
 
 
-@dataclass
-class _Judgement:
-    """Utkikens bedömningsfel för ett föremål (i σ), fasta i JUDGE_EVERY_S."""
-    t: int
-    bearing: float
-    range_rel: float
-    range_abs: float
-    course: float
-    speed: float
-
-
 class BridgeWatch(Station):
     """Utkiken på bryggan i ytläge. Vakthavande har bryggan, därför samma roll."""
     role = Role.OFFICER
@@ -146,7 +134,7 @@ class BridgeWatch(Station):
         # fröet ur spelets (oanvända) tillstånd, alltså samma för samma frö
         self.rng = random.Random(hash(game.rng.getstate()))
         self._hatch = self.own.sys.bridge
-        self._judged: dict[str, _Judgement] = {}
+        self._judges = Judges(JUDGE_EVERY_S)
         self._seen: dict[str, int] = {}
         self._ice_f: tuple[int, list[float]] = (-10**9, [])
         self._land_f: tuple[int, float] = (-10**9, 1.0)
@@ -188,15 +176,9 @@ class BridgeWatch(Station):
         return [Gauge("NAVIGATION", "Bryggan", text, state)]
 
     # --- utkiken --------------------------------------------------------------------
-    def _judgement(self, key: str) -> tuple[_Judgement, bool]:
+    def _judgement(self, key: str) -> tuple[Judgement, bool]:
         """Bedömningen för ett föremål; sant om den är ny (dragen nu)."""
-        j = self._judged.get(key)
-        if j is not None and self.now - j.t < JUDGE_EVERY_S:
-            return j, False
-        g = self.rng.gauss
-        j = _Judgement(self.now, g(0, 1), g(0, 1), g(0, 1), g(0, 1), g(0, 1))
-        self._judged[key] = j
-        return j, True
+        return self._judges.get(key, self.now, self.rng)
 
     def _call_out(self, key: str) -> bool:
         """Sant om föremålet ska ropas ut: nytt, eller ur sikte länge."""
@@ -242,7 +224,7 @@ class BridgeWatch(Station):
         o = self.own.state
         if key is None:
             g = self.rng.gauss
-            j = _Judgement(self.now, g(0, 1), g(0, 1), g(0, 1), 0.0, 0.0)
+            j = Judgement(self.now, g(0, 1), g(0, 1), g(0, 1), 0.0, 0.0)
         else:
             j, _ = self._judgement(key)
         r = distance(o.x, o.y, x, y)

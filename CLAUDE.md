@@ -210,16 +210,23 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   (`EVENT_KINDS`: `splash` i dagsljus, `column` = sjunkbomb, `hit` = torpedens explosion, natt bara
   blixt/eld inom 12 nm; synliga 6/10/60 s) och spår efter ångtorpeder (inte SET-53) inom 1,5 nm i
   dagsljus. Ropar ut land (en gång per 5 min), vattenpelare (övning eller skarpt) och träffar.
-- **Periskopbilden** (`sim/periscope.py`): vakthavande publicerar `PeriscopeSighted` med en
-  `PeriscopePicture` när svepet är klart (inte om vi kom under periskopdjup); `Knowledge.periscope`
-  håller den senaste. Synlig del (helt/överbyggnad/mastoppar) ur ögonhöjd (periskop 1,5 m, brygga 8 m)
+- **Periskopet** (`stations/periscope.py`, `PeriscopeWatch`, roll vakthavande) är en sensor i realtid:
+  medan masten är uppe läser det varje sekund World inom okularet (±16° kring `train`) och publicerar
+  `PeriscopeSighted(live=True)` varannan sekund; svep (`periskop`, runt från förut på 15 s) och titt
+  (`periskop 047`/`S-3`, 8 s) slutar med en bild `live=False` (inte om vi kom under periskopdjup).
+  Hålläge: `periskop upp` … `periskop ned`, `vrid periskop 047` (tar över ett svep); fälls med
+  `off.periscope.lowered` vid djup, fart > 7, is eller skada (`officer.mast_refusal`). Bedömningsfelen
+  (`periscope.Judges`, delad med bryggan) dras en gång per hissning och föremål, i hålläge om var 60:e s;
+  då får plottet en observation (bäring σ 0,5°, avstånd 8 % + 0,03, `AOB_SIGMA`, fart 2). Nytt i
+  okularet ropas ut en gång per hissning. Egen `random.Random`. Övningsledaren räknar bara `live=False`.
+- **Periskopbilden** (`sim/periscope.py`): `Knowledge.periscope` håller den senaste bilden. Synlig del (helt/överbyggnad/mastoppar) ur ögonhöjd (periskop 1,5 m, brygga 8 m)
   och `HEIGHTS`; kursbedömningens σ (`AOB_SIGMA`) följer synlig del, natt = bara lanternor (σ 25°).
   Vinkel på bogen `aob` + styrbord. Fartyg bär plottets beteckning, aldrig sanningens id.
   Vyn (`ui/periscope_render.py`, `ui/periscope.py`): 360°-remsa med fören i mitten, okular (32°)
   mot valt föremål (← →), siluetter i `ART` (fören åt höger, speglas vid babord, trycks ihop efter
   |sin vpb|, skärs efter synlig del), natt bara lanternor, bild äldre än 60 s nedtonad.
-  Kort titt (`periskop 047`, `periskop S-3`): 8 s mast uppe i stället för 15, ser bara ±16°;
-  föremål utanför sektorn följer med från förra bilden i 10 min (`seen_t`, ritas nedtonade).
+  Där okularet inte varit under hissningen följer föremål med från bilden före i 10 min (`seen_t`,
+  ritas nedtonade); i ett svep eller en titt räknas allt som setts som sett nu.
   Is: `ice.ice_view` (periskopet är en sensor) ger kant och vallar i 16 riktningar ut till 0,6 nm;
   kommer masten inte upp för isen publiceras `PeriscopeBlocked` och vyn säger det.
 - **Order i alla vyer** (`ui/viewbase.py`): vyerna ärver `ViewScreen` (rapportraden, `Esc`, orderrad

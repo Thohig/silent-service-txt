@@ -1,4 +1,5 @@
-"""Vakthavande officer: periskop, radar och radarvarnare (ESM).
+"""Vakthavande officer: radar, radarvarnare (ESM) och kamera. Periskopet är en egen
+station (periscope.py) som vakthavande också sköter.
 
 Allt här kräver periskopdjup och exponerar ubåten: periskop och radar kan
 upptäckas av jagarens radar och utkik, och radarsändning pejlas på långt håll.
@@ -15,22 +16,19 @@ vakthavande direkt ur samma kandidater, utan att vänta eller spärra upprepning
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 from .. import phrases
 from ..crew import ROLE_LABEL, Role
 from ..entities import Emission
-from ..arctic import STATION_LIGHT_NM
 from ..events import (BearingObserved, Handover, ClassificationChanged, ContactDetected,
-                      PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported)
+                      PhotoTaken)
 from ..fmt import fmt_course, kn, nm
-from ..geo import angle_diff, bearing_to, distance, norm360, velocity
-from ..ice import ice_view, masts_clear
-from ..orders import DESIG, AskSuggestion, CommandSpec, Order, desig
+from ..geo import bearing_to, distance, norm360
+from ..ice import masts_clear
+from ..orders import AskSuggestion, CommandSpec, Order
 from ..ownship import PERISCOPE_DEPTH
-from ..periscope import (AOB_SIGMA, EYE_BRIDGE_M, EYE_PERISCOPE_M, IceBearing,
-                         PeriscopePicture, SightedObject, angle_on_bow, aob_quality, carried,
-                         in_sector, lights, range_quality, visible_part)
+from ..periscope import SightedObject
 from ..reports import Quality
 from .. import russian as R
 from ..russian import ru
@@ -38,7 +36,6 @@ from ..tma import BearingObs
 from .base import Proposal, Station
 from .sonar_room import SonarRoom
 
-LOOK_S = 15
 BIG_SHIP_WORDS = ("stort", "transport", "tank")   # sonarns klassning av stora fartyg (mål)
 
 
@@ -47,8 +44,6 @@ def is_big_ship(track) -> bool:
     return not track.civil and any(w in track.classification for w in BIG_SHIP_WORDS)
 
 
-PERISCOPE_SPEED_SIGMA = 2.0  # utkikens fartbedömning (bogvåg, varvtal), knop
-SHORT_LOOK_S = 8           # kort titt mot en bäring: mindre tid med masten uppe
 RADAR_S = 10
 RADAR_RANGE_NM = 12.0
 AIR_ESM_NM = 40.0          # flygradar hörs så här långt
@@ -60,12 +55,6 @@ CONVOY_LOOK_S = 240        # konvojen känd: en kort titt mot den så här ofta 
 CONVOY_STEP_S = 30
 ESCORT_CLOSE_NM = 3.0      # en jagare så nära: föreslå inte att gå upp
 ESM_STRONG_S = 300         # mycket stark radar så nyligen: föreslå inte att gå upp
-
-
-@dataclass(frozen=True)
-class PeriscopeLook(Order):
-    bearing: float | None = None     # kort titt mot en bäring
-    target: str | None = None        # kort titt mot en kontakts senaste bäring
 
 
 @dataclass(frozen=True)
@@ -95,18 +84,27 @@ SIGHTED = {"destroyer": ("jagare, amerikansk", "jagare"),
            "tanker": ("tankfartyg, amerikanskt", "tankfartyg")}
 
 
+def mast_refusal(game, what: str) -> str | None:
+    """Varför masten inte kan komma upp nu (eget läge och egna instrument), annars None."""
+    own = game.world.own
+    st, sys = own.state, own.sys
+    if st.depth > PERISCOPE_DEPTH:
+        return f"vi måste upp på periskopdjup för {what}"
+    if st.speed > 7:
+        return "farten är för hög, periskopet vibrerar och ger svall"
+    if sys.health["periscope"] < 0.3:
+        return "periskopet och masterna är skadade"
+    if not masts_clear(game.world):
+        return "det är is ovanför, masterna kommer inte upp"
+    return None
+
+
 def _view_object(type_: str, d: dict) -> SightedObject | None:
     """Hamnskyddets nät (spawnarnas periscope_view) som föremål i bilden."""
     if type_ == "off.periscope.net":
         return SightedObject("net", "bojrad", d["bearing"], d["range"], Quality.OSAKER,
                              detail="grinden öppen" if d["gate_open"] else "grinden stängd")
     return None
-
-
-def _contact(d: dict) -> str:
-    return (f"{d['designation']}: {d['label']} i bäring {fmt_course(d['bearing'])}, avstånd cirka "
-            f"{nm(d['range'])} sjömil. Vinkel på bogen ger kurs ungefär {fmt_course(d['course'])}, "
-            f"fart cirka {kn(d['speed'])} knop.")
 
 
 def _names(ds: list[str]) -> str:
@@ -152,17 +150,6 @@ PHRASES = {
     "off.refused": lambda d: f"Kapten, {d['reason']}.",
     "off.battle_stations": lambda d: f"{ru('Boevaja trevoga')}! Stridslarm, alla man till "
     "stridsstationerna. Fienden har troligen kontakt med oss.",
-    "off.periscope.up": lambda d: "Periskop upp." if d.get("bearing") is None
-    else f"Periskop upp, kort titt i bäring {fmt_course(d['bearing'])}.",
-    "off.periscope.contact": lambda d: "Periskop: " + _contact(d),
-    "off.periscope.none": lambda d: (f"Periskop: inget i sikte i bäring {fmt_course(d['sector'])}. "
-                                     if d.get("sector") is not None else "Periskop: inget i sikte. ")
-    + f"{'Dagsljus' if d['day'] else 'Mörkt'}, sikt cirka {nm(d['visibility'])} sjömil. Periskop ner.",
-    "off.periscope.station": lambda d: f"Periskop: ljus på isen i bäring {fmt_course(d['bearing'])}, "
-    f"avstånd cirka {nm(d['range'])} sjömil. Baracker och radiomaster. Det måste vara Nord-7! "
-    "Inga rörelser, inget ljus i fönstren.",
-    "off.suggest.surface_station": lambda d: "Kapten, vakthavande. Vi har öppet vatten ovanför och "
-    f"Nord-7 på {nm(d['range'])} sjömil, nära nog att gå över isen. Föreslår ytläge.",
     "off.periscope.net": lambda d: f"Periskop: rad av små bojar tvärs farleden, närmast i bäring "
     f"{fmt_course(d['bearing'])}, cirka {nm(d['range'])} sjömil. Ett nät! Grinden i bäring "
     f"{fmt_course(d['gate_bearing'])} är " + ("öppen." if d["gate_open"] else "stängd."),
@@ -185,9 +172,6 @@ PHRASES = {
     "off.esm.air": lambda d: f"Radarvarnare: flygradar i bäring {fmt_course(d['bearing'])}, "
     f"signal {d['strength']}. Bäringen drar snabbt, det är ett flygplan."
     + (" Det är nära, kapten!" if d['strength'] == "mycket stark" else ""),
-    "off.periscope.aircraft": lambda d: f"Periskop: flygplan i bäring {fmt_course(d['bearing'])}, "
-    f"cirka {nm(d['range'])} sjömil, " + ("lågt över vattnet" if d["low"] else "på höjd")
-    + ". Tvåmotorigt patrullplan.",
     "off.suggest.down": lambda d: f"Kapten, vakthavande. {d['reason']} Föreslår djup "
     f"{d['depth']:.0f}.",
     "off.suggest.none": lambda d: (
@@ -222,7 +206,6 @@ RU_PHRASES = {
     "off.briefing": _briefing_ru,
     "off.battle_stations": lambda d: "Боевая тревога! Боевая тревога! Противник, видимо, "
     "обнаружил нас.",
-    "off.periscope.up": lambda d: "Есть, поднять перископ.",
     "off.suggest.convoy_up": lambda d: f"{R.CAPTAIN}, вахтенный офицер. Слышим большие суда. "
     "Предлагаю всплыть на перископную глубину и посмотреть.",
     "off.suggest.convoy_look": lambda d: f"{R.CAPTAIN}, вахтенный офицер. Предлагаю короткий "
@@ -234,24 +217,16 @@ phrases.register_ru(RU_PHRASES)
 class OfficerStation(Station):
     role = Role.OFFICER
     COMMANDS = [
-        CommandSpec(r"periskop|periskop upp|titta", lambda m: PeriscopeLook(), "periskop"),
-        CommandSpec(rf"(?:periskop|titta)\s+(?:mot\s+)?{DESIG}",
-                    lambda m: PeriscopeLook(target=desig(m[1])), "periskop S-3"),
-        CommandSpec(r"(?:periskop|titta)\s+(?:mot\s+|bäring\s+|baring\s+)?(\d{1,3})",
-                    lambda m: PeriscopeLook(bearing=int(m[1]) % 360), "periskop 047"),
         CommandSpec(r"radar|radarsvep", lambda m: RadarSweep(), "radar"),
         CommandSpec(r"foto|fotografera|ta bilder|ta foto|kamera", lambda m: Photograph(), "foto"),
     ]
 
     def __init__(self, game):
         super().__init__(game)
-        self.look_done_t: int | None = None
-        self.look_sector: float | None = None
         self.radar_done_t: int | None = None
         self.photo_done_t: int | None = None
         self._esm_last: dict[str, tuple[str, int]] = {}
         self._next_esm = 0
-        self._last_look_t = -10**9
         self._idle_t = -10**9       # senaste initiativ (eller försök) vid tystnad
         self._hunt_seen = -10**9    # senaste jakttecken vakthavande har tagit ställning till
 
@@ -304,43 +279,19 @@ class OfficerStation(Station):
             pass
         return d
 
+    def _periscope(self):
+        from .periscope import PeriscopeWatch
+        return self.game.station(PeriscopeWatch)
+
     def _sonar(self) -> SonarRoom:
         return self.game.station(SonarRoom)
 
     def _check_mast(self, what: str) -> str | None:
-        st, sys = self.own.state, self.own.sys
-        if st.depth > PERISCOPE_DEPTH:
-            return f"vi måste upp på periskopdjup för {what}"
-        if st.speed > 7:
-            return "farten är för hög, periskopet vibrerar och ger svall"
-        if sys.health["periscope"] < 0.3:
-            return "periskopet och masterna är skadade"
-        if not masts_clear(self.game.world):
-            return "det är is ovanför, masterna kommer inte upp"
-        return None
+        return mast_refusal(self.game, what)
 
     def on_order(self, order: Order) -> None:
         sys = self.own.sys
         match order:
-            case PeriscopeLook(bearing=bearing, target=target):
-                if reason := self._check_mast("periskopet"):
-                    self.say("off.refused", {"reason": reason})
-                    if self.own.state.depth <= PERISCOPE_DEPTH and \
-                            not masts_clear(self.game.world):
-                        self.game.bus.publish(PeriscopeBlocked(self.now, "is"))
-                    return
-                if target is not None:
-                    tr = self.game.knowledge.track(target)
-                    if tr is None or tr.last_bearing is None:
-                        self.say("off.refused", {"reason": f"vi har ingen bäring på {target}"})
-                        return
-                    bearing = tr.last_bearing
-                look_s = LOOK_S if bearing is None else SHORT_LOOK_S
-                self._last_look_t = self.now
-                self.look_sector = bearing
-                sys.periscope_until = max(sys.periscope_until, self.now + look_s)
-                self.look_done_t = self.now + look_s
-                self.say("off.periscope.up", {"bearing": bearing}, kind="ack")
             case AskSuggestion(role=role, other=other):
                 self._answer_request(Role(role) if role else None, other)
             case Photograph():
@@ -418,8 +369,8 @@ class OfficerStation(Station):
         st = self.own.state
         if st.depth > PERISCOPE_DEPTH + 1:
             self.suggest("convoy_up", "off.suggest.convoy_up", order="periskopdjup", cooldown=600)
-        elif self.look_done_t is None and st.speed <= 7 and \
-                self.now - self._last_look_t >= CONVOY_LOOK_S:
+        elif not self._periscope().busy and st.speed <= 7 and \
+                self.now - self._periscope().last_look_t >= CONVOY_LOOK_S:
             d = c.members[0] if c is not None and c.members else big[0]
             self.suggest("convoy_look", "off.suggest.convoy_look", {"designation": d},
                          order=f"periskop {d}", cooldown=CONVOY_LOOK_S)
@@ -443,32 +394,10 @@ class OfficerStation(Station):
         if st.depth <= PERISCOPE_DEPTH and not held and st.speed <= 7 and \
                 not self.own.bridge_open and \
                 not self.game.knowledge.ice.under_ice(self.now) and \
-                self.now - self._last_look_t >= LOOK_INTERVAL_S and self.look_done_t is None:
+                self.now - self._periscope().last_look_t >= LOOK_INTERVAL_S and \
+                self._periscope().mode is None:
             return [Proposal(5, "idle_look", "off.suggest.look", "periskop", cooldown=900)]
         return []
-
-    def _sight_station(self, v) -> SightedObject:
-        """Stationens ljus i periskopet: bäring och avstånd, och läget till navigatören."""
-        world, rng = self.game.world, self.game.rng
-        r = world.true_range(v)
-        bearing = norm360(world.true_bearing(v) + rng.gauss(0, 1.0))
-        r_meas = max(0.05, r + rng.gauss(0, 0.1 * r + 0.03))
-        ex, ey = self.game.own_position_estimate()
-        dx, dy = velocity(bearing, r_meas * 3600)          # en timme i r_meas knop = r_meas nm
-        self.game.bus.publish(PositionReported(self.now, "Nord-7", ex + dx, ey + dy,
-                                               0.1 * r_meas + 0.05, self.now, "periskop"))
-        self.say("off.periscope.station", {"bearing": bearing, "range": r_meas}, kind="contact",
-                 quality=Quality.GOD, alarm=True)
-        from .navigation import NavigationStation
-        try:
-            room = self.game.station(NavigationStation).surface_ok()
-        except KeyError:
-            room = True
-        if r_meas < 1.4 and self.own.state.depth > 1.0 and room:
-            self.suggest("surface_station", "off.suggest.surface_station", {"range": r_meas},
-                         order="ytläge", cooldown=300)
-        return SightedObject("station", "drivstation", bearing, r_meas,
-                             range_quality(r_meas, 0.1 * r_meas + 0.03), lights=("ljus",))
 
     def _observe(self, v, bearing_sigma: float, range_sigma: float, source: str,
                  label: str, velocity=None) -> dict:
@@ -579,81 +508,6 @@ class OfficerStation(Station):
         self._battle_watch()
         if self.now % CONVOY_STEP_S == 0:
             self._convoy_watch()
-        if self.look_done_t is not None and self.now >= self.look_done_t:
-            self.look_done_t = None
-            if st.depth > PERISCOPE_DEPTH + 1:
-                return
-            vis = world.env.visibility_nm(self.now)
-            day = world.env.is_day(self.now)
-            sector = self.look_sector
-
-            def looked(v) -> bool:
-                return in_sector(world.true_bearing(v), sector)
-
-            eye = EYE_BRIDGE_M if self.own.surfaced else EYE_PERISCOPE_M
-            objects: list[SightedObject] = []
-            seen = [v for v in self._surface_ships() if world.true_range(v) <= vis and looked(v)
-                    and world.in_sight(v.state.x, v.state.y)]     # inte bakom land
-            stations = [v for v in world.contacts if v.kind == "station"
-                        and world.true_range(v) <= STATION_LIGHT_NM and looked(v)]
-            for v in stations:
-                objects.append(self._sight_station(v))
-            planes = [v for v in world.contacts if v.kind == "aircraft" and day
-                      and world.true_range(v) <= vis and looked(v)]
-            for v in planes:
-                d = {"bearing": norm360(world.true_bearing(v) + rng.gauss(0, 2)),
-                     "range": max(0.2, world.true_range(v) * rng.uniform(0.8, 1.2)),
-                     "low": v.altitude < 150}
-                self.say("off.periscope.aircraft", d, kind="contact", alarm=True)
-                objects.append(SightedObject("aircraft", "flygplan", d["bearing"], d["range"],
-                                             Quality.OSAKER, detail="lågt" if d["low"] else ""))
-                self.suggest("down_air", "off.suggest.down",
-                             {"reason": "Flygplan i sikte.", "depth": 60}, order="djup 60",
-                             cooldown=300, alarm=True)
-            views = [v for sp in world.spawners if hasattr(sp, "periscope_view")
-                     for v in sp.periscope_view(world, rng)
-                     if in_sector(v[1].get("bearing", 0.0), sector)]
-            for type_, d in views:
-                self.say(type_, d, kind="contact", alarm=True)
-                if obj := _view_object(type_, d):
-                    objects.append(obj)
-            if any(v.kind == PHOTO_TARGET_KIND for v in seen):
-                self._suggest_photo()
-            if not seen and not stations and not planes and not views:
-                self.say("off.periscope.none", {"day": day, "visibility": vis, "sector": sector})
-            for v in seen:
-                r = world.true_range(v)
-                full, short = SIGHTED.get(v.kind, ("ytfartyg", "fartyg"))
-                r_sigma = 0.08 * r + 0.03
-                part = visible_part(v.kind, r, eye) if day else "ljus"
-                c_sigma = AOB_SIGMA[part]
-
-                def velocity(v=v, c_sigma=c_sigma):
-                    return (norm360(v.state.course + rng.gauss(0, c_sigma)), c_sigma,
-                            max(0, round(v.state.speed + rng.gauss(0, PERISCOPE_SPEED_SIGMA))),
-                            PERISCOPE_SPEED_SIGMA + 0.3)
-                d = self._observe(v, 0.5, r_sigma, "periskop", full, velocity=velocity)
-                d.update(label=short)
-                self.say("off.periscope.contact", d, kind="contact", quality=Quality.GOD)
-                aob = angle_on_bow(d["bearing"], d["course"])
-                objects.append(SightedObject(
-                    v.kind, short, d["bearing"], d["range"], range_quality(d["range"], r_sigma),
-                    designation=d["designation"], visible=part, aob=aob,
-                    aob_quality=aob_quality(c_sigma), course=d["course"], speed=d["speed"],
-                    lights=() if day else lights(aob), seen_t=self.now))
-                if r < 3.0 and v.kind == "destroyer":
-                    self.suggest("down_close", "off.suggest.down",
-                                 {"reason": f"{d['designation']} är nära.", "depth": 100},
-                                 order="djup 100", cooldown=300)
-            objects = [o if o.seen_t >= 0 else replace(o, seen_t=self.now) for o in objects]
-            if sector is not None:
-                objects += carried(self.game.knowledge.periscope, self.now, sector, objects)
-            ice = tuple(IceBearing(b, None if e is None else e * rng.uniform(0.85, 1.15), r)
-                        for b, e, r in ice_view(world))
-            self.game.bus.publish(PeriscopeSighted(self.now, PeriscopePicture(
-                self.now, day, vis, self.own.state.course,
-                "brygga" if self.own.surfaced else "periskop", tuple(objects), sector, ice)))
-
         if self.photo_done_t is not None and self.now >= self.photo_done_t:
             self.photo_done_t = None
             self._photo_done()
