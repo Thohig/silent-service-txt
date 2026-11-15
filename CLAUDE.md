@@ -81,6 +81,14 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   (`is_big_ship`: klassning stort/transport/tank, inte civilt), utom när vi är jagade, en klassad jagare
   är < 3 nm enligt plottet eller radarn varit mycket stark senaste 5 min. 8 frön, ja-boten: framme i
   4 (förut ~2); ja-boten som skjuter `salva` när navigatören säger skjutläge sänker 1–2 (förut 0).
+- **Korta varianter** (`Scenario.warmup`, `Warmup(seconds, pilot)`): `Game` kör vakten före kaptenen
+  med en fast plan (`pilot(game, t)` ger order via `game.command`) innan spelaren tar befälet, så att
+  plott, sonar och bestick byggs av sensorerna (aldrig inskrivet). Rapporterna syns inte: gränssnittet
+  skapar `Game(..., warm_up=False)`, kör `game.warm_up()` i en tråd medan ordern skrivs ut och
+  prenumererar först efteråt. Loggboken börjar vid överlämnandet. `Handover` ⇒ vakthavande säger
+  `off.briefing` (konvoj, kontakter, besticket ur kunskapen). Tidsgränsen är `World.patrol_end`
+  (uppvärmning + speltid). `ScenarioDef.minutes` visas i väljaren. Kort variant = egen nyckel
+  (`konvoj-kort`) som bygger på det långa scenariot. Plan för resten: `docs/korta-varianter.md`.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen
@@ -252,6 +260,11 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   inom 0,08–0,25 nm. Sonar håller isär okända pingare på en utjämnad bäring (grind 8° + 0,15°/s sedan förra pingen, högst 20°). 8 frön: passiv 0, ja-boten 0,
   bot med besättningens verktyg (periskop var 4:e min, `anfall`, salva mot klassad transport/tanker
   inom 3 nm, sedan djupt bort) 3 (och 1 neutral sänkt). Boten i scratchpad (`convoy_bots.py`).
+- Konvojen kort (`konvoj-kort`): konvojen 13–15 nm bort, vakt 35 min (periskopdjup, fart 3, svep var
+  4:e min), sedan 45 min. 8 frön: plottet har konvojen vid överlämnandet i alla, 5–9 nm bort, ingen
+  eskort har oss; första förslag 0–3 min efter; ja-boten i skjutläge i 4 (9–34 min). Bot som skjuter
+  `salva` (upprepad) mot klassad transport/tanker ≤ 3 nm med lösning ≥ osäker: sänker 1 på 28 min
+  (samma bot i `konvoj`: 1, på 69 min). Uppvärmningen tar ~5–8 s.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m.
 - Packis (`ice.py`): rutor 0,05 nm, flerårsis 2–4,5 m, kölar 8–25 m (6 % 30–45 m),
   170 råkar, 28 polynyor ⇒ ~4–5 % öppet vatten, en öppning ungefär var 30:e minut

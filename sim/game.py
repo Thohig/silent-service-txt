@@ -26,8 +26,8 @@ from .chart import ChartView
 from .profile import ProfileView
 from .systems import SystemsView
 from .crew import CrewMember, Role
-from .events import (EventBus, GameEnded, OrderIssued, PositionReported, ReportDelivered,
-                     Tick, TimeScaleChanged)
+from .events import (EventBus, GameEnded, Handover, OrderIssued, PositionReported,
+                     ReportDelivered, Tick, TimeScaleChanged)
 from .fmt import clock
 from .knowledge import Knowledge
 from .logbook import Logbook
@@ -107,7 +107,7 @@ def outcome_text(scenario: Scenario | None, outcome: str) -> str:
 class Game:
     def __init__(self, scenario: Scenario, seed: int | None = None,
                  truth_log: TruthLog | None = None,
-                 stations: list[type[Station]] | None = None):
+                 stations: list[type[Station]] | None = None, warm_up: bool = True):
         self.rng = random.Random(seed)
         self.scenario = scenario
         self.world = scenario.world
@@ -130,8 +130,6 @@ class Game:
         self.knowledge = Knowledge(bathymetry=scenario.chart_seabed,
                                    tide_table=scenario.tide_table)
         self.knowledge.attach(self.bus)          # före stationerna, se events.py
-        self.logbook = Logbook(self.clock_str)
-        self.logbook.attach(self.bus)
 
         station_classes = stations if stations is not None else DEFAULT_STATIONS
         self.stations: list[Station] = [cls(self) for cls in station_classes]
@@ -140,6 +138,35 @@ class Game:
         self.registry = build_registry(station_classes)
         for name, x, y, sigma, t in scenario.known_positions:
             self.bus.publish(PositionReported(0, name, x, y, sigma, t, "order"))
+        # loggboken börjar när kaptenen tar befälet, efter en ev. uppvärmning
+        self.logbook = Logbook(self.clock_str)
+        self.warmup_pending = scenario.warmup is not None
+        if not self.warmup_pending:
+            self.logbook.attach(self.bus)
+        elif warm_up:
+            self.warm_up()
+
+    def warm_up(self) -> None:
+        """Kör vakten före kaptenen (Scenario.warmup) och lämna över befälet.
+
+        Gränssnittet kan skapa Game med warm_up=False och köra detta i en tråd medan
+        ordern skrivs ut; det ska prenumerera på rapporterna först efteråt, så att
+        vaktens rapporter inte syns. Lägesrapporten (Handover) levereras efter."""
+        if not self.warmup_pending:
+            return
+        self.warmup_pending = False
+        w = self.scenario.warmup
+        for t in range(w.seconds):
+            w.pilot(self, t)
+            self.tick()
+            if self.over:
+                break
+        self.suggestion = None
+        self.last_command_t = self.last_suggestion_t = self.now
+        self.logbook.start_t = self.now
+        self.logbook.attach(self.bus)
+        if not self.over:
+            self.bus.publish(Handover(self.now, w.seconds))
 
     # ------------------------------------------------------------------ åtkomst
     @property
