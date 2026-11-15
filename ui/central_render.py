@@ -407,10 +407,11 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
     c.text(g.floor, g.peri - 1, "▁▁▁▁", p["tube"])
 
     # besättningen
-    officer = lit.get("officer")
-    c.put(g.console, g.officer, "●", officer or p["head"])
-    c.text(g.head, g.officer - 1, "▟█▙", officer or p["crew"])
-    c.text(g.body, g.officer - 1, "▐ ▌", officer or p["crew"])
+    if not g.big:                                   # stor: inga figurer, bara rummet
+        officer = lit.get("officer")
+        c.put(g.console, g.officer, "●", officer or p["head"])
+        c.text(g.head, g.officer - 1, "▟█▙", officer or p["crew"])
+        c.text(g.body, g.officer - 1, "▐ ▌", officer or p["crew"])
     rud = shown["rudder"]
     lean = 1 if rud > 5 else -1 if rud < -5 else 0
     if not g.big:                                   # stor: instrumenten står ensamma vid pulpeterna

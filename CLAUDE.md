@@ -188,7 +188,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   periskopbild (`SubApp.tab_views`; `VIEWS` är alla vyer).
 - **Centralen** (`ui/central_render.py`, `CentralView` i `ui/widgets.py`): bild av центральный пост.
   Huvudvyns layout efter fönstret (`GameScreen.on_resize`, klasserna `big`/`narrow`): minst 120 × 36 ⇒
-  centralen fyller vyn (`#central-big`, inga sittande figurer, bara vakthavande), loggen är en remsa (11 rader) med djupmätaren bredvid och hela
+  centralen fyller vyn (`#central-big`, inga figurer), loggen är en remsa (11 rader) med djupmätaren bredvid och hela
   loggen är en egen vy (`LogScreen`, `ui/logview.py`: först i Tab-ordningen, `logg`; `central` tillbaka;
   slutrapporten öppnar den). Mindre ⇒ loggen stor och en liten central (40 × 13) ovanför djupmätaren;
   under 100 kolumner bara djupmätaren. `ReportLog.emit` sparar raderna (`entries`) och speglar dem till

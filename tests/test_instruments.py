@@ -115,8 +115,8 @@ def test_readouts_show_the_exact_value_while_needles_lag():
     assert math.isclose(shown["course"], 80.0)
 
 
-def test_big_room_has_no_seated_crew_only_the_officer():
+def test_big_room_has_no_crew_figures():
     big = "\n".join(line.plain for line in render_central(BASE, width=150, height=29))
     small = "\n".join(line.plain for line in render_central(BASE))
-    assert big.count("▟█▙") == 1                # vakthavande vid periskopet
+    assert "▟█▙" not in big and "▐ ▌" not in big
     assert small.count("▟█▙") == 6
