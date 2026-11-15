@@ -470,7 +470,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   bara med `--slow` (`tests/conftest.py`). Kör `--slow` före varje commit.
 - Verifiera spelkänslan med en huvudlös genomspelning: skapa `Game`, prenumerera
   på `ReportDelivered`, skriv ut rapporter, kör `g.tick()` i en loop (gärna med
-  en bot som svarar `ja` på förslag). Skriv sådana skript i scratchpad, inte i repot.
+  en bot som svarar `ja` på förslag). Tillfälliga skript i scratchpad; botar som ger siffrorna under Kalibrering ligger i
+  `kalibrering/` (se dess README) och uppdateras där.
 - Gränssnittet kan provköras med `App.run_test()` och `save_screenshot()`.
 - Sanningsloggen (`logs/truth-*.log`) visar exakta positioner, fiendens tillstånd
   och datum – använd den för felsökning.
