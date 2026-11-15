@@ -263,6 +263,7 @@ def test_training_loads_only_exercise_torpedoes_and_never_offers_to_fire():
     assert STEPS["torped"].order is None                    # vapen: aldrig en ja-order
 
 
+@pytest.mark.slow
 def test_short_variant_hands_over_at_periscope_depth_in_the_area():
     g = Game(build_scenario("ovning-kort", random.Random(1)), seed=1)
     nav = g.station(NavigationStation)

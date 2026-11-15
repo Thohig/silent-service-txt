@@ -52,6 +52,7 @@ def test_no_initiative_before_quiet_period():
         assert not _idle(g, reports)
 
 
+@pytest.mark.slow
 def test_initiative_comes_after_quiet_and_is_paced():
     for seed in SEEDS:
         g, reports = _game(seed)

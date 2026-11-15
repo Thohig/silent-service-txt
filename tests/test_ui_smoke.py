@@ -7,6 +7,7 @@ from ui.app import SubApp
 from ui.menu import MenuScreen
 
 
+@pytest.mark.slow
 def test_app_starts_and_acknowledges_order(tmp_path):
     reports = []
 

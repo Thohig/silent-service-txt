@@ -31,6 +31,7 @@ def _run(g, n):
         g.tick()
 
 
+@pytest.mark.slow
 def test_station_drifts_with_ice_and_is_not_a_ship():
     g, _ = _game()
     st = _station(g)

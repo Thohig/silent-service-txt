@@ -64,6 +64,7 @@ def test_knowledge_has_the_old_chart_not_the_truth():
     assert g.knowledge.bathymetry is not g.world.env.seabed
 
 
+@pytest.mark.slow
 def test_echo_sounder_reads_the_true_bottom_where_we_are():
     g = _game()
     g.command("kurs 270")
@@ -114,6 +115,7 @@ def _toward_bank(seed=4, speed=10.0, depth=250.0, offset=3.0):
     return g, reports
 
 
+@pytest.mark.slow
 def test_running_onto_the_bank_damages_the_hull():
     g, reports = _toward_bank()
     for _ in range(3600):

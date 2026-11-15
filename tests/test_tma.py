@@ -1,3 +1,4 @@
+import pytest
 import dataclasses
 import random
 
@@ -125,6 +126,7 @@ def _two_legs(seed, turn_to=None, turn_rate=1.0):
     return obs, t, own, tgt
 
 
+@pytest.mark.slow
 def test_gentle_target_turn_is_found_by_the_split_test():
     """En gir på 35° som den sammanlagda anpassningen inte ser (fit ~1)."""
     found = 0
@@ -137,6 +139,7 @@ def test_gentle_target_turn_is_found_by_the_split_test():
     assert found >= 7
 
 
+@pytest.mark.slow
 def test_straight_target_rarely_trips_the_split_test():
     stats = []
     for seed in range(20):

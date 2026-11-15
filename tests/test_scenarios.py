@@ -8,16 +8,12 @@ from sim.scenario import SCENARIOS, build_scenario
 from sim.truthlog import TruthLog
 
 
-# korta varianter med uppvärmning kör vakten i flera minuter före testet
-WARMUP_KEYS = ("konvoj-kort", "konvoj-mot")
-
-
-@pytest.mark.parametrize("key", [pytest.param(k, marks=pytest.mark.slow) if k in WARMUP_KEYS else k
-                                 for k in SCENARIOS])
-def test_every_scenario_builds_and_runs(key, tmp_path):
+@pytest.mark.parametrize("key", list(SCENARIOS))
+def test_every_scenario_builds_and_runs(key, tmp_path, request):
     sc = build_scenario(key, random.Random(1))
     log = TruthLog(tmp_path / "truth.log")     # gränssnittet loggar alltid sanningen
-    g = Game(sc, seed=1, truth_log=log)
+    # korta varianter kör vakten i flera minuter före överlämnandet: bara med --slow
+    g = Game(sc, seed=1, truth_log=log, warm_up=bool(request.config.getoption("--slow")))
     for _ in range(300):
         g.tick()
     log.close()

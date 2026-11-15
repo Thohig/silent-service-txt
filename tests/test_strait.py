@@ -260,6 +260,7 @@ def test_navigator_suggests_a_wait_point_seaward_of_the_gate():
         assert abs(wp.x - _harbor(g).net.gate_x) <= 0.6, seed   # nära farleden, vid sidan av
 
 
+@pytest.mark.slow
 def test_wait_order_takes_us_there_and_holds_station():
     g = _game(2)
     said = _said(g)

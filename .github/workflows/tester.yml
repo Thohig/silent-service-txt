@@ -1,0 +1,27 @@
+# Alla tester, även de långsamma (hela spel, statistik över frön), vid varje push och pull request.
+name: tester
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tester-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Installera Python och beroenden
+        run: |
+          uv python install 3.12
+          uv sync --locked
+      - name: Alla tester (även --slow)
+        run: uv run pytest -q --slow

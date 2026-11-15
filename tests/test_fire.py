@@ -1,4 +1,5 @@
 """Brand och rök: branden stoppar turbinen, röken kräver ventilation i öppen luft."""
+import pytest
 import random
 
 from sim.events import ReportDelivered
@@ -92,6 +93,7 @@ def test_crew_proposes_way_to_fresh_air():
                for r in reports)
 
 
+@pytest.mark.slow
 def test_no_fire_in_cuba_scenario():
     g = Game(build_scenario("kuba", random.Random(1)), seed=1)
     for _ in range(3600):

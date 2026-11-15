@@ -1,3 +1,4 @@
+import pytest
 import random
 
 from sim.events import ReportDelivered, TimeScaleChanged
@@ -37,6 +38,7 @@ def test_new_contact_drops_time_compression_to_1x():
     assert changes[-1] == (1, "larm")
 
 
+@pytest.mark.slow
 def test_reports_never_reveal_truth_ids():
     g, reports = _game()
     for _ in range(3000):

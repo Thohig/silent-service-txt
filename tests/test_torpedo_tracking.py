@@ -1,4 +1,5 @@
 """Uppföljning av egna torpeder: sonar följer dem, torpedrummet rapporterar."""
+import pytest
 import random
 import re
 
@@ -84,6 +85,7 @@ def test_hit_is_followed_and_reported_per_tube():
         assert not g.station(TorpedoRoom).in_water
 
 
+@pytest.mark.slow
 def test_miss_is_reported():
     for seed in SEEDS:
         g, reports = _game(seed)
@@ -97,6 +99,7 @@ def test_miss_is_reported():
         assert not g.station(TorpedoRoom).in_water
 
 
+@pytest.mark.slow
 def test_homing_torpedo_turn_is_heard():
     turned = 0
     for seed in SEEDS:

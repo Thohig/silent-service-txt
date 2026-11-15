@@ -1,4 +1,5 @@
 """Förslag om sådant kaptenen redan har beordrat ges inte och hålls inte kvar."""
+import pytest
 import random
 
 from sim.events import ReportDelivered
@@ -106,6 +107,7 @@ def _repeat(g, key, order, alarm=False, until=4000):
     return times
 
 
+@pytest.mark.slow
 def test_unanswered_suggestion_backs_off():
     g, _ = _game()
     for st in g.stations:

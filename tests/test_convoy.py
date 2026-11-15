@@ -37,6 +37,7 @@ def test_zigzag_plans_average_to_the_base_course():
         assert abs(math.degrees(math.atan2(side, along))) < 3.0
 
 
+@pytest.mark.slow
 def test_convoy_zigzags_around_the_base_course_and_keeps_formation():
     for seed in SEEDS:
         w, c = _world(seed)
