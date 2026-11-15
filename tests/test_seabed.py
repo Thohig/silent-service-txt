@@ -1,4 +1,5 @@
 """Havsbotten: sanningen varierar, sjökortet är en egen, felaktig bild av den."""
+import pytest
 import math
 import random
 
@@ -129,6 +130,7 @@ def test_running_onto_the_bank_damages_the_hull():
     assert any(r.type == "bottom.collision" and "på grund" in r.text for r in reports)
 
 
+@pytest.mark.slow
 def test_slow_touch_does_no_damage():
     g, reports = _toward_bank(speed=1.5, offset=0.0)
     for _ in range(6000):
@@ -141,6 +143,7 @@ def test_slow_touch_does_no_damage():
     assert any(r.type == "bottom.touch" for r in reports)
 
 
+@pytest.mark.slow
 def test_navigator_warns_and_yes_keeps_us_off_the_bank():
     for seed in (1, 4, 7):
         g, reports = _toward_bank(seed=seed)
@@ -154,6 +157,7 @@ def test_navigator_warns_and_yes_keeps_us_off_the_bank():
         assert not any(r.type.startswith("bottom.") for r in reports), seed
 
 
+@pytest.mark.slow
 def test_sonar_never_suggests_a_depth_below_the_known_bottom():
     from sim.stations import NavigationStation, SonarRoom
     g, _ = _toward_bank(depth=40.0, speed=8.0)
@@ -184,6 +188,7 @@ def _settle(g, ticks=900):
         g.tick()
 
 
+@pytest.mark.slow
 def test_settle_on_soft_bottom_is_quiet_and_still():
     from sim.seabed import RESTING_CLUTTER_DB, bottom_clutter
     g, reports = _on_bank()
@@ -206,6 +211,7 @@ def test_settle_on_soft_bottom_is_quiet_and_still():
     assert not any(r.type == "bottom.collision" for r in reports)
 
 
+@pytest.mark.slow
 def test_depth_order_lifts_us_off_the_bottom():
     g, reports = _on_bank()
     _settle(g)
@@ -243,6 +249,7 @@ def test_rock_bottom_scrapes_the_hull():
     assert g.world.own.sys.hull < 1.0
 
 
+@pytest.mark.slow
 def test_navigator_suggests_the_bottom_when_hunted_over_the_bank():
     from sim.events import ContactDetected
     g, reports = _on_bank()

@@ -144,6 +144,7 @@ def _yes_bot(seed, seconds):
     return g, reports, surfaced_or_pd_in_open
 
 
+@pytest.mark.slow
 def test_crew_guides_boat_to_open_water_and_station_over_seeds():
     """Med en kapten som säger ja når besättningen öppet vatten och drivstationen
     i de flesta frön, utan att skada ubåten nämnvärt."""
@@ -157,6 +158,7 @@ def test_crew_guides_boat_to_open_water_and_station_over_seeds():
     assert sum(station) >= 5
 
 
+@pytest.mark.slow
 def test_vak_steers_back_and_stops_under_opening():
     """Efter en passerad öppning: 'vak' ska oftast leda till stopp under öppet
     vatten eller nyis (sanningen), inom tjugo minuter."""

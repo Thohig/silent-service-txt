@@ -64,7 +64,8 @@ class Warmup:
     """Vakten före kaptenen. Game kör så många sekunder med en fast plan (pilot) innan
     spelaren tar befälet: plottet, sonaren och besticket byggs av sensorerna som vanligt,
     så att en kort variant kan börja mitt i läget utan att kunskapen skrivs in för hand.
-    pilot(game, t) ger order med game.command(...) som vakthavande gjort före oss."""
+    pilot(game, t) ger order med game.command(...) som vakthavande gjort före oss.
+    Returnerar piloten True lämnar vakten över före `seconds` (som då är ett tak)."""
     seconds: int
     pilot: Callable[[Any, int], None]
 
@@ -87,7 +88,9 @@ class Scenario:
     # målet är att lämna området: så här långt utanför kanten räknas som ute (nm)
     escape_margin_nm: float | None = None
     escape_requires_photo: Quality | None = None   # utvägen räknas först med ett så bra foto
+    escape_y_below: float | None = None  # ute = söder om denna linje (i stället för kvadratens kant)
     warmup: Warmup | None = None         # kort variant: vakten före kaptenen (se Warmup)
+    report_required: bool = False        # ordern kräver en rapport vid sambandstillfället
 
 
 def _crew() -> dict[Role, CrewMember]:
@@ -174,7 +177,9 @@ def _compass(b: float) -> str:
         int(((b % 360) + 22.5) // 45) % 8]
 
 
-def arctic_scenario(rng: random.Random) -> Scenario:
+def arctic_scenario(rng: random.Random, short: bool = False) -> Scenario:
+    """Under packisen till Nord-7. short (`arktis-kort`): stationen ligger nära, vakten har
+    gått mot den i 20 min, ubåten är närmare och branden kommer snart (arctic_short_scenario)."""
     start_clock = 2 * 3600
     ice = IceField(random.Random(rng.random()), drift_set=200.0, drift_kn=0.25)
     env = Environment(profile=ArcticProfile(), clock_start=start_clock, ice=ice,
@@ -188,7 +193,10 @@ def arctic_scenario(rng: random.Random) -> Scenario:
     own = OwnShip(ShipState(x=x, y=y, course=0, speed=5, depth=120, max_depth=400))
 
     # drivstationen: en isflak med en vak intill
-    sx, sy = x + rng.uniform(-2.5, 2.5), y + rng.uniform(10.5, 12.5)
+    if short:
+        sx, sy = x + rng.uniform(-1.0, 1.0), y + rng.uniform(*ARCTIC_SHORT_STATION_NM)
+    else:
+        sx, sy = x + rng.uniform(-2.5, 2.5), y + rng.uniform(10.5, 12.5)
     station = DriftStation("NORD7", sx, sy)
     b = rng.uniform(0, 360)
     ice.carve_polynya(sx + 0.3 * math.sin(math.radians(b)), sy + 0.3 * math.cos(math.radians(b)),
@@ -196,7 +204,8 @@ def arctic_scenario(rng: random.Random) -> Scenario:
 
     # amerikansk atomubåt på väg mot samma område
     ub = rng.uniform(40, 140)
-    ux, uy = sx + 9 * math.sin(math.radians(ub)), sy + 9 * math.cos(math.radians(ub))
+    ur = ARCTIC_SHORT_SUB_NM if short else 9
+    ux, uy = sx + ur * math.sin(math.radians(ub)), sy + ur * math.cos(math.radians(ub))
     us = EnemySub("SSN1", ShipState(x=ux, y=uy, course=bearing_to(ux, uy, sx, sy), speed=8,
                                     depth=150, turn_rate=1.5, accel=0.05, max_speed=25,
                                     max_depth=300))
@@ -229,12 +238,22 @@ def arctic_scenario(rng: random.Random) -> Scenario:
     world.mission["fire_at"] = rng.randint(40 * 60, 110 * 60)
     crew = _crew()
     windows = [(c - start_clock) for c in (3 * 3600, 4 * 3600 + 1800, 6 * 3600)]
+    known = [(STATION_NAME, ox, oy, 2.0, 0)]
+    if short:
+        r2 = random.Random(rng.random())
+        world.mission["fire_at"] = ARCTIC_SHORT_WARM_S + r2.randint(*ARCTIC_SHORT_FIRE_MIN) * 60
+        world.patrol_end = ARCTIC_SHORT_WARM_S + ARCTIC_SHORT_LIMIT_S
+        windows = []
+        # nödsignalen har redan kommit: vakten har stationens pejlade läge
+        t0 = 0
+        known = [(STATION_NAME, sx + r2.gauss(0, 0.4), sy + r2.gauss(0, 0.4), 0.6, t0)]
+        messages = []
     sb_rng = random.Random(rng.random())
     env.seabed = arctic_seabed(sb_rng, world.size_nm)
     chart = env.seabed.chart_copy(sb_rng, err_nm=0.8)
     return Scenario(world, crew, order, start_clock, chart_seabed=chart,
                     radio_windows=windows, radio_messages=messages,
-                    known_positions=[(STATION_NAME, ox, oy, 2.0, 0)],
+                    known_positions=known,
                     area_name="område Nord-3",
                     outcome_text={
                         "station_reached": "K-114 har gått upp genom isen vid Nord-7. En "
@@ -246,6 +265,30 @@ def arctic_scenario(rng: random.Random) -> Scenario:
                         "sank": "Den amerikanska ubåten är sänkt under isen. Vad som händer nu "
                                 "avgörs inte längre i Nord-3.",
                     })
+
+
+ARCTIC_SHORT_STATION_NM = (3.6, 4.2)    # stationen norrut vid start (2,0–2,6 nm vid överlämnandet)
+ARCTIC_SHORT_SUB_NM = 5.5               # amerikanska ubåten så långt från stationen vid start
+ARCTIC_SHORT_WARM_S = 20 * 60
+ARCTIC_SHORT_LIMIT_S = 35 * 60
+ARCTIC_SHORT_FIRE_MIN = (5, 12)         # branden så många minuter efter överlämnandet
+
+
+def _arctic_watch_pilot(game: Any, t: int) -> None:
+    """Vakten: mot Nord-7 i 5 knop på 60 m; isekolodet lodar och iskartan byggs bakom oss."""
+    if t == 0:
+        game.command("kurs mot Nord-7, djup 60")
+
+
+def arctic_short_scenario(rng: random.Random) -> Scenario:
+    sc = arctic_scenario(rng, short=True)
+    sc.warmup = Warmup(ARCTIC_SHORT_WARM_S, _arctic_watch_pilot)
+    sc.secret_order += ("\nVAKTJOURNALEN, 02.20: NORD-7 SÄNDE NÖDSIGNAL,\n"
+                        "PEJLAD. VAKTHAVANDE HAR GÅTT MOT STATIONEN I\n"
+                        "TJUGO MINUTER UNDER ISEN. KAPTENEN TAR BEFÄLET.\n")
+    sc.outcome_text["patrol_end"] = ("Tiden är ute. K-114 har inte kommit upp vid Nord-7, och "
+                                     "den amerikanska ubåten är redan där.")
+    return sc
 
 
 HUNTED_ORDER = """\
@@ -291,19 +334,26 @@ def _bank_edge_x(seabed: Seabed, y: float, size: float) -> tuple[float, bool]:
     return size / 2, west
 
 
-def hunted_scenario(rng: random.Random) -> Scenario:
-    """Jagade: spelet börjar när jagaren just fått kontakt och en till är på väg."""
+def hunted_scenario(rng: random.Random, short: bool = False) -> Scenario:
+    """Jagade: spelet börjar när jagaren just fått kontakt och en till är på väg.
+
+    short: kort variant (`jagad-kort`): kvadraten 8 nm, DD1 1,5 nm bort i anfallsgång med
+    skarpa bomber från start, DD2 spärrar den korta vägen ut över djupt vatten."""
     start_clock = 40 * 60                               # 00:40, mörkt
     env = Environment(clock_start=start_clock)
-    size = 20.0
+    size = HUNTED_SHORT_SIZE if short else 20.0
     # botten först: ubåten börjar på djupt vatten några sjömil från bankens kant
     sb_rng = random.Random(rng.random())
-    y = rng.uniform(4.5, 6.5)
+    y = size / 2 + rng.uniform(-0.5, 0.5) if short else rng.uniform(4.5, 6.5)
     seabed = kuba_seabed(sb_rng, (size / 2, y), size)
     chart = seabed.chart_copy(sb_rng, err_nm=0.5)
     env.seabed = seabed
     edge, west = _bank_edge_x(seabed, y, size)
-    x = edge + (1.3 if west else -1.3)
+    if short:       # nära djupvattensidan: kortaste vägen ut går förbi DD2
+        d = rng.uniform(*HUNTED_SHORT_EDGE_NM)
+        x = size - d if west else d
+    else:
+        x = edge + (1.3 if west else -1.3)
     own = OwnShip(ShipState(x=x, y=y, course=rng.uniform(150, 210), speed=6, depth=45,
                             max_depth=400))
 
@@ -314,16 +364,26 @@ def hunted_scenario(rng: random.Random) -> Scenario:
                                 turn_rate=2.0, accel=0.3, max_speed=32),
                       side="enemy", has_radar=True)
 
-    # jagaren som har oss: 2–3 nm norrut, på väg in
-    dd1 = destroyer("DD1", rng.uniform(320, 400) % 360, rng.uniform(2.2, 3.0), 15)
-    # den andra kommer från söder och spärrar den vägen ut
-    dd2 = destroyer("DD2", rng.uniform(150, 210), rng.uniform(7.0, 8.5), 25)
+    if short:
+        # DD1 har oss på 1,5 nm och går in för anfall; DD2 spärrar djupvattensidan
+        dd1 = destroyer("DD1", rng.uniform(320, 400) % 360, rng.uniform(*HUNTED_SHORT_DD1_NM),
+                        DestroyerAI.SPEED_ATTACK)
+        deep_side = 90.0 if west else 270.0
+        dd2 = destroyer("DD2", deep_side + rng.uniform(-30, 30), rng.uniform(*HUNTED_SHORT_DD2_NM),
+                        20)
+    else:
+        # jagaren som har oss: 2–3 nm norrut, på väg in
+        dd1 = destroyer("DD1", rng.uniform(320, 400) % 360, rng.uniform(2.2, 3.0), 15)
+        # den andra kommer från söder och spärrar den vägen ut
+        dd2 = destroyer("DD2", rng.uniform(150, 210), rng.uniform(7.0, 8.5), 25)
     world = World(own=own, contacts=[dd1, dd2], env=env, rng=random.Random(rng.random()),
-                  size_nm=size, patrol_end=3 * 3600)
+                  size_nm=size, patrol_end=HUNTED_SHORT_LIMIT_S if short else 3 * 3600)
     ai1 = DestroyerAI(dd1, random.Random(rng.random()), area=size, escalate_after=3,
                       leash_nm=1.0)
     ai2 = DestroyerAI(dd2, random.Random(rng.random()), area=size, escalate_after=3,
                       leash_nm=1.0)
+    if short:
+        ai1.roe = ai2.roe = "lethal"
     ai1.partners, ai2.partners = [ai2], [ai1]
     ai1.start_hunt(x + rng.gauss(0, 0.05), y + rng.gauss(0, 0.05), 50.0, 0.08, contact=True)
     ai2.start_hunt(x + rng.gauss(0, 0.3), y + rng.gauss(0, 0.3), 50.0, 0.5)
@@ -336,21 +396,44 @@ def hunted_scenario(rng: random.Random) -> Scenario:
     world.spawners.append(traffic)
     world.spawners.append(AirPatrol(HUNTED_AIR, random.Random(rng.random()), area=size))
 
-    windows = [(c - start_clock) for c in (1 * 3600 + 30 * 60, 3 * 3600)]
-    return Scenario(world, _crew(), HUNTED_ORDER, start_clock,
-                    radio_windows=windows, radio_messages=list(HUNTED_RADIO),
-                    chart_seabed=chart, escape_margin_nm=margin,
-                    outcome_text={
-                        "escaped": "K-114 har brutit kontakten och lämnat kvadrat 7. Bakom er "
-                                   "pingar jagarna på tomt vatten.",
-                        "patrol_end": "Gryningen kommer och K-114 är fortfarande kvar i kvadrat 7. "
-                                      "Uppdraget har misslyckats.",
-                        "forced": "K-114 har gått till ytan mellan de amerikanska jagarna. "
-                                  "Strålkastarna sveper över tornet. Besättningen lever, "
-                                  "men uppdraget har misslyckats.",
-                        "sank": "Båda jagarna är sänkta. Kriget har börjat i kvadrat 7.",
-                        "quit": "Kaptenen har avbrutit. K-114 lämnar kvadrat 7 i förtid.",
-                    })
+    windows = [] if short else [(c - start_clock) for c in (1 * 3600 + 30 * 60, 3 * 3600)]
+    order = HUNTED_ORDER
+    if short:
+        order += ("\nVAKTJOURNALEN, 00.40: JAGAREN HAR FÄLLT SKARPA\n"
+                  "SJUNKBOMBER I NÄRHETEN. DEN GÅR IN IGEN.\n"
+                  "KAPTENEN TAR BEFÄLET.\n")
+    sc = Scenario(world, _crew(), order, start_clock,
+                  radio_windows=windows, radio_messages=list(HUNTED_RADIO),
+                  chart_seabed=chart, escape_margin_nm=margin,
+                  outcome_text={
+                      "escaped": "K-114 har brutit kontakten och lämnat kvadrat 7. Bakom er "
+                                 "pingar jagarna på tomt vatten.",
+                      "patrol_end": "Gryningen kommer och K-114 är fortfarande kvar i kvadrat 7. "
+                                    "Uppdraget har misslyckats.",
+                      "forced": "K-114 har gått till ytan mellan de amerikanska jagarna. "
+                                "Strålkastarna sveper över tornet. Besättningen lever, "
+                                "men uppdraget har misslyckats.",
+                      "sank": "Båda jagarna är sänkta. Kriget har börjat i kvadrat 7.",
+                      "quit": "Kaptenen har avbrutit. K-114 lämnar kvadrat 7 i förtid.",
+                  })
+    if short:
+        sc.outcome_text["patrol_end"] = ("Jagarna har fortfarande K-114 inne i kvadrat 7. "
+                                         "Fler fartyg är på väg. Uppdraget har misslyckats.")
+        sc.outcome_text["lost"] = ("Sjunkbomberna har krossat skrovet. K-114 är förlorad "
+                                   "med hela besättningen.")
+    return sc
+
+
+# Jagade, kort: mindre kvadrat, skarpt från start
+HUNTED_SHORT_SIZE = 7.0
+HUNTED_SHORT_EDGE_NM = (2.0, 2.5)      # från djupvattensidans kant
+HUNTED_SHORT_DD1_NM = (1.4, 1.7)
+HUNTED_SHORT_DD2_NM = (3.0, 3.8)       # från oss, på djupvattensidan
+HUNTED_SHORT_LIMIT_S = 30 * 60
+
+
+def hunted_short_scenario(rng: random.Random) -> Scenario:
+    return hunted_scenario(rng, short=True)
 
 
 STRAIT_ORDER = """\
@@ -383,10 +466,16 @@ STRAIT_RADIO = [
 HARBOR_PATROL_SPEED = 6.0
 
 
-def strait_scenario(rng: random.Random) -> Scenario:
-    """Genom sundet: smyg in mot en flottbas, fotografera ankarplatsen, ta dig ut."""
+def strait_scenario(rng: random.Random, short: bool = False, out: bool = False) -> Scenario:
+    """Genom sundet: smyg in mot en flottbas, fotografera ankarplatsen, ta dig ut.
+
+    short (`sundet-in`): 06:20, vi ligger vid väntläget och ett fartyg är på väg in;
+    målet är bara fotot (se strait_in_scenario). out (`sundet-ut`): 07:00 innanför nätet,
+    ett fartyg på väg ut; ute = vid skärmens inre kant (se strait_out_scenario)."""
     from .harbor import HarborDefense, HydrophoneLine, Net, PatrolBoatAI, hydrophone_points
-    start_clock = 4 * 3600 + 20 * 60                   # 04:20, gryningen kl 06:10
+    # 04:20, gryningen kl 06:10; kort variant efter gryningen
+    start_clock = STRAIT_OUT_CLOCK if out else STRAIT_IN_CLOCK if short else 4 * 3600 + 20 * 60
+    assert not (short and out)
     size = 14.0
     sb_rng = random.Random(rng.random())
     seabed = strait_seabed(sb_rng, size)
@@ -456,15 +545,49 @@ def strait_scenario(rng: random.Random) -> Scenario:
     margin = 0.5
     world.mission["escape"] = {"margin_nm": margin, "outcome": "recon_done",
                                "requires_photo": int(Quality.GOD)}
-    windows = [(c - start_clock) for c in (6 * 3600 + 30 * 60, 8 * 3600)]
+    if short:
+        r2 = random.Random(rng.random())
+        # vid väntläget: ut längs farleden och lite åt sidan, på smygmotor
+        side = r2.choice((-1.0, 1.0))
+        own.state.x, own.state.y = cx + side * 0.35, net_y - 1.4 - r2.uniform(0.1, 0.3)
+        own.state.depth = own.state.ordered_depth = 30.0
+        own.state.speed = own.state.ordered_speed = 2.0
+        # fartyget in: framme vid grinden ungefär 1,5 nm efter vakten
+        y0, y1 = lanes[0].start[1], lanes[0].end[1]
+        gy = net_y - r2.uniform(*STRAIT_IN_SHIP_NM)
+        traffic._spawn(world, lanes[0], (gy - y0) / (y1 - y0))
+        traffic.next_t[0] = 10**9                         # inga fler in under spelet
+        del world.mission["escape"]
+        world.mission["photo"] = {"quality": int(Quality.GOD), "outcome": "photo_taken"}
+        world.patrol_end = STRAIT_IN_WARM_S + STRAIT_IN_LIMIT_S
+    if out:
+        r2 = random.Random(rng.random())
+        # innanför nätet, nära nog ankarplatsen för en god bild, på periskopdjup
+        # vid sidan av farleden: fartyget ut går förbi, inte rakt över oss
+        own.state.x = cx + r2.choice((-1.0, 1.0)) * STRAIT_OUT_SIDE_NM
+        own.state.y = net_y + r2.uniform(*STRAIT_OUT_INSIDE_NM)
+        own.state.depth = own.state.ordered_depth = 16.0
+        own.state.speed = own.state.ordered_speed = 2.0
+        own.state.course = own.state.ordered_course = 180.0
+        # fartyget ut: passerar oss några minuter efter överlämnandet
+        y0, y1 = lanes[1].start[1], lanes[1].end[1]
+        gy = min(own.state.y + r2.uniform(*STRAIT_OUT_SHIP_BEHIND_NM), y0 - 0.05)
+        traffic._spawn(world, lanes[1], (gy - y0) / (y1 - y0))
+        traffic.next_t = [10**9, 10**9]
+        # ute: förbi nätet och hydrofonerna, och ingen har oss
+        world.mission["escape"] = {"margin_nm": margin, "outcome": "recon_done",
+                                   "requires_photo": int(Quality.GOD),
+                                   "y_below": net_y - STRAIT_OUT_LINE_NM}
+        world.patrol_end = STRAIT_OUT_WARM_S + STRAIT_OUT_LIMIT_S
+    windows = [(c - start_clock) for c in (6 * 3600 + 30 * 60, 8 * 3600) if c > start_clock + 3600]
     known = [("Ankarplatsen", ax + rng.gauss(0, 0.2), ay + rng.gauss(0, 0.2), 0.4, 0),
              ("Nätet", cx + rng.gauss(0, 0.05), net_y + rng.gauss(0, 0.15), 0.2, 0)]
     return Scenario(world, _crew(), STRAIT_ORDER, start_clock,
                     radio_windows=windows, radio_messages=list(STRAIT_RADIO),
                     known_positions=known, chart_seabed=chart,
                     tide_table=tide.table_copy(random.Random(rng.random())),
-                    area_name="inloppet", escape_margin_nm=margin,
-                    escape_requires_photo=Quality.GOD,
+                    area_name="inloppet", escape_margin_nm=None if short else margin,
+                    escape_requires_photo=None if short else Quality.GOD,
                     outcome_text={
                         "recon_done": "K-114 har lämnat inloppet med bilderna av ankarplatsen. "
                                       "Filmen framkallas ombord; i Moskva väntar man på dem.",
@@ -476,6 +599,72 @@ def strait_scenario(rng: random.Random) -> Scenario:
                         "quit": "Kaptenen har avbrutit. K-114 lämnar inloppet i förtid.",
                         "lost": "K-114 är förlorad utanför Guantánamo med hela besättningen.",
                     })
+
+
+STRAIT_IN_CLOCK = 6 * 3600 + 20 * 60      # efter gryningen: fotot kräver dagsljus
+STRAIT_IN_WARM_S = 10 * 60
+STRAIT_IN_LIMIT_S = 35 * 60
+STRAIT_IN_SHIP_NM = (3.0, 3.2)             # fartyget in så långt från nätet vid start
+
+
+def _strait_watch_pilot(game: Any, t: int) -> None:
+    """Vakten: smygmotor och väntläget, så att sonar och plott får fartyget som kommer in."""
+    if t == 0:
+        game.command("smygmotor, väntläget")
+
+
+def strait_in_scenario(rng: random.Random) -> Scenario:
+    """Genom sundet, kort: väntläget, ett fartyg på väg in mot grinden, fotot är målet."""
+    sc = strait_scenario(rng, short=True)
+    sc.warmup = Warmup(STRAIT_IN_WARM_S, _strait_watch_pilot)
+    sc.secret_order = STRAIT_ORDER.replace(
+        "3. LÄMNA OMRÅDET SÖDERUT OUPPTÄCKT MED\n   BILDERNA.",
+        "3. BILDERNA ÄR ALLT. VÄGEN UT ÄR EN\n   SENARE FRÅGA.") + (
+        "\nVAKTJOURNALEN, 06.30: VI LIGGER I VÄNTLÄGET\n"
+        "UTANFÖR NÄTET. ETT FARTYG ÄR PÅ VÄG IN MOT\n"
+        "GRINDEN. KAPTENEN TAR BEFÄLET.\n")
+    sc.outcome_text.update({
+        "photo_taken": "Bilderna av ankarplatsen är tagna. K-114 ligger innanför nätet i "
+                       "Guantánamobukten med filmen ombord.",
+        "patrol_end": "Fartyget har passerat och grinden är stängd. K-114 har inte kommit nära "
+                      "nog för bilderna.",
+    })
+    return sc
+
+
+STRAIT_OUT_CLOCK = 7 * 3600                # dagsljus för bilden under vakten
+STRAIT_OUT_WARM_S = 4 * 60
+STRAIT_OUT_LIMIT_S = 30 * 60
+STRAIT_OUT_INSIDE_NM = (1.0, 1.2)          # vi startar så långt innanför nätet
+STRAIT_OUT_LINE_NM = 1.0                  # ute: så långt söder om nätet (hydrofonerna 0,5–0,6)
+STRAIT_OUT_SIDE_NM = 0.2                  # vid sidan av farledens mitt
+STRAIT_OUT_SHIP_BEHIND_NM = (0.9, 1.2)     # fartyget ut startar så långt bakom oss
+
+
+def _strait_out_pilot(game: Any, t: int) -> None:
+    """Vakten: bilden av ankarplatsen, sedan ned på 20 m (bukten är grund) och vänta."""
+    if t == 5:
+        game.command("foto")
+    elif t == 60:
+        game.command("djup 20, smygmotor, fart 1")
+
+
+def strait_out_scenario(rng: random.Random) -> Scenario:
+    """Genom sundet, ut: filmen är tagen innanför nätet; ta er ut bakom ett fartyg."""
+    sc = strait_scenario(rng, out=True)
+    sc.warmup = Warmup(STRAIT_OUT_WARM_S, _strait_out_pilot)
+    sc.escape_y_below = sc.world.mission["escape"]["y_below"]
+    sc.secret_order += ("\nVAKTJOURNALEN, 07.04: BILDERNA AV ANKARPLATSEN\n"
+                        "ÄR TAGNA. VI LIGGER INNANFÖR NÄTET. ETT FARTYG\n"
+                        "ÄR PÅ VÄG UT MOT GRINDEN. KAPTENEN TAR BEFÄLET.\n")
+    sc.outcome_text.update({
+        "recon_done": "K-114 har tagit sig ut förbi nätet och hydrofonerna med bilderna av "
+                      "ankarplatsen. "
+                      "Filmen framkallas ombord; i Moskva väntar man på dem.",
+        "patrol_end": "Tiden är ute. K-114 är kvar i inloppet med filmen, och fler fartyg "
+                      "letar efter henne.",
+    })
+    return sc
 
 
 CONVOY_ORDER = """\
@@ -505,7 +694,8 @@ CONVOY_RADIO = [
 ]
 
 
-def convoy_scenario(rng: random.Random, run_in_nm: tuple[float, float] = (16.0, 20.0)) -> Scenario:
+def convoy_scenario(rng: random.Random, run_in_nm: tuple[float, float] = (16.0, 20.0),
+                    side_nm: tuple[float, float] = (1.5, 5.0)) -> Scenario:
     """Konvojen: krig, en eskorterad konvoj sicksackar förbi; sänk ett fartyg och kom undan."""
     start_clock = 6 * 3600 + 30 * 60                   # 06:30, just efter gryningen
     size = 20.0
@@ -518,7 +708,7 @@ def convoy_scenario(rng: random.Random, run_in_nm: tuple[float, float] = (16.0, 
     base = rng.uniform(190.0, 230.0)
     ux, uy = math.sin(math.radians(base)), math.cos(math.radians(base))
     nx, ny = uy, -ux
-    side = rng.choice((-1.0, 1.0)) * rng.uniform(1.5, 5.0)
+    side = rng.choice((-1.0, 1.0)) * rng.uniform(*side_nm)
     run_in = rng.uniform(*run_in_nm)
     cx, cy = ox + side * nx - run_in * ux, oy + side * ny - run_in * uy
     convoy = make_convoy(world, ConvoyDef(start=(cx, cy), base_course=base),
@@ -590,6 +780,168 @@ def convoy_short_scenario(rng: random.Random) -> Scenario:
     return sc
 
 
+COUNTER_MAX_WARM_S = 15 * 60          # vakten lämnar över senast så här långt in
+COUNTER_LIMIT_S = 30 * 60             # efter överlämnandet
+COUNTER_LOOK_S = 60                   # periskoptitt så här ofta före salvan
+COUNTER_RUN_IN_NM = (1.0, 2.0)        # konvojens ledpunkt så långt före tvärs vid start
+COUNTER_SIDE_NM = (1.8, 2.4)          # vi ligger så långt vid sidan av baskursen
+COUNTER_LEASH_NM = 6.0                # eskortens koppel från konvojen (annars 4)
+COUNTER_WAKE_SIGMA_NM = 0.1          # eskortens datum ur torpedbanorna
+COUNTER_FIRE_NM = 2.5                 # vakten skjuter på ett stort fartyg så här nära
+COUNTER_MIN_SPAN_S = 60               # med minst så lång plottning sedan målets senaste gir
+COUNTER_LOOK_FRESH_S = 60             # och en periskoptitt (kurs och fart) så här färsk
+COUNTER_MAX_KN = 20.0                 # och en rimlig fart (snabbare: plottet har blandat ihop)
+COUNTER_HANDOVER_S = 45               # kaptenen tar över så här långt före beräknad träff
+
+
+class _CounterattackWatch:
+    """Vakten före kaptenen i Motanfallet: periskopdjup, korta svep, och salvan mot det
+    första stora fartyget inom COUNTER_FIRE_NM med en lösning minst osäker. Kaptenen tar
+    befälet när torpedrummets gångtid säger att torpederna är framme om ~45 s.
+    Allt går via order och besättningens kunskap; ingen torped läggs in i världen."""
+
+    def __init__(self) -> None:
+        self.handover_t: int | None = None
+
+    def __call__(self, game: Any, t: int) -> bool:
+        from .stations.officer import is_big_ship
+        from .stations.torpedo_room import TorpedoRoom
+        if self.handover_t is not None:
+            if t >= self.handover_t:
+                game.world.patrol_end = game.now + COUNTER_LIMIT_S
+                self._wakes_seen(game.world)
+                return True
+            return False
+        if t == 0:
+            game.command("periskopdjup, fart 3")
+            return False
+        if t >= COUNTER_MAX_WARM_S - 1:
+            game.world.patrol_end = game.now + COUNTER_LIMIT_S
+            return True
+        own = game.world.own.state
+        if t % COUNTER_LOOK_S == 0 and own.depth <= 18:
+            game.command("periskop")
+        torp = game.station(TorpedoRoom)
+        best = None
+        for tr in game.knowledge.tracks.values():
+            if not tr.held or not is_big_ship(tr):
+                continue
+            _, sol = torp._solution_for(tr.designation)
+            looked = any(o.course_obs is not None and o.t >= tr.tma_from_t
+                         and t - o.t <= COUNTER_LOOK_FRESH_S for o in tr.observations)
+            if sol is None or sol.quality < Quality.GOD or sol.span_s < COUNTER_MIN_SPAN_S \
+                    or not looked or sol.speed > COUNTER_MAX_KN or sol.range_nm > COUNTER_FIRE_NM:
+                continue
+            aim = torp._aim(sol, "53-61")
+            if aim is None:
+                continue
+            if best is None or aim[1] < best[1]:
+                best = (tr.designation, aim[1])
+        if best is None:
+            return False
+        game.command(f"salva {best[0]}")
+        game.command(f"salva {best[0]}")       # torpedrummet frågar en gång om målet
+        if game.world.mission.get("hostile_act"):
+            self.handover_t = t + max(0, int(best[1]) - COUNTER_HANDOVER_S)
+        return False
+
+
+    @staticmethod
+    def _wakes_seen(world: Any) -> None:
+        """Startläget (sanning): utkiken på närmaste eskort har sett torpedbanorna i
+        dagsljuset och följer dem tillbaka mot avfyringsplatsen."""
+        from .convoy import EscortAI
+        escorts = [a for a in world.ais if isinstance(a, EscortAI) and not a.vessel.sunk]
+        if not escorts or any(world._hunting_us(a) for a in escorts):
+            return
+        ai = min(escorts, key=lambda a: world.true_range(a.vessel))
+        o = world.own.state
+        ai.start_hunt(o.x + ai.rng.gauss(0, COUNTER_WAKE_SIGMA_NM),
+                      o.y + ai.rng.gauss(0, COUNTER_WAKE_SIGMA_NM), 30.0,
+                      COUNTER_WAKE_SIGMA_NM, t=world.time, contact=True)
+
+
+def convoy_counter_scenario(rng: random.Random) -> Scenario:
+    """Motanfallet: vakten har skjutit en salva mot konvojen; torpederna är framme om
+    en knapp minut och eskorten vänder mot oss."""
+    sc = convoy_scenario(rng, run_in_nm=COUNTER_RUN_IN_NM, side_nm=COUNTER_SIDE_NM)
+    sc.warmup = Warmup(COUNTER_MAX_WARM_S, _CounterattackWatch())
+    from .convoy import EscortAI
+    for ai in sc.world.ais:
+        if isinstance(ai, EscortAI):        # anfallen konvoj: eskorten följer längre efter
+            ai.leash_nm = COUNTER_LEASH_NM
+    sc.world.patrol_end = COUNTER_MAX_WARM_S + COUNTER_LIMIT_S
+    sc.secret_order += ("\nVAKTJOURNALEN: VAKTHAVANDE HAR FÖLJT KONVOJEN PÅ\n"
+                        "PERISKOPDJUP OCH SKJUTIT EN SALVA. TORPEDERNA\n"
+                        "ÄR PÅ VÄG. KAPTENEN TAR BEFÄLET.\n")
+    sc.outcome_text["convoy_missed"] = ("Salvan missade och konvojen har passerat. Trupperna "
+                                        "når Kuba.")
+    sc.outcome_text["patrol_end"] = ("Tiden är ute. Eskorten har fortfarande K-114 och "
+                                     "konvojen är borta.")
+    return sc
+
+
+KUBA_SHORT_WARM_S = 15 * 60            # vakten före kaptenen: 04:30–04:45
+KUBA_SHORT_WINDOW_IN_S = 5 * 60        # sambandstillfället öppnar så här långt efter överlämnandet
+KUBA_SHORT_WINDOW_S = 15 * 60
+KUBA_SHORT_AFTER_S = 10 * 60           # efter fönstret: så länge att bryta kontakten
+KUBA_SHORT_DD_NM = (3.0, 4.0)
+KUBA_SHORT_CONTACT_SIGMA_NM = 0.5      # jagaren "har oss" bara med ett så skarpt datum
+KUBA_SHORT_TURN_S = 7 * 60             # vakten girar för plottets skull
+
+
+def _kuba_watch_pilot(game: Any, t: int) -> None:
+    """Vakten: smygmotor på 100 m och en gir efter sju minuter, så att plottet får avstånd."""
+    if t == 0:
+        game.command("smygmotor, fart 3")
+    elif t == KUBA_SHORT_TURN_S:
+        game.command(f"kurs {int(game.world.own.state.course + 70) % 360:03d}")
+
+
+def kuba_short_scenario(rng: random.Random) -> Scenario:
+    """Kvadrat 7, kort: jagaren patrullerar 3–4 nm bort, vakten har plottat den i en kvart.
+    Sambandstillfället öppnar fem minuter efter överlämnandet; rapporten ska sändas och
+    ingen får ha oss när fönstret stänger."""
+    sc = default_scenario(rng)
+    w = sc.world
+    r2 = random.Random(rng.random())
+    o = w.own.state
+    dd = next(v for v in w.contacts if v.id == "DD1")
+    b, r = r2.uniform(0, 360), r2.uniform(*KUBA_SHORT_DD_NM)
+    dd.state.x = o.x + r * math.sin(math.radians(b))
+    dd.state.y = o.y + r * math.cos(math.radians(b))
+    dd.state.course = dd.state.ordered_course = (b + 90 + r2.uniform(-40, 40)) % 360
+    w0 = KUBA_SHORT_WARM_S + KUBA_SHORT_WINDOW_IN_S
+    air = AirDef(first_s=(KUBA_SHORT_WARM_S + 5 * 60, KUBA_SHORT_WARM_S + 10 * 60))
+    w.spawners = [sp for sp in w.spawners if not isinstance(sp, AirPatrol)]
+    w.spawners.append(AirPatrol(air, random.Random(r2.random()), area=w.size_nm))
+    sc.radio_windows = [w0]
+    sc.radio_window_len = KUBA_SHORT_WINDOW_S
+    sc.report_required = True
+    w.mission["report"] = {"from": w0, "to": w0 + KUBA_SHORT_WINDOW_S, "outcome": "reported",
+                           "miss_outcome": "report_missed",
+                           "contact_sigma_nm": KUBA_SHORT_CONTACT_SIGMA_NM}
+    w.patrol_end = w0 + KUBA_SHORT_WINDOW_S + KUBA_SHORT_AFTER_S
+    sc.warmup = Warmup(KUBA_SHORT_WARM_S, _kuba_watch_pilot)
+    open_at = sc.start_clock + w0
+    close_at = open_at + KUBA_SHORT_WINDOW_S
+    hm = lambda c: f"{c // 3600:02d}.{c % 3600 // 60:02d}"
+    sc.secret_order += (f"\nVAKTJOURNALEN, {hm(sc.start_clock + KUBA_SHORT_WARM_S)}: EN JAGARE\n"
+                        "PATRULLERAR NÄRA. VAKTHAVANDE HAR GÅTT PÅ\n"
+                        "SMYGMOTOR OCH PLOTTAT DEN. KAPTENEN TAR BEFÄLET.\n"
+                        f"RAPPORTEN SKA SÄNDAS VID SAMBANDSTILLFÄLLET\n"
+                        f"{hm(open_at)}–{hm(close_at)}.\n")
+    sc.outcome_text.update({
+        "reported": "Rapporten är sänd och kvitterad, och jagaren söker på fel ställe. "
+                    "Huvudstaben vet nu var de amerikanska fartygen går.",
+        "report_missed": "Sambandstillfället stängde utan rapport från K-114. Huvudstaben "
+                         "vet inte var de amerikanska fartygen går.",
+        "patrol_end": "Rapporten gick fram, men jagaren har fortfarande K-114. Kvadrat 7 "
+                      "är förlorad som spaningsområde.",
+    })
+    return sc
+
+
 # --- scenarioregister ----------------------------------------------------------
 @dataclass(frozen=True)
 class ScenarioDef:
@@ -618,20 +970,45 @@ register(ScenarioDef(
     "Kubakrisen. Förbli oupptäckt för en amerikansk jagare i karantänlinjen.",
     default_scenario))
 register(ScenarioDef(
+    "kuba-kort", "Kvadrat 7 – sambandsfönstret, oktober 1962",
+    "Kort variant. En amerikansk jagare patrullerar några sjömil bort. Sambandstillfället "
+    "öppnar om fem minuter: sänd rapporten och se till att ingen har er när det stänger.",
+    kuba_short_scenario, minutes=25))
+register(ScenarioDef(
     "arktis", "Under packisen, oktober 1962",
     "Polarnatt vid 85° nord. Drivstationen Nord-7 har tystnat. Ta er dit under isen, "
     "hitta öppet vatten och gå upp. En amerikansk ubåt är på väg mot samma plats.",
     arctic_scenario))
+register(ScenarioDef(
+    "arktis-kort", "Under packisen – sista milen, oktober 1962",
+    "Kort variant. Vakten har gått mot Nord-7 under isen i tjugo minuter. Stationen ligger "
+    "några sjömil fram, en amerikansk ubåt är på väg dit och isen ovanför är tjock.",
+    arctic_short_scenario, minutes=25))
 register(ScenarioDef(
     "jagad", "Jagade, natten till 27 oktober 1962",
     "En amerikansk jagare har just fått kontakt och en till är på väg. Bryt kontakten "
     "och ta er ut ur kvadrat 7 innan sjunkbomberna blir skarpa.",
     hunted_scenario))
 register(ScenarioDef(
+    "jagad-kort", "Jagade – skarpt, natten till 27 oktober 1962",
+    "Kort variant. Jagaren fäller redan skarpa sjunkbomber och går in igen på en och en halv "
+    "sjömil. Kvadraten är liten, men den andra jagaren spärrar den kortaste vägen ut.",
+    hunted_short_scenario, minutes=25))
+register(ScenarioDef(
     "sundet", "Guantánamo, 25 oktober 1962",
     "Smyg in mot den amerikanska flottbasen genom ett grunt inlopp med nät, hydrofoner och "
     "patrullbåt. Fotografera ankarplatsen i dagsljus och ta er ut igen.",
     strait_scenario))
+register(ScenarioDef(
+    "sundet-in", "Guantánamo – grinden, 25 oktober 1962",
+    "Kort variant. Ni ligger i väntläget utanför nätet och ett fartyg är på väg in mot "
+    "grinden. Ta er in bakom det och fotografera ankarplatsen.",
+    strait_in_scenario, minutes=25))
+register(ScenarioDef(
+    "sundet-ut", "Guantánamo – ut med filmen, 25 oktober 1962",
+    "Kort variant. Bilderna av ankarplatsen är tagna och ni ligger innanför nätet. Ett "
+    "fartyg är på väg ut mot grinden. Ta er ut förbi patrullbåten med filmen.",
+    strait_out_scenario, minutes=20))
 register(ScenarioDef(
     "konvoj", "Konvojen, 28 oktober 1962",
     "Kriget har börjat. En eskorterad konvoj med trupper till Kuba sicksackar genom "
@@ -642,3 +1019,8 @@ register(ScenarioDef(
     "Kort variant. Vakten har följt konvojen i en halvtimme och plottet har den. Ni tar "
     "befälet med målen några sjömil bort: kom i skjutläge, sänk och bryt kontakten.",
     convoy_short_scenario, minutes=30))
+register(ScenarioDef(
+    "konvoj-mot", "Konvojen – motanfallet, 28 oktober 1962",
+    "Kort variant. Vakten har skjutit en salva mot konvojen och torpederna är framme om "
+    "en knapp minut. Eskorten vänder redan mot er: bryt kontakten.",
+    convoy_counter_scenario, minutes=20))

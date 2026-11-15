@@ -16,7 +16,8 @@ Konvojens fartyg är fientliga (`side="enemy"`) men kan inte tvinga upp ubåten.
 Eskortjagarna (`EscortAI`, en `DestroyerAI`) håller en skärmplats framför
 konvojen och pingar tätt. De är kopplade till konvojen: ett datum längre än
 `leash_nm` från ledpunkten släpps. Bara en eskort i taget jagar (`Convoy.hunter`);
-den andra stannar på sin plats om inte hotet ligger nära konvojen (GUARD_NM).
+den andra stannar på sin plats om inte hotet ligger nära konvojen (GUARD_NM), eller tar
+över jakten om den själv har färsk kontakt och ligger mycket närmare (HANDOFF_*).
 Konvojens eget brus skymmer ubåten för eskortens sonar i samma bäring.
 """
 from __future__ import annotations
@@ -54,6 +55,9 @@ SPEED_MAX_EXTRA_KN = 3.0
 ARRIVE_COURSE_S = 15         # fartygen räknar om kurs och fart så här ofta
 GUARD_NM = 1.5               # ett hot så nära konvojen tar även den bevakande eskorten
 ESCORT_LEASH_NM = 4.0        # eskorten släpper ett datum så långt från konvojen
+ATTACK_RUN_IN_NM = 1.0       # eskorten går in i SPEED_CLOSE tills den är så nära datumet
+HANDOFF_FRESH_S = 40         # en eskort med så färsk egen kontakt ...
+HANDOFF_RATIO = 0.8          # ... och så mycket närmare datumet tar över jakten
 SCREEN = ((-1.5, 2.5), (1.5, 2.5), (0.0, -2.0))   # (styrbord, framåt) nm i konvojens kurs
 
 
@@ -273,7 +277,7 @@ class EscortAI(DestroyerAI):
             return
         px, py = self.datum.predict(now)
         near = distance(px, py, c.x, c.y) <= GUARD_NM
-        if c.hunter is None or c.hunter is self:
+        if c.hunter is None or c.hunter is self or self._closer_than(c.hunter, px, py, now):
             c.hunter = self
         elif not near:
             self._keep_station()          # den andra jagar; vi stannar hos konvojen
@@ -283,6 +287,20 @@ class EscortAI(DestroyerAI):
         super()._decide(world)
         if self.state == "patrol":        # basklassen släppte datumet
             self._keep_station()
+        elif self.state == "attack" and now >= self.opening_until and self.datum is not None:
+            # kopplad till konvojen: har bråttom in, anfallsfart först den sista sjömilen
+            s = self.vessel.state
+            if distance(s.x, s.y, *self.datum.predict(now)) > ATTACK_RUN_IN_NM:
+                s.order_speed(self.SPEED_CLOSE)
+
+
+    def _closer_than(self, other: "EscortAI", px: float, py: float, now: int) -> bool:
+        """Har vi färsk egen kontakt och ligger närmare datumet än den som jagar nu?
+        Då tar vi över jakten och den andra går tillbaka till sin plats."""
+        if now - self.last_contact_t > HANDOFF_FRESH_S:
+            return False
+        s, o = self.vessel.state, other.vessel.state
+        return distance(s.x, s.y, px, py) < HANDOFF_RATIO * distance(o.x, o.y, px, py)
 
 
 def make_escorts(world: World, convoy: Convoy, rng: random.Random, n: int = 2,

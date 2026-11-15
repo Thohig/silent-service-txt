@@ -79,6 +79,7 @@ def test_sinking_a_ship_makes_the_convoy_turn_away_and_speed_up():
     assert c.nodgir_count == 1
 
 
+@pytest.mark.slow
 def test_crew_hears_and_classifies_the_convoy():
     g = Game(default_scenario(random.Random(3)), seed=3)
     o = g.world.own.state
@@ -194,3 +195,28 @@ def test_convoy_noise_hides_the_submarine_behind_it():
     tgt.state.x, tgt.state.y = s.x - vx * 2.0, s.y - vy * 2.0     # åt andra hållet
     clear = e1._noise_toward(w, noise, tgt)
     assert masked > clear + 5
+
+
+def test_closer_escort_with_fresh_contact_takes_over_the_hunt():
+    import random as _r
+    from sim.convoy import ConvoyDef, EscortAI, make_convoy, make_escorts
+    from sim.environment import Environment
+    from sim.ownship import OwnShip
+    from sim.ship import ShipState
+    from sim.world import World
+    own = OwnShip(ShipState(x=10, y=10, course=0, speed=3, depth=18, max_depth=400))
+    w = World(own=own, env=Environment(current_kn=0), rng=_r.Random(1))
+    c = make_convoy(w, ConvoyDef(start=(11.0, 12.0), base_course=200.0), _r.Random(2))
+    e1, e2 = make_escorts(w, c, _r.Random(3))
+    e1.vessel.state.x, e1.vessel.state.y = 10.0, 13.5        # långt bort, jagar
+    e2.vessel.state.x, e2.vessel.state.y = 10.0, 10.8        # nära, färsk kontakt
+    e1.start_hunt(10, 10, 18, 0.1, t=0)
+    c.hunter = e1
+    e2.start_hunt(10, 10, 18, 0.1, t=0, contact=True)
+    e2._decide(w)
+    assert c.hunter is e2
+    # långt från datumet går eskorten in i full fart, inte anfallsfart
+    e1.start_hunt(10, 10, 18, 0.08, t=0, contact=True)
+    c.hunter = e1
+    e1._decide(w)
+    assert e1.state == "attack" and e1.vessel.state.ordered_speed == EscortAI.SPEED_CLOSE

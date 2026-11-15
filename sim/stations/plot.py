@@ -15,13 +15,15 @@ from ..geo import angle_diff, norm360
 from ..knowledge import ContactTrack
 from ..orders import DESIG, CommandSpec, Order, desig
 from ..reports import Quality
-from ..tma import (MANEUVER_CHI2, MANEUVER_SPLIT, MAX_TARGET_KN, Solution, maneuver_statistic,
-                   own_maneuvered, predicted_bearing)
+from ..tma import (MANEUVER_CHI2, MANEUVER_SPLIT, MAX_TARGET_KN, BearingObs, Solution,
+                   maneuver_statistic, own_maneuvered, predicted_bearing, solve)
 from ..zigzag import (ConvoyEstimate, LegFix, TrackPoint, base_course, escorts_near, groups,
                       mean_leg, merge_turns)
 from .base import Proposal, Station
 
 PLOT_INTERVAL = 30              # sekunder mellan omräkningar
+LOOK_TURN_MIN_DEG = 20.0        # periskopets kurs så här långt från lösningens: målet har girat
+LOOK_TURN_SIGMAS = 3.0
 SUGGEST_COOLDOWN = 420
 SUGGEST_MIN_LEG_S = 300         # rak kurs så här länge innan nytt förslag
 TABLE_ROWS = 15
@@ -66,6 +68,7 @@ class PlotTeam(Station):
         super().__init__(game)
         self._last_suggest: dict[str, int] = {}
         self._maneuver_said: dict[str, int] = {}
+        self._look_checked: dict[str, int] = {}     # senaste periskoptitt prövad mot lösningen
         self._convoy_turn_said = -10**9
         self._convoy_quality: Quality | None = None
 
@@ -181,9 +184,12 @@ class PlotTeam(Station):
             sol = self._resolve(tr)
             if sol is None or civil:
                 continue                # handelsfartyg plottas tyst, för kortet
-            if sol.n_obs >= 12 and (sol.fit > MANEUVER_CHI2 or self._target_turned(tr, sol)):
+            look = self._look_turn(tr)
+            if look is not None or \
+                    sol.n_obs >= 12 and (sol.fit > MANEUVER_CHI2 or self._target_turned(tr, sol)):
                 self._end_leg(tr)
-                tr.tma_from_t = self.now - 120
+                # en periskoptitt efter giren ger läge, kurs och fart: börja om från den
+                tr.tma_from_t = look.t if look is not None else self.now - 120
                 convoy = self.game.knowledge.convoy
                 if convoy is not None and convoy.contains(tr.designation) \
                         and tr.designation in convoy.members:
@@ -206,6 +212,7 @@ class PlotTeam(Station):
                          kind="solution", quality=sol.quality)
             elif (sol.quality < Quality.GOD and sol.n_obs >= 12 and sol.span_s >= 120
                   and not self._maneuvered_recently(tr) and not self._convoy_sibling(tr)
+                  and not self.game.knowledge.hunted(self.now)
                   and self.now - self._last_suggest.get(tr.designation, -10**9) >= SUGGEST_COOLDOWN):
                 self._last_suggest[tr.designation] = self.now
                 course = self._suggest_course(sol, tr)
@@ -328,6 +335,8 @@ class PlotTeam(Station):
 
     def idle_proposals(self) -> list[Proposal]:
         out = []
+        if self.game.knowledge.hunted(self.now):
+            return out          # jagade: kursen behövs för att komma undan, inte för TMA
         for tr in self.game.knowledge.tracks.values():
             sol = tr.solution
             if not tr.threat or sol is None or sol.quality >= Quality.GOD:
@@ -350,6 +359,26 @@ class PlotTeam(Station):
             return False
         obs = [o for o in tr.observations if o.t >= tr.tma_from_t]
         return maneuver_statistic(obs, sol) > MANEUVER_SPLIT
+
+    def _look_turn(self, tr: ContactTrack) -> BearingObs | None:
+        """Visar en ny periskoptitt en annan kurs än lösningen före titten? Då har målet
+        girat sedan förra titten. Returnerar titten, annars None."""
+        obs = [o for o in tr.observations if o.t >= tr.tma_from_t]
+        looks = [o for o in obs if o.course_obs is not None
+                 and o.t > self._look_checked.get(tr.designation, -10**9)]
+        if not looks:
+            return None
+        look = looks[-1]
+        self._look_checked[tr.designation] = look.t
+        before = [o for o in obs if o.t < look.t]
+        if len(before) < 12:
+            return None
+        sol = solve(before, t_now=look.t, own_now=(look.own_x, look.own_y))
+        if sol is None or sol.quality < Quality.OSAKER:
+            return None
+        tol = max(LOOK_TURN_MIN_DEG,
+                  LOOK_TURN_SIGMAS * math.hypot(look.course_sigma, min(sol.course_sigma, 60.0)))
+        return look if abs(angle_diff(look.course_obs, sol.course)) > tol else None
 
     def _maneuvered_recently(self, tr: ContactTrack) -> bool:
         recent = [o for o in tr.observations if o.t >= self.now - SUGGEST_MIN_LEG_S]

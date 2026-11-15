@@ -13,7 +13,8 @@ oktober 1962. Python 3.12, Textual, numpy, uv. Användaren kör macOS (Apple Sil
 ## Kommandon
 ```bash
 uv run main.py [--seed N] [--scenario kuba] [--tyst]   # spela (utan --scenario: väljare)
-uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
+uv run pytest -q              # snabba tester, parallellt (~8 s)
+uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); före commit
 ```
 
 ## Designprinciper (får inte brytas)
@@ -87,8 +88,12 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   skapar `Game(..., warm_up=False)`, kör `game.warm_up()` i en tråd medan ordern skrivs ut och
   prenumererar först efteråt. Loggboken börjar vid överlämnandet. `Handover` ⇒ vakthavande säger
   `off.briefing` (konvoj, kontakter, besticket ur kunskapen). Tidsgränsen är `World.patrol_end`
-  (uppvärmning + speltid). `ScenarioDef.minutes` visas i väljaren. Kort variant = egen nyckel
-  (`konvoj-kort`) som bygger på det långa scenariot. Plan för resten: `docs/korta-varianter.md`.
+  (uppvärmning + speltid). Piloten kan lämna över tidigare genom att returnera True (`seconds` är
+  då ett tak). `ScenarioDef.minutes` visas i väljaren. Kort variant = egen nyckel
+  (`konvoj-kort`) som bygger på det långa scenariot. Alla sju scenarier har en kort variant (`-kort`, `-mot`,
+  `-in`, `-ut`). Ny kort variant: provkör 8 frön med passiv bot, ja-boten och en bot med besättningens
+  verktyg; riktmärken: första förslag eller kontakt inom 3 min, ja-boten ~2–4 av 8 (utom där följandet
+  är kaptenens sak), viktiga lösningar ≥ osäker vid överlämnandet. Siffrorna under Kalibrering.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen
@@ -187,6 +192,11 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   chi² > 4 eller brytpunktstest > 15 (två raka ben före/efter 5 eller 10 min mot ett;
   raka mål ger median 2, max ~12). Plottlaget säger manöver högst var 5:e min per kontakt.
   Två ben i sicksack ska normalt ge god/säker lösning på ~20 min.
+- Periskopet i TMA: varje titt ger, utöver avstånd (σ 8 % + 0,03 nm), kurs (`AOB_SIGMA` efter synlig del)
+  och fart (σ 2 kn) som mätningar (`BearingObs.course_obs`/`speed_obs`). En titt vars kurs avviker mer
+  än max(20°, 3σ) från lösningen före titten ⇒ målet har girat, TMA börjar om från titten
+  (`PlotTeam._look_turn`). Konvoj, titt var 2:a min på 2–6 nm: lösningar säker hade läge median
+  0,48 nm, kurs 39°, fart 3 kn fel; nu 0,23 nm, 7°, 0,9 kn (p90 0,5 nm, 41°: girar mellan tittarna).
 - Civil trafik (Kuba, `KUBA_TRAFFIC` i `scenario.py`): tre leder, 1,8 fartyg/h plus 3 från
   start, 9–14 kn, källnivå `140 + fart`. Maskering: neutralt fartyg inom 4° av målets
   bäring adderar sitt brus; ubåt < 100 m inom 0,3 nm från ett handelsfartyg får −12 dB eko
@@ -216,8 +226,17 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   skarpa efter tre övningsanfall (~25 min). `leash_nm=1`: släpper jakten när datumet ligger mer
   än 1 nm utanför kvadraten. Mål `mission["escape"]`: 1 nm utanför och ingen jägare med datum
   inom max(1 nm, 3σ) från oss (ett skenmål räknas inte). Navigatören (`exit_route`) föreslår
-  närmaste kant, +4 nm straff inom 40° från en hotkontakt. 8 frön: passiv 0, ja-boten 3,
-  djupt och fort (turbin 12 kn, 200 m, rakt ut) 7.
+  närmaste kant, +4 nm straff inom 40° från en hotkontakt, och sträckan där kortet visar grundare än
+  300 m (`EXIT_DEEP_M`) räknas dubbelt: över banken kan vi inte springa djupt. 8 frön: passiv 0,
+  ja-boten 6 (15 av 24), djupt och fort (turbin 12 kn, 200 m, navigatörens väg ut vid start, ja till
+  djupförslag) 8. Utan grundstraffet gick vägen ut ofta över banken och ja-boten klarade 2 av 24
+  (vilket förslag som kommer först beror på rapporternas slumpade fördröjning).
+- Jagade kort (`jagad-kort`, `hunted_scenario(short=True)`): kvadraten 7 nm, ubåten 2–2,5 nm från
+  djupvattensidans kant, DD1 1,4–1,7 nm bort i anfall, DD2 3–3,8 nm bort på djupvattensidan, båda
+  skarpa från start; tidsgräns 30 min. 8 frön: passiv 0, ja-boten 4 (24–26 min), djupt och fort
+  (navigatörens `exit_route` var 60:e s) 6 (19–27 min). Sonar hör jakten efter 6–8 s.
+  Medan vi är jagade (`Knowledge.hunted`) föreslår plottet inga TMA-girar, och maskinens sprintförslag
+  har alltid med `turbin` (förslaget levereras sent).
 - Kust (`seabed.Coast`, `strait_seabed`): land har negativt djup (`Seabed.min_depth` < 0),
   sjökortet ritar land (`░`) och kustlinje. Tidvatten (`environment.TidalStream`, period 12 h 25 min)
   skalar med djupet: `peak·clamp(60/djup, 0,2, 1,5)`; `Environment.current_at(x, y, t)` används för
@@ -250,6 +269,18 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   avbryter. Resten (följ, foto, ut) föreslås inte. 8 frön, bara detta förslag: framme i 8 efter
   ~100 min, första fartyget in passerar 0,1–0,6 nm (oftast 0,3–0,55); patrullbåten får kontakt
   under passagen genom skärmen i 7 (passiv bot 3), oberoende av djup.
+- Sundet in (`sundet-in`, `strait_scenario(short=True)`): 06:20, vakt 10 min (`smygmotor, väntläget`),
+  ubåten startar ~1,4 nm utanför nätet 0,35 nm vid sidan, ett fartyg på väg in 3,0–3,2 nm från nätet vid start
+  (passerar väntläget 3–5 min efter överlämnandet), inga fler in. Mål `mission["photo"]`: foto minst god ⇒
+  `photo_taken` (ingen utväg). Tidsgräns 35 min efter överlämnandet. 8 frön: passiv 0, ja-boten 0 (följandet
+  föreslås inte, kaptenens sak), grindboten (`turbin, djup 40, följ S-x` när fartyget passerat 0,2–0,45 nm,
+  `kurs mot ankarplatsen, fart 4, periskopdjup` 0,6 nm innanför, `foto`) 6, på 18–33 min.
+- Sundet ut (`sundet-ut`, `strait_scenario(out=True)`): 07:00, startläget byggt direkt: innanför nätet 1,0–1,2 nm,
+  0,2 nm vid sidan av farleden på periskopdjup; vakten (4 min) tar `foto` (bilden via bussen) och går till 20 m
+  på smygmotor. Ett fartyg ut startar 0,9–1,2 nm bakom oss (passerar 3–6 min efter överlämnandet), inga fler.
+  Ute = söder om `Scenario.escape_y_below` (1 nm söder om nätet) och ingen har oss; navigatörens väg ut räknar
+  mot linjen. Tidsgräns 30 min. 8 frön: passiv 0, ja-boten 0, utboten (periskoptitt var 60:e s, `turbin, djup 25,
+  följ S-x` när fartyget passerat 0,2–0,45 nm, efter 1,2 nm söderut fart 10) 5, på 16–22 min.
 - Konvojen (`konvoj`, `convoy_scenario`): 28 okt, krig, 06:30 (dagsljus). Konvoj (2 trupptransporter,
   1 tanker) och 2 eskorter, baskurs 190–230°, start 16–20 nm bort, vägen passerar oss på 1,5–5 nm;
   ordern ger läge (±2 nm) och kurs avrundad. Mål `mission["strike"]`: minst ett mål sänkt och ingen
@@ -264,14 +295,44 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   4:e min), sedan 45 min. 8 frön: plottet har konvojen vid överlämnandet i alla, 5–9 nm bort, ingen
   eskort har oss; första förslag 0–3 min efter; ja-boten i skjutläge i 4 (9–34 min). Bot som skjuter
   `salva` (upprepad) mot klassad transport/tanker ≤ 3 nm med lösning ≥ osäker: sänker 1 på 28 min
-  (samma bot i `konvoj`: 1, på 69 min). Uppvärmningen tar ~5–8 s.
+  (samma bot i `konvoj`: 1, på 69 min). Uppvärmningen tar ~5–8 s. Efter plottets periskoprättelse:
+  `konvoj` 2 av 8, `konvoj-kort` fortfarande 1 av 8; boten skjuter på gamla lösningar (titt var 4:e min,
+  ben på 5–10 min). Öppen fråga: ska besättningen föreslå en titt strax före skjutläge?
+- Konvojen motanfall (`konvoj-mot`, `convoy_counter_scenario`): ledpunkten 1–2 nm före tvärs, vi 1,8–2,4 nm
+  vid sidan. Vakten (`_CounterattackWatch`): periskopdjup, titt var 60:e s, `salva` (två gånger) mot
+  stort fartyg med lösning ≥ god, ≥ 60 s sedan senaste gir, titt ≤ 60 s gammal, fart ≤ 20 kn, ≤ 2,5 nm;
+  överlämnar när torpedrummets gångtid − 45 s gått (2–4 min in) och sätter `patrol_end` +30 min. Har ingen
+  eskort oss då ger närmaste eskort färsk kontakt (σ 0,1 nm, torpedbanorna). Eskortens koppel 6 nm.
+  Eskorternas ping hittar oss på 1,3–1,9 nm även under skiktet, så att gömma vakten går inte.
+  8 frön: vakten skjuter i 8, träff i 6 (25–155 s efter överlämnandet); passiv 3, ja-boten 4,
+  djupt och bort (turbin 12 kn, 200 m, bort från hotet) 6.
+- Eskorter (alla konvojer): en eskort med egen kontakt ≤ 40 s gammal och < 0,8 × den jagandes avstånd till
+  datumet tar över jakten (`_closer_than`); i anfall går eskorten `SPEED_CLOSE` tills den är 1 nm från
+  datumet (förut anfallsfart 15 kn hela vägen, så den hann sällan fram innan kopplet släppte).
+- Kvadrat 7 kort (`kuba-kort`, `kuba_short_scenario`): jagaren 3–4 nm bort i patrull (övningsbomber), vakt
+  15 min (smygmotor 3 kn på 100 m, gir +70° efter 7 min), sambandstillfälle 5 min efter överlämnandet i 15 min,
+  sedan 10 min. Flyget efter 5–10 min. Mål `mission["report"]`: rapport sänd inom fönstret (`last_report_t`)
+  och, när fönstret stängt, ingen jägare med datum σ ≤ 0,5 nm på oss (`_hunting_us(max_sigma=...)`; pejlingen
+  av sändningen, σ 1,5, räknas inte) ⇒ `reported`; ingen rapport ⇒ `report_missed`. Radion (`report_required`):
+  väntar (`radio.wait`) så länge plottet har en hotkontakt ≥ osäker närmare än 5 nm (`RADIO_SAFE_NM`), föreslår
+  antenndjup när den gått längre bort (`radio.clear`), sedan periskopdjup och `sänd rapport` (inte när vi är
+  jagade). Förvarningar under vakten ges igen vid överlämnandet. Sonar föreslår inte skiktet medan radion
+  behöver masten (`RadioStation.needs_mast`), utom när vi är jagade. 8 frön: plottet har jagaren vid
+  överlämnandet i 7, passiv 0, ja-boten 4 (rapporten sänd i 7).
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m.
 - Packis (`ice.py`): rutor 0,05 nm, flerårsis 2–4,5 m, kölar 8–25 m (6 % 30–45 m),
   170 råkar, 28 polynyor ⇒ ~4–5 % öppet vatten, en öppning ungefär var 30:e minut
   i 5 kn. Tornets topp 13 m och skrovets 8 m över kölen. Tunn is ≤ 1 m bryts i
   ≤ 2 kn på 40 s. Isdrift 0,25 kn mot 200°. Isbrus 50 dB (fast is) till 72 dB.
 - Arktis: generatorn 142 dB, US-ubåt 125 + 1,5·fart med DT 0 och egenbrus 48 + fart.
-  Mål: ytläge inom 1,5 nm från Nord-7. Ja-boten når målet i ~10 av 12 frön.
+  Mål: ytläge inom 1,5 nm från Nord-7. Ja-boten når målet i 7 av 12 frön (2026-11-15; förut angivet
+  ~10, men koden före dagens ändringar gav 6).
+- Arktis kort (`arktis-kort`, `arctic_scenario(short=True)`): stationen 3,6–4,2 nm norrut vid start, vakt
+  20 min (`kurs mot Nord-7, djup 60`), alltså 1,7–2,6 nm kvar vid överlämnandet; nödsignalens läge känt
+  (σ 0,6). US-ubåten 5,5 nm från stationen vid start (2,5–5 nm från oss vid överlämnandet, oftast ohörd).
+  Branden 5–12 min efter överlämnandet, tidsgräns 35 min. Navigatörens sökspiral runt stationen och
+  maskinens förslag att ventilera vid en öppning tar inte över när vi är på väg upp (beordrat djup ≤
+  periskopdjup). Uppstigning stilla ~0,25 m/s, därför 60 m. 8 frön: passiv 0, ja-boten 2.
 - Brand (arktis, 40–110 min): rök 0,0009/s medan det brinner (7–13 min), sedan
   +0,2/h tills ventilation (−0,02/min på periskopdjup, −0,05/min i ytläge). Rök 1,0 = förlorad.
   Röken sänker `effective_skill()` med upp till 50 %.
@@ -281,6 +342,9 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   nya delar: föreslå struktur och invänta ok.
 - Nytt system ⇒ tester i `tests/`. Statistiska påståenden (TMA, sonar) testas över
   flera seeds, inte ett enda lyckat frö.
+- Testerna körs parallellt (pytest-xdist, `-n auto` i pyproject; `-n0` för seriellt). Ett test som
+  tar mer än ~1 s (hela spel, flera frön, uppvärmning, gränssnitt) märks `@pytest.mark.slow` och körs
+  bara med `--slow` (`tests/conftest.py`). Kör `--slow` före varje commit.
 - Verifiera spelkänslan med en huvudlös genomspelning: skapa `Game`, prenumerera
   på `ReportDelivered`, skriv ut rapporter, kör `g.tick()` i en loop (gärna med
   en bot som svarar `ja` på förslag). Skriv sådana skript i scratchpad, inte i repot.

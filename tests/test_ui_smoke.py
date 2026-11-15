@@ -1,4 +1,5 @@
 """Röktest: scenarioväljaren, introt går att hoppa över och en order kvitteras."""
+import pytest
 import asyncio
 
 from sim.events import ReportDelivered
@@ -41,6 +42,7 @@ def test_game_begins_with_scenario_picker(tmp_path):
     assert list(tmp_path.glob("truth-*.log"))
 
 
+@pytest.mark.slow
 def test_tab_shows_the_chart_while_the_game_runs(tmp_path):
     from ui.chart import ChartScreen
 
@@ -80,6 +82,7 @@ def test_tab_shows_the_chart_while_the_game_runs(tmp_path):
     asyncio.run(run())
 
 
+@pytest.mark.slow
 def test_orders_can_be_given_in_every_view(tmp_path):
     from ui.chart import ChartScreen
     from ui.periscope import PeriscopeScreen
@@ -115,6 +118,7 @@ def test_orders_can_be_given_in_every_view(tmp_path):
     asyncio.run(run())
 
 
+@pytest.mark.slow
 def test_a_pending_suggestion_shows_in_the_view_order_line(tmp_path):
     from ui.systems import SystemScreen
     from ui.viewbase import OrderLine

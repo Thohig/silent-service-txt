@@ -519,8 +519,9 @@ class EngineeringStation(Station):
                 abs(st.ordered_depth - depth) <= 40:
             return None
         parts = [] if abs(st.ordered_depth - depth) <= 40 else [f"djup {depth:.0f}"]
-        if s.propulsion != "turbine":
-            parts.append("turbin")
+        # alltid med: förslaget levereras med fördröjning, och smygmotor kan ha
+        # beordrats under tiden
+        parts.append("turbin")
         parts.append(f"fart {speed}")
         return ", ".join(parts), {"speed": speed, "depth": depth}
 
@@ -538,8 +539,8 @@ class EngineeringStation(Station):
             nav = self.game.station(NavigationStation)
         except KeyError:
             return
-        if nav.vak is not None:
-            return
+        if nav.vak is not None or own.state.ordered_depth <= PERISCOPE_DEPTH:
+            return          # redan på väg till en öppning eller upp: ventilera där uppe
         o = nav.best_opening() if nav.under_ice() else None
         if o is not None:
             self.suggest("vent_vak", "eng.suggest.vent_vak", {"smoke": s.smoke, **nav.opening_data(o)},

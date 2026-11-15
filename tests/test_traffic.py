@@ -1,4 +1,5 @@
 """Civil trafik: handelsfartyg längs leder, maskering, klassning och regler för eld."""
+import pytest
 import random
 import statistics
 
@@ -47,6 +48,7 @@ def test_kuba_has_traffic_and_arctic_does_not():
     assert not _merchants(_game(2, "arktis")[0])
 
 
+@pytest.mark.slow
 def test_new_ships_arrive_over_the_patrol():
     counts = []
     for seed in SEEDS:

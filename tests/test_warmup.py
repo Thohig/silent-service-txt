@@ -1,4 +1,5 @@
 """Korta varianter: vakten före kaptenen (Scenario.warmup) och överlämnandet."""
+import pytest
 import random
 
 from sim.events import Handover, OrderIssued, ReportDelivered
@@ -12,7 +13,7 @@ def _game(seconds=120, pilot=None, **kw):
     def rec(game, t):
         calls.append(t)
         if pilot:
-            pilot(game, t)
+            return pilot(game, t)
 
     sc = default_scenario(random.Random(3))
     sc.warmup = Warmup(seconds, rec)
@@ -66,6 +67,7 @@ def test_short_variants_are_marked_with_play_time():
     assert SCENARIOS["konvoj"].minutes is None
 
 
+@pytest.mark.slow
 def test_convoy_short_hands_over_with_the_convoy_plotted_and_unseen():
     """Över flera frön: plottet har konvojen, den är några sjömil bort och ingen eskort
     har oss när kaptenen tar befälet."""
@@ -82,3 +84,39 @@ def test_convoy_short_hands_over_with_the_convoy_plotted_and_unseen():
                 and not hunted:
             ok += 1
     assert ok >= len(seeds) - 1
+
+
+def test_pilot_can_hand_over_early():
+    g, calls = _game(300, pilot=lambda game, t: t >= 40)
+    assert g.now == 40 and calls == list(range(41))
+    assert g.logbook.start_t == 40
+
+
+@pytest.mark.slow
+def test_convoy_counter_hands_over_with_the_salvo_running_and_an_escort_turning():
+    """Över flera frön: vakten har skjutit, torpederna går, en eskort har oss och
+    skrovet är helt när kaptenen tar befälet; tidsgränsen räknas från överlämnandet."""
+    from sim.convoy import EscortAI
+    from sim.scenario import COUNTER_LIMIT_S
+    from sim.weapons import Torpedo
+    for seed in range(3):
+        g = Game(build_scenario("konvoj-mot", random.Random(seed)), seed=seed)
+        w = g.world
+        assert not g.over and w.mission.get("hostile_act")
+        assert any(isinstance(v, Torpedo) and not v.done for v in w.contacts)
+        assert any(w._hunting_us(a) for a in w.ais if isinstance(a, EscortAI))
+        assert w.own.sys.hull == 1.0
+        assert w.patrol_end == g.now + COUNTER_LIMIT_S
+        assert g.now < 6 * 60
+
+
+@pytest.mark.slow
+def test_convoy_counter_salvo_hits_within_minutes_over_seeds():
+    hits = 0
+    for seed in range(8):
+        g = Game(build_scenario("konvoj-mot", random.Random(seed)), seed=seed)
+        t0 = g.now
+        while g.now - t0 < 180 and not g.over:
+            g.tick()
+        hits += any(v.sunk for v in g.world.contacts if v.id.startswith("K"))
+    assert hits >= 5

@@ -1,4 +1,5 @@
 """Stationer, förslag som kaptenen kan godkänna och spelslut."""
+import pytest
 import random
 
 from sim.events import BearingObserved, ContactDetected, GameEnded, ReportDelivered
@@ -77,6 +78,7 @@ def test_periscope_needs_periscope_depth_and_gives_range():
     assert any(o.range_nm is not None for o in tr.observations)
 
 
+@pytest.mark.slow
 def test_radio_message_needs_antenna_depth():
     g, reports = _game()
     w0 = g.scenario.radio_windows[0]
@@ -138,6 +140,7 @@ def test_reload_and_decoy():
     assert "torp.decoy" in _types(reports)
 
 
+@pytest.mark.slow
 def test_dead_reckoning_drifts_and_fix_corrects():
     drifts, afters = [], []
     for seed in range(1, 6):

@@ -157,7 +157,8 @@ class Game:
         self.warmup_pending = False
         w = self.scenario.warmup
         for t in range(w.seconds):
-            w.pilot(self, t)
+            if w.pilot(self, t):            # vakten lämnar över tidigare
+                break
             self.tick()
             if self.over:
                 break

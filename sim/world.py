@@ -139,6 +139,21 @@ class World:
         strike = self.mission.get("strike")
         if strike and self._strike_done(strike):
             return
+        photo = self.mission.get("photo")
+        if photo and self.mission.get("best_photo", -1) >= photo["quality"]:
+            self.end(photo["outcome"])
+            return
+        rep = self.mission.get("report")
+        if rep and self.time >= rep["to"]:
+            sent = self.mission.get("last_report_t")
+            if sent is None or not rep["from"] <= sent <= rep["to"]:
+                self.end(rep["miss_outcome"])
+                return
+            # en pejling av sändningen (σ 1,5 nm) är inte kontakt; ett fix är det
+            if not any(self._hunting_us(ai, max_sigma=rep.get("contact_sigma_nm"))
+                       for ai in self.ais):
+                self.end(rep["outcome"])
+                return
         goal = self.mission.get("goal")
         if goal and self.own.surfaced:
             target = next((v for v in self.contacts if v.id == goal["id"]), None)
@@ -149,7 +164,9 @@ class World:
         if esc and esc.get("requires_photo") is not None and \
                 self.mission.get("best_photo", -1) < esc["requires_photo"]:
             esc = None                      # inte utan bilderna
-        if esc and not self.own.surfaced and self._outside_area(esc["margin_nm"]) \
+        out = (self.own.state.y < esc["y_below"]) if esc and "y_below" in esc \
+            else esc and self._outside_area(esc["margin_nm"])
+        if esc and not self.own.surfaced and out \
                 and not any(self._hunting_us(ai) for ai in self.ais):
             self.end(esc["outcome"])
             return
@@ -186,13 +203,16 @@ class World:
         return False
 
     # --- sanningshjälp (sensorer, vapen, sanningslogg) ----------------------
-    def _hunting_us(self, ai: Any) -> bool:
-        """En jägare som är medveten och vars datum ligger nära oss (inte ett skenmål)."""
+    def _hunting_us(self, ai: Any, max_sigma: float | None = None) -> bool:
+        """En jägare som är medveten och vars datum ligger nära oss (inte ett skenmål).
+        max_sigma: bara ett datum så skarpt räknas (annars räcker en grov pejling)."""
         if ai.vessel.sunk or not getattr(ai, "aware", lambda: False)():
             return False
         d = getattr(ai, "datum", None)
         if d is None:
             return True
+        if max_sigma is not None and d.sigma > max_sigma:
+            return False
         px, py = d.predict(self.time)
         o = self.own.state
         return distance(o.x, o.y, px, py) <= max(HUNT_NEAR_NM, 3 * d.sigma)

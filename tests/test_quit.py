@@ -1,4 +1,5 @@
 """Kommandot avsluta och den korta rapporten över spelsessionen."""
+import pytest
 import random
 import re
 
@@ -54,6 +55,7 @@ def test_report_counts_torpedoes_hits_and_contacts():
     assert any("Det var vår torped" in t for t in events)
 
 
+@pytest.mark.slow
 def test_report_never_reveals_truth_and_is_short():
     for seed in range(1, 4):
         g, ended = _game(seed)

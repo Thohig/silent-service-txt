@@ -107,6 +107,9 @@ TIDE_TABLE_ERR = 0.3        # tidvattentabellen kan ha så här stort fel (andel
 EXIT_FIRST_SUGGEST_S = 150  # ut ur området: låt sonar och djup komma först
 EXIT_THREAT_SECTOR = 40     # en väg ut inom så många grader från en hotkontakt är inte fri
 EXIT_THREAT_PENALTY_NM = 4.0
+EXIT_DEEP_M = 300           # grundare än så enligt kortet kan vi inte springa djupt (220 m) ...
+EXIT_SHALLOW_FACTOR = 1.0   # ... så den biten av vägen ut räknas så mycket längre
+EXIT_SAMPLE_NM = 0.2
 SETTLE_SPEED = 1.0          # fart när vi går ned mot botten
 SETTLE_DESCEND_KN = 1.5     # gå ned först när farten är nere i detta
 SETTLE_EXTRA_M = 60         # sikta så här långt under kortets botten
@@ -1420,6 +1423,8 @@ class NavigationStation(Station):
     def _steer_to_station(self) -> None:
         if self.goal not in ("station", "circle") or self.vak is not None:
             return
+        if self.ship.ordered_depth <= PERISCOPE_DEPTH:
+            return          # på väg upp (ytläge, periskopdjup): ingen spiral som drar ned oss
         if self.goal == "circle":
             self._steer_circle()
             return
@@ -1819,7 +1824,13 @@ class NavigationStation(Station):
                                "sigma": wp.sigma(self.now) + self.uncertainty()}, kind="ack")
 
     # --- ut ur området -------------------------------------------------------------
+    def _escape_line(self) -> float | None:
+        sc = self.game.scenario
+        return sc.escape_y_below if sc is not None else None
+
     def outside_area(self) -> bool:
+        if (line := self._escape_line()) is not None:
+            return self.est_y < line
         m, size = self.game.escape_nm or 0.0, self.game.world.size_nm
         return not (-m <= self.est_x <= size + m and -m <= self.est_y <= size + m)
 
@@ -1837,7 +1848,20 @@ class NavigationStation(Station):
         m, size = self.game.escape_nm or 0.0, self.game.world.size_nm
         sigma = self.uncertainty()
         routes = [(90.0, size + m - x), (270.0, x + m), (0.0, size + m - y), (180.0, y + m)]
+        if (line := self._escape_line()) is not None:
+            routes = [(180.0, y - line)]           # ordern: ut söderut förbi linjen
         return [(c, d + sigma) for c, d in routes if self._clear_path(x, y, c, d + sigma)]
+
+    def _shallow_nm(self, x: float, y: float, course: float, dist: float) -> float:
+        """Hur mycket av en rak väg som går över vatten grundare än EXIT_DEEP_M enligt kortet."""
+        chart = self.game.knowledge.bathymetry
+        if chart is None or dist <= 0:
+            return 0.0
+        n = max(1, int(dist / EXIT_SAMPLE_NM))
+        ts = (np.arange(n) + 0.5) * dist / n
+        sx, sy = math.sin(math.radians(course)), math.cos(math.radians(course))
+        depths = chart.depths(x + ts * sx, y + ts * sy)
+        return float(np.count_nonzero(depths < EXIT_DEEP_M)) * dist / n
 
     def _water_grid(self):
         """Sjökortets vatten (djupt nog för periskopdjup) på ett rutnät, en gång."""
@@ -1906,7 +1930,8 @@ class NavigationStation(Station):
         best = None
         for c, d in self._edge_routes(x, y):
             clear = all(abs(angle_diff(c, b)) > EXIT_THREAT_SECTOR for b in threats)
-            cost = d + (0.0 if clear else EXIT_THREAT_PENALTY_NM)
+            cost = d + (0.0 if clear else EXIT_THREAT_PENALTY_NM) \
+                + EXIT_SHALLOW_FACTOR * self._shallow_nm(x, y, c, d)
             if best is None or cost < best[0]:
                 best = (cost, c, d, clear and bool(threats))
         if best is None and (leg := self._path_out(x, y)) is not None:

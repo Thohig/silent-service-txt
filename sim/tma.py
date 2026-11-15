@@ -63,6 +63,11 @@ class BearingObs:
     range_nm: float | None = None    # avståndsmätning (periskop, radar, aktiv sonar)
     range_sigma: float = 0.0
     source: str = "sonar"            # sonar, ping, periskop, radar, aktiv
+    # periskopets bedömning av målets kurs (vinkel på bogen) och fart, om den finns
+    course_obs: float | None = None
+    course_sigma: float = 0.0
+    speed_obs: float | None = None
+    speed_sigma: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -129,7 +134,13 @@ class _Problem:
         self.r_idx = np.array(ranged, dtype=int)
         self.r_meas = np.array([obs[i].range_nm for i in ranged])
         w_r = np.array([1.0 / max(obs[i].range_sigma, 0.01) ** 2 for i in ranged])
-        self.w = np.concatenate([w_b, w_r])
+        vel = [i for i, o in enumerate(obs) if o.course_obs is not None]
+        self.c_meas = np.radians([obs[i].course_obs for i in vel])
+        w_c = np.array([1.0 / math.radians(max(obs[i].course_sigma, 1.0)) ** 2 for i in vel])
+        spd = [i for i, o in enumerate(obs) if o.speed_obs is not None]
+        self.s_meas = np.array([obs[i].speed_obs for i in spd], dtype=float)
+        w_s = np.array([1.0 / max(obs[i].speed_sigma, 0.5) ** 2 for i in spd])
+        self.w = np.concatenate([w_b, w_r, w_c, w_s])
         self.prior_w = 1.0 / VELOCITY_PRIOR_KN ** 2
         last = obs[-1]
         self.ref_x, self.ref_y = last.own_x, last.own_y
@@ -162,6 +173,19 @@ class _Problem:
             Jr = np.column_stack([ux, uy, ux * self.tau[i], uy * self.tau[i]])
             e = np.concatenate([e, er])
             J = np.vstack([J, Jr])
+        # kurs och fart ur periskopet: rak kurs, så samma hastighet hela tiden
+        sp2 = max(vx * vx + vy * vy, 1.0)
+        sp = math.sqrt(sp2)
+        if len(self.c_meas):
+            ec = (self.c_meas - math.atan2(vx, vy) + np.pi) % (2 * np.pi) - np.pi
+            Jc = np.tile([0.0, 0.0, vy / sp2, -vx / sp2], (len(ec), 1))
+            e = np.concatenate([e, ec])
+            J = np.vstack([J, Jc])
+        if len(self.s_meas):
+            es = self.s_meas - math.hypot(vx, vy)
+            Js = np.tile([0.0, 0.0, vx / sp, vy / sp], (len(es), 1))
+            e = np.concatenate([e, es])
+            J = np.vstack([J, Js])
         return e, J
 
     def cost(self, s: np.ndarray) -> float:
