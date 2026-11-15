@@ -288,6 +288,10 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   slutrapporten går vyerna att titta på; Enter med tom orderrad (även i en vy) ⇒ `return_to_menu()`:
   timern stoppas, ljud och sanningslogg stängs, `game = None`, menyn markerar scenariot. Nytt uppdrag =
   nytt `Game`, ny buss, nytt frö om inget är inställt, logg `truth-<tid>-<frö>.log`.
+  Den hemliga ordern (`ui/telegram.py`) visas som chiffertelegram: `order_header` (ШИФРОГРАММА, mottagningsnr
+  ur fröet, uppdragets stämpel, avsändaren ur orderns `FRÅN:`-rad via `staff_of`) och `order_signature` under
+  texten när den är utskriven (`Teletype.header`/`signature`/`style`, ockra papper). Slutrapporten börjar med
+  `report_header` (ДОНЕСЕНИЕ till samma stab, stämpeln; `ReportLog.add_ending(summary, header=...)`).
   `avbryt uppdraget`/`avsluta` ⇒ vakthavande frågar (`off.confirm_quit`, förslag `avbryt uppdraget
   bekräftat`), `ja` ⇒ utfallet `quit`.
 - **Order i alla vyer** (`ui/viewbase.py`): vyerna ärver `ViewScreen` (rapportraden, `Esc`, orderrad

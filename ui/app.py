@@ -22,7 +22,7 @@ from textual.widgets import Input
 from sim.events import GameEnded, ReportDelivered, TimeScaleChanged
 from sim.game import Game
 from sim.fmt import fmt_course, kn
-from sim.scenario import build_scenario
+from sim.scenario import SCENARIOS, build_scenario
 from sim.truthlog import TruthLog
 
 from .audio import SoundBoard, make_soundboard
@@ -34,6 +34,8 @@ from .bridge import BridgeScreen
 from .periscope import PeriscopeScreen
 from .profile import ProfileScreen
 from .systems import SystemScreen
+from .menutext import INK as PAPER_INK
+from .telegram import order_header, order_signature, report_header
 from .teletype import Teletype
 from .widgets import CentralView, DepthGauge, ReportLog, StatusBar
 
@@ -98,7 +100,7 @@ class SubApp(App):
     CSS = """
     Screen { background: #0b0f0c; }
     #status { height: 2; background: #1c2a20; color: #c8d0b0; }
-    #intro  { height: 1fr; padding: 2 6; }
+    #intro  { height: 1fr; padding: 2 6; background: #120b09; }
     #main   { height: 1fr; }
     #central-big { height: 1fr; display: none; background: #0b0f0c; }
     #lower  { height: 1fr; }
@@ -202,6 +204,10 @@ class SubApp(App):
         gs.query_one("#order", Input).focus()
         tt = gs.query_one(Teletype)
         tt.full_text = game.secret_order
+        title = SCENARIOS[self.scenario_key].title if self.scenario_key in SCENARIOS else ""
+        tt.header = order_header(self.scenario_key or "", title, game.secret_order, self.seed)
+        tt.signature = order_signature(game.secret_order)
+        tt.style = f"bold {PAPER_INK}"
         tt.start()
         if self.menu_sound is not None:
             self.menu_sound.set_typing(True)
@@ -503,7 +509,10 @@ class SubApp(App):
         if isinstance(self.screen, VIEWS):
             self.pop_screen()               # slutrapporten visas i loggen
         gs = self.gs()
-        gs.query_one(ReportLog).add_ending(e.summary)
+        key = self.scenario_key or ""
+        title = SCENARIOS[key].title if key in SCENARIOS else ""
+        gs.query_one(ReportLog).add_ending(
+            e.summary, header=report_header(key, title, self.game.secret_order))
         if gs.big:
             self.push_screen(LogScreen())    # slutrapporten får inte plats i remsan
         inp = gs.query_one("#order", Input)

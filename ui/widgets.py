@@ -157,8 +157,11 @@ class ReportLog(RichLog):
         line.append(text, style=style)
         self.emit(line)
 
-    def add_ending(self, summary: dict) -> None:
+    def add_ending(self, summary: dict, header: list[Text] | None = None) -> None:
+        """Slutrapporten. header: rader överst (донесение till staben, ui/telegram.py)."""
         self.emit(Text(""))
+        for line in header or []:
+            self.emit(line)
         self.emit(Text("═" * 60, style="dim"))
         self.emit(Text(f"  {summary['text']}", style="bold"))
         if summary.get("cause"):
