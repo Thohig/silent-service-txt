@@ -132,12 +132,32 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min); 
   fasta djup (`Level`), navigatörens djuplogg (var 10:e s), ekolodets bottenlodningar
   (bara efter `ekolod`), isekolodets lodningar och sonarrummets hörda ljud. `Game.profile()`
   samlar, `ui/profile_render.py` ritar sidovyn (tid vågrätt, botten i eget band under
-  bruten axel) och djupmätaren bredvid loggen. Tab växlar logg → sjökort → profil → systemtavla → periskopbild → logg (`VIEWS` i `ui/app.py`).
+  bruten axel) och djupmätaren bredvid loggen. Tab växlar logg → sjökort → profil → systemtavla → periskopbild → brygga → logg (`VIEWS` i `ui/app.py`).
 - **Systemtavlan** (`system`): `Station.system_items()` ger element (`sim/systems.py`):
   `Gauge` (panel, etikett, text, tillstånd ok/info/av/varning/fara, ev. stapel), `Compartment`
   (nio avdelningar, maskin), `TubeRack` (torpedrum), `Flooding`. Ur egna instrument
   (`own.sys`), aldrig om fienden. `Game.systems()` samlar, `ui/systems_render.py` ritar
   genomskärningen och panelerna (okända paneler hamnar sist, så nytt system ritar sig självt).
+- **Bryggan** (`stations/bridge.py`, `BridgeWatch`, roll vakthavande): tornluckan är sanning
+  (`OwnSystems.bridge`: shut → manning 20 s i ytläge → manned → clearing 20 s vid order att dyka → shut);
+  `OwnShip.bridge_open` håller djupet (depth_rate 0). Utkiken är en sensor: varannan sekund medan bryggan
+  är bemannad `BridgeSighted` med en `PeriscopePicture` (eye "brygga", 8 m, ingen sektor) ⇒
+  `Knowledge.bridge` (None vid utrymning). Bäring σ 1°, avstånd med ögat σ 15 % + 0,05 nm, kurs `AOB_SIGMA`,
+  fart σ 3 kn; felen dras om var 60:e s per föremål (bilden fladdrar inte), och då får plottet en
+  observation (`source="brygga"`). Egen `random.Random` så att resten av spelets dragningar inte flyttas.
+  Ropar ut nytt eller > 5 min ur sikte; flyg i sikte eller jagare < 3 nm ⇒ förslag `djup 60`.
+  Sonar skriver inte över en bättre klassning (utkikens GOD) med sämre.
+  Vyn (`ui/bridge.py`, `ui/bridge_render.py`, `brygga`): 120° synfält åt `view_rel` relativt fören (← → 15°,
+  mellanslag förut), himmel (moln/stjärnor), horisont, sjö med vågor fasta i världen som driver med tiden,
+  fördäck förut och kölvatten akterut, räcket nederst; föremål ritas med periskopets `_draw_object`
+  (siluett, lanternor, flyg, is), längre bort än 8 nm bara ett tecken. Bäringsskala, 360°-remsa
+  (`render_strip(window=...)`) och datarad om föremålet närmast blickens mitt (±12°). Utan bild säger
+  vyn varför ur `StatusSnapshot.bridge` och djupet.
+  Utkiken ser också land (`LandBearing` var 3:e grad: strålar mot `seabed.depths` ≤ 0 ut till sikten,
+  på natten halva; avståndet ×(1 + σ 15 %) per minut), händelser bland `world.transients` varje tick
+  (`EVENT_KINDS`: `splash` i dagsljus, `column` = sjunkbomb, `hit` = torpedens explosion, natt bara
+  blixt/eld inom 12 nm; synliga 6/10/60 s) och spår efter ångtorpeder (inte SET-53) inom 1,5 nm i
+  dagsljus. Ropar ut land (en gång per 5 min), vattenpelare (övning eller skarpt) och träffar.
 - **Periskopbilden** (`sim/periscope.py`): vakthavande publicerar `PeriscopeSighted` med en
   `PeriscopePicture` när svepet är klart (inte om vi kom under periskopdjup); `Knowledge.periscope`
   håller den senaste. Synlig del (helt/överbyggnad/mastoppar) ur ögonhöjd (periskop 1,5 m, brygga 8 m)

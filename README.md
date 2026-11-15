@@ -62,7 +62,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `salva S-1` eller `eld tub 1-3 mot S-1` (raka torpeder i solfjäder efter lösningens osäkerhet) · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
 | Ljud | `ctrl+t` eller `ljud` / `ljud av` / `ljud på`: besättningen talar (macOS-rösten Alva, de ryska fraserna med Milena om den finns), larmen går det sonaren hör spelas i stereo (babord till vänster) och båten låter: reaktor, turbin, skrov, is, brand och kontakternas propellrar |
-| Vyer | `Tab` växlar logg → sjökort → djupprofil → systemtavla → periskopbild → logg; `Esc` eller `logg` går tillbaka till loggen. Orden `sjökort`, `profil`, `system` och `periskopbild` öppnar en vy direkt. Order kan ges i alla vyer: varje vy har en orderrad, som också visar ett väntande förslag (`ja`/`nej`). Vyns tangenter (pilar, `+`/`-`, mellanslag, `Esc`) styr vyn när orderraden är tom; har den text redigerar de texten och `Esc` tömmer den. I periskopbilden byter ← → föremål i okularet |
+| Vyer | `Tab` växlar logg → sjökort → djupprofil → systemtavla → periskopbild → brygga → logg; `Esc` eller `logg` går tillbaka till loggen. Orden `sjökort`, `profil`, `system`, `periskopbild` och `brygga` öppnar en vy direkt. Order kan ges i alla vyer: varje vy har en orderrad, som också visar ett väntande förslag (`ja`/`nej`). Vyns tangenter (pilar, `+`/`-`, mellanslag, `Esc`) styr vyn när orderraden är tom; har den text redigerar de texten och `Esc` tömmer den. I periskopbilden byter ← → föremål i okularet; på bryggan vrider ← → blicken 15° och mellanslag tittar rakt förut igen |
 | Sjökort | Navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, mellanslag centrerar |
 | Systemtavla | Ubåtens system på en tavla: genomskärning av de nio avdelningarna (brand, rök, skador, reaktorns läge, vatten i kölsvinet), maskin (reaktor, framdrivning, batteri, tryckluft, skrov, vatten, koldioxid, rök), skador och reparationer per komponent, navigation, torpedtuberna med laddning, sonar och samband. Allt ur besättningens egna instrument; ▲ varning, ■ fara |
 | Djupprofil | Visar ubåten från sidan över tid: vårt djup, beordrat djup, ytan, periskopdjup, språngskiktet, prov- och krossdjup, isen ovanför, botten där ekolodet lodat och det sonar hört; `+`/`-` djupskala, pilarna tidsskala, mellanslag automatisk skala. Djupmätaren till höger om loggen visar samma sak i kort form |
@@ -84,6 +84,7 @@ en del säger de vilken, och resten verkställs ändå.
 | Skador, läckor, nödblåsning | Sjunkbomber ger skador och vatteninträngning; reparationer tar tid. |
 | Passiv och aktiv sonar | Passiv ger bäringar; aktiv ger avstånd men avslöjar oss. |
 | Periskop, radar, radarvarnare | Avstånd och kurs på periskopdjup, med risk att synas. |
+| Bryggan | I ytläge öppnas tornluckan och utkikarna går upp (20 s). De ropar ut fartyg, flyg och ljus med bäring och ett grovt avstånd bedömt med ögat, och plottet får en observation per fartyg och minut. Före dykning måste bryggan utrymmas och luckan stängas, cirka 20 sekunder. Från bryggan syns också land, plask och vattenpelare från sjunkbomber, explosioner och spåret efter en ångtorped. Vyn `brygga` visar utsikten. |
 | Navigering | Besticket driver med ström och loggfel; fix kräver periskopet. |
 | Havsbotten | Botten varierar: vid Kuba en bank på 120–200 m längs ena sidan, ett undervattensberg och en ränna i djuphavet; i Arktis en rygg vars krön når cirka 1 000 m. Sjökortet har djupkurvor från ett gammalt kort, förskjutna och utjämnade, och ibland saknas berget. Ekolodet (`ekolod`) ger det verkliga djupet men hörs. Går vi in i botten i mer än 2 knop går vi på grund: skador på skrov, sonar eller roder och läckor i högre fart. Navigatören varnar när kortet eller en färsk lodning visar grundare vatten framåt, och osäkrare ju äldre besticket är. Grundare än provdjup kan vi lägga oss stilla på botten (`botten`): maskinen stoppas, kylpumparna går på lågvarv och jagarens eko drunknar i bottenekot. Sand och lera är mjuka; klippbotten (berg, ryggar, branta sluttningar) skrapar skrovet. Bottentypen står på sjökortet, som kan ha fel. Navigatören föreslår det när vi är jagade över grunt, mjukt vatten. Fix mot botten (`bottenfix`) går utan periskop, även under isen: nio lodningar i minst två knop matchas mot kortet. Längs en rak sluttning ger det bara en lägeslinje, vid ett berg eller en ränna läget i båda led, och aldrig bättre än kortet (0,5 nm vid Kuba, 0,8 i Arktis). Saknar kortet något säger navigatören det och låter besticket vara. Lodningarna hörs. |
 | Radio | Sambandstillfällen på antenndjup (tider beror på scenariot). Sändning pejlas. |
@@ -162,6 +163,7 @@ sim/                 ren Python, ingen Textual
     engineering.py   maskin och skadekontroll
     sonar_room.py    sonar, transienter, aktiv sonar
     officer.py       periskop, radar, radarvarnare
+    bridge.py        tornluckan och utkiken på bryggan i ytläge
     radio.py         sambandstillfällen och rapporter
     plot.py          plottlaget
     torpedo_room.py  torpedrum och eldledning
@@ -176,6 +178,8 @@ ui/                  Textual
   systems_render.py  genomskärning och paneler till tecken
   periscope.py       periskopbilden i helskärm (utkikens senaste svep)
   periscope_render.py remsa, okular och siluetter till tecken
+  bridge.py          utsikten från bryggan i helskärm (utkikens bild, varannan sekund)
+  bridge_render.py   himmel, sjö, fördäck och kölvatten, föremålen med periskopets siluetter
 ```
 
 ### Lägga till ett system

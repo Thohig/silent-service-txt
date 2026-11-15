@@ -31,6 +31,8 @@ SCRAM_RATE_PER_H = 0.01       # spontana snabbstopp
 STEAM_LEAK_RATE_PER_H = 0.005
 REACTOR_START_S = 1200
 REPAIR_S = 1200               # tid att reparera en komponent helt
+BRIDGE_MAN_S = 20             # luckan öppen och utkikarna uppe så här länge efter att vi kommit upp
+BRIDGE_CLEAR_S = 20           # bryggan utryms och luckan stängs innan vi kan dyka
 COMPONENTS = ("sonar", "planes", "propulsion", "tubes", "periscope", "radio")
 COMPONENT_LABEL = {
     "sonar": "sonaren", "planes": "rodren", "propulsion": "framdrivningen",
@@ -64,6 +66,9 @@ class OwnSystems:
     _smoke_warned: set = field(default_factory=set)
     ice_press: int = 0               # sekunder ubåten tryckt mot tunn is
     hp_air: float = 1.0
+    # tornluckan och bryggan: shut, manning (luckan öppnas), manned, clearing (utryms)
+    bridge: str = "shut"
+    bridge_t: int = 0                # när pågående öppning eller utrymning är klar
     periscope_until: int = -1
     radar_until: int = -1
     transmit_until: int = -1
@@ -76,6 +81,8 @@ class OwnShip(Vessel):
     def __init__(self, state, id: str = "OWN"):
         super().__init__(id=id, kind="submarine", state=state, side="own")
         self.sys = OwnSystems()
+        if state.depth <= 1.0:
+            self.sys.bridge = "manned"       # börjar i ytläge med folk på bryggan
 
     # ------------------------------------------------------------------ hjälp
     def alert(self, type: str, **data: Any) -> None:
@@ -102,6 +109,29 @@ class OwnShip(Vessel):
     @property
     def surfaced(self) -> bool:
         return self.state.depth <= 1.0
+
+    @property
+    def bridge_open(self) -> bool:
+        """Luckan är öppen (bryggan bemannad eller under utrymning): vi kan inte dyka."""
+        return self.sys.bridge in ("manned", "clearing")
+
+    def _bridge_step(self, now: int) -> None:
+        """Luckan öppnas när vi ligger i ytläge och ingen order att dyka finns;
+        en order att dyka utrymmer först bryggan."""
+        s, want_down = self.sys, self.state.ordered_depth > 1.0
+        if s.bridge == "shut":
+            if self.surfaced and not want_down and not s.blowing:
+                s.bridge, s.bridge_t = "manning", now + BRIDGE_MAN_S
+        elif s.bridge == "manning":
+            if want_down or not self.surfaced:
+                s.bridge = "shut"            # luckan hann inte öppnas
+            elif now >= s.bridge_t:
+                s.bridge = "manned"
+        elif s.bridge == "manned":
+            if want_down:
+                s.bridge, s.bridge_t = "clearing", now + BRIDGE_CLEAR_S
+        elif s.bridge == "clearing" and now >= s.bridge_t:
+            s.bridge = "shut"
 
     # ------------------------------------------------------------------ akustik
     def radiated_level(self, env) -> float:
@@ -283,6 +313,9 @@ class OwnShip(Vessel):
 
         # djupstyrning: rodren behöver fart, barlasten verkar långsamt
         st.depth_rate = min(2.0, max(0.2, (0.25 + 0.12 * st.speed) * max(s.health["planes"], 0.2)))
+        self._bridge_step(now)
+        if self.bridge_open:
+            st.depth_rate = 0.0               # inte ned med luckan öppen (vi ligger redan uppe)
         if s.blowing:
             st.ordered_depth = 0.0
             st.depth = max(0.0, st.depth - 3.0 * dt)

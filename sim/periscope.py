@@ -121,6 +121,17 @@ class IceBearing:
 
 
 @dataclass(frozen=True)
+class LandBearing:
+    """Land i en riktning: avstånd till stranden, bedömt med ögat (bryggan)."""
+    bearing: float
+    range_nm: float
+
+
+# händelser utkiken ser (SightedObject.kind) utöver fartyg, flyg och ljus
+EVENT_KINDS = ("splash", "column", "hit", "wake")
+
+
+@dataclass(frozen=True)
 class PeriscopePicture:
     t: int
     day: bool
@@ -130,6 +141,7 @@ class PeriscopePicture:
     objects: tuple[SightedObject, ...] = ()
     sector: float | None = None     # kort titt mot denna bäring (± SECTOR_HALF_DEG), annars runt
     ice: tuple[IceBearing, ...] = ()
+    land: tuple[LandBearing, ...] = ()
 
     def ships(self) -> list[SightedObject]:
         return [o for o in self.objects if o.designation is not None]

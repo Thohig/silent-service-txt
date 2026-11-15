@@ -23,6 +23,7 @@ from sim.truthlog import TruthLog
 
 from .audio import SoundBoard, make_soundboard
 from .chart import ChartScreen
+from .bridge import BridgeScreen
 from .periscope import PeriscopeScreen
 from .profile import ProfileScreen
 from .systems import SystemScreen
@@ -34,8 +35,10 @@ CHART_WORDS = {"sjökort", "sjokort", "kort", "karta"}
 PROFILE_WORDS = {"profil", "djupprofil", "sidovy"}
 SYSTEM_WORDS = {"system", "systemtavla", "systemtavlan", "tavla", "tavlan"}
 PERISCOPE_WORDS = {"periskopbild", "periskopvy", "bild"}
+BRIDGE_WORDS = {"brygga", "bryggan", "bryggvy", "utsikt"}
 LOG_WORDS = {"logg", "loggen"}
-VIEWS = (ChartScreen, ProfileScreen, SystemScreen, PeriscopeScreen)   # Tab-ordningen efter loggen
+VIEWS = (ChartScreen, ProfileScreen, SystemScreen, PeriscopeScreen,
+         BridgeScreen)   # Tab-ordningen efter loggen
 GAUGE_EVERY_S = 0.5
 SOUND_WORDS = {"ljud", "ljud av", "ljud på", "ljud pa"}
 SPEECH_WORDS = {"tal ryska": "ru", "tal svenska": "sv"}
@@ -191,6 +194,9 @@ class SubApp(App):
         if text.lower() in PERISCOPE_WORDS:
             self.action_periscope()
             return
+        if text.lower() in BRIDGE_WORDS:
+            self.action_bridge()
+            return
         if text.lower() in LOG_WORDS:
             if isinstance(self.screen, VIEWS):
                 self.pop_screen()
@@ -219,7 +225,8 @@ class SubApp(App):
         if self.sound is not None and self.sound.enabled and self.sound.speaks_russian:
             log.add_system(self.game.clock_str(), "Besättningen talar ryska, loggen är på svenska. "
                            "tal svenska byter språk.")
-        log.add_system(self.game.clock_str(), "Tab växlar mellan logg, sjökort, djupprofil och systemtavla.")
+        log.add_system(self.game.clock_str(), "Tab växlar mellan logg, sjökort, djupprofil, "
+                       "systemtavla, periskopbild och brygga.")
         if self._sound_note:
             log.add_system(self.game.clock_str(), self._sound_note)
         elif self.sound and self.sound.enabled:
@@ -252,8 +259,11 @@ class SubApp(App):
     def action_periscope(self) -> None:
         self._toggle_view(PeriscopeScreen)
 
+    def action_bridge(self) -> None:
+        self._toggle_view(BridgeScreen)
+
     def action_cycle(self) -> None:
-        """Tab: logg → sjökort → djupprofil → systemtavla → periskop → logg."""
+        """Tab: logg → sjökort → djupprofil → systemtavla → periskop → brygga → logg."""
         if not self.running or self.game is None:
             return
         cur = next((i for i, cls in enumerate(VIEWS) if isinstance(self.screen, cls)), None)

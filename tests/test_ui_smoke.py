@@ -84,6 +84,7 @@ def test_tab_shows_the_chart_while_the_game_runs(tmp_path):
 
 @pytest.mark.slow
 def test_orders_can_be_given_in_every_view(tmp_path):
+    from ui.bridge import BridgeScreen
     from ui.chart import ChartScreen
     from ui.periscope import PeriscopeScreen
     from ui.profile import ProfileScreen
@@ -94,7 +95,8 @@ def test_orders_can_be_given_in_every_view(tmp_path):
         app = SubApp(seed=2, log_dir=tmp_path, scenario="kuba")
         async with app.run_test(size=(110, 40)) as pilot:
             await pilot.press("enter", "enter")
-            for i, cls in enumerate((ChartScreen, ProfileScreen, SystemScreen, PeriscopeScreen)):
+            for i, cls in enumerate((ChartScreen, ProfileScreen, SystemScreen, PeriscopeScreen,
+                                     BridgeScreen)):
                 await pilot.press("tab")
                 assert isinstance(app.screen, cls)
                 course = 100 + 10 * i
