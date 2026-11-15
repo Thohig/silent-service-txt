@@ -21,10 +21,10 @@ from .. import phrases
 from ..crew import ROLE_LABEL, Role
 from ..entities import Emission
 from ..arctic import STATION_LIGHT_NM
-from ..events import (BearingObserved, ClassificationChanged, ContactDetected,
+from ..events import (BearingObserved, Handover, ClassificationChanged, ContactDetected,
                       PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported)
 from ..fmt import fmt_course, kn, nm
-from ..geo import angle_diff, norm360, velocity
+from ..geo import angle_diff, bearing_to, distance, norm360, velocity
 from ..ice import ice_view, masts_clear
 from ..orders import DESIG, AskSuggestion, CommandSpec, Order, desig
 from ..ownship import PERISCOPE_DEPTH
@@ -107,10 +107,46 @@ def _contact(d: dict) -> str:
             f"fart cirka {kn(d['speed'])} knop.")
 
 
+def _names(ds: list[str]) -> str:
+    return ds[0] if len(ds) == 1 else ", ".join(ds[:-1]) + " och " + ds[-1]
+
+
+def _briefing(d: dict) -> str:
+    """Lägesrapporten när kaptenen tar befälet efter vakten före (kort variant)."""
+    out = [f"Kapten, vakthavande. Ni har befälet. Vi har gått i {d['minutes']} minuter, "
+           f"nu djup {d['depth']:.0f} meter, kurs {fmt_course(d['course'])}, "
+           f"fart {kn(d['speed'])} knop."]
+    c = d.get("convoy")
+    if c:
+        line = (f"Plottet har konvojen: {_names(c['members'])}"
+                + (f", med eskort {_names(c['escorts'])}" if c["escorts"] else "")
+                + f". Mitten i bäring {fmt_course(c['bearing'])}, cirka {nm(c['range'])} sjömil")
+        if c["quality"] is not None:
+            line += (f", baskurs {fmt_course(c['course'])}, fart {kn(round(c['speed']))} knop, "
+                     f"bedömningen {Quality(c['quality']).label}.")
+        else:
+            line += (f", nuvarande ben kurs cirka {fmt_course(round(c['course'] / 5) * 5)}, "
+                     f"fart cirka {kn(round(c['speed']))} knop. Baskursen har vi inte ännu.")
+        out.append(line)
+    for t in d["contacts"]:
+        where = f"bäring {fmt_course(t['bearing'])}"
+        if t.get("range") is not None:
+            where += f", cirka {nm(t['range'])} sjömil ({Quality(t['quality']).label})"
+        out.append(f"{t['designation']}, {t['label']}, {where}.")
+    if d["civil"]:
+        out.append(f"Dessutom {d['civil']} civila fartyg i plottet.")
+    if not c and not d["contacts"]:
+        out.append("Inga kontakter just nu.")
+    if d.get("sigma") is not None:
+        out.append(f"Bestickets osäkerhet {nm(d['sigma'])} sjömil.")
+    return " ".join(out)
+
+
 BATTLE_CALM_S = 1800        # så länge utan jakttecken innan nytt stridslarm
 BATTLE_DELAY_S = 6          # vakthavande ropar efter sonars rapport
 
 PHRASES = {
+    "off.briefing": _briefing,
     "off.refused": lambda d: f"Kapten, {d['reason']}.",
     "off.battle_stations": lambda d: f"{ru('Boevaja trevoga')}! Stridslarm, alla man till "
     "stridsstationerna. Fienden har troligen kontakt med oss.",
@@ -166,7 +202,22 @@ PHRASES = {
 phrases.register(PHRASES)
 
 
+def _briefing_ru(d: dict) -> str:
+    out = f"{R.CAPTAIN}, вахтенный офицер. Вахту сдал, командование ваше."
+    c = d.get("convoy")
+    if c:
+        out += (f" Конвой: {R.count(len(c['members']), ('судно', 'судна', 'судов'))}"
+                f" и {R.count(len(c['escorts']), ('эсминец', 'эсминца', 'эсминцев'))}, "
+                f"пеленг {R.course(c['bearing'])}, дистанция {R.dec(c['range'], R.MILE)}.")
+    elif d["contacts"]:
+        out += f" На планшете {R.count(len(d['contacts']), ('цель', 'цели', 'целей'))}."
+    else:
+        out += " Контактов нет."
+    return out
+
+
 RU_PHRASES = {
+    "off.briefing": _briefing_ru,
     "off.battle_stations": lambda d: "Боевая тревога! Боевая тревога! Противник, видимо, "
     "обнаружил нас.",
     "off.periscope.up": lambda d: "Есть, поднять перископ.",
@@ -205,6 +256,51 @@ class OfficerStation(Station):
     @property
     def own(self):
         return self.game.world.own
+
+    def attach(self, bus) -> None:
+        super().attach(bus)
+        bus.subscribe(Handover, self._on_handover)
+
+    # --- överlämnandet efter vakten före kaptenen ---------------------------------
+    def _on_handover(self, e: Handover) -> None:
+        self.say("off.briefing", self.briefing_data(e.warm_s // 60))
+
+    def briefing_data(self, minutes: int) -> dict:
+        """Läget ur kunskapen och egna instrument: konvoj, kontakter, besticket."""
+        k, now, st = self.game.knowledge, self.game.now, self.own.state
+        ox, oy = self.game.own_position_estimate()
+        d: dict = {"minutes": minutes, "depth": st.depth, "course": st.course,
+                   "speed": round(st.speed), "contacts": [], "civil": 0, "convoy": None}
+        c = k.convoy
+        if c is not None:
+            x, y, vx, vy = c.advance(now)
+            base = c.base if c.base is not None and c.base.quality >= Quality.OSAKER else None
+            d["convoy"] = {
+                "members": list(c.members), "escorts": list(c.escorts),
+                "bearing": bearing_to(ox, oy, x, y), "range": distance(ox, oy, x, y),
+                "course": base.course if base else c.leg_course,
+                "speed": base.speed if base else c.leg_speed,
+                "quality": int(base.quality) if base else None}
+        for tr in sorted(k.tracks.values(), key=lambda t: t.first_t):
+            if not tr.held or (c is not None and c.contains(tr.designation)):
+                continue
+            if tr.civil:
+                d["civil"] += 1
+                continue
+            b = tr.last_bearing
+            if b is None:
+                continue
+            sol = tr.solution
+            good = sol is not None and sol.quality >= Quality.OSAKER
+            d["contacts"].append({"designation": tr.designation, "label": tr.classification,
+                                  "bearing": b, "range": sol.range_nm if good else None,
+                                  "quality": int(sol.quality) if good else None})
+        try:
+            from .navigation import NavigationStation
+            d["sigma"] = self.game.station(NavigationStation).uncertainty()
+        except KeyError:
+            pass
+        return d
 
     def _sonar(self) -> SonarRoom:
         return self.game.station(SonarRoom)

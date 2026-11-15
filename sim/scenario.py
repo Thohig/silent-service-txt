@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Any, Callable
 
 from .crew import CrewMember, Role
 from .enemy import DestroyerAI
@@ -59,6 +59,16 @@ RADIO_MESSAGES = [
 ]
 
 
+@dataclass(frozen=True)
+class Warmup:
+    """Vakten före kaptenen. Game kör så många sekunder med en fast plan (pilot) innan
+    spelaren tar befälet: plottet, sonaren och besticket byggs av sensorerna som vanligt,
+    så att en kort variant kan börja mitt i läget utan att kunskapen skrivs in för hand.
+    pilot(game, t) ger order med game.command(...) som vakthavande gjort före oss."""
+    seconds: int
+    pilot: Callable[[Any, int], None]
+
+
 @dataclass
 class Scenario:
     world: World
@@ -77,6 +87,7 @@ class Scenario:
     # målet är att lämna området: så här långt utanför kanten räknas som ute (nm)
     escape_margin_nm: float | None = None
     escape_requires_photo: Quality | None = None   # utvägen räknas först med ett så bra foto
+    warmup: Warmup | None = None         # kort variant: vakten före kaptenen (se Warmup)
 
 
 def _crew() -> dict[Role, CrewMember]:
@@ -494,7 +505,7 @@ CONVOY_RADIO = [
 ]
 
 
-def convoy_scenario(rng: random.Random) -> Scenario:
+def convoy_scenario(rng: random.Random, run_in_nm: tuple[float, float] = (16.0, 20.0)) -> Scenario:
     """Konvojen: krig, en eskorterad konvoj sicksackar förbi; sänk ett fartyg och kom undan."""
     start_clock = 6 * 3600 + 30 * 60                   # 06:30, just efter gryningen
     size = 20.0
@@ -508,7 +519,7 @@ def convoy_scenario(rng: random.Random) -> Scenario:
     ux, uy = math.sin(math.radians(base)), math.cos(math.radians(base))
     nx, ny = uy, -ux
     side = rng.choice((-1.0, 1.0)) * rng.uniform(1.5, 5.0)
-    run_in = rng.uniform(16.0, 20.0)
+    run_in = rng.uniform(*run_in_nm)
     cx, cy = ox + side * nx - run_in * ux, oy + side * ny - run_in * uy
     convoy = make_convoy(world, ConvoyDef(start=(cx, cy), base_course=base),
                          random.Random(rng.random()))
@@ -552,6 +563,33 @@ def convoy_scenario(rng: random.Random) -> Scenario:
                     })
 
 
+# --- korta varianter ------------------------------------------------------------
+CONVOY_SHORT_WARM_S = 35 * 60          # vakten före kaptenen: 06:30–07:05
+CONVOY_SHORT_LIMIT_S = 45 * 60         # sedan så här länge innan tiden är ute
+CONVOY_SHORT_LOOK_S = 240              # vakten tittar i periskopet så här ofta
+
+
+def _convoy_watch_pilot(game: Any, t: int) -> None:
+    """Vakten före kaptenen: periskopdjup i 3 knop, ett svep var 4:e minut, inget anfall."""
+    if t == 0:
+        game.command("periskopdjup, fart 3")
+    elif t % CONVOY_SHORT_LOOK_S == CONVOY_SHORT_LOOK_S // 2 \
+            and game.world.own.state.depth <= 18:
+        game.command("periskop")
+
+
+def convoy_short_scenario(rng: random.Random) -> Scenario:
+    """Konvojen, kort: vakten har följt konvojen i 35 minuter och plottet har den.
+    Kaptenen tar över med konvojen 5–9 nm bort och eskorten ovetande."""
+    sc = convoy_scenario(rng, run_in_nm=(13.0, 15.0))
+    sc.warmup = Warmup(CONVOY_SHORT_WARM_S, _convoy_watch_pilot)
+    sc.world.patrol_end = CONVOY_SHORT_WARM_S + CONVOY_SHORT_LIMIT_S
+    sc.secret_order += ("\nVAKTJOURNALEN, 07.05: VAKTHAVANDE HAR GÅTT PÅ\n"
+                        "PERISKOPDJUP SEDAN 06.30 OCH FÖLJT KONVOJEN.\n"
+                        "KAPTENEN TAR BEFÄLET.\n")
+    return sc
+
+
 # --- scenarioregister ----------------------------------------------------------
 @dataclass(frozen=True)
 class ScenarioDef:
@@ -559,6 +597,7 @@ class ScenarioDef:
     title: str
     summary: str
     build: Callable[[random.Random], Scenario]
+    minutes: int | None = None                 # kort variant: ungefärlig speltid
 
 
 SCENARIOS: dict[str, ScenarioDef] = {}
@@ -598,3 +637,8 @@ register(ScenarioDef(
     "Kriget har börjat. En eskorterad konvoj med trupper till Kuba sicksackar genom "
     "kvadrat 12. Kom i skjutläge, sänk minst ett fartyg och bryt kontakten.",
     convoy_scenario))
+register(ScenarioDef(
+    "konvoj-kort", "Konvojen – skjutläge, 28 oktober 1962",
+    "Kort variant. Vakten har följt konvojen i en halvtimme och plottet har den. Ni tar "
+    "befälet med målen några sjömil bort: kom i skjutläge, sänk och bryt kontakten.",
+    convoy_short_scenario, minutes=30))

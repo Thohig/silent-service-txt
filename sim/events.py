@@ -46,6 +46,12 @@ class ReportDelivered(Event):
 
 
 @dataclass(frozen=True)
+class Handover(Event):
+    """Uppvärmningen är slut: kaptenen tar befälet efter warm_s sekunders vakt."""
+    warm_s: int
+
+
+@dataclass(frozen=True)
 class TimeScaleChanged(Event):
     scale: int
     reason: str = ""

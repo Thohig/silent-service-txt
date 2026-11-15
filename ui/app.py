@@ -74,6 +74,7 @@ class SubApp(App):
         self.game: Game | None = None
         self.truth_log: TruthLog | None = None
         self.running = False
+        self._game_ready = False             # spelet är klart att ta över (efter ev. uppvärmning)
         self._acc = 0.0
         self._last = 0.0
         self.sound_wanted = sound
@@ -88,7 +89,8 @@ class SubApp(App):
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         self.truth_log = TruthLog(self.log_dir / f"truth-{stamp}.log")
         self.truth_log.write(f"# seed={self.seed} scenario={key}")
-        self.game = Game(scenario, seed=self.seed, truth_log=self.truth_log)
+        # en kort variants uppvärmning körs i en tråd medan ordern skrivs ut (_begin)
+        self.game = Game(scenario, seed=self.seed, truth_log=self.truth_log, warm_up=False)
 
     def compose(self) -> ComposeResult:
         yield StatusBar(id="status")
@@ -124,18 +126,43 @@ class SubApp(App):
         self.query_one("#intro").display = True
         self.query_one("#order").display = True
         self.query_one(StatusBar).show(game.status())
+        self.query_one("#order", Input).focus()
+        tt = self.query_one(Teletype)
+        tt.full_text = game.secret_order
+        tt.start()
+        if game.warmup_pending:
+            self.run_worker(self._run_warmup, thread=True, exclusive=True, group="warmup")
+        else:
+            self._attach_game()
+
+    def _run_warmup(self) -> None:
+        """Tråd: vakten före kaptenen. Inget annat rör spelet förrän den är klar."""
+        self.game.warm_up()
+        self.call_from_thread(self._attach_game)
+
+    def _attach_game(self) -> None:
+        """Lyssna på spelet först nu, så att vaktens rapporter inte syns."""
+        game = self.game
         game.bus.subscribe(ReportDelivered, self._on_report)
         game.bus.subscribe(TimeScaleChanged, self._on_time_scale)
         game.bus.subscribe(GameEnded, self._on_game_ended)
         self.sound, self._sound_note = make_soundboard(
             game.bus, self.sound_wanted, heading=lambda: game.status().course)
-        self.query_one("#order", Input).focus()
-        tt = self.query_one(Teletype)
-        tt.full_text = game.secret_order
-        tt.start()
+        self._game_ready = True
+        try:
+            self.query_one(StatusBar).show(game.status())
+            if self.query_one(Teletype).done:
+                self._show_footer()
+        except NoMatches:
+            pass
+
+    def _show_footer(self) -> None:
+        self.query_one(Teletype).set_footer(
+            "Tryck Enter för att ta befälet." if self._game_ready
+            else "Vakthavande gör klart vakten …")
 
     def on_teletype_finished(self, _: Teletype.Finished) -> None:
-        self.query_one(Teletype).set_footer("Tryck Enter för att ta befälet.")
+        self._show_footer()
 
     # ------------------------------------------------------------------ order
     def on_input_submitted(self, event: Input.Submitted) -> None:
@@ -147,7 +174,7 @@ class SubApp(App):
             tt = self.query_one(Teletype)
             if not tt.done:
                 tt.finish()
-            else:
+            elif self._game_ready:
                 self._start()
             return
         if not text:
@@ -330,6 +357,6 @@ class SubApp(App):
 
 def _scenario_label(sd) -> Text:
     t = Text(sd.title, style="bold")
-    t.append(f"  ({sd.key})\n", style="dim")
+    t.append(f"  ({sd.key})" + (f"  ~{sd.minutes} min" if sd.minutes else "") + "\n", style="dim")
     t.append(sd.summary, style="italic")
     return t
