@@ -88,7 +88,7 @@ uv run pytest -q              # alla tester (~3 s), ska alltid vara gröna
   prenumererar först efteråt. Loggboken börjar vid överlämnandet. `Handover` ⇒ vakthavande säger
   `off.briefing` (konvoj, kontakter, besticket ur kunskapen). Tidsgränsen är `World.patrol_end`
   (uppvärmning + speltid). `ScenarioDef.minutes` visas i väljaren. Kort variant = egen nyckel
-  (`konvoj-kort`) som bygger på det långa scenariot.
+  (`konvoj-kort`) som bygger på det långa scenariot. Plan för resten: `docs/korta-varianter.md`.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen
