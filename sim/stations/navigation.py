@@ -265,9 +265,9 @@ PHRASES = {
     "nav.follow.lost": lambda d: f"Kapten, vi har tappat {d['designation']}. Slutar följa.",
     "nav.attack": lambda d: f"Anfall mot {_att_what(d)}. Skjutläge {nm(d['offset'])} sjömil om "
     f"{_att_side(d)} om {_att_path(d)}. Kurs {fmt_course(d['course'])}, framme om "
-    f"{d['minutes']:.0f} minuter i {kn(d['speed'])} knop.",
+    f"{_minutes(d['minutes'])} i {kn(d['speed'])} knop.",
     "nav.attack.speed": lambda d: f"Anfall mot {_att_what(d)}. I {kn(d['speed'])} knop hinner vi "
-    f"inte. I {d['need']} knop är vi i skjutläge om {d['minutes']:.0f} minuter, kurs "
+    f"inte. I {d['need']} knop är vi i skjutläge om {_minutes(d['minutes'])}, kurs "
     f"{fmt_course(d['course'])}." + (" Det kräver turbinen." if d.get("turbine") else ""),
     "nav.suggest.attack_speed": lambda d: f"Kapten, navigatören. Föreslår fart {d['need']} "
     f"för att hinna till skjutläget.",
