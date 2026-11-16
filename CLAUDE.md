@@ -158,8 +158,12 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   Djupgående i ytläge 7 m (`SURFACE_DRAFT_M`): ytläge kan gå på grund. Med bryggan bemannad föreslår
   vakthavande inget periskopsvep och sonar ingen fart 4; i ytläge föreslår maskin inget om kavitation.
 - **Radion och telegrammen:** allt radion tar emot publiceras som `TelegramReceived` (text, `kind`
-  telegram/broadcast, mottagningsnummer ombord) ⇒ `Knowledge.telegrams`; vyn `telegram` (`ui/telegrams.py`,
-  inte i Tab-ordningen) visar remsorna. Radio Moskva (`sim/broadcasts.py`): `lyssna radio` på antenndjup
+  telegram/broadcast, mottagningsnummer ombord) ⇒ `Knowledge.telegrams`. Radiomannen säger bara att det
+  kommit (`radio.message`, `radio.moscow`: `data["telegram"]` = numret, texten i `data["text"]` och
+  `read_aloud`, som svenskt tal läser efter raden); loggboken skriver remsan under raden
+  (`ui/strips.py`, `TelegramStrip`, bryts efter loggens bredd, högst `MAX_W`). Ordern är loggens första
+  remsa (`SubApp._log_order`, kind "order"). `telegram` öppnar loggboken (`LogScreen(telegrams=True)`,
+  alla fönsterstorlekar) med bara remsorna; mellanslag växlar till hela loggen, `logg` likaså. Radio Moskva (`sim/broadcasts.py`): `lyssna radio` på antenndjup
   (masten fri, radion hel) ⇒ efter `LISTEN_S` (20 s) säger radiomannen en sändning för orderns datum
   (`order_day` ur `DATUM:`-raden, `broadcasts_for`); bara stämning, aldrig information. Den 28 okt bara
   bärvåg. Ljudet `shortwave` (menyns ratt och brus) före rösten.
