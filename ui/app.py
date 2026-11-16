@@ -34,7 +34,10 @@ from .menu_audio import MenuSound
 from .bridge import BridgeScreen
 from .periscope import PeriscopeScreen
 from .menutext import INK as PAPER_INK
-from .telegram import crew_announcement, order_header, order_signature, report_header
+from .menutext import stamp_for
+from .strips import TelegramStrip
+from .telegram import (crew_announcement, order_header, order_signature, report_header,
+                       telegram_number)
 from .telegrams import TelegramScreen
 from .teletype import Teletype
 from .widgets import CentralView, DepthGauge, ReportLog, StatusBar
@@ -319,6 +322,7 @@ class SubApp(App):
         self.gs().query_one(Teletype).display = False
         self.gs().query_one("#main").display = True
         log = self.gs().query_one(ReportLog)
+        self._log_order(log)
         st = self.game.world.own.state
         log.add_system(self.game.clock_str(),
                        f"Du har befälet. Ubåten går kurs {fmt_course(st.course)}, "
@@ -345,6 +349,13 @@ class SubApp(App):
         self.running = True
         self._last = time.monotonic()
         self._pump_timer = self.set_interval(FRAME_S, self._pump)
+
+    def _log_order(self, log: ReportLog) -> None:
+        """Den hemliga ordern som loggbokens första remsa."""
+        key = self.scenario_key or ""
+        title = SCENARIOS[key].title if key in SCENARIOS else ""
+        log.emit(TelegramStrip(telegram_number(self.seed), "order", self.game.clock_str()[:5],
+                               self.game.secret_order, stamp_for(key, title).sv))
 
     # ------------------------------------------------------------------ vyer
     def _toggle_view(self, cls: type[Screen]) -> None:

@@ -33,3 +33,12 @@ def test_log_writes_the_strip_under_the_radio_line():
     assert isinstance(log.entries[-1], TelegramStrip)
     assert "Gå till Nord-7." in _plain(log.entries[-1], 80)
     assert "Radiogram nummer 2" in log.entries[-2].plain
+
+
+def test_order_strip_keeps_the_order_lines():
+    order = "STRÄNGT HEMLIGT\nFRÅN: MARINENS HUVUDSTAB\n\n1. INTA STÄLLNING.\n\nSLUT\n"
+    rows = strip_lines("417/с", "order", "04:00", order, 70, "strängt hemligt")
+    head = rows[0].plain
+    assert "ШИФРОГРАММА · Вх. № 417/с · 04:00" in head and "ordern, strängt hemligt" in head
+    body = [r.plain.strip() for r in rows[1:]]
+    assert body[0] == "STRÄNGT HEMLIGT" and "1. INTA STÄLLNING." in body and body[-1] == "SLUT"
