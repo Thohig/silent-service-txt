@@ -289,7 +289,8 @@ def test_photo_goal_ends_the_game_when_good():
     from sim.scenario import build_scenario
     g = Game(build_scenario("sundet-in", random.Random(1)), seed=1, warm_up=False)
     w = g.world
-    assert "escape" not in w.mission and w.mission["photo"]["outcome"] == "photo_taken"
+    from sim.goals import EscapeGoal, PhotoGoal
+    assert w.goal(EscapeGoal) is None and w.goal(PhotoGoal).outcome == "photo_taken"
     w.mission["best_photo"] = int(Quality.OSAKER)
     w._check_outcome()
     assert w.outcome is None
@@ -322,7 +323,8 @@ def test_escape_line_counts_as_out_without_a_hunter():
     from sim.scenario import build_scenario
     g = Game(build_scenario("sundet-ut", random.Random(2)), seed=2, warm_up=False)
     w = g.world
-    line = w.mission["escape"]["y_below"]
+    from sim.goals import EscapeGoal
+    line = w.goal(EscapeGoal).y_below
     assert g.scenario.escape_y_below == line
     w.mission["best_photo"] = int(Quality.GOD)
     for ai in w.ais:

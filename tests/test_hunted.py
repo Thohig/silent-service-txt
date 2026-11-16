@@ -7,6 +7,7 @@ from sim.entities import Vessel
 from sim.environment import Environment
 from sim.events import ReportDelivered
 from sim.game import Game
+from sim.goals import EscapeGoal
 from sim.ownship import OwnShip
 from sim.scenario import build_scenario
 from sim.ship import ShipState
@@ -51,7 +52,7 @@ def test_destroyer_escalates_to_live_charges_after_practice_attacks():
 
 def test_escape_needs_outside_margin_and_no_aware_hunter():
     w, (ai,) = _world(own_xy=(-0.8, 10), own_depth=150, dds=((15, 15),))
-    w.mission["escape"] = {"margin_nm": 0.5, "outcome": "escaped"}
+    w.goals.append(EscapeGoal(0.5, "escaped"))
     ai.start_hunt(-0.8, 10, 150, 0.5)
     w._check_outcome()
     assert w.outcome is None                    # jagaren söker oss fortfarande
@@ -62,7 +63,7 @@ def test_escape_needs_outside_margin_and_no_aware_hunter():
 
 def test_escape_not_counted_inside_margin():
     w, (ai,) = _world(own_xy=(-0.3, 10), own_depth=150, dds=((15, 15),))
-    w.mission["escape"] = {"margin_nm": 0.5, "outcome": "escaped"}
+    w.goals.append(EscapeGoal(0.5, "escaped"))
     w._check_outcome()
     assert w.outcome is None
 
@@ -157,7 +158,7 @@ def test_sonar_is_deaf_after_nearby_explosion():
 
 def test_escape_counts_when_hunter_chases_a_decoy_far_away():
     w, (ai,) = _world(own_xy=(-2.0, 10), own_depth=150, dds=((15, 15),))
-    w.mission["escape"] = {"margin_nm": 1.0, "outcome": "escaped"}
+    w.goals.append(EscapeGoal(1.0, "escaped"))
     ai.start_hunt(1.5, 10, 150, 0.08)          # datum på ett skenmål 3,5 nm bort
     w._check_outcome()
     assert w.outcome["outcome"] == "escaped"

@@ -14,6 +14,8 @@ from .arctic import DriftStation, EnemySub, SubmarineAI
 from .convoy import ConvoyDef, make_convoy, make_escorts
 from .exercise import make_exercise_ship
 from .fmt import nm
+from .goals import (EscapeGoal, GroundingFails, NoDiveInFjord, PhotoGoal, ReportGoal,
+                    StrikeGoal, SurfaceNearGoal, TrainingGoal)
 from .ice import IceField, clearance
 from .seabed import Seabed, arctic_seabed, kola_seabed, kuba_seabed, strait_seabed
 from .ownship import OwnShip
@@ -224,7 +226,7 @@ def arctic_scenario(rng: random.Random, short: bool = False) -> Scenario:
     world.ais.append(SubmarineAI(us, random.Random(rng.random()), station))
     world.mission["nuclear_authorized"] = False
     # i ytläge inom en och en halv sjömil kan en landstigningsgrupp gå över isen
-    world.mission["goal"] = {"id": station.id, "radius_nm": 1.5, "outcome": "station_reached"}
+    world.goals.append(SurfaceNearGoal(station.id, 1.5, "station_reached"))
 
     # huvudstabens bild: stationens nödsignal kl 02:40, pejlad med ett par kabellängders fel
     t_sig = 40 * 60
@@ -400,7 +402,7 @@ def hunted_scenario(rng: random.Random, short: bool = False) -> Scenario:
     world.ais += [ai1, ai2]
     world.mission["nuclear_authorized"] = False
     margin = 1.0
-    world.mission["escape"] = {"margin_nm": margin, "outcome": "escaped"}
+    world.goals.append(EscapeGoal(margin, "escaped"))
     traffic = TrafficGenerator(KUBA_TRAFFIC, random.Random(rng.random()))
     traffic.populate(world)
     world.spawners.append(traffic)
@@ -553,8 +555,9 @@ def strait_scenario(rng: random.Random, short: bool = False, out: bool = False) 
 
     world.mission["nuclear_authorized"] = False
     margin = 0.5
-    world.mission["escape"] = {"margin_nm": margin, "outcome": "recon_done",
-                               "requires_photo": int(Quality.GOD)}
+    escape = EscapeGoal(margin, "recon_done", requires_photo=int(Quality.GOD))
+    if not short:
+        world.goals.append(escape)
     if short:
         r2 = random.Random(rng.random())
         # vid väntläget: ut längs farleden och lite åt sidan, på smygmotor
@@ -567,8 +570,7 @@ def strait_scenario(rng: random.Random, short: bool = False, out: bool = False) 
         gy = net_y - r2.uniform(*STRAIT_IN_SHIP_NM)
         traffic._spawn(world, lanes[0], (gy - y0) / (y1 - y0))
         traffic.next_t[0] = 10**9                         # inga fler in under spelet
-        del world.mission["escape"]
-        world.mission["photo"] = {"quality": int(Quality.GOD), "outcome": "photo_taken"}
+        world.goals.append(PhotoGoal(int(Quality.GOD), "photo_taken"))   # ingen utväg
         world.patrol_end = STRAIT_IN_WARM_S + STRAIT_IN_LIMIT_S
     if out:
         r2 = random.Random(rng.random())
@@ -585,9 +587,7 @@ def strait_scenario(rng: random.Random, short: bool = False, out: bool = False) 
         traffic._spawn(world, lanes[1], (gy - y0) / (y1 - y0))
         traffic.next_t = [10**9, 10**9]
         # ute: förbi nätet och hydrofonerna, och ingen har oss
-        world.mission["escape"] = {"margin_nm": margin, "outcome": "recon_done",
-                                   "requires_photo": int(Quality.GOD),
-                                   "y_below": net_y - STRAIT_OUT_LINE_NM}
+        escape.y_below = net_y - STRAIT_OUT_LINE_NM
         world.patrol_end = STRAIT_OUT_WARM_S + STRAIT_OUT_LIMIT_S
     windows = [(c - start_clock) for c in (6 * 3600 + 30 * 60, 8 * 3600) if c > start_clock + 3600]
     known = [("Ankarplatsen", ax + rng.gauss(0, 0.2), ay + rng.gauss(0, 0.2), 0.4, 0),
@@ -663,7 +663,7 @@ def strait_out_scenario(rng: random.Random) -> Scenario:
     """Genom sundet, ut: filmen är tagen innanför nätet; ta er ut bakom ett fartyg."""
     sc = strait_scenario(rng, out=True)
     sc.warmup = Warmup(STRAIT_OUT_WARM_S, _strait_out_pilot)
-    sc.escape_y_below = sc.world.mission["escape"]["y_below"]
+    sc.escape_y_below = sc.world.goal(EscapeGoal).y_below
     sc.secret_order += ("\nVAKTJOURNALEN, 07.04: BILDERNA AV ANKARPLATSEN\n"
                         "ÄR TAGNA. VI LIGGER INNANFÖR NÄTET. ETT FARTYG\n"
                         "ÄR PÅ VÄG UT MOT GRINDEN. KAPTENEN TAR BEFÄLET.\n")
@@ -725,9 +725,8 @@ def convoy_scenario(rng: random.Random, run_in_nm: tuple[float, float] = (16.0, 
                          random.Random(rng.random()))
     make_escorts(world, convoy, random.Random(rng.random()))
     world.mission["nuclear_authorized"] = False
-    world.mission["strike"] = {"targets": [v.id for v in convoy.vessels], "clear_s": 600,
-                               "outcome": "convoy_attacked", "miss_nm": 8.0,
-                               "miss_outcome": "convoy_missed"}
+    world.goals.append(StrikeGoal([v.id for v in convoy.vessels], "convoy_attacked",
+                                  "convoy_missed", clear_s=600, miss_nm=8.0))
     traffic = TrafficGenerator(KUBA_TRAFFIC, random.Random(rng.random()))
     traffic.populate(world)
     world.spawners.append(traffic)
@@ -928,9 +927,8 @@ def kuba_short_scenario(rng: random.Random) -> Scenario:
     sc.radio_windows = [w0]
     sc.radio_window_len = KUBA_SHORT_WINDOW_S
     sc.report_required = True
-    w.mission["report"] = {"from": w0, "to": w0 + KUBA_SHORT_WINDOW_S, "outcome": "reported",
-                           "miss_outcome": "report_missed",
-                           "contact_sigma_nm": KUBA_SHORT_CONTACT_SIGMA_NM}
+    w.goals.append(ReportGoal(w0, w0 + KUBA_SHORT_WINDOW_S, "reported", "report_missed",
+                              contact_sigma_nm=KUBA_SHORT_CONTACT_SIGMA_NM))
     w.patrol_end = w0 + KUBA_SHORT_WINDOW_S + KUBA_SHORT_AFTER_S
     sc.warmup = Warmup(KUBA_SHORT_WARM_S, _kuba_watch_pilot)
     open_at = sc.start_clock + w0
@@ -1041,9 +1039,8 @@ def training_scenario(rng: random.Random) -> Scenario:
                                        TRAINING_SHIP_R_NM)
     world.contacts.append(ship)
     world.ais.append(ship_ai)
-    world.mission["training"] = {"outcome": "training_done"}
-    world.mission["no_dive_fjord"] = "dived_in_fjord"
-    world.mission["fail_grounding"] = "grounded"
+    world.goals += [TrainingGoal("training_done"), NoDiveInFjord("dived_in_fjord"),
+                    GroundingFails("grounded")]
     # farleden enligt kortet: från första punkten framför oss ut genom mynningen
     fairway = [p for p in cfj.path if p[1] > TRAINING_START_Y + 0.3]
     known = [(TRAINING_AREA, area_x, area_y, 0.1, 0),

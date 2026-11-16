@@ -21,15 +21,14 @@ kaptenens (användarens) beslut. Det som redan är byggt står i CLAUDE.md och R
 Grunden håller (sanning/kunskap isär, determinism, `sim/` utan Textual, rapporter som data,
 stationer som plugin). Förbättringar i prioritetsordning:
 
-1. **Målobjekt:** `World._check_outcome` är en växande if-kedja över otypat `mission`-dict
-   (~50 nycklar). Låt scenariot bära `Goal`-objekt med `check(world)`. Blir dyrare för varje
-   nytt scenario.
+1. ~~Målobjekt~~ – gjort 2026-11-16: `sim/goals.py`, `World.goals`. `mission` håller bara det
+   som hänt (sänkt, foto, rapport, grundstötning, räknare).
 2. ~~Kalibreringsbotarna in i repot~~ – gjort 2026-11-15, se `kalibrering/`. Kvar: köra om
    siffrorna i CLAUDE.md med dem.
 3. **Dela `navigation.py`** (~2 250 rader) i delmoduler, och `scenario.py` (~1 200) till paket.
 
-Mindre: importtest som vaktar att kunskapsmoduler inte importerar `world`/`entities`; talet
-är bundet till macOS `say`.
+Mindre: ~~importtest~~ (gjort 2026-11-16, `tests/test_import_boundaries.py`); talet är bundet
+till macOS `say`.
 
 ## Gränssnitt och grafik (granskning 2026-11-15, "inte nu")
 

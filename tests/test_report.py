@@ -8,6 +8,7 @@ from sim.events import ReportDelivered
 from sim.game import Game
 from sim.scenario import (KUBA_SHORT_WARM_S, KUBA_SHORT_WINDOW_IN_S, KUBA_SHORT_WINDOW_S,
                           SCENARIOS, build_scenario, default_scenario)
+from sim.goals import ReportGoal
 from sim.stations.radio import RadioStation
 from sim.stations.sonar_room import SonarRoom
 
@@ -17,8 +18,8 @@ def _game(window_at=60, report=True, seed=3):
     sc.radio_windows = [window_at]
     sc.radio_window_len = 300
     sc.report_required = report
-    sc.world.mission["report"] = {"from": window_at, "to": window_at + 300, "outcome": "reported",
-                                  "miss_outcome": "report_missed", "contact_sigma_nm": 0.5}
+    sc.world.goals.append(ReportGoal(window_at, window_at + 300, "reported", "report_missed",
+                                     contact_sigma_nm=0.5))
     g = Game(sc, seed=seed)
     types = []
     g.bus.subscribe(ReportDelivered, lambda e: types.append((e.report.type, e.report.data)))

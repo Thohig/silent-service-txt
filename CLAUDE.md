@@ -43,6 +43,14 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
 - **Rapporter** bär `type` + `data`, aldrig färdig text. Texten skapas av
   `phrases.render()` vid leverans, efter rapportfiltren. Varje station registrerar
   sina fraser med `phrases.register({...})` i sin egen modul.
+- **Uppdragsmål** (`sim/goals.py`, sanning): scenariot lägger `Goal`-objekt i `World.goals`
+  (`StrikeGoal`, `PhotoGoal`, `ReportGoal`, `SurfaceNearGoal`, `EscapeGoal`, `TrainingGoal`,
+  `GroundingFails`, `NoDiveInFjord`); `World._check_outcome` prövar dem i `RANK`-ordning, efter
+  sänkt neutralt/alla fiender och före `forced`/`patrol_end`. `World.goal(cls)` hittar ett mål.
+  `World.mission` håller bara det som hänt (sänkt, `best_photo`, `last_report_t`, `grounded_t`,
+  räknare). Nytt mål = ny klass i `goals.py`, `World` ändras inte.
+- **Importgränser** vaktas av `tests/test_import_boundaries.py`: kunskapsmodulerna når aldrig
+  sanningen (importer under `TYPE_CHECKING` räknas inte), `sim/` importerar aldrig Textual.
 - **Scenarier** registreras i `sim/scenario.py` (`register(ScenarioDef(...))`) och
   väljs i gränssnittets väljare eller med `--scenario`. Scenariot bär områdesnamn
   och sluttexter; `Game` ska inte känna till enskilda scenarier.
@@ -111,7 +119,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   ≤ 2 min gammal och inget fartyg < 1,0 nm). Varje steg föreslås som ja-order med förklaring, bockas av ur egna
   instrument, navigatörens fix eller periskopbilden; 30 s paus mellan stegen. Stegen `framme`–`lyssna`
   görs i övningsområdet (inom 1,5 nm, kvar tills 3 nm; utanför föreslås kurs dit); inget föreslås förrän kortet visar oss 0,5 nm utanför
-  mynningen. Klart ⇒ `train.done` och `mission["training"]["done_t"]` (+30 s) ⇒ `training_done`.
+  mynningen. Klart ⇒ `train.done` och `TrainingGoal.done_t` (+30 s) ⇒ `training_done`.
   Dykning i fjorden (`Scenario.no_dive_in_fjord`): navigatören varnar (`nav.fjord_dive`), sanningen
   avbryter om djup > 3 m 0,2 nm innanför strandlinjen (`dived_in_fjord`). Grundstötning i mer än 2 kn
   (`mission["grounded_t"]`, sätts alltid) avbryter med `fail_grounding` (`grounded`). Ingen kort
@@ -395,7 +403,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   300-meterskurva på djupt vatten; DD1 2,2–3 nm i norr med färsk kontakt (`start_hunt`), DD2
   7–8,5 nm i söder. Jagarna är `partners` och delar fix (σ + 0,4 nm). `escalate_after=3`:
   skarpa efter tre övningsanfall (~25 min). `leash_nm=1`: släpper jakten när datumet ligger mer
-  än 1 nm utanför kvadraten. Mål `mission["escape"]`: 1 nm utanför och ingen jägare med datum
+  än 1 nm utanför kvadraten. Mål `EscapeGoal`: 1 nm utanför och ingen jägare med datum
   inom max(1 nm, 3σ) från oss (ett skenmål räknas inte). Navigatören (`exit_route`) föreslår
   närmaste kant, +4 nm straff inom 40° från en hotkontakt, och sträckan där kortet visar grundare än
   300 m (`EXIT_DEEP_M`) räknas dubbelt: över banken kan vi inte springa djupt. 8 frön: passiv 0,
@@ -443,7 +451,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   under passagen genom skärmen i 7 (passiv bot 3), oberoende av djup.
 - Sundet in (`sundet-in`, `strait_scenario(short=True)`): 06:20, vakt 10 min (`smygmotor, väntläget`),
   ubåten startar ~1,4 nm utanför nätet 0,35 nm vid sidan, ett fartyg på väg in 3,0–3,2 nm från nätet vid start
-  (passerar väntläget 3–5 min efter överlämnandet), inga fler in. Mål `mission["photo"]`: foto minst god ⇒
+  (passerar väntläget 3–5 min efter överlämnandet), inga fler in. Mål `PhotoGoal`: foto minst god ⇒
   `photo_taken` (ingen utväg). Tidsgräns 35 min efter överlämnandet. 8 frön: passiv 0, ja-boten 0 (följandet
   föreslås inte, kaptenens sak), grindboten (`turbin, djup 40, följ S-x` när fartyget passerat 0,2–0,45 nm,
   `kurs mot ankarplatsen, fart 4, periskopdjup` 0,6 nm innanför, `foto`) 6, på 18–33 min.
@@ -456,7 +464,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   (omkört 2026-11-15: 5, på 20–26 min).
 - Konvojen (`konvoj`, `convoy_scenario`): 28 okt, krig, 06:30 (dagsljus). Konvoj (2 trupptransporter,
   1 tanker) och 2 eskorter, baskurs 190–230°, start 16–20 nm bort, vägen passerar oss på 1,5–5 nm;
-  ordern ger läge (±2 nm) och kurs avrundad. Mål `mission["strike"]`: minst ett mål sänkt och ingen
+  ordern ger läge (±2 nm) och kurs avrundad. Mål `StrikeGoal`: minst ett mål sänkt och ingen
   jägare har oss 10 min efter senaste sänkningen ⇒ `convoy_attacked`; alla mål > 8 nm och förbi oss
   ⇒ `convoy_missed`. Kuba-trafik och flyg finns kvar. Träffradie för stora fartyg = halva längden
   (`HULL_HALF_NM`: transport 0,045, tanker 0,05 nm). Salva (`salva S-x`, `eld tub 1-3 mot S-x`):
@@ -485,7 +493,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   datumet (förut anfallsfart 15 kn hela vägen, så den hann sällan fram innan kopplet släppte).
 - Kvadrat 7 kort (`kuba-kort`, `kuba_short_scenario`): jagaren 3–4 nm bort i patrull (övningsbomber), vakt
   15 min (smygmotor 3 kn på 100 m, gir +70° efter 7 min), sambandstillfälle 5 min efter överlämnandet i 15 min,
-  sedan 10 min. Flyget efter 5–10 min. Mål `mission["report"]`: rapport sänd inom fönstret (`last_report_t`)
+  sedan 10 min. Flyget efter 5–10 min. Mål `ReportGoal`: rapport sänd inom fönstret (`last_report_t`)
   och, när fönstret stängt, ingen jägare med datum σ ≤ 0,5 nm på oss (`_hunting_us(max_sigma=...)`; pejlingen
   av sändningen, σ 1,5, räknas inte) ⇒ `reported`; ingen rapport ⇒ `report_missed`. Radion (`report_required`):
   väntar (`radio.wait`) så länge plottet har en hotkontakt ≥ osäker närmare än 5 nm (`RADIO_SAFE_NM`), föreslår

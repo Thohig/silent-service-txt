@@ -5,7 +5,7 @@ med en kort förklaring av vad ordern gör, och bockas av ur egna instrument (dj
 framdrivning), navigatörens fix eller periskopets bild – aldrig ur sanningen om
 världen. Stegen efter `framme` görs i övningsområdet, provdjupet bara där kortet
 visar tillräckligt djup. När alla steg är klara anmäler vakthavande det, och
-uppdraget (`mission["training"]`) räknas som genomfört en halv minut senare.
+uppdraget (`TrainingGoal`) räknas som genomfört en halv minut senare.
 """
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from .. import phrases
 from .. import russian as R
 from ..crew import Role
 from ..events import ListeningExercise, OwnSoundMade, PeriscopeSighted, TorpedoExercise
+from ..goals import TrainingGoal
 from ..exercise import partner_report, torpedo_report
 from ..fmt import fmt_course, kn, nm
 from ..geo import bearing_to, distance
@@ -309,9 +310,9 @@ class TrainingOfficer(Station):
             self.say("train.done", {"steps": [STEPS[k].name for k, _ in self.done],
                                     "minutes": max(1, round((self.now - first) / 60))},
                      extra_delay=5)
-            tr = self.game.world.mission.get("training")
-            if tr is not None:
-                tr["done_t"] = self.now + DONE_DELAY_S
+            goal = self.game.world.goal(TrainingGoal)
+            if goal is not None:
+                goal.done_t = self.now + DONE_DELAY_S
 
 
 def _partner_text(d: dict) -> str:

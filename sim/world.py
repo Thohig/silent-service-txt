@@ -10,10 +10,9 @@ Ett tick:
 """
 from __future__ import annotations
 
-import math
 import random
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TypeVar
 
 import numpy as np
 
@@ -21,6 +20,7 @@ from . import acoustics
 from .entities import Emission, Transient, Vessel
 from .environment import Environment
 from .geo import angle_diff, bearing_to, distance
+from .goals import Goal
 from .ice import ice_contact, ice_sounds
 from .seabed import bottom_contact
 from .ownship import OwnShip
@@ -29,7 +29,7 @@ from .weapons import Torpedo, step_weapons
 LAND_STEP_NM = 0.05         # land mellan två punkter: prov så här tätt längs linjen
 LAND_BLOCK_DB = 60.0        # ljud genom ett berg: i praktiken inget
 NO_DIVE_MARGIN_NM = 0.2     # förbudet gäller klart innanför mynningen
-NO_DIVE_M = 3.0             # djupare än så räknas som dykt (förbud i fjorden)
+G = TypeVar("G", bound=Goal)
 
 SINK_ENDING_DELAY = 45      # sekunder brytningsljud innan spelet slutar
 HUNT_NEAR_NM = 1.0          # ett datum så nära oss räknas som att jägaren har oss
@@ -48,7 +48,8 @@ class World:
     charges: list[Any] = field(default_factory=list)
     transients: list[Transient] = field(default_factory=list)
     emissions: list[Emission] = field(default_factory=list)
-    mission: dict[str, Any] = field(default_factory=dict)
+    mission: dict[str, Any] = field(default_factory=dict)   # det som hänt (sänkt, foto, rapport …)
+    goals: list[Goal] = field(default_factory=list)         # scenariots mål (`goals.py`)
     outcome: dict[str, Any] | None = None
     patrol_end: int | None = None
     # det som skickar in nya enheter under spelet (civil trafik, flyg); var och en har step(world)
@@ -143,56 +144,9 @@ class World:
             if self.time - self.mission["all_sunk_t"] >= SINK_ENDING_DELAY:
                 self.end("sank")
             return
-        strike = self.mission.get("strike")
-        if strike and self._strike_done(strike):
-            return
-        photo = self.mission.get("photo")
-        if photo and self.mission.get("best_photo", -1) >= photo["quality"]:
-            self.end(photo["outcome"])
-            return
-        rep = self.mission.get("report")
-        if rep and self.time >= rep["to"]:
-            sent = self.mission.get("last_report_t")
-            if sent is None or not rep["from"] <= sent <= rep["to"]:
-                self.end(rep["miss_outcome"])
+        for goal in sorted(self.goals, key=lambda g: g.RANK):
+            if goal.check(self):
                 return
-            # en pejling av sändningen (σ 1,5 nm) är inte kontakt; ett fix är det
-            if not any(self._hunting_us(ai, max_sigma=rep.get("contact_sigma_nm"))
-                       for ai in self.ais):
-                self.end(rep["outcome"])
-                return
-        goal = self.mission.get("goal")
-        if goal and self.own.surfaced:
-            target = next((v for v in self.contacts if v.id == goal["id"]), None)
-            if target is not None and self.true_range(target) <= goal["radius_nm"]:
-                self.end(goal["outcome"])
-                return
-        if self.mission.get("fail_grounding") and "grounded_t" in self.mission:
-            self.end(self.mission["fail_grounding"])
-            return
-        nd = self.mission.get("no_dive_fjord")
-        if nd and self.own.state.depth > NO_DIVE_M and self._in_fjord():
-            self.end(nd)
-            return
-        tr = self.mission.get("training")
-        if tr and "done_t" in tr and self.time >= tr["done_t"]:
-            self.end(tr["outcome"])
-            return
-        reach = self.mission.get("reach")
-        if reach and distance(self.own.state.x, self.own.state.y, reach["x"], reach["y"]) \
-                <= reach["radius_nm"]:
-            self.end(reach["outcome"])
-            return
-        esc = self.mission.get("escape")
-        if esc and esc.get("requires_photo") is not None and \
-                self.mission.get("best_photo", -1) < esc["requires_photo"]:
-            esc = None                      # inte utan bilderna
-        out = (self.own.state.y < esc["y_below"]) if esc and "y_below" in esc \
-            else esc and self._outside_area(esc["margin_nm"])
-        if esc and not self.own.surfaced and out \
-                and not any(self._hunting_us(ai) for ai in self.ais):
-            self.end(esc["outcome"])
-            return
         if self.own.surfaced:
             for ai in self.ais:
                 if ai.vessel.sunk or not getattr(ai, "can_force", True):
@@ -203,27 +157,9 @@ class World:
         if self.patrol_end is not None and self.time >= self.patrol_end:
             self.end("patrol_end")
 
-    def _strike_done(self, strike: dict) -> bool:
-        """Anfallsmål: sänkt minst ett mål och ingen jägare har oss sedan clear_s; eller
-        alla mål har passerat och ligger miss_nm bort utan att något sänkts."""
-        targets = [v for v in self.contacts if v.id in strike["targets"]]
-        sunk = [v for v in targets if v.sunk]
-        if sunk:
-            if self.time - self.mission.get("last_sink_t", 0) >= strike["clear_s"] and \
-                    not any(self._hunting_us(ai) for ai in self.ais):
-                self.end(strike["outcome"], sunk=len(sunk))
-                return True
-            return False
-        o = self.own.state
-        alive = [v for v in targets if not v.sunk]
-        if alive and all(
-                distance(o.x, o.y, v.state.x, v.state.y) > strike["miss_nm"]
-                and (o.x - v.state.x) * math.sin(math.radians(v.state.course))
-                + (o.y - v.state.y) * math.cos(math.radians(v.state.course)) < 0
-                for v in alive):
-            self.end(strike["miss_outcome"])
-            return True
-        return False
+    def goal(self, cls: type[G]) -> G | None:
+        """Scenariots första mål av en viss sort (t.ex. övningsledaren som bockar av)."""
+        return next((g for g in self.goals if isinstance(g, cls)), None)
 
     # --- sanningshjälp (sensorer, vapen, sanningslogg) ----------------------
     def _hunting_us(self, ai: Any, max_sigma: float | None = None) -> bool:
