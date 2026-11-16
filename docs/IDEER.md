@@ -7,7 +7,8 @@ kaptenens (användarens) beslut. Det som redan är byggt står i CLAUDE.md och R
 
 - ~~Plottet kallar ibland felaktiga lösningar "god"~~ – rättat 2026-11-15 (manöverbrus, gamla
   lösningar, kursen som tak). Kvar: girar de senaste minuterna innan plottet sett dem (~9 % grova fel).
-- **Torpedrummet säger skjutlösning på bevakningsfartyget** före torpedsteget i övningen.
+- ~~Torpedrummet säger skjutlösning på bevakningsfartyget före torpedsteget~~ – rättat 2026-11-16
+  (`TorpedoExercise` ⇒ `Knowledge.torpedo_exercise`).
 - ~~Kalibreringssiffror som glidit~~ – alla botar omkörda 2026-11-15 och siffrorna rättade i
   CLAUDE.md. Störst skillnad: Kvadrat 7 hittas nu av jagaren i 12 av 12 (angivet 9) och flyget 11
   av 12 (8); konvoj-mot passiv/ja 5 av 8 (3/4). Inte omkört: sundet med sanningsboten, väntläget.

@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from .. import phrases
 from .. import russian as R
 from ..crew import Role
-from ..events import ListeningExercise, OwnSoundMade, PeriscopeSighted
+from ..events import ListeningExercise, OwnSoundMade, PeriscopeSighted, TorpedoExercise
 from ..exercise import partner_report, torpedo_report
 from ..fmt import fmt_course, kn, nm
 from ..geo import bearing_to, distance
@@ -248,6 +248,7 @@ class TrainingOfficer(Station):
             # vapen föreslås aldrig som ja-order: vakthavande går igenom, kaptenen beordrar
             if self._torp_t is None:
                 self._torp_t = self.now
+                self.game.bus.publish(TorpedoExercise(self.now, True))
             if self._fired_t is None or self._fired_t < self._torp_t:
                 self.suggest("train_torped", "train.torpedo.brief", self._torp_brief(),
                              cooldown=TORP_BRIEF_S)
@@ -295,6 +296,7 @@ class TrainingOfficer(Station):
                             speed=sol.speed, quality=sol.quality.label)
             self._partner_check(data, tr)
         if key == "torped":
+            self.game.bus.publish(TorpedoExercise(self.now, False))
             fired = self._fired_t is not None and self._torp_t is not None \
                 and self._fired_t >= self._torp_t
             data["fired"] = fired

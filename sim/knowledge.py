@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from .events import (BearingObserved, BridgeSighted, ClassificationChanged, ContactDetected,
                      ConvoyAssessed, ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound,
                      PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported,
-                     ListeningExercise, TelegramReceived)
+                     ListeningExercise, TelegramReceived, TorpedoExercise)
 from .icemap import IceMap
 from .periscope import PeriscopePicture
 from .seabed import Seabed
@@ -103,6 +103,7 @@ class Knowledge:
     periscope: PeriscopePicture | None = None   # utkikens senaste bild
     bridge: PeriscopePicture | None = None      # bryggans bild just nu (None: ingen på bryggan)
     listening: bool = False              # lyssningsövning pågår: plottet tar in vårt eget fartyg
+    torpedo_exercise: bool = False       # torpedövning pågår: skjutlösning på vårt eget fartyg
     periscope_blocked: tuple[int, str] | None = None   # (tid, skäl) när periskopet inte kom upp
     convoy: ConvoyEstimate | None = None   # plottets bild av en konvoj
     telegrams: list[TelegramReceived] = field(default_factory=list)   # det radion tagit emot
@@ -123,6 +124,7 @@ class Knowledge:
         bus.subscribe(ConvoyAssessed, lambda e: setattr(self, "convoy", e.estimate))
         bus.subscribe(PeriscopeBlocked, lambda e: setattr(self, "periscope_blocked", (e.t, e.reason)))
         bus.subscribe(ListeningExercise, lambda e: setattr(self, "listening", e.active))
+        bus.subscribe(TorpedoExercise, lambda e: setattr(self, "torpedo_exercise", e.active))
 
     # --- händelser ------------------------------------------------------------
     def _on_periscope(self, e: PeriscopeSighted) -> None:

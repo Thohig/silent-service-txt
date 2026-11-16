@@ -172,6 +172,12 @@ class ListeningExercise(Event):
 
 
 @dataclass(frozen=True)
+class TorpedoExercise(Event):
+    """Torpedövningen mot det egna bevakningsfartyget pågår (eller är slut)."""
+    active: bool
+
+
+@dataclass(frozen=True)
 class TelegramReceived(Event):
     """Radion har tagit emot något: ett telegram från staben eller en rundradiosändning."""
     text: str               # svensk text, som loggen och telegramvyn visar den

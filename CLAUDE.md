@@ -132,7 +132,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   Övningstorped (`TORPEDO_TYPES["övning"]`, 53-61 utan stridsspets, 12 m djup): detonerar aldrig,
   noterar närmaste passage per fartyg (`Torpedo.passed`), sätter inte `hostile_act`; torpedrummet
   frågar inte om bekräftelse mot vårt eget fartyg och säger skjutlösning på det bara med
-  övningstorped i tuben. Övningens beväpning ur `Scenario.armament` (tub 1–2 övningstorped,
+  övningstorped i tuben och medan torpedsteget pågår (`TorpedoExercise` ⇒ `Knowledge.torpedo_exercise`). Övningens beväpning ur `Scenario.armament` (tub 1–2 övningstorped,
   inget att ladda om ⇒ inga omladdningsförslag). Steget `torped` har ingen order: vakthavande går
   igenom (`train.torpedo.brief`, var 5:e min) och kaptenen beordrar själv; klart en minut efter
   beräknad passage, eller hoppas över efter 15 min utan avfyring. Partnern svarar på

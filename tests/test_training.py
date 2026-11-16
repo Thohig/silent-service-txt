@@ -263,6 +263,33 @@ def test_training_loads_only_exercise_torpedoes_and_never_offers_to_fire():
     assert STEPS["torped"].order is None                    # vapen: aldrig en ja-order
 
 
+def test_firing_solution_on_the_guardship_only_during_the_torpedo_exercise():
+    """Torpedrummet säger skjutlösning på vårt eget fartyg bara när övningsledaren
+    har börjat torpedövningen, inte så fort plottet har en god lösning."""
+    from sim.events import TorpedoExercise
+    from sim.knowledge import ContactTrack
+    from sim.reports import Quality
+    from sim.stations.torpedo_room import TorpedoRoom
+    from sim.tma import Solution
+    g = _game(1)
+    room = g.station(TorpedoRoom)
+    ex, ey = g.own_position_estimate()
+    sol = Solution(t=g.now, t_ref=g.now, state=(ex, ey + 1.5, 0.0, 0.0), x=ex, y=ey + 1.5,
+                   course=0.0, speed=0.0, range_nm=1.5, bearing=0.0, range_sigma=0.1,
+                   course_sigma=10.0, speed_sigma=1.0, quality=Quality.GOD, n_obs=30,
+                   span_s=600, own_maneuvered=True, rms_residual=0.5)
+    g.knowledge.tracks["S-9"] = ContactTrack(
+        "S-9", 0, classification="ytfartyg, tvåskruv, trolig bevakningsfartyg",
+        class_quality=Quality.GOD, solution=sol)
+    said = []
+    room.suggest = lambda key, typ, data, **kw: said.append(typ)
+    room._readiness()
+    assert said == []                                       # lyssningen, dykningen …
+    g.bus.publish(TorpedoExercise(g.now, True))
+    room._readiness()
+    assert said == ["torp.ready"]
+
+
 @pytest.mark.slow
 def test_short_variant_hands_over_at_periscope_depth_in_the_area():
     g = Game(build_scenario("ovning-kort", random.Random(1)), seed=1)
