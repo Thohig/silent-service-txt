@@ -17,7 +17,6 @@ VIEW_RU = {
     "UBÅTEN": "ПОДВОДНАЯ ЛОДКА",
     "DJUPMÄTARE": "ГЛУБИНОМЕР",
     "BRYGGAN": "МОСТИК",
-    "TELEGRAM": "РАДИОГРАММЫ",
 }
 
 # systemtavlans paneler ⇒ stridsavdelning eller tjänst

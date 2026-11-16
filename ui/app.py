@@ -38,7 +38,6 @@ from .menutext import stamp_for
 from .strips import TelegramStrip
 from .telegram import (crew_announcement, order_header, order_signature, report_header,
                        telegram_number)
-from .telegrams import TelegramScreen
 from .teletype import Teletype
 from .widgets import CentralView, DepthGauge, ReportLog, StatusBar
 
@@ -51,8 +50,7 @@ BRIDGE_WORDS = {"brygga", "bryggan", "bryggvy", "utsikt"}
 LOG_WORDS = {"logg", "loggen", "loggbok", "loggboken"}
 CENTRAL_WORDS = {"central", "centralen"}
 TELEGRAM_WORDS = {"telegram", "telegrammen", "telegrammet", "radiogram", "radiogrammen"}
-VIEWS = (LogScreen, ChartScreen, BoatScreen, PeriscopeScreen,
-         BridgeScreen, TelegramScreen)
+VIEWS = (LogScreen, ChartScreen, BoatScreen, PeriscopeScreen, BridgeScreen)
 GAUGE_EVERY_S = 0.5
 CENTRAL_EVERY_S = 0.1                  # centralens instrument: tio gånger i sekunden
 CENTRAL_MIN_WIDTH = 100                # smalare terminal: bara djupmätaren
@@ -304,9 +302,11 @@ class SubApp(App):
         elif text in BRIDGE_WORDS:
             self.action_bridge()
         elif text in TELEGRAM_WORDS:
-            self._toggle_view(TelegramScreen)
+            self._telegrams()
         elif text in LOG_WORDS:
-            if self.gs().big:
+            if isinstance(self.screen, LogScreen) and self.screen.only_telegrams:
+                self.screen.set_telegrams(False)
+            elif self.gs().big:
                 self._toggle_view(LogScreen)
             elif isinstance(self.screen, VIEWS):
                 self.pop_screen()
@@ -371,6 +371,20 @@ class SubApp(App):
 
     def action_chart(self) -> None:
         self._toggle_view(ChartScreen)
+
+    def _telegrams(self) -> None:
+        """Loggboken med bara telegrammen (i alla fönsterstorlekar); igen stänger."""
+        if not self.running or self.game is None:
+            return
+        if isinstance(self.screen, LogScreen):
+            if self.screen.only_telegrams:
+                self.pop_screen()
+            else:
+                self.screen.set_telegrams(True)
+            return
+        if isinstance(self.screen, VIEWS):
+            self.pop_screen()
+        self.push_screen(LogScreen(telegrams=True))
 
     def action_boat(self) -> None:
         self._toggle_view(BoatScreen)

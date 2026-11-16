@@ -8,12 +8,14 @@ from rich.text import Text
 
 from .menutext import HIGHLIGHT_FG, INK, RED, RED_DARK
 
+MAX_W = 96                  # remsan är smalare än en bred logg, som papper
+
 
 def strip_lines(number: int | str, kind: str, clock: str, text: str, width: int,
                 note: str = "") -> list[Text]:
     """En remsa: rubrik på rött fält och texten under, `width` tecken bred. `kind`: telegram
     (staben), broadcast (Radio Moskva) eller order (den hemliga ordern; `note` = stämpeln)."""
-    w = max(30, width - 2)
+    w = max(30, min(width - 2, MAX_W))
     broadcast = kind == "broadcast"
     if kind == "order":
         left = f" ШИФРОГРАММА · Вх. № {number} · {clock}"

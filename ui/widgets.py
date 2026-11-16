@@ -120,7 +120,8 @@ class ReportLog(RichLog):
             del self.entries[: len(self.entries) - self.max_lines]
         if self.mirror is not None and self.mirror.is_attached:
             self.mirror.emit(content)
-        self.write(content)
+        # remsan fyller loggens bredd (annars mäter RichLog den till sin minsta bredd)
+        self.write(content, expand=isinstance(content, TelegramStrip))
 
     def add_report(self, clock: str, r: Report) -> None:
         line = Text()
