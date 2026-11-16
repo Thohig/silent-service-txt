@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from rich.text import Text
 
-from sim.systems import (DANGER, INFO, OFF, OK, WARN, Compartment, Flooding, Gauge,
+from sim.systems import (DANGER, INFO, OFF, OK, SEVERITY, WARN, Compartment, Flooding, Gauge,
                          SystemsView, TubeRack)
 
 from .placards import PANEL_RU, RU_STYLE, view_title
@@ -150,6 +150,51 @@ def render_panels(view: SystemsView, width: int) -> list[Text]:
             if j < ncol - 1:
                 t.append(" " * GAP)
         out.append(t)
+    return out
+
+
+# --- kompakt: en kolumn i allvarsordning (vyn Ubåten) ---------------------------------
+CALM_TEXT = "allt i ordning"
+
+
+def panel_state(view: SystemsView, name: str) -> str:
+    return max((g.state for g in view.gauges(name)), key=SEVERITY.get, default=OK)
+
+
+def _calm_line(name: str, w: int) -> Text:
+    """En lugn panel på en rad: namnet och "allt i ordning"."""
+    t = Text(no_wrap=True, overflow="ellipsis")
+    t.append(STATE_MARK[OK] + " ", style=STATE_STYLE[OK])
+    t.append(f"{name:<{LABEL_W}}", style=TITLE)
+    t.append(CALM_TEXT[:max(0, w - 2 - LABEL_W)], style=STATE_STYLE[OK])
+    return t
+
+
+def render_compact_panels(view: SystemsView, width: int, height: int) -> list[Text]:
+    """Panelerna i en kolumn, högst `height` rader: fara och varning först och fullt;
+    får allt inte plats fälls lugna paneler (ok/info) ihop till en rad, nedifrån."""
+    names = sorted(view.panels(), key=lambda n: -SEVERITY[panel_state(view, n)])  # stabil
+    full = {n: _panel(view, n, width) for n in names}
+    calm = [n for n in names if SEVERITY[panel_state(view, n)] == 0]
+    folded: set[str] = set()
+
+    def total() -> int:
+        return sum(1 if n in folded else len(full[n]) for n in names)
+
+    for n in reversed(calm):
+        if total() <= height:
+            break
+        folded.add(n)
+    rows: list[Text] = []
+    for n in names:
+        rows.extend([_calm_line(n, width)] if n in folded else full[n])
+    if len(rows) > height:
+        rows = rows[:max(0, height - 1)] + [Text(" …", style="dim")]
+    out = []
+    for r in rows:
+        r = r.copy()
+        r.truncate(width, overflow="ellipsis", pad=True)
+        out.append(r)
     return out
 
 

@@ -132,3 +132,39 @@ def test_tab_cycles_through_the_board(tmp_path):
             assert app.game.world.own.state.ordered_course == 90
 
     asyncio.run(run())
+
+
+def _board(*gauges):
+    from sim.systems import SystemsView
+    return SystemsView("12:00:00", list(gauges))
+
+
+def test_compact_panels_put_danger_first_and_fold_calm_panels_when_short():
+    from ui.systems_render import CALM_TEXT, render_compact_panels
+    v = _board(Gauge("MASKIN", "Reaktor", "i drift", OK), Gauge("MASKIN", "Turbin", "12 kn", OK),
+               Gauge("SONAR", "Kontakter", "S-1", OK), Gauge("SONAR", "Bakgrund", "60 dB", OK),
+               Gauge("SKADOR", "Läcka", "avd VII", DANGER), Gauge("SKADOR", "Pumpar", "80 %", WARN))
+    tall = _text(render_compact_panels(v, 50, 40))
+    assert tall.index("SKADOR") < tall.index("MASKIN") < tall.index("SONAR")
+    assert "Turbin" in tall and CALM_TEXT not in tall           # plats: allt fullt
+    short = render_compact_panels(v, 50, 6)
+    txt = _text(short)
+    assert len(short) <= 6
+    assert "Läcka" in txt and "Pumpar" in txt                    # faran syns alltid fullt
+    assert "SONAR" in txt and CALM_TEXT in txt and "Bakgrund" not in txt
+    assert all(len(line.plain) == 50 for line in short)
+
+
+def test_compact_panels_cut_when_even_danger_does_not_fit():
+    from ui.systems_render import render_compact_panels
+    v = _board(*(Gauge("SKADOR", f"Rad {i}", "fara", DANGER) for i in range(10)))
+    rows = render_compact_panels(v, 40, 5)
+    assert len(rows) == 5 and rows[-1].plain.strip() == "…"
+
+
+def test_compact_panels_of_a_real_board_fit():
+    from ui.systems_render import render_compact_panels
+    g = _game()
+    _run(g, 60)
+    rows = render_compact_panels(g.systems(), 56, 30)
+    assert 0 < len(rows) <= 30 and "53-61" in _text(rows)
