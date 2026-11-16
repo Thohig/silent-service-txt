@@ -53,6 +53,7 @@ WALK_S = 40             # från hytten till centralen (gången och lejdaren)
 ORDERLY_S = 20          # obesvarat samtal: ordonnansen knackar
 WATCH_S = 5             # så ofta starpom ser över läget
 SUMMON_S = 120          # så långt före skjutläget ropas kaptenen till centralen
+SUMMON_RANGE_NM = 3.5   # anfallsorder: ett stort fartyg så nära enligt plottet ⇒ kaptenen hit
 TIME_WARN_S = 900       # tidsgränsen så här nära: väck kaptenen
 REPEAT_S = 600          # samma fråga ringer inte igen förrän efter så här länge
 SLEEP_SCALE = 60
@@ -185,6 +186,9 @@ def reason_text(d: dict) -> str:
     if k == "attack":
         return (f"Vi är i skjutläge mot {d['designation']} om cirka {d['minutes']} minuter. "
                 f"Avfyringen är ert beslut.")
+    if k == "target":
+        return (f"{d['designation']}, {d['label']}, cirka {nm(d['range'])} sjömil. "
+                f"Inom skjutavstånd snart; avfyringen är ert beslut.")
     if k == "window":
         return f"Sambandstillfälle klockan {d['clock']}. Ordern kräver rapporten."
     if k == "suggestion":
@@ -575,6 +579,8 @@ class FirstOfficer(Station):
             self._asked[f"attack:{nav.attack}"] = now
             self._wake("danger", {"kind": "attack", "designation": nav.attack,
                                   "minutes": max(1, round((nav.attack_eta_t - now) / 60))})
+        if "anfall" in k.order_tasks and not hunted:
+            self._target_watch()
         end = self.game.world.patrol_end       # tidsgränsen står i ordern
         if end is not None and not self._time_warned and end - now <= TIME_WARN_S:
             self._time_warned = True
@@ -582,6 +588,24 @@ class FirstOfficer(Station):
         if self.wake_at is not None and now >= self.wake_at:
             self.wake_at = None
             self._wake("question", {"kind": "wake_at", "clock": self.game.clock_str()[:5]})
+
+    def _target_watch(self) -> None:
+        """Anfallsorder: ett klassat stort fartyg med färsk lösning närmare än SUMMON_RANGE_NM
+        ⇒ kaptenen till centralen (avfyringen är hans)."""
+        now = self.now
+        for tr in self.game.knowledge.tracks.values():
+            sol = tr.solution
+            if not tr.held or not is_big_ship(tr) or tr.class_quality < Quality.GOD or \
+                    sol is None or sol.quality < Quality.OSAKER or now - sol.t > 180 or \
+                    sol.range_nm > SUMMON_RANGE_NM:
+                continue
+            key = f"target:{tr.designation}"
+            if now - self._asked.get(key, -10**9) < REPEAT_S:
+                continue
+            self._asked[key] = now
+            self._wake("danger", {"kind": "target", "designation": tr.designation,
+                                  "label": tr.classification, "range": sol.range_nm})
+            return
 
     def update(self) -> None:
         if not self.in_command:

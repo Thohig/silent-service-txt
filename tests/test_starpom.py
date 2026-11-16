@@ -350,3 +350,21 @@ def test_report_window_rings_the_captain():
     _run(g, 8)
     assert any(r.type in ("xo.call", "xo.orderly") and "Sambandstillfälle" in r.text
                for r in reports)
+
+
+def test_big_ship_in_range_calls_captain_under_attack_orders_only():
+    from sim.knowledge import ContactTrack
+    from sim.reports import Quality
+    from types import SimpleNamespace
+    for key, called in (("konvoj", True), (None, False)):
+        g, reports = _game(key=key)
+        g.command("starpom har befälet")
+        g.command("sov")
+        _run(g, 3)
+        tr = ContactTrack("S-9", g.now, classification="trupptransport",
+                          class_quality=Quality.GOD)
+        tr.solution = SimpleNamespace(quality=Quality.GOD, t=g.now, range_nm=3.0)
+        g.knowledge.tracks["S-9"] = tr
+        _run(g, 8)
+        assert (g.status().captain_at == "walking") == called, key
+        assert any(r.type == "xo.danger" and "S-9" in r.text for r in reports) == called

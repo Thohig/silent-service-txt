@@ -292,8 +292,14 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
 - **Starpom** (`stations/starpom.py`, `FirstOfficer`, `Role.XO`, Sokolov, kapten 3:e rang): `starpom har befälet`
   ⇒ kaptenen i hytten; starpom svarar på förslag via `Station.on_suggestion` (Game frågar stationerna efter
   leverans; sant = beslutat) och ger ordern med `game.command(order, by="starpom")` (`OrderIssued.by`, räknas
-  inte i loggboken). Mandat `MANDATE` (orderklasser; aldrig avfyring, salva, anfall, sändning, ytläge, avbrott,
-  aktiv sonar, radar, foto). Väckning (`_wake`): info = lampan (civil kontakt, `plot.maneuver`, ny kontakt),
+  inte i loggboken). Mandat `MANDATE` (orderklasser; aldrig avfyring, salva, sändning, ytläge, avbrott,
+  aktiv sonar, radar, foto) plus det ordern lägger till (`ORDER_MANDATE` efter `Knowledge.order_tasks`, ur
+  `Scenario.tasks`: patrull, rapport, anfall, foto, ut, station, övning; testat mot målen): anfall ⇒ `anfall S-x`.
+  Han väger förslag mot ordern (`_objection`, fasta regler, inte vid larm eller jakt): nej (`xo.decline`) till
+  styrorder från andra än navigatören medan navigatören anfaller eller följer, och djupare än antenndjup när
+  ordern kräver rapport och radion behöver masten. Med anfallsorder ropas kaptenen (fara) 2 min + gångtiden före
+  navigatörens `attack_eta_t` och när ett klassat stort fartyg med färsk lösning ≥ osäker är < 3,5 nm
+  (`_target_watch`); `nav.attack.arrived` är fara; radions förvarning ringer när ordern kräver rapport. Väckning (`_wake`): info = lampan (civil kontakt, `plot.maneuver`, ny kontakt),
   fråga = telefonen ringer (hotkontakt med lösning ≥ osäker, stort fartyg, konvoj, telegram, förslag utanför
   mandatet, tidsgränsen 15 min, `väck mig`, larm i `ALARM_LEVELS`; samma fråga högst var 10:e min; ordonnansen
   efter 20 s), fara = högtalaren (`alarm_level` "danger": övriga larm, jakttecken) ⇒ 1× och kaptenen går (40 s,
@@ -305,7 +311,10 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   svagt, inga hydrofonljud eller sväv, centralens repliker tysta (larm hörs); telefonen `phone`, knackning
   `knock`. 8 frön (`kalibrering/starpom.py`, kaptenen lämnar över igen efter 10 min lugn): inga order utanför
   mandatet, utfallen som ja-boten (kuba 8 patrol_end, konvoj 8 convoy_missed); kuba 3–12 ringningar och 0–2
-  fara på 3,5 h, konvoj 6–20 och 0–4 på 1–3 h.
+  fara på 3,5 h, konvoj 6–20 och 0–4 på 1–3 h. Efter ordern i mandatet (2026-11-16; kaptenen går till centralen
+  när starpom ber om hans beslut): kuba-kort rapporten i 5 (ja-boten 4; förut 0, ingen sände), med `salva`
+  (kaptenen skjuter bara i centralen) konvoj 3 sänkt och 1 neutral (vaken salvakapten 3), konvoj-kort 1 (1);
+  utan starpoms rop före skjutläget och vid stort fartyg < 3,5 nm var konvoj 0. Nej i 5 av 40 körningar (1–4 st).
 - **Huvudmenyn** (`ui/menu.py`, `MenuScreen`): uppdragen grupperade (`mission_groups`: kort variants nyckel
   = lång nyckel + "-x", titeln "Rubrik – variant, datum", det långa först, `FIRST_GROUPS` övningen först),
   rubriker är avstängda alternativ, beskrivningen (`brief`) bredvid, sist Inställningar, Order och
