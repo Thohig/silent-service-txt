@@ -31,6 +31,7 @@ from .. import russian as R
 from ..crew import Role
 from ..events import ReportDelivered
 from ..fmt import clock, fmt_course, kn, nm
+from ..ownship import ANTENNA_DEPTH
 from ..orders import (REST_SCALE, CommandSpec, Help, Order, SetTimeScale, Unknown,
                       split_orders)
 from ..reports import Quality
@@ -38,12 +39,12 @@ from ..russian import ru
 from .base import Station
 from .engineering import EngineReport, SetPropulsion, Ventilate
 from .navigation import (BottomFix, EchoSounder, FollowFairway, GoToOpening, GoToStation,
-                         GoToWait, IceReport, ReportPosition, SetCourse, SetDepth, SetSpeed,
-                         SettleOnBottom, SteerTo, TakeFix)
+                         GoToWait, IceReport, NavigationStation, ReportPosition, SetCourse,
+                         SetDepth, SetSpeed, SettleOnBottom, SteerTo, TakeFix)
 from .officer import is_big_ship, situation
 from .periscope import PeriscopeDown, PeriscopeHold, PeriscopeLook, PeriscopeTrain
 from .plot import QuerySolution, ShowPlot
-from .radio import RadioStatus
+from .radio import RadioStation, RadioStatus
 from .torpedo_room import FiringSolution, LaunchDecoy, LoadTube, TorpedoStatus, TubeStatus
 
 WALK_S = 40             # från hytten till centralen (gången och lejdaren)
@@ -112,6 +113,10 @@ ALARM_LEVELS = {
     "nav.follow.lost": "question", "nav.settle.not_reached": "question",
     "off.esm": "question", "off.esm.air": "question",
 }
+# order som tar över styrningen (avbryter navigatörens anfall eller följande)
+STEERING: tuple[type[Order], ...] = (SetCourse, SteerTo, GoToWait, GoToStation, GoToOpening,
+                                     FollowFairway)
+
 DANGER_PREFIXES = ("bridge.column", "bridge.hit")
 
 
@@ -169,6 +174,18 @@ def reason_text(d: dict) -> str:
     return ""
 
 
+def _why_not(d: dict) -> str:
+    """Varför starpom säger nej till ett förslag: det går emot ordern."""
+    w = d["why"]
+    if w == "attack":
+        return f"Vi håller kursen mot skjutläget för {d['designation']}, enligt ordern."
+    if w == "follow":
+        return f"Vi följer {d['designation']}; navigatören styr."
+    if w == "report":
+        return "Radion behöver masten vid sambandstillfället; ordern kräver rapporten."
+    return ""
+
+
 def _reasons(d: dict) -> str:
     return " ".join(reason_text(r) for r in d.get("reasons", ()))
 
@@ -213,6 +230,7 @@ PHRASES = {
     "xo.coming": lambda d: "Uppfattat, kapten. Vi väntar på er i centralen.",
     "xo.time_refused": lambda d: "Kapten, så fort går vakten bara när jag har befälet och ni vilar.",
     "xo.accept": lambda d: f"{d['who']} föreslår {d['proposed']}. Verkställ.",
+    "xo.decline": lambda d: f"{d['who']} föreslår {d['proposed']}. Nej. {_why_not(d)}",
     "xo.report": _report,
     "xo.handback": _handback,
     "xo.ring": lambda d: "Snabbtelefonen ringer från centralen (svara).",
@@ -237,6 +255,7 @@ RU_PHRASES = {
     "xo.coming": lambda d: "Есть. Ждём вас в центральном.",
     "xo.time_refused": lambda d: f"{XO} Так быстро только когда вахту несу я.",
     "xo.accept": lambda d: "Добро. Исполнять.",
+    "xo.decline": lambda d: "Нет. Отставить.",
     "xo.report": lambda d: f"{XO} Докладываю обстановку.",
     "xo.handback": lambda d: f"{XO} Командование сдал.",
     "xo.ring": lambda d: "",
@@ -396,10 +415,51 @@ class FirstOfficer(Station):
         self.game.set_time_scale(1, "kaptenen")
 
     # --- förslagen ---------------------------------------------------------------
+    def _objection(self, report, order: str) -> dict | None:
+        """Går förslaget emot det som för ordern framåt? Fasta regler, ingen slump.
+        Larm och jakttecken går alltid före: då verkställs förslaget."""
+        if report.alarm or self.game.knowledge.hunted(self.now):
+            return None
+        parts = [self.game.registry.parse(p) for p in split_orders(order)]
+        nav = self._nav()
+        # navigatören styr mot skjutläget eller efter en kontakt: kursförslag från andra
+        # stationer (t.ex. plottets TMA-gir) skulle avbryta det
+        if nav is not None and nav.goal in ("attack", "follow") and \
+                report.role != Role.NAVIGATOR.value and any(isinstance(o, STEERING) for o in parts):
+            if nav.goal == "attack":
+                return {"why": "attack", "designation": nav.attack}
+            return {"why": "follow", "designation": nav.follow}
+        # ordern kräver en rapport och radion behöver masten: inte djupare än antenndjup
+        radio = self._radio()
+        if "rapport" in self.game.knowledge.order_tasks and radio is not None and \
+                radio.needs_mast() and report.role != Role.NAVIGATOR.value and any(
+                    isinstance(o, SettleOnBottom) or
+                    isinstance(o, SetDepth) and o.depth > ANTENNA_DEPTH for o in parts):
+            return {"why": "report"}
+        return None
+
+    def _nav(self) -> NavigationStation | None:
+        try:
+            return self.game.station(NavigationStation)
+        except KeyError:
+            return None
+
+    def _radio(self) -> RadioStation | None:
+        try:
+            return self.game.station(RadioStation)
+        except KeyError:
+            return None
+
     def on_suggestion(self, report) -> bool:
         if not self.in_command:
             return False
         order = report.data["order"]
+        if in_mandate(self.game, order) and (why := self._objection(report, order)) is not None:
+            self.decisions.append((self.game.clock_str()[:5], f"nej till {order}"))
+            self.say("xo.decline", {"who": report.speaker.split(" (")[0], "proposed": order, **why},
+                     kind="ack", extra_delay=-1)
+            self.game.log(f"STARPOM avslår: {order!r} ({why})")
+            return True
         if in_mandate(self.game, order):
             self.decisions.append((self.game.clock_str()[:5], order))
             self.say("xo.accept", {"who": report.speaker.split(" (")[0], "proposed": order},

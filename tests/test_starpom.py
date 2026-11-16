@@ -270,3 +270,41 @@ def test_ui_cabin_opens_on_handover_and_closes_in_central(tmp_path):
 
     asyncio.run(run())
     assert (shots / "hytt.svg").exists()
+
+
+def test_starpom_declines_course_suggestion_that_breaks_the_attack():
+    from sim.stations.navigation import NavigationStation
+    g, reports = _game()
+    g.command("starpom har befälet")
+    _run(g, 3)
+    nav = g.station(NavigationStation)
+    nav.goal, nav.attack = "attack", "S-2"       # navigatören styr mot skjutläget
+    course = g.world.own.state.ordered_course
+    g.say(Role.PLOT, "order.declined", {"order": "kurs 123", "made_t": g.now}, kind="suggest")
+    _run(g, 12)
+    assert g.world.own.state.ordered_course == course
+    dec = [r for r in reports if r.type == "xo.decline"]
+    assert dec and "skjutläget" in dec[-1].text and "S-2" in dec[-1].text
+    assert g.active_suggestion() is None and _xo(g).decisions[-1][1] == "nej till kurs 123"
+    # navigatörens egna kursförslag och larm går igenom
+    g.say(Role.PLOT, "order.declined", {"order": "kurs 124", "made_t": g.now}, kind="suggest",
+          alarm=True)
+    _run(g, 12)
+    assert g.world.own.state.ordered_course == 124
+
+
+def test_starpom_keeps_the_mast_for_a_required_report():
+    from sim.stations.radio import RadioStation
+    g, reports = _game(key="kuba-kort")
+    g.command("starpom har befälet")
+    _run(g, 20)                                 # radions förvarning: starpom tar antenndjup
+    radio = g.station(RadioStation)
+    radio.needs_mast = lambda: True
+    g.say(Role.SONAR, "order.declined", {"order": "djup 90", "made_t": g.now}, kind="suggest")
+    _run(g, 12)
+    assert g.world.own.state.ordered_depth != 90
+    assert any(r.type == "xo.decline" and "rapporten" in r.text for r in reports)
+    radio.needs_mast = lambda: False
+    g.say(Role.SONAR, "order.declined", {"order": "djup 91", "made_t": g.now}, kind="suggest")
+    _run(g, 12)
+    assert g.world.own.state.ordered_depth == 91
