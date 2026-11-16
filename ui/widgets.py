@@ -13,6 +13,7 @@ from sim.reports import Quality, Report
 
 from .central_render import Needles, render_central
 from .profile_render import render_gauge
+from .strips import TelegramStrip
 
 QUALITY_STYLE = {
     Quality.DALIG: "bold red",
@@ -143,6 +144,9 @@ class ReportLog(RichLog):
             for row in r.table:
                 table.add_row(*row)
             self.emit(table)
+        if r.data.get("telegram"):
+            self.emit(TelegramStrip(r.data["telegram"], r.data.get("telegram_kind", "telegram"),
+                                    clock[:5], r.data.get("text", "")))
 
     def add_captain(self, clock: str, text: str) -> None:
         line = Text()

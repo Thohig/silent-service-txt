@@ -38,6 +38,8 @@ class Report:
     t_due: int
     speaker: str                       # visningsnamn, t.ex. "Sonar (Volkov)"
     type: str                          # meddelandetyp, t.ex. "sonar.bearing"
+    # data["read_aloud"]: läses upp efter texten i svenskt tal men står inte i loggen;
+    # data["telegram"] (+ "text", "telegram_kind"): loggen skriver remsan under raden
     data: dict[str, Any] = field(default_factory=dict)
     role: str = ""                     # besättningsroll som avsändare
     quality: Quality | None = None

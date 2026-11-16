@@ -51,7 +51,7 @@ PHRASES = {
     "radio.prewarn": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}. "
     f"Vi behöver antenndjup, {ANTENNA_DEPTH:.0f} meter eller grundare.",
     "radio.window_open": lambda d: "Sambandstillfället har börjat. Vi lyssnar.",
-    "radio.message": lambda d: f"Kapten, radio. Meddelande från huvudstaben: {d['text']}",
+    "radio.message": lambda d: f"Kapten, radio. Radiogram nummer {d['telegram']} från huvudstaben.",
     "radio.nothing": lambda d: "Sambandstillfälle: inga nya meddelanden till oss.",
     "radio.missed": lambda d: "Kapten, vi missade sambandstillfället. Meddelanden kan ha gått förlorade "
     "till nästa.",
@@ -79,8 +79,8 @@ PHRASES = {
     + ". Föreslår antenndjup.",
     "radio.listen": lambda d: "Lyssnar på kortvåg efter Moskva.",
     "radio.listen.lost": lambda d: "Tappade Moskva, antennen kom under ytan.",
-    "radio.moscow": lambda d: f"Kapten, radio. Radio Moskva: «{d['text']}»",
-    "radio.moscow.silent": lambda d: f"Kapten, radio. {d['text']}",
+    "radio.moscow": lambda d: f"Kapten, radio. Radio Moskva hörs, remsa nummer {d['telegram']}.",
+    "radio.moscow.silent": lambda d: "Kapten, radio. Moskva tiger, bara bärvågen.",
     "radio.status": lambda d: (f"Nästa sambandstillfälle kl {d['next']}. " if d.get("next")
                                else "Inga fler sambandstillfällen inplanerade. ")
     + f"{d['received']} meddelanden mottagna."
@@ -272,10 +272,11 @@ class RadioStation(Station):
         self._broadcast_n += 1
         self.received += 1
         self.game.bus.publish(TelegramReceived(self.now, b.sv, "broadcast", self.received))
+        strip = {"text": b.sv, "telegram": self.received, "telegram_kind": "broadcast"}
         if b.ru:
-            self.say("radio.moscow", {"text": b.sv, "ru": b.ru}, kind="info")
+            self.say("radio.moscow", {**strip, "ru": b.ru, "read_aloud": b.sv}, kind="info")
         else:
-            self.say("radio.moscow.silent", {"text": b.sv}, kind="info")
+            self.say("radio.moscow.silent", strip, kind="info")
 
     def update(self) -> None:
         st = self.own.state
@@ -405,7 +406,9 @@ class RadioStation(Station):
             if msg.waypoint is not None:
                 name, x, y, sigma, t_pos = msg.waypoint
                 self.game.bus.publish(PositionReported(self.now, name, x, y, sigma, t_pos))
-            self.say("radio.message", {"text": msg.text}, kind="info", alarm=True)
+            self.say("radio.message", {"text": msg.text, "telegram": self.received,
+                                       "telegram_kind": "telegram", "read_aloud": msg.text},
+                     kind="info", alarm=True)
             any_msg = True
         if not any_msg:
             self.say("radio.nothing")

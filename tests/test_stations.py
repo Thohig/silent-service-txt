@@ -91,7 +91,8 @@ def test_radio_message_needs_antenna_depth():
     g.world.own.state.order_depth(25)
     _run(g, w0 + 120)
     msgs = [r for r in reports if r.type == "radio.message"]
-    assert msgs and "SIGNALSJUNKBOMBER" in msgs[0].text
+    assert msgs and "SIGNALSJUNKBOMBER" in msgs[0].data["text"]
+    assert "Radiogram nummer 1" in msgs[0].text and "SIGNALSJUNKBOMBER" not in msgs[0].text
 
 
 def test_sending_report_is_direction_found():

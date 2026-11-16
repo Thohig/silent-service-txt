@@ -11,7 +11,8 @@ from textual.containers import VerticalScroll
 from textual.css.query import NoMatches
 from textual.widgets import Static
 
-from .menutext import DIM, HIGHLIGHT_FG, INK, RED, RED_DARK
+from .menutext import DIM
+from .strips import strip_lines
 from .placards import view_title
 from .viewbase import ViewScreen
 
@@ -25,31 +26,12 @@ def render_telegrams(telegrams, clock_of, width: int) -> Text:
         out.append("\n  Inget mottaget än. Staben sänder vid sambandstillfällena (antenndjup); "
                    "Radio Moskva hörs med lyssna radio.", style=f"italic {DIM}")
         return out
-    w = max(30, width - 4)
     for tg in telegrams:
-        broadcast = tg.kind == "broadcast"
-        if broadcast:
-            left = f" РАДИО МОСКВА · {clock_of(tg.t)}"
-            right = f"rundradio, nr {tg.number} "
-            head_style = f"bold {INK} on {RED_DARK}"
-        else:
-            left = f" РАДИОГРАММА № {tg.number} · {clock_of(tg.t)}"
-            right = "telegram från staben "
-            head_style = f"bold {HIGHLIGHT_FG} on {RED}"
-        out.append("\n ")
-        out.append(left + " " * max(2, w - len(left) - len(right)) + right, style=head_style)
         out.append("\n")
-        body = Text(tg.text, style=f"italic {INK}" if broadcast else f"bold {INK}")
-        for line in body.wrap(_console(), w - 2):
-            out.append("  ")
-            out.append_text(line)
-            out.append("\n")
+        out.append_text(Text("\n").join(strip_lines(tg.number, tg.kind, clock_of(tg.t), tg.text,
+                                                    width - 2)))
+        out.append("\n")
     return out
-
-
-def _console():
-    from rich.console import Console
-    return Console(width=400)
 
 
 class TelegramScreen(ViewScreen):

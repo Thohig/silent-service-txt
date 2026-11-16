@@ -47,7 +47,7 @@ def test_listening_needs_antenna_depth_and_gives_a_broadcast():
     g.command("lyssna på moskva")
     _run(g, LISTEN_S + 15)
     heard = [r for r in said if r.type == "radio.moscow"]
-    assert heard and "Radio Moskva" in heard[0].text
+    assert heard and "Radio Moskva" in heard[0].text and heard[0].data["telegram"] == 1
     tg = g.knowledge.telegrams
     assert len(tg) == 1 and tg[0].kind == "broadcast" and tg[0].number == 1
     assert heard[0].speech and not any("a" <= c.lower() <= "z" for c in heard[0].speech)

@@ -302,7 +302,10 @@ class SoundBoard:
         if self.speaks_russian and r.speech:
             parts: list[tuple[str | None, str]] = [(self.ru_voice, r.speech)]
         else:
-            parts = speech_parts(r.text, self.ru_voice)
+            text = r.text
+            if r.data.get("read_aloud"):
+                text += " " + r.data["read_aloud"]
+            parts = speech_parts(text, self.ru_voice)
         line = Line(parts, ROLE_RATE.get(r.role, DEFAULT_RATE),
                     urgent=r.alarm or r.kind == "suggest", queued_at=self._now,
                     not_before=self._now + delay)
