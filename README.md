@@ -62,10 +62,10 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
 | Torped | `tuber` · `torpeder` · `skjutlösning S-1` · `eld tub 1 mot S-1` · `salva S-1` eller `eld tub 1-3 mot S-1` (raka torpeder i solfjäder efter lösningens osäkerhet) · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `skenmål` |
 | Ljud | `ctrl+t` eller `ljud` / `ljud av` / `ljud på`: besättningen talar (macOS-rösten Alva, de ryska fraserna med Milena om den finns), larmen går det sonaren hör spelas i stereo (babord till vänster) och båten låter: reaktor, turbin, skrov, is, brand och kontakternas propellrar |
-| Vyer | `Tab` växlar logg → sjökort → djupprofil → systemtavla → periskopbild → logg; med tornluckan öppen kommer bryggan före periskopbilden; `Esc` eller `logg` går tillbaka till loggen. Orden `sjökort`, `profil`, `system`, `periskopbild` och `brygga` öppnar en vy direkt. Order kan ges i alla vyer: varje vy har en orderrad, som också visar ett väntande förslag (`ja`/`nej`). Vyns tangenter (pilar, `+`/`-`, mellanslag, `Esc`) styr vyn när orderraden är tom; har den text redigerar de texten och `Esc` tömmer den. I periskopbilden hissar ↑ periskopet och ↓ fäller det; medan det är uppe vrider ← → okularet 5° och mellanslag vänder det förut, när det är nere byter ← → föremål i okularet, och med bryggan bemannad visar periskopbilden bryggans kikare mot det bryggvyn tittar på; på bryggan vrider ← → blicken 15° och mellanslag tittar rakt förut igen |
+| Vyer | `Tab` växlar logg → sjökort → ubåten → periskopbild → logg; med tornluckan öppen kommer bryggan före periskopbilden; `Esc` eller `logg` går tillbaka till loggen. Orden `sjökort`, `ubåt` (eller `profil`, `system`), `periskopbild` och `brygga` öppnar en vy direkt. Order kan ges i alla vyer: varje vy har en orderrad, som också visar ett väntande förslag (`ja`/`nej`). Vyns tangenter (pilar, `+`/`-`, mellanslag, `Esc`) styr vyn när orderraden är tom; har den text redigerar de texten och `Esc` tömmer den. I periskopbilden hissar ↑ periskopet och ↓ fäller det; medan det är uppe vrider ← → okularet 5° och mellanslag vänder det förut, när det är nere byter ← → föremål i okularet, och med bryggan bemannad visar periskopbilden bryggans kikare mot det bryggvyn tittar på; på bryggan vrider ← → blicken 15° och mellanslag tittar rakt förut igen |
 | Sjökort | Navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, mellanslag centrerar |
-| Systemtavla | Ubåtens system på en tavla: genomskärning av de nio avdelningarna (brand, rök, skador, reaktorns läge, vatten i kölsvinet), maskin (reaktor, framdrivning, batteri, tryckluft, skrov, vatten, koldioxid, rök), skador och reparationer per komponent, navigation, torpedtuberna med laddning, sonar och samband. Allt ur besättningens egna instrument; ▲ varning, ■ fara |
-| Djupprofil | Visar ubåten från sidan över tid: vårt djup, beordrat djup, ytan, periskopdjup, språngskiktet, prov- och krossdjup, isen ovanför, botten där ekolodet lodat och det sonar hört; `+`/`-` djupskala, pilarna tidsskala, mellanslag automatisk skala. Djupmätaren till höger om loggen visar samma sak i kort form |
+| Ubåten | Djupprofilen och systemtavlan i en vy: genomskärningen överst, profilen till vänster och panelerna till höger (i smala fönster under profilen). Panelerna med varning och fara står först; lugna paneler samlas på en rad när det är trångt. Tavlan: ubåtens system: genomskärning av de nio avdelningarna (brand, rök, skador, reaktorns läge, vatten i kölsvinet), maskin (reaktor, framdrivning, batteri, tryckluft, skrov, vatten, koldioxid, rök), skador och reparationer per komponent, navigation, torpedtuberna med laddning, sonar och samband. Allt ur besättningens egna instrument; ▲ varning, ■ fara |
+| ↳ djupprofilen | Visar ubåten från sidan över tid: vårt djup, beordrat djup, ytan, periskopdjup, språngskiktet, prov- och krossdjup, isen ovanför, botten där ekolodet lodat och det sonar hört; `+`/`-` djupskala, pilarna tidsskala, mellanslag automatisk skala. Djupmätaren till höger om loggen visar samma sak i kort form |
 | Övrigt | `hjälp` · `avbryt uppdraget` (vakthavande frågar, `ja` avbryter med slutrapport) · `ctrl+q` stänger programmet |
 
 Flera order kan ges på en rad, åtskilda med komma, semikolon eller "och":
@@ -173,9 +173,9 @@ ui/                  Textual
   ambience.py        bakgrundsljud: mixer och slingor (sounddevice)
   chart.py           sjökortet i helskärm
   chart_render.py    rastrering av sjökortet till tecken
-  profile.py         djupprofilen i helskärm
+  boat.py            vyn Ubåten i helskärm (djupprofil och systemtavla)
+  boat_render.py     vyns layout efter fönstret
   profile_render.py  rastrering av djupprofilen och djupmätaren
-  systems.py         systemtavlan i helskärm
   systems_render.py  genomskärning och paneler till tecken
   periscope.py       periskopbilden i helskärm (utkikens senaste svep)
   periscope_render.py remsa, okular och siluetter till tecken
@@ -199,7 +199,7 @@ ui/                  Textual
 5. Ska systemet synas i djupprofilen: returnera element (`sim/profile.py`)
    från `profile_items()`, bara ur kunskap.
 5. Har systemet egna instrument ombord: returnera element (`sim/systems.py`) från
-   `system_items()`; en ny panel dyker upp på systemtavlan av sig själv.
+   `system_items()`; en ny panel dyker upp i vyn Ubåten av sig själv.
 5. Lägg klassen i `DEFAULT_STATIONS`. Game behöver inte ändras.
 
 Stationer pratar med varandra via händelsebussen. Kunskapslagret

@@ -322,7 +322,7 @@ def test_tab_reaches_the_bridge_view_and_arrows_turn_it(tmp_path):
                 ai.can_force = False
             g.world.env.sunrise, g.world.env.sunset = 0, 24 * 3600
             _surface(g)
-            await pilot.press("tab", "tab", "tab", "tab")       # i ytläge före periskopet
+            await pilot.press("tab", "tab", "tab")       # i ytläge före periskopet
             assert isinstance(app.screen, BridgeScreen)
             await pilot.pause(0.6)
             body = str(app.screen.query_one("#bridge-body").render())

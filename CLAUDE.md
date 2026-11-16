@@ -197,11 +197,17 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
 - **Sjökortet**: `Station.chart_items()` ger ritelement (`sim/chart.py`) ur
   kunskapen i beräknade koordinater; `Game.chart()` samlar, `ui/chart_render.py`
   rastrerar (en rad = två kolumner i höjd). Nytt system ritar sig självt.
-- **Djupprofilen** (`profil`): `Station.profile_items()` ger element (`sim/profile.py`):
+- **Ubåten** (`ubåt`, även `profil`/`system`; `ui/boat.py`, `ui/boat_render.py`): djupprofilen och
+  systemtavlan i en vy. Genomskärningen överst (från `HULL_MIN_H` rader, annars avdelningarna som lampor
+  på andra rubrikraden), profilen till vänster (60 %) och panelerna till höger; under `SIDE_MIN_W` (110)
+  profilen över panelerna (högst halva höjden). Panelerna kompakta (`render_compact_panels`): fara och
+  varning först och fullt, lugna paneler fälls efter `FOLD_ORDER` (torpedrören sist) till en gemensam rad
+  sist, och räcker inte det visar de oroliga bara sina larm.
+- **Djupprofilen**: `Station.profile_items()` ger element (`sim/profile.py`):
   fasta djup (`Level`), navigatörens djuplogg (var 10:e s), ekolodets bottenlodningar
   (bara efter `ekolod`), isekolodets lodningar och sonarrummets hörda ljud. `Game.profile()`
   samlar, `ui/profile_render.py` ritar sidovyn (tid vågrätt, botten i eget band under
-  bruten axel) och djupmätaren bredvid loggen. Tab växlar logg → sjökort → profil → systemtavla → periskopbild → logg, med luckan öppen brygga före
+  bruten axel) och djupmätaren bredvid loggen. Tab växlar logg → sjökort → ubåten → periskopbild → logg, med luckan öppen brygga före
   periskopbild (`SubApp.tab_views`; `VIEWS` är alla vyer).
 - **Centralen** (`ui/central_render.py`, `CentralView` i `ui/widgets.py`): bild av центральный пост.
   Huvudvyns layout efter fönstret (`GameScreen.on_resize`, klasserna `big`/`narrow`): minst 120 × 36 ⇒
@@ -222,7 +228,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   verkligt), periskopet hissas med `periscope_up_s`, stegen och luckan (himlen syns), maskintelegrafen,
   julgranen (lucka, periskop, master), rött ljus på natten eller jagade (`night`, `hunted`), larmlampor,
   rök och vatten.
-- **Systemtavlan** (`system`): `Station.system_items()` ger element (`sim/systems.py`):
+- **Systemtavlan**: `Station.system_items()` ger element (`sim/systems.py`):
   `Gauge` (panel, etikett, text, tillstånd ok/info/av/varning/fara, ev. stapel), `Compartment`
   (nio avdelningar, maskin), `TubeRack` (torpedrum), `Flooding`. Ur egna instrument
   (`own.sys`), aldrig om fienden. `Game.systems()` samlar, `ui/systems_render.py` ritar
