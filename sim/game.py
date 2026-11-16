@@ -143,7 +143,8 @@ class Game:
         self.knowledge = Knowledge(bathymetry=scenario.chart_seabed,
                                    tide_table=scenario.tide_table,
                                    fairway=tuple(scenario.fairway),
-                                   fairway_to=scenario.fairway_to)
+                                   fairway_to=scenario.fairway_to,
+                                   order_tasks=frozenset(scenario.tasks))
         self.knowledge.attach(self.bus)          # före stationerna, se events.py
 
         station_classes = stations if stations is not None else DEFAULT_STATIONS

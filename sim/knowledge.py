@@ -107,6 +107,7 @@ class Knowledge:
     periscope_blocked: tuple[int, str] | None = None   # (tid, skäl) när periskopet inte kom upp
     convoy: ConvoyEstimate | None = None   # plottets bild av en konvoj
     telegrams: list[TelegramReceived] = field(default_factory=list)   # det radion tagit emot
+    order_tasks: frozenset[str] = frozenset()   # vad ordern kräver (Scenario.tasks)
 
     def attach(self, bus: EventBus) -> None:
         bus.subscribe(ContactDetected, self._on_detected)

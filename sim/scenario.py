@@ -103,6 +103,9 @@ class Scenario:
     no_dive_in_fjord: bool = False      # ordern förbjuder dykning innanför mynningen
     # torpedrummets laddning: {"tubes": {tub: typ}, "inventory": {typ: antal}}, annars standard
     armament: dict | None = None
+    # vad ordern kräver, så som besättningen förstår den (Knowledge.order_tasks):
+    # patrull, rapport, anfall, foto, ut, station, övning. Aldrig ur World.goals.
+    tasks: tuple[str, ...] = ("patrull",)
 
 
 def _crew() -> dict[Role, CrewMember]:
@@ -267,7 +270,7 @@ def arctic_scenario(rng: random.Random, short: bool = False) -> Scenario:
     return Scenario(world, crew, order, start_clock, chart_seabed=chart,
                     radio_windows=windows, radio_messages=messages,
                     known_positions=known,
-                    area_name="område Nord-3",
+                    area_name="område Nord-3", tasks=("station",),
                     outcome_text={
                         "station_reached": "K-114 har gått upp genom isen vid Nord-7. En "
                                            "landstigningsgrupp går ut över isen mot de mörka barackerna.",
@@ -417,7 +420,7 @@ def hunted_scenario(rng: random.Random, short: bool = False) -> Scenario:
                   "KAPTENEN TAR BEFÄLET.\n")
     sc = Scenario(world, _crew(), order, start_clock,
                   radio_windows=windows, radio_messages=list(HUNTED_RADIO),
-                  chart_seabed=chart, escape_margin_nm=margin,
+                  chart_seabed=chart, escape_margin_nm=margin, tasks=("ut",),
                   outcome_text={
                       "escaped": "K-114 har brutit kontakten och lämnat kvadrat 7. Bakom er "
                                  "pingar jagarna på tomt vatten.",
@@ -598,6 +601,7 @@ def strait_scenario(rng: random.Random, short: bool = False, out: bool = False) 
                     known_positions=known, chart_seabed=chart,
                     tide_table=tide.table_copy(random.Random(rng.random())),
                     area_name="inloppet", escape_margin_nm=None if short else margin,
+                    tasks=("ut",) if out else ("foto",) if short else ("foto", "ut"),
                     escape_requires_photo=None if short else Quality.GOD,
                     outcome_text={
                         "recon_done": "K-114 har lämnat inloppet med bilderna av ankarplatsen. "
@@ -744,7 +748,7 @@ def convoy_scenario(rng: random.Random, run_in_nm: tuple[float, float] = (16.0, 
     chart = env.seabed.chart_copy(sb_rng, err_nm=0.5)
     return Scenario(world, _crew(), order, start_clock,
                     radio_windows=windows, radio_messages=list(CONVOY_RADIO),
-                    chart_seabed=chart, area_name="kvadrat 12",
+                    chart_seabed=chart, area_name="kvadrat 12", tasks=("anfall",),
                     outcome_text={
                         "convoy_attacked": "K-114 har sänkt fartyg ur konvojen och brutit kontakten. "
                                            "Bakom er brinner det på horisonten.",
@@ -928,6 +932,7 @@ def kuba_short_scenario(rng: random.Random) -> Scenario:
     sc.radio_windows = [w0]
     sc.radio_window_len = KUBA_SHORT_WINDOW_S
     sc.report_required = True
+    sc.tasks = ("rapport",)
     w.goals.append(ReportGoal(w0, w0 + KUBA_SHORT_WINDOW_S, "reported", "report_missed",
                               contact_sigma_nm=KUBA_SHORT_CONTACT_SIGMA_NM))
     w.patrol_end = w0 + KUBA_SHORT_WINDOW_S + KUBA_SHORT_AFTER_S
@@ -1051,7 +1056,7 @@ def training_scenario(rng: random.Random) -> Scenario:
                     tide_table=tide.table_copy(random.Random(rng.random())),
                     area_name="Kolafjorden", fairway=fairway, fairway_to=TRAINING_AREA,
                     training=TRAINING_STEPS, training_area=TRAINING_AREA, no_dive_in_fjord=True,
-                    armament=TRAINING_ARMAMENT,
+                    armament=TRAINING_ARMAMENT, tasks=("övning",),
                     outcome_text={
                         "training_done": "Övningsprogrammet är genomfört. K-114 ligger i "
                                          "ytläge i övningsområdet och anmäler till staben i "
