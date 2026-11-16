@@ -11,7 +11,9 @@ from sim.game import Game
 from sim.phrases import RU_PHRASES
 from sim.scenario import build_scenario, default_scenario
 from sim.stations import FirstOfficer
-from sim.stations.starpom import MANDATE, ORDERLY_S, WALK_S, alarm_level, in_mandate
+from sim.stations.starpom import (ORDERLY_S, WALK_S, alarm_level, in_mandate,
+                                  mandate_for)
+from sim.stations.torpedo_room import FireTube, FireSalvo
 
 
 def _game(seed=3, key=None):
@@ -191,7 +193,8 @@ def test_starpom_keeps_the_watch_over_several_seeds():
                     g.command("starpom har befälet")
                     g.command("sov")
             for e in by_xo:
-                assert isinstance(e.order, MANDATE), (key, seed, e.text)
+                assert isinstance(e.order, mandate_for(g.knowledge.order_tasks)), (key, seed, e.text)
+                assert not isinstance(e.order, (FireTube, FireSalvo)), (key, seed, e.text)
             for r in reports:
                 if r.alarm and r.role != "starpom" and r.kind != "suggest" \
                         and alarm_level(r.type) == "danger":
