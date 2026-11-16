@@ -72,6 +72,20 @@ class Station:
         """Förslag att ge om kaptenen varit tyst länge. Bara ur kunskap och eget läge."""
         return []
 
+    def intercept(self, order: Order) -> bool:
+        """Kaptenens order innan den verkställs: sant om stationen tar hand om den (och
+        säger varför), så att den inte går vidare. T.ex. medan kaptenen är på väg."""
+        return False
+
+    def on_suggestion(self, report) -> bool:
+        """Ett förslag har levererats. Sant om stationen beslutat i frågan (starpom
+        med befälet); förslaget väntar då inte längre på kaptenen."""
+        return False
+
+    def status_fields(self) -> dict:
+        """Fält till StatusSnapshot ur stationens eget läge (inte om fienden)."""
+        return {}
+
     def vetoes(self, order: str) -> bool:
         """Får inte ett förslag med denna order ges (t.ex. dykning där ordern förbjuder det)?"""
         return False

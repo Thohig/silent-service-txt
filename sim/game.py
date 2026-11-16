@@ -83,6 +83,11 @@ class StatusSnapshot:
     periscope_optic: str = "periskop"   # periskop, eller kikare från bryggan
     night: bool = False             # mörkt ute (centralen går på rött ljus)
     hunted: bool = False            # sonar hör att fienden har oss
+    command: str = "captain"        # vem som har befälet: captain eller starpom
+    captain_at: str = "central"     # var kaptenen är: central, cabin (hytten) eller walking
+    walk_s: int = 0                 # sekunder kvar till centralen
+    phone: str | None = None        # snabbtelefonen i hytten: lamp eller ring
+    sleeping: bool = False          # kaptenen sover (snabbspolat tills han väcks)
 
 
 def build_registry(station_classes: list[type[Station]]) -> CommandRegistry:
@@ -248,6 +253,13 @@ class Game:
             self.last_suggestion_t = self.now
             self.suggested_at[r.data["order"]] = self.now
         self.bus.publish(ReportDelivered(self.now, r))
+        if r.kind == "suggest" and r.data.get("order") and self.suggestion is not None \
+                and self.suggestion[0] == r.data["order"]:
+            for st in self.stations:
+                if st.on_suggestion(r):         # starpom med befälet har beslutat
+                    if self.suggestion is not None and self.suggestion[0] == r.data["order"]:
+                        self.suggestion = None
+                    break
 
     def _confirm_quit(self) -> None:
         """Vakthavande frågar innan uppdraget avbryts; ja verkställer."""
@@ -273,26 +285,30 @@ class Game:
         return None
 
     # ------------------------------------------------------------------ order
-    def command(self, text: str) -> None:
+    def command(self, text: str, by: str = "captain") -> None:
         """Kaptenens inmatning. Flera order kan ges på en rad, åtskilda med
-        komma, semikolon eller "och"; de verkställs i tur och ordning."""
+        komma, semikolon eller "och"; de verkställs i tur och ordning.
+        by="starpom": ordern ges av den som har befälet i kaptenens ställe."""
         parts = split_orders(text)
         if len(parts) <= 1:
-            self._command_one(text)
+            self._command_one(text, by=by)
             return
         for part in parts:
-            self._command_one(part, many=True)
+            self._command_one(part, many=True, by=by)
 
-    def _command_one(self, text: str, many: bool = False) -> None:
+    def _command_one(self, text: str, many: bool = False, by: str = "captain") -> None:
         if self.over:
             return
         self.last_command_t = self.now
         order = self.registry.parse(text)
+        if by == "captain" and any(st.intercept(order) for st in self.stations):
+            self.log(f"ORDER {text!r} -> {order} (stoppad)")
+            return
         if many and isinstance(order, Unknown):
             # säg vilken del av raden som inte gick att förstå
             order = Unknown(text, f"förstod inte \"{text}\"" + (f", {order.reason}"
                                                                    if order.reason else ""))
-        self.log(f"ORDER {text!r} -> {order}")
+        self.log(f"ORDER {text!r} -> {order}" + ("" if by == "captain" else f" ({by})"))
         match order:
             case AcceptSuggestion():
                 sug = self.active_suggestion()
@@ -315,7 +331,7 @@ class Game:
             if self.suggestion and \
                     type(self.registry.parse(self.suggestion[0])) is type(order):
                 self.suggestion = None          # kaptenen har själv beslutat i frågan
-        self.bus.publish(OrderIssued(self.now, text, order))
+        self.bus.publish(OrderIssued(self.now, text, order, by))
         match order:
             case SetTimeScale(scale=n):
                 self.set_time_scale(n, "order")
@@ -433,4 +449,5 @@ class Game:
             bridge=sy.bridge, periscope=pmode, periscope_train=ptrain, periscope_up_s=pup,
             periscope_optic=poptic,
             night=not self.world.env.is_day(self.now), hunted=self.knowledge.hunted(self.now),
+            **{k: v for st in self.stations for k, v in st.status_fields().items()},
         )

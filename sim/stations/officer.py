@@ -113,9 +113,14 @@ def _names(ds: list[str]) -> str:
 
 def _briefing(d: dict) -> str:
     """Lägesrapporten när kaptenen tar befälet efter vakten före (kort variant)."""
-    out = [f"Kapten, vakthavande. Ni har befälet. Vi har gått i {d['minutes']} minuter, "
-           f"nu djup {d['depth']:.0f} meter, kurs {fmt_course(d['course'])}, "
-           f"fart {kn(d['speed'])} knop."]
+    return " ".join([f"Kapten, vakthavande. Ni har befälet. Vi har gått i {d['minutes']} minuter, "
+                     f"nu djup {d['depth']:.0f} meter, kurs {fmt_course(d['course'])}, "
+                     f"fart {kn(d['speed'])} knop."] + situation(d))
+
+
+def situation(d: dict) -> list[str]:
+    """Konvoj, kontakter och besticket ur briefing_data(), mening för mening."""
+    out: list[str] = []
     c = d.get("convoy")
     if c:
         line = (f"Plottet har konvojen: {_names(c['members'])}"
@@ -139,7 +144,7 @@ def _briefing(d: dict) -> str:
         out.append("Inga kontakter just nu.")
     if d.get("sigma") is not None:
         out.append(f"Bestickets osäkerhet {nm(d['sigma'])} sjömil.")
-    return " ".join(out)
+    return out
 
 
 BATTLE_CALM_S = 1800        # så länge utan jakttecken innan nytt stridslarm

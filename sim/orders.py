@@ -12,7 +12,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Callable, ClassVar, Iterable
 
-TIME_SCALES = (1, 2, 5, 10)
+TIME_SCALES = (1, 2, 5, 10, 30, 60)
+REST_SCALE = 10             # snabbare än så bara när starpom har befälet
 
 NUM = r"(\d+(?:[.,]\d+)?)"
 DESIG = r"(s\s*-?\s*\d+)"
@@ -88,6 +89,7 @@ STATION_WORDS = {
     "torped": "torpedo", "torpedrum": "torpedo", "torpedrummet": "torpedo",
     "radio": "radio", "radion": "radio",
     "vakthavande": "officer", "officer": "officer", "officeren": "officer",
+    "starpom": "starpom", "starpomen": "starpom",
 }
 
 
@@ -95,7 +97,7 @@ def _ask_station(m: re.Match) -> Order:
     role = STATION_WORDS.get(m[1])
     if role is None:
         return Unknown("", f"vilken station? Sonar, maskin, plott, navigatör, torped, "
-                           f"radio eller vakthavande")
+                           f"radio, vakthavande eller starpom")
     return AskSuggestion(role)
 
 
@@ -161,11 +163,11 @@ class CommandRegistry:
 def _time_scale(m: re.Match) -> Order:
     n = int(m[1])
     if n not in TIME_SCALES:
-        return Unknown("", "tid kan vara 1, 2, 5 eller 10")
+        return Unknown("", "tid kan vara 1, 2, 5 eller 10 (30 och 60 när starpom har befälet)")
     return SetTimeScale(n)
 
 
-TIME_COMMAND = CommandSpec(r"(?:tid|tidskomprimering)\s+(\d+)\s*x?", _time_scale, "tid 1|2|5|10")
+TIME_COMMAND = CommandSpec(r"(?:tid|tidskomprimering)\s+(\d+)\s*x?", _time_scale, "tid 1|2|5|10|30|60")
 QUIT_COMMAND = CommandSpec(
     r"(?:avsluta(?: spelet| patrullen| uppdraget| övningen| ovningen)?|"
     r"avbryt (?:patrullen|uppdraget|uppdrag|övningen|ovningen)|sluta spela)"

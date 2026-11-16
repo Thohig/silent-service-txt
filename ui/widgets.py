@@ -30,6 +30,7 @@ ROLE_STYLE = {
     "torpedo": "bold red",
     "officer": "bold #8fb3ff",
     "radio": "bold #c6a0ff",
+    "starpom": "bold #e0e0a0",
     "captain": "bold white",
 }
 

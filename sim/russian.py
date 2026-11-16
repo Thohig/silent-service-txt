@@ -26,6 +26,9 @@ WORDS: dict[str, Word] = {w.latin: w for w in (
     Word("Boevaja trevoga", "Боевая тревога", "stridslarm"),
     Word("Avarijnaja trevoga", "Аварийная тревога", "haverilarm"),
     Word("Torpeda vysjla", "Торпеда вышла", "torpeden har lämnat tuben"),
+    Word("Komandovanie prinjal", "Командование принял", "befälet övertaget (starpom tar vakten)"),
+    Word("Komandovanie sdal", "Командование сдал", "befälet överlämnat (tillbaka till kaptenen)"),
+    Word("Komandir, v tsentralnyj", "Командир, в центральный", "kaptenen till centralen"),
 )}
 
 _PATTERN = re.compile(r"\b(" + "|".join(re.escape(k) for k in
@@ -63,7 +66,8 @@ def glossary() -> str:
 # svenska texten. Det ryska syns aldrig i loggen.
 
 ROLE_RU = {"sonar": "акустик", "navigator": "штурман", "plot": "планшет", "engineer": "пульт",
-           "torpedo": "минёр", "officer": "вахтенный офицер", "radio": "радист"}
+           "torpedo": "минёр", "officer": "вахтенный офицер", "radio": "радист",
+           "starpom": "старпом"}
 CAPTAIN = "Товарищ командир"
 DIGITS = ("ноль", "один", "два", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять")
 TENTHS = ("", "одна", "две", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять")

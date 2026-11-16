@@ -47,6 +47,7 @@ ROLE_RATE = {
     "navigator": 175,
     "plot": 180,
     "officer": 180,
+    "starpom": 170,                # lugn, van
     "radio": 190,
     "torpedo": 195,
     "engineer": 200,

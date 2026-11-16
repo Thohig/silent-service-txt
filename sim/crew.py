@@ -19,6 +19,7 @@ class Role(StrEnum):
     TORPEDO = "torpedo"
     OFFICER = "officer"
     RADIO = "radio"
+    XO = "starpom"           # förste officer (старпом), tvåa i befälsordningen
 
 
 ROLE_LABEL = {
@@ -29,6 +30,7 @@ ROLE_LABEL = {
     Role.TORPEDO: "Torped",
     Role.OFFICER: "Vakthavande",
     Role.RADIO: "Radio",
+    Role.XO: "Starpom",
 }
 
 

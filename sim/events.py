@@ -38,6 +38,7 @@ class Tick(Event):
 class OrderIssued(Event):
     text: str
     order: Any
+    by: str = "captain"           # vem som gav ordern: captain eller starpom
 
 
 @dataclass(frozen=True)
