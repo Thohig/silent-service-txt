@@ -320,3 +320,33 @@ def test_attack_order_widens_the_mandate_but_never_to_firing():
     assert in_mandate(g, "anfall S-1")
     for order in ("salva S-1", "eld tub 1 mot S-1", "sänd rapport", "ytläge"):
         assert not in_mandate(g, order), order
+
+
+def test_captain_is_called_to_central_before_firing_position():
+    from sim.stations.navigation import NavigationStation
+    g, reports = _game(key="konvoj")
+    g.command("starpom har befälet")
+    g.command("sov")
+    _run(g, 3)
+    nav = g.station(NavigationStation)
+    nav.goal, nav.attack = "attack", "S-2"
+    nav.attack_eta_t = g.now + 600                # långt kvar: han får sova
+    _run(g, 10)
+    assert g.status().captain_at == "cabin"
+    nav.attack_eta_t = g.now + 150                # strax: högtalaren, han hinner fram
+    _run(g, 10)
+    assert g.status().captain_at == "walking"
+    assert any(r.type == "xo.danger" and "skjutläge" in r.text for r in reports)
+
+
+def test_report_window_rings_the_captain():
+    g, reports = _game(key="kuba-kort")
+    g.command("starpom har befälet")
+    g.command("sov")
+    _run(g, 30)                                  # radions förvarning kommer direkt
+    assert any(r.type == "xo.accept" and "antenndjup" in r.text for r in reports)
+    assert g.status().phone == "ring" or any(r.type == "xo.orderly" for r in reports)
+    g.command("svara")
+    _run(g, 8)
+    assert any(r.type in ("xo.call", "xo.orderly") and "Sambandstillfälle" in r.text
+               for r in reports)

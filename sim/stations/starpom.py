@@ -52,6 +52,7 @@ from .torpedo_room import FiringSolution, LaunchDecoy, LoadTube, TorpedoStatus, 
 WALK_S = 40             # från hytten till centralen (gången och lejdaren)
 ORDERLY_S = 20          # obesvarat samtal: ordonnansen knackar
 WATCH_S = 5             # så ofta starpom ser över läget
+SUMMON_S = 120          # så långt före skjutläget ropas kaptenen till centralen
 TIME_WARN_S = 900       # tidsgränsen så här nära: väck kaptenen
 REPEAT_S = 600          # samma fråga ringer inte igen förrän efter så här länge
 SLEEP_SCALE = 60
@@ -120,7 +121,7 @@ ALARM_LEVELS = {
     "sonar.new_contact": "info", "sonar.regained": "info", "plot.maneuver": "info",
     "radio.message": None, "plot.convoy.found": None,
     "sonar.ping.first": "question", "nav.wait.arrived": "question",
-    "nav.attack.arrived": "question", "nav.attack.passed": "question",
+    "nav.attack.arrived": "danger", "nav.attack.passed": "question",
     "nav.follow.lost": "question", "nav.settle.not_reached": "question",
     "off.esm": "question", "off.esm.air": "question",
 }
@@ -181,6 +182,11 @@ def reason_text(d: dict) -> str:
         return f"Det är {d['minutes']} minuter kvar enligt ordern."
     if k == "wake_at":
         return f"Klockan är {d['clock']}, ni bad att bli väckt."
+    if k == "attack":
+        return (f"Vi är i skjutläge mot {d['designation']} om cirka {d['minutes']} minuter. "
+                f"Avfyringen är ert beslut.")
+    if k == "window":
+        return f"Sambandstillfälle klockan {d['clock']}. Ordern kräver rapporten."
     if k == "suggestion":
         return f"{d['who']} föreslår {d['proposed']}. Det beslutet är ert."
     return ""
@@ -478,6 +484,9 @@ class FirstOfficer(Station):
                      kind="ack", extra_delay=-1)
             self.game.log(f"STARPOM beslutar: {order!r}")
             self.game.command(order, by="starpom")
+            if report.type.startswith("radio.prewarn") and \
+                    "rapport" in self.game.knowledge.order_tasks:
+                self._wake("question", {"kind": "window", "clock": report.data.get("clock", "")})
             return True
         self._wake("danger" if report.alarm else "question",
                    {"kind": "suggestion", "who": report.speaker.split(" (")[0],
@@ -559,6 +568,13 @@ class FirstOfficer(Station):
             self._telegrams_seen = len(k.telegrams)
             for t in new:
                 self._wake("question", {"kind": "telegram", "number": t.number})
+        nav = self._nav()
+        if nav is not None and nav.goal == "attack" and nav.attack_eta_t is not None and \
+                nav.attack_eta_t - now <= SUMMON_S + WALK_S and \
+                self._asked.get(f"attack:{nav.attack}", -10**9) < now - REPEAT_S:
+            self._asked[f"attack:{nav.attack}"] = now
+            self._wake("danger", {"kind": "attack", "designation": nav.attack,
+                                  "minutes": max(1, round((nav.attack_eta_t - now) / 60))})
         end = self.game.world.patrol_end       # tidsgränsen står i ordern
         if end is not None and not self._time_warned and end - now <= TIME_WARN_S:
             self._time_warned = True

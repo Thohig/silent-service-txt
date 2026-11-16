@@ -660,6 +660,7 @@ class NavigationStation(Station):
         self.follow_speed = True
         self.attack: str | None = None        # kontakten vi går till skjutläge mot (goal "attack")
         self._attack_arrived_t = -10**9
+        self.attack_eta_t: int | None = None  # beräknad ankomst till skjutläget (simtid)
         self._wait_arrived = False
         self._fw_i = 0                        # farleden: nästa punkt
         self._fw_done = False                 # farleden är gången
@@ -1682,6 +1683,7 @@ class NavigationStation(Station):
     # --- anfall: till skjutläge vid sidan av målets väg -----------------------------
     def _start_attack(self, designation: str) -> None:
         self.vak = None
+        self.attack_eta_t = None
         self.goal = "attack"
         self._attack_behind = 0
         self.attack = (designation or "").upper().replace(" ", "")
@@ -1759,6 +1761,7 @@ class NavigationStation(Station):
                 self.say("nav.attack.cannot", data, quality=q)
                 return
             s.order_course(round(res[0]) % 360)
+            self.attack_eta_t = self.now + round(res[1] * 3600)
             if announce:
                 limit = self.own.max_speed()
                 data.update(course=res[0], minutes=res[1] * 60, need=need, side=res[4],
@@ -1770,6 +1773,7 @@ class NavigationStation(Station):
             return
         course, t_h, _px, _py, side = res
         s.order_course(round(course) % 360)
+        self.attack_eta_t = self.now + round(t_h * 3600)
         if announce:
             data.update(course=course, minutes=t_h * 60, side=side)
             self.say("nav.attack", data, kind="ack", quality=q)
