@@ -1,4 +1,5 @@
 """Starpom har befälet: överlämnande, mandat, väckning och kaptenens väg till centralen."""
+import pathlib
 import random
 import re
 
@@ -197,3 +198,75 @@ def test_starpom_keeps_the_watch_over_several_seeds():
                     later = [x for x in reports if x.t_due >= r.t_due and x.type in
                              ("xo.danger", "xo.handback")]
                     assert later, (key, seed, r.type)
+
+
+def test_cabin_muffles_the_boat_and_hides_hydrophones():
+    from types import SimpleNamespace
+    from ui.ambience import ambient_targets
+    from ui.audio import from_central
+    from sim.reports import Report
+    g, _ = _game()
+    _run(g, 5)
+    central = ambient_targets(g.status(), g.knowledge.tracks.values())
+    g.command("starpom har befälet")
+    _run(g, 2)
+    s = g.status()
+    cabin = ambient_targets(s, g.knowledge.tracks.values())
+    assert not any(k.startswith("contact:") or k == "dread" for k in cabin)
+    for k in cabin:
+        assert cabin[k].gain < central[k].gain
+    sonar = Report(0, "Sonar (Volkov)", "sonar.bearing", {}, role="sonar")
+    xo = Report(0, "Starpom (Sokolov)", "xo.call", {}, role="starpom")
+    alarm = Report(0, "Sonar (Volkov)", "sonar.splash", {}, role="sonar", alarm=True)
+    assert from_central(sonar, s) and not from_central(xo, s) and not from_central(alarm, s)
+    assert not from_central(sonar, SimpleNamespace(command="captain", captain_at="central"))
+
+
+def test_cabin_render_shows_phone_and_walk():
+    from dataclasses import replace
+    from ui.cabin_render import render_cabin
+    g, _ = _game()
+    g.command("starpom har befälet")
+    _run(g, 2)
+    s = replace(g.status(), phone="ring", sleeping=True)
+    rows = [r.plain for r in render_cabin(s, 0.0, 100, 24)]
+    assert len(rows) == 24 and all(len(r) == 100 for r in rows)
+    text = "\n".join(rows)
+    assert "КАЮТА КОМАНДИРА" in text and "КАШТАН" in text and "RING" in text
+    walk = replace(s, captain_at="walking", walk_s=20)
+    text = "\n".join(r.plain for r in render_cabin(walk, 0.0, 60, 16))
+    assert "På väg till centralen, 20 s" in text
+    small = render_cabin(s, 0.0, 40, 14)
+    assert len(small) == 14
+
+
+@pytest.mark.slow
+def test_ui_cabin_opens_on_handover_and_closes_in_central(tmp_path):
+    import asyncio
+    from ui.app import SubApp
+    from ui.cabin import CabinScreen
+    import os
+    shots = pathlib.Path(os.environ.get("K114_SHOTS", tmp_path / "shots"))
+    shots.mkdir(parents=True, exist_ok=True)
+
+    async def run():
+        app = SubApp(seed=1, log_dir=tmp_path, scenario="arktis")
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.press("enter", "enter")
+            await pilot.press(*"starpom har befälet", "enter")
+            await pilot.pause(0.3)
+            assert isinstance(app.screen, CabinScreen)
+            app.screen.draw()
+            app.save_screenshot("hytt.svg", str(shots))
+            await pilot.press(*"tid 60", "enter")
+            assert app.game.time_scale == 60
+            await pilot.press(*"jag har befälet", "enter")
+            assert app.game.status().captain_at == "walking"
+            for _ in range(45):
+                app.game.tick()
+            await pilot.pause(0.3)
+            assert app.game.status().command == "captain"
+            assert not isinstance(app.screen, CabinScreen)
+
+    asyncio.run(run())
+    assert (shots / "hytt.svg").exists()

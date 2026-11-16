@@ -211,7 +211,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   fasta djup (`Level`), navigatörens djuplogg (var 10:e s), ekolodets bottenlodningar
   (bara efter `ekolod`), isekolodets lodningar och sonarrummets hörda ljud. `Game.profile()`
   samlar, `ui/profile_render.py` ritar sidovyn (tid vågrätt, botten i eget band under
-  bruten axel) och djupmätaren bredvid loggen. Tab växlar logg → sjökort → ubåten → periskopbild → logg, med luckan öppen brygga före
+  bruten axel) och djupmätaren bredvid loggen. Tab växlar (hytten, när starpom har befälet) → logg → sjökort → ubåten → periskopbild → logg, med luckan öppen brygga före
   periskopbild (`SubApp.tab_views`; `VIEWS` är alla vyer).
 - **Centralen** (`ui/central_render.py`, `CentralView` i `ui/widgets.py`): bild av центральный пост.
   Huvudvyns layout efter fönstret (`GameScreen.on_resize`, klasserna `big`/`narrow`): minst 120 × 36 ⇒
@@ -289,6 +289,23 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   ritas nedtonade); i ett svep eller en titt räknas allt som setts som sett nu.
   Is: `ice.ice_view` (periskopet är en sensor) ger kant och vallar i 16 riktningar ut till 0,6 nm;
   kommer masten inte upp för isen publiceras `PeriscopeBlocked` och vyn säger det.
+- **Starpom** (`stations/starpom.py`, `FirstOfficer`, `Role.XO`, Sokolov, kapten 3:e rang): `starpom har befälet`
+  ⇒ kaptenen i hytten; starpom svarar på förslag via `Station.on_suggestion` (Game frågar stationerna efter
+  leverans; sant = beslutat) och ger ordern med `game.command(order, by="starpom")` (`OrderIssued.by`, räknas
+  inte i loggboken). Mandat `MANDATE` (orderklasser; aldrig avfyring, salva, anfall, sändning, ytläge, avbrott,
+  aktiv sonar, radar, foto). Väckning (`_wake`): info = lampan (civil kontakt, `plot.maneuver`, ny kontakt),
+  fråga = telefonen ringer (hotkontakt med lösning ≥ osäker, stort fartyg, konvoj, telegram, förslag utanför
+  mandatet, tidsgränsen 15 min, `väck mig`, larm i `ALARM_LEVELS`; samma fråga högst var 10:e min; ordonnansen
+  efter 20 s), fara = högtalaren (`alarm_level` "danger": övriga larm, jakttecken) ⇒ 1× och kaptenen går (40 s,
+  `Station.intercept` stoppar hans order under tiden) och får lägesrapport (`xo.handback`, `officer.situation`).
+  `tid 30`/`60` bara med starpom i befäl; `sov` ⇒ 60×. Status: `StatusSnapshot.command`, `captain_at`, `walk_s`,
+  `phone`, `sleeping` (via `Station.status_fields`). Vyn `hytt` (`ui/cabin.py`, `ui/cabin_render.py`) öppnas
+  av sig själv (`SubApp._follow_command`) och står först i Tab-ordningen; visar bara starpoms och telefonens
+  rapporter, Enter svarar. Ljudet i hytten (`ambience.muffled`, `audio.from_central`): båten ×0,55, mumlet
+  svagt, inga hydrofonljud eller sväv, centralens repliker tysta (larm hörs); telefonen `phone`, knackning
+  `knock`. 8 frön (`kalibrering/starpom.py`, kaptenen lämnar över igen efter 10 min lugn): inga order utanför
+  mandatet, utfallen som ja-boten (kuba 8 patrol_end, konvoj 8 convoy_missed); kuba 3–12 ringningar och 0–2
+  fara på 3,5 h, konvoj 6–20 och 0–4 på 1–3 h.
 - **Huvudmenyn** (`ui/menu.py`, `MenuScreen`): uppdragen grupperade (`mission_groups`: kort variants nyckel
   = lång nyckel + "-x", titeln "Rubrik – variant, datum", det långa först, `FIRST_GROUPS` övningen först),
   rubriker är avstängda alternativ, beskrivningen (`brief`) bredvid, sist Inställningar, Order och

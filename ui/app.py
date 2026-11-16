@@ -27,6 +27,7 @@ from sim.truthlog import TruthLog
 
 from .audio import SoundBoard, make_soundboard
 from .boat import BoatScreen
+from .cabin import CabinScreen
 from .chart import ChartScreen
 from .logview import LogScreen
 from .menu import MenuScreen
@@ -49,8 +50,9 @@ PERISCOPE_WORDS = {"periskopbild", "periskopvy", "bild"}
 BRIDGE_WORDS = {"brygga", "bryggan", "bryggvy", "utsikt"}
 LOG_WORDS = {"logg", "loggen", "loggbok", "loggboken"}
 CENTRAL_WORDS = {"central", "centralen"}
+CABIN_WORDS = {"hytt", "hytten", "kajuta", "kajutan"}
 TELEGRAM_WORDS = {"telegram", "telegrammen", "telegrammet", "radiogram", "radiogrammen"}
-VIEWS = (LogScreen, ChartScreen, BoatScreen, PeriscopeScreen, BridgeScreen)
+VIEWS = (LogScreen, ChartScreen, BoatScreen, PeriscopeScreen, BridgeScreen, CabinScreen)
 GAUGE_EVERY_S = 0.5
 CENTRAL_EVERY_S = 0.1                  # centralens instrument: tio gånger i sekunden
 CENTRAL_MIN_WIDTH = 100                # smalare terminal: bara djupmätaren
@@ -137,6 +139,7 @@ class SubApp(App):
         self.running = False
         # blickens sanna bäring, delad mellan bryggvyn och periskopvyn (None: inte satt)
         self.look_bearing: float | None = None
+        self._in_cabin = False               # starpom har befälet och hytten har visats
         self._game_ready = False             # spelet är klart att ta över (efter ev. uppvärmning)
         self._acc = 0.0
         self._last = 0.0
@@ -286,10 +289,15 @@ class SubApp(App):
         if text.lower() in SPEECH_WORDS:
             self.action_speech(SPEECH_WORDS[text.lower()])
             return
+        self.captain_says(text)
+
+    def captain_says(self, text: str) -> None:
+        """Kaptenens order: i loggen, i vyns rapportrad och till spelet."""
         self.gs().query_one(ReportLog).add_captain(self.game.clock_str(), text)
         if isinstance(self.screen, VIEWS):
             self.screen.add_captain(self.game.clock_str(), text)
         self.game.command(text)
+        self._follow_command(self.game.status())
 
     def _view_word(self, text: str) -> bool:
         """Ord som öppnar en vy (eller loggen). Sant om ordet var ett sådant."""
@@ -301,6 +309,8 @@ class SubApp(App):
             self.action_periscope()
         elif text in BRIDGE_WORDS:
             self.action_bridge()
+        elif text in CABIN_WORDS:
+            self._toggle_view(CabinScreen)
         elif text in TELEGRAM_WORDS:
             self._telegrams()
         elif text in LOG_WORDS:
@@ -401,6 +411,8 @@ class SubApp(App):
         base = (ChartScreen, BoatScreen)
         if self._screen is not None and self._screen.big:
             base = (LogScreen,) + base
+        if self.game is not None and self.game.status().command == "starpom":
+            base = (CabinScreen,) + base
         if self.game is None or self.game.status().bridge == "shut":
             return base + (PeriscopeScreen,)
         return base + (BridgeScreen, PeriscopeScreen)
@@ -496,6 +508,7 @@ class SubApp(App):
                 break
         self._acc = min(self._acc, 2.0)
         status = self.game.status()
+        self._follow_command(status)
         if self.sound:
             self.sound.ambient(status, self.game.knowledge.tracks.values())
         try:
@@ -506,6 +519,22 @@ class SubApp(App):
             if now - self._central_t >= CENTRAL_EVERY_S:
                 self._central_t = now
                 self._show_central(status, now)
+        except NoMatches:
+            pass
+
+    def _follow_command(self, status) -> None:
+        """Kaptenen lämnar över: hytten visas. Framme i centralen: hytten stängs."""
+        cabin = status.command == "starpom"
+        if cabin == self._in_cabin:
+            return
+        self._in_cabin = cabin
+        try:
+            if cabin and not isinstance(self.screen, CabinScreen):
+                if isinstance(self.screen, VIEWS):
+                    self.pop_screen()
+                self.push_screen(CabinScreen())
+            elif not cabin and isinstance(self.screen, CabinScreen):
+                self.pop_screen()
         except NoMatches:
             pass
 
@@ -571,6 +600,7 @@ class SubApp(App):
         self.running = False
         self._game_ready = False
         self.look_bearing = None
+        self._in_cabin = False
         self._acc = 0.0
 
     def on_unmount(self) -> None:

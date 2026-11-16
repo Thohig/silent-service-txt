@@ -133,7 +133,7 @@ def test_cues_synthesize_to_valid_wav(tmp_path):
         assert 0.1 < len(s) / 22050 < limit, name
         assert np.max(np.abs(s)) <= 1.0 and np.isfinite(s).all(), name
         write_wav(tmp_path / f"{name}.wav", s)
-    assert len(list(tmp_path.glob("*.wav"))) == 6 + 8 + 1
+    assert len(list(tmp_path.glob("*.wav"))) == 8 + 8 + 1
 
 
 def test_headless_game_speaks_crew_reports():

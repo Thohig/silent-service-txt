@@ -52,8 +52,9 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Område | Order |
 |---|---|
 | Manöver | `kurs 090` · `fart 5` · `stopp` · `djup 100` · `periskopdjup` · `antenndjup` · `ytläge` |
-| Förslag | `ja` · `nej` · `förslag` · `förslag sonar` (maskin, plott, navigatör, torped, radio, vakthavande) · `annat förslag` |
-| Tid | `tid 1` `tid 2` `tid 5` `tid 10` (faller till 1× vid larm) |
+| Förslag | `ja` · `nej` · `förslag` · `förslag sonar` (maskin, plott, navigatör, torped, radio, vakthavande, starpom) · `annat förslag` |
+| Tid | `tid 1` `tid 2` `tid 5` `tid 10` (faller till 1× vid larm); `tid 30` `tid 60` bara när starpom har befälet |
+| Starpom | `starpom har befälet` (kaptenen går till hytten) · `jag har befälet` (till centralen, 40 s utan order) · `lägesrapport` (ring centralen) · `svara` (eller Enter i hytten när det ringer) · `sov` (60× tills starpom väcker) · `väck mig 04:30`. Order per telefon verkställs och starpom behåller befälet |
 | Sonar | `aktiv sonar` (ger avstånd men avslöjar oss) |
 | Plott | `läge S-1` · `plot S-1` |
 | Navigation | `position` · `fix` (periskopdjup) · `kurs mot <plats>` · `följ S-1` (i kontaktens kölvatten) · `anfall S-1` (till skjutläge 1,2 nm från målets väg, efter konvojens baskurs om plottet har den) · `ekolod` · `isekolod` · `vak` (gå till och stoppa under en loggad öppning i isen) · `drivstationen` (styr mot Nord-7) · `botten` (lägg oss stilla på botten; `djup` eller `fart` lättar) · `bottenfix` (nio lodningar på tre minuter jämförs med sjökortets djup) |
@@ -88,6 +89,7 @@ en del säger de vilken, och resten verkställs ändå.
 | Navigering | Besticket driver med ström och loggfel; fix kräver periskopet. |
 | Havsbotten | Botten varierar: vid Kuba en bank på 120–200 m längs ena sidan, ett undervattensberg och en ränna i djuphavet; i Arktis en rygg vars krön når cirka 1 000 m. Sjökortet har djupkurvor från ett gammalt kort, förskjutna och utjämnade, och ibland saknas berget. Ekolodet (`ekolod`) ger det verkliga djupet men hörs. Går vi in i botten i mer än 2 knop går vi på grund: skador på skrov, sonar eller roder och läckor i högre fart. Navigatören varnar när kortet eller en färsk lodning visar grundare vatten framåt, och osäkrare ju äldre besticket är. Grundare än provdjup kan vi lägga oss stilla på botten (`botten`): maskinen stoppas, kylpumparna går på lågvarv och jagarens eko drunknar i bottenekot. Sand och lera är mjuka; klippbotten (berg, ryggar, branta sluttningar) skrapar skrovet. Bottentypen står på sjökortet, som kan ha fel. Navigatören föreslår det när vi är jagade över grunt, mjukt vatten. Fix mot botten (`bottenfix`) går utan periskop, även under isen: nio lodningar i minst två knop matchas mot kortet. Längs en rak sluttning ger det bara en lägeslinje, vid ett berg eller en ränna läget i båda led, och aldrig bättre än kortet (0,5 nm vid Kuba, 0,8 i Arktis). Saknar kortet något säger navigatören det och låter besticket vara. Lodningarna hörs. |
 | Radio | Sambandstillfällen på antenndjup (tider beror på scenariot). Sändning pejlas. |
+| Starpom och hytten | Förste officeren (старпом) kan hålla befälet medan kaptenen vilar. Han beslutar om besättningens förslag inom ett fast mandat: kurs, fart, djup, smygmotor, periskop, fix, ventilera, skenmål och omladdning. Avfyring, anfall, radiosändning, ytläge och att avbryta uppdraget är alltid kaptenens; då ringer han. Han väcker på tre sätt: lampan på snabbtelefonen lyser (civil kontakt), telefonen ringer (ny hotkontakt, konvoj, telegram, förslag utanför mandatet, tidsgränsen nära; svarar ingen inom 20 s knackar ordonnansen) och vid fara ropar högtalaren kaptenen till centralen (sjunkbomber, torped, skada, jakttecken). Vyn `hytt` visar kojen, repeatrarna för kurs och djup, klockan och telefonen; centralens rapporter står i loggboken men hörs inte där, och båten låter dämpad genom skottet. |
 | Kvadrat 7, kort (`kuba-kort`) | Vakthavande har gått på smygmotor i en kvart och plottat en jagare som patrullerar 3–4 sjömil bort. Sambandstillfället öppnar fem minuter efter att ni tagit befälet och står öppet en kvart. Ordern kräver att rapporten sänds (`sänd rapport`, periskopdjup, 30 sekunder, och sändningen pejlas). Radiooperatören föreslår att vi väntar på djupet så länge plottet har jagaren närmare än fem sjömil, och föreslår antenndjup och sedan sändningen när den gått längre bort och ingen har oss. När fönstret stänger får jagaren inte ha kontakt med er (en pejling av sändningen räknas inte). Flyget kommer efter 5–10 minuter. Omkring 25 minuters spel. |
 | Jagade (`jagad`) | Spelet börjar mitt i jakten, kl 00:40: en jagare har just fått kontakt på 2–3 sjömil och en till kommer söderifrån. Jagarna delar sina fix över radio. Efter tre anfall med signalsjunkbomber går de över till skarpa. Smyga hjälper inte när de redan har oss: djupt och fort, och sväng när de går in för anfall, för skrovsonaren ser inte rakt ned och efter detonationerna är den döv en minut. Målet är att lämna kvadrat 7 (en sjömil utanför kanten, längre följer jagarna inte efter) utan att någon jagare eller något plan har kontakt. Navigatören föreslår kortaste vägen ut som inte leder mot en hotkontakt, och banken på ena sidan ger möjlighet att lägga sig på botten. Flyget kommer efter 25–45 minuter. |
 | Jagade, kort (`jagad-kort`) | Samma natt, men jagaren fäller redan skarpa sjunkbomber och går in för nästa anfall på en och en halv sjömil. Kvadraten är liten (7 sjömil) och vi ligger 2–2,5 sjömil från djupvattensidans kant, men den andra jagaren kommer in från just det hållet. Plottet ber inte om kursändringar för sin plottning medan vi är jagade. Tiden är ute efter 30 minuter. Omkring 25 minuters spel. |
@@ -163,6 +165,7 @@ sim/                 ren Python, ingen Textual
     engineering.py   maskin och skadekontroll
     sonar_room.py    sonar, transienter, aktiv sonar
     officer.py       radar, radarvarnare, kamera
+    starpom.py       starpom har befälet: mandat, väckning, kaptenens väg till centralen
     periscope.py     periskopet i realtid: svep, titt, hålläge
     bridge.py        tornluckan och utkiken på bryggan i ytläge
     radio.py         sambandstillfällen och rapporter
@@ -175,6 +178,8 @@ ui/                  Textual
   chart_render.py    rastrering av sjökortet till tecken
   boat.py            vyn Ubåten i helskärm (djupprofil och systemtavla)
   boat_render.py     vyns layout efter fönstret
+  cabin.py           kaptenens hytt medan starpom har befälet
+  cabin_render.py    kojen, repeatrarna, Kasjtan-telefonen och gången till centralen
   strips.py          telegramremsor i loggboken (ordern, staben, Radio Moskva)
   profile_render.py  rastrering av djupprofilen och djupmätaren
   systems_render.py  genomskärning och paneler till tecken

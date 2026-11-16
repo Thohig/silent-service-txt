@@ -134,6 +134,31 @@ def ambient_targets(st, tracks: Iterable = ()) -> dict[str, Target]:
         rel = np.radians(bearing - st.course)
         out[f"contact:{desig}"] = Target(sample, 0.03 + 0.17 * _clip(se / CONTACT_FULL_SE),
                                          pan=float(np.sin(rel)))
+    if in_cabin(st):
+        return muffled(out)
+    return out
+
+
+CABIN_GAIN = 0.55          # genom skottet till hytten
+CABIN_KEEP = ("reactor", "turbine", "electric", "flow", "creak", "groan", "aircon", "crew",
+              "flooding", "fire", "fans", "vent", "ice", "cavitation", "waves")
+
+
+def in_cabin(st) -> bool:
+    """Kaptenen är i hytten (starpom har befälet)."""
+    return getattr(st, "command", "captain") == "starpom" and \
+        getattr(st, "captain_at", "central") == "cabin"
+
+
+def muffled(targets: dict[str, Target]) -> dict[str, Target]:
+    """Hytten: båten hörs dämpad genom skottet, mumlet från centralen svagt; inga
+    hydrofonljud och inget hotfullt sväv (sonarens hörlurar når inte hit)."""
+    out = {}
+    for k, t in targets.items():
+        if k not in CABIN_KEEP:
+            continue
+        gain = t.gain * (0.3 if k == "crew" else CABIN_GAIN)
+        out[k] = Target(t.sample, gain, pan=t.pan, rate=t.rate)
     return out
 
 

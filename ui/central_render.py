@@ -452,4 +452,7 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
                 top = i == level - 1
                 ch = ("≈" if (col + phase) % 2 else "~") if top else "█"
                 c.put(r, col, ch, p["water"] if top else p["water2"])
+    if s.command == "starpom":                  # kaptenen är inte här
+        sign = " СТАРПОМ – STARPOM HAR BEFÄLET " if g.w >= 40 else " СТАРПОМ "
+        c.text(g.deck, max(1, (g.w - len(sign)) // 2), sign, PLATE_STYLE)
     return c.lines()

@@ -71,6 +71,10 @@ CUE_BY_TYPE = {
     "surfaced": "klaxon",
     # brandlarm
     "fire": "fire",
+    # snabbtelefonen i hytten och ordonnansen som knackar
+    "xo.ring": "phone",
+    "xo.orderly": "knock",
+    "xo.danger": "attention",
     # radiomannen vrider in Moskva på kortvåg
     "radio.moscow": "shortwave",
     "radio.moscow.silent": "shortwave",
@@ -230,6 +234,7 @@ class SoundBoard:
     _cue_until: float = 0.0
     _last_played: dict[str, float] = field(default_factory=dict)
     _half_hour: int | None = None       # senaste halvtimmen klockan slagit (eller sett)
+    _status = None                      # senaste StatusSnapshot (var kaptenen är)
 
     def __post_init__(self) -> None:
         self.bus.subscribe(ReportDelivered, self._on_report)
@@ -239,6 +244,7 @@ class SoundBoard:
     # -- bakgrundsljud --------------------------------------------------------
     def ambient(self, status, tracks=()) -> None:
         """Uppdatera bakgrundsljudet ur statusraden och kontaktspåren (kunskap)."""
+        self._status = status
         if status is not None and not status.over:
             self._ship_bell(status)
         if self.ambience is None:
@@ -291,6 +297,8 @@ class SoundBoard:
         if not self.enabled:
             return
         r = e.report
+        if self._status is not None and from_central(r, self._status):
+            return                  # i hytten hör kaptenen inte centralens rapporter
         cue = cue_for(r)
         delay = 0.0
         if cue:
@@ -407,6 +415,15 @@ def cue_for(r: Report) -> str | None:
     if r.kind == "suggest" and r.data.get("order"):
         return "suggest"
     return None
+
+
+def from_central(r: Report, status) -> bool:
+    """Kaptenen är i hytten och rapporten är centralens (inte starpom, telefonen eller ett larm):
+    den står i loggboken men hörs inte."""
+    if getattr(status, "command", "captain") != "starpom" or \
+            getattr(status, "captain_at", "central") != "cabin":
+        return False
+    return r.role not in ("starpom", "") and not r.alarm
 
 
 def spoken(r: Report) -> bool:
@@ -531,6 +548,23 @@ def synth_suggest() -> np.ndarray:
     return 0.3 * _speaker(tone, 1.0)
 
 
+def synth_phone() -> np.ndarray:
+    """Snabbtelefonen «Каштан»: ett surrande anrop, två gånger."""
+    t = _t(0.45)
+    buzz = np.sign(np.sin(2 * np.pi * 420 * t)) * (0.6 + 0.4 * np.sin(2 * np.pi * 25 * t))
+    burst = _speaker(buzz * np.minimum(1.0, t / 0.01) * np.minimum(1.0, (0.45 - t) / 0.02), 1.0)
+    gap = np.zeros(int(RATE * 0.25))
+    return 0.35 * np.concatenate([burst, gap, burst])
+
+
+def synth_knock() -> np.ndarray:
+    """Ordonnansen knackar på hyttdörren: tre dova slag i stål."""
+    t = _t(0.18)
+    hit = (np.sin(2 * np.pi * 140 * t) + 0.5 * np.sin(2 * np.pi * 310 * t)) * np.exp(-t * 30)
+    gap = np.zeros(int(RATE * 0.12))
+    return 0.6 * _speaker(np.concatenate([hit, gap, hit, gap, hit]), 1.5)
+
+
 def synth_ship_bell(strikes: int) -> np.ndarray:
     """Skeppsklockan slår glasen (склянки): slagen två och två, ett ensamt sist vid udda tal."""
     t = _t(1.6)
@@ -562,7 +596,8 @@ def bells_for(clock: int) -> int:
 def synth_cues() -> dict[str, np.ndarray]:
     cues = {"general": synth_general(), "klaxon": synth_klaxon(), "fire": synth_fire(),
             "revun": synth_revun(),
-            "attention": synth_attention(), "suggest": synth_suggest()}
+            "attention": synth_attention(), "suggest": synth_suggest(),
+            "phone": synth_phone(), "knock": synth_knock()}
     cues.update({f"bells{n}": synth_ship_bell(n) for n in range(1, 9)})
     cues["shortwave"] = synth_shortwave()
     return cues

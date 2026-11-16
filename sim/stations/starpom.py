@@ -50,6 +50,7 @@ WALK_S = 40             # från hytten till centralen (gången och lejdaren)
 ORDERLY_S = 20          # obesvarat samtal: ordonnansen knackar
 WATCH_S = 5             # så ofta starpom ser över läget
 TIME_WARN_S = 900       # tidsgränsen så här nära: väck kaptenen
+REPEAT_S = 600          # samma fråga ringer inte igen förrän efter så här länge
 SLEEP_SCALE = 60
 
 # Det starpom får besluta om utan kaptenen. Allt annat väcker kaptenen.
@@ -283,6 +284,7 @@ class FirstOfficer(Station):
         self._telegrams_seen = 0
         self._hunt_seen = False
         self._time_warned = False
+        self._asked: dict[str, int] = {}    # fråga -> senast ringd
 
     def attach(self, bus) -> None:
         super().attach(bus)
@@ -426,6 +428,12 @@ class FirstOfficer(Station):
         """level: info (lampan), question (telefonen ringer) eller danger (högtalaren)."""
         if not self.in_command:
             return
+        if level == "question":
+            key = f"{reason['kind']}:{reason.get('type') or reason.get('proposed') or ''}"
+            if reason["kind"] in ("suggestion", "alarm"):
+                if self.now - self._asked.get(key, -10**9) < REPEAT_S:
+                    return
+                self._asked[key] = self.now
         self.pending.append(reason)
         self.game.log(f"STARPOM väcker ({level}): {reason}")
         if self.captain_at == "walking":

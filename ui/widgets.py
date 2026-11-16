@@ -66,6 +66,14 @@ class StatusBar(Static):
         t.append("  │")
         t.append(" ×", style="dim")
         t.append(f"{s.time_scale}", style="bold red" if s.time_scale > 1 else "bold")
+        if s.command == "starpom":
+            t.append("  │ ")
+            t.append("STARPOM HAR BEFÄLET" + (" · ni sover" if s.sleeping else ""),
+                     style="bold #e0e0a0")
+            if s.phone == "ring":
+                t.append(" ☎", style="bold red blink")
+            elif s.phone == "lamp":
+                t.append(" ●", style="bold #ffaf00")
         if s.contacts_held:
             t.append("  │ ", style="")
             t.append("KONTAKT ", style="dim")
