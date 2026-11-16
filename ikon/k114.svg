@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <polygon id="stjarna" points="0,-10 2.35,-3.24 9.51,-3.09 3.8,1.24 5.88,8.09 0,4 -5.88,8.09 -3.8,1.24 -9.51,-3.09 -2.35,-3.24"/>
+    <clipPath id="ruta"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
+  </defs>
+  <g clip-path="url(#ruta)">
+    <rect x="100" y="100" width="824" height="824" fill="#b3261e"/>
+    <!-- hav -->
+    <rect x="100" y="640" width="824" height="284" fill="#8f1d17"/>
+    <!-- stjärna -->
+    <use href="#stjarna" transform="translate(752,272) scale(7.2)" fill="#e8b84a"/>
+    <!-- periskop och antenn -->
+    <rect x="455" y="300" width="16" height="130" fill="#161616"/>
+    <rect x="455" y="300" width="40" height="16" fill="#161616"/>
+    <rect x="505" y="340" width="10" height="90" fill="#161616"/>
+    <!-- torn -->
+    <path d="M395 560 L418 418 L555 418 L600 560 Z" fill="#161616"/>
+    <use href="#stjarna" transform="translate(488,490) scale(3.6)" fill="#e8b84a"/>
+    <!-- skrov -->
+    <path d="M150 600 Q160 548 260 548 L770 548 Q875 552 880 600 Q840 660 270 660 Q160 656 150 600 Z" fill="#161616"/>
+    <!-- vågor -->
+    <path d="M100 650 Q150 625 200 650 T300 650 T400 650 T500 650 T600 650 T700 650 T800 650 T900 650 T1000 650"
+          fill="none" stroke="#e8b84a" stroke-width="10" stroke-linecap="round" opacity="0.75"/>
+    <!-- namn -->
+    <text x="512" y="820" text-anchor="middle" font-family="Menlo, Courier New, monospace"
+          font-weight="bold" font-size="132" fill="#e8b84a">К-114</text>
+  </g>
+</svg>
