@@ -89,8 +89,7 @@ def test_orders_can_be_given_in_every_view(tmp_path):
     from ui.bridge import BridgeScreen
     from ui.chart import ChartScreen
     from ui.periscope import PeriscopeScreen
-    from ui.profile import ProfileScreen
-    from ui.systems import SystemScreen
+    from ui.boat import BoatScreen
     from ui.viewbase import OrderLine
 
     async def run():
@@ -98,7 +97,7 @@ def test_orders_can_be_given_in_every_view(tmp_path):
         async with app.run_test(size=(110, 40)) as pilot:
             await pilot.press("enter", "enter")
             # under ytan: ingen brygga i Tab-ordningen
-            for i, cls in enumerate((ChartScreen, ProfileScreen, SystemScreen, PeriscopeScreen)):
+            for i, cls in enumerate((ChartScreen, BoatScreen, PeriscopeScreen)):
                 await pilot.press("tab")
                 assert isinstance(app.screen, cls)
                 course = 100 + 10 * i
@@ -124,7 +123,7 @@ def test_orders_can_be_given_in_every_view(tmp_path):
 
 @pytest.mark.slow
 def test_a_pending_suggestion_shows_in_the_view_order_line(tmp_path):
-    from ui.systems import SystemScreen
+    from ui.boat import BoatScreen
     from ui.viewbase import OrderLine
 
     async def run():
@@ -138,7 +137,7 @@ def test_a_pending_suggestion_shows_in_the_view_order_line(tmp_path):
             sug = app.game.status().suggestion
             assert sug
             await pilot.press(*"system", "enter")
-            assert isinstance(app.screen, SystemScreen)
+            assert isinstance(app.screen, BoatScreen)
             await pilot.pause(0.7)
             assert sug in app.screen.query_one(OrderLine).placeholder
             await pilot.press(*"ja", "enter")

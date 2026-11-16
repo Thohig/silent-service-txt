@@ -11,10 +11,9 @@ import math
 
 from rich.text import Text
 
-from sim.fmt import clock, fmt_course, kn
+from sim.fmt import clock
 from sim.profile import ProfileView
 
-from .placards import view_title
 
 MARGIN = 7                  # djupetiketter till vänster: "  450 ┤"
 RIGHT = 14                  # etiketter för djupen till höger
@@ -397,16 +396,6 @@ def legend() -> Text:
         t.append(f" {what}  ", style="dim")
     return t
 
-
-def header(view: ProfileView) -> Text:
-    t = view_title("DJUPPROFIL", " ")
-    t.append(f" djup {view.depth:.0f} m", style="bold")
-    if abs(view.ordered_depth - view.depth) >= 1:
-        t.append(f" ▸{view.ordered_depth:.0f} m", style="yellow")
-    t.append(f" · fart {kn(view.speed)} kn · kurs {fmt_course(view.course)}")
-    for n in view.notes:
-        t.append(f" · {n.text}")
-    return t
 
 
 # --- djupmätaren bredvid loggen ----------------------------------------------------------

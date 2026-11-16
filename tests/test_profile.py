@@ -127,7 +127,7 @@ def test_gauge_is_ordered_by_depth():
 def test_tab_cycles_the_views(tmp_path):
     from ui.app import SubApp
     from ui.chart import ChartScreen
-    from ui.profile import ProfileScreen
+    from ui.boat import BoatScreen
     from ui.widgets import DepthGauge
 
     async def run():
@@ -140,9 +140,9 @@ def test_tab_cycles_the_views(tmp_path):
             assert "DJUPMÄTARE" in str(app.gs().query_one(DepthGauge).render())
             await pilot.press(*"kurs 0")          # orderraden behåller texten
             await pilot.press("tab", "tab")
-            assert isinstance(app.screen, ProfileScreen)
+            assert isinstance(app.screen, BoatScreen)
             await pilot.pause(0.3)
-            assert "▬▬▶" in str(app.screen.query_one("#profile-body").render())
+            assert "▬▬▶" in str(app.screen.query_one("#boat-body").render())
             await pilot.press("minus")
             assert app.screen.depth_zoom is not None
             await pilot.press("space")
@@ -150,15 +150,15 @@ def test_tab_cycles_the_views(tmp_path):
             app.save_screenshot(str(tmp_path / "profil.svg"))
             await pilot.press("escape")
             assert app.gs().query_one("#order").value == "kurs 0"
-            await pilot.press("tab")                 # logg → sjökort → profil → system → periskop → logg
+            await pilot.press("tab")                 # logg → sjökort → ubåten → periskop → logg
             assert isinstance(app.screen, ChartScreen)
             await pilot.press("tab")
-            assert isinstance(app.screen, ProfileScreen)
-            await pilot.press("tab", "tab", "tab")    # system → periskop → logg
-            assert not isinstance(app.screen, (ChartScreen, ProfileScreen))
+            assert isinstance(app.screen, BoatScreen)
+            await pilot.press("tab", "tab")           # periskop → logg
+            assert not isinstance(app.screen, (ChartScreen, BoatScreen))
             await pilot.press("ctrl+u", *"profil", "enter")
-            assert isinstance(app.screen, ProfileScreen)
+            assert isinstance(app.screen, BoatScreen)
             await pilot.press("tab")
-            assert not isinstance(app.screen, ProfileScreen)
+            assert not isinstance(app.screen, BoatScreen)
 
     asyncio.run(run())

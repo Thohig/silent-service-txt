@@ -104,7 +104,7 @@ class ChartScreen(ViewScreen):
         t.append("\n")
         t.append(f" 1 tecken = {_nm(self.scale)} nm · rutnät {fmt_grid(grid_step(self.scale))} nm"
                  f" · N↑", style="dim")
-        t.append("   +/− zoom · pilar flyttar · mellanslag centrerar · Tab djupprofil · Esc tillbaka"
+        t.append("   +/− zoom · pilar flyttar · mellanslag centrerar · Tab ubåten · Esc tillbaka"
                  + ("" if self.follow else " · (ej centrerat)"), style="dim")
         head.update(t)
 

@@ -6,7 +6,7 @@ from rich.text import Text
 from sim.systems import (DANGER, INFO, OFF, OK, SEVERITY, WARN, Compartment, Flooding, Gauge,
                          SystemsView, TubeRack)
 
-from .placards import PANEL_RU, RU_STYLE, view_title
+from .placards import PANEL_RU, RU_STYLE
 
 STATE_STYLE = {OK: "#8fbf8f", INFO: "#c8d0b0", OFF: "#6f7f70", WARN: "bold yellow",
                DANGER: "bold red"}
@@ -155,6 +155,8 @@ def render_panels(view: SystemsView, width: int) -> list[Text]:
 
 # --- kompakt: en kolumn i allvarsordning (vyn Ubåten) ---------------------------------
 CALM_TEXT = "allt i ordning"
+# lugna paneler fälls i den här ordningen (okända först, torpedrören sist)
+FOLD_ORDER = ("SKADOR", "SAMBAND", "SONAR", "MASKIN", "NAVIGATION", "VAPEN")
 
 
 def panel_state(view: SystemsView, name: str) -> str:
@@ -172,7 +174,7 @@ def _calm_line(name: str, w: int) -> Text:
 
 def render_compact_panels(view: SystemsView, width: int, height: int) -> list[Text]:
     """Panelerna i en kolumn, högst `height` rader: fara och varning först och fullt;
-    får allt inte plats fälls lugna paneler (ok/info) ihop till en rad, nedifrån."""
+    får allt inte plats fälls lugna paneler (ok/info) ihop till en rad efter `FOLD_ORDER`."""
     names = sorted(view.panels(), key=lambda n: -SEVERITY[panel_state(view, n)])  # stabil
     full = {n: _panel(view, n, width) for n in names}
     calm = [n for n in names if SEVERITY[panel_state(view, n)] == 0]
@@ -181,7 +183,8 @@ def render_compact_panels(view: SystemsView, width: int, height: int) -> list[Te
     def total() -> int:
         return sum(1 if n in folded else len(full[n]) for n in names)
 
-    for n in reversed(calm):
+    rank = {n: i for i, n in enumerate(FOLD_ORDER)}
+    for n in sorted(calm, key=lambda n: rank.get(n, -1)):
         if total() <= height:
             break
         folded.add(n)
@@ -209,22 +212,3 @@ def render_systems(view: SystemsView, width: int) -> list[Text]:
 WORST_TEXT = {OK: ("allt normalt", STATE_STYLE[OK]), INFO: ("allt normalt", STATE_STYLE[OK]),
               OFF: ("system avställda", STATE_STYLE[OFF]), WARN: ("VARNING", "bold yellow"),
               DANGER: ("FARA", "bold white on #8a1010")}
-
-
-def header(view: SystemsView) -> Text:
-    t = view_title("SYSTEMTAVLA", " ")
-    t.append(f" {view.clock} · ")
-    word, style = WORST_TEXT[view.worst()]
-    t.append(f" {word} ", style=style)
-    return t
-
-
-def legend() -> Text:
-    t = Text(" ", no_wrap=True, overflow="crop")
-    for state, what in ((OK, "normalt"), (WARN, "varning"), (DANGER, "fara"), (OFF, "avställt")):
-        t.append(STATE_MARK[state], style=STATE_STYLE[state])
-        t.append(f" {what}  ", style="dim")
-    t.append("▸ beordrat  ", style="dim")
-    t.append("≈", style=WATER)
-    t.append(" vatten i kölsvinet", style="dim")
-    return t

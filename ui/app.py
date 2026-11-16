@@ -26,14 +26,13 @@ from sim.scenario import SCENARIOS, build_scenario
 from sim.truthlog import TruthLog
 
 from .audio import SoundBoard, make_soundboard
+from .boat import BoatScreen
 from .chart import ChartScreen
 from .logview import LogScreen
 from .menu import MenuScreen
 from .menu_audio import MenuSound
 from .bridge import BridgeScreen
 from .periscope import PeriscopeScreen
-from .profile import ProfileScreen
-from .systems import SystemScreen
 from .menutext import INK as PAPER_INK
 from .telegram import crew_announcement, order_header, order_signature, report_header
 from .telegrams import TelegramScreen
@@ -42,14 +41,14 @@ from .widgets import CentralView, DepthGauge, ReportLog, StatusBar
 
 MAX_TICKS_PER_FRAME = 20
 CHART_WORDS = {"sjökort", "sjokort", "kort", "karta"}
-PROFILE_WORDS = {"profil", "djupprofil", "sidovy"}
-SYSTEM_WORDS = {"system", "systemtavla", "systemtavlan", "tavla", "tavlan"}
+BOAT_WORDS = {"ubåt", "ubåten", "båten", "profil", "djupprofil", "sidovy", "system",
+              "systemtavla", "systemtavlan", "tavla", "tavlan"}
 PERISCOPE_WORDS = {"periskopbild", "periskopvy", "bild"}
 BRIDGE_WORDS = {"brygga", "bryggan", "bryggvy", "utsikt"}
 LOG_WORDS = {"logg", "loggen", "loggbok", "loggboken"}
 CENTRAL_WORDS = {"central", "centralen"}
 TELEGRAM_WORDS = {"telegram", "telegrammen", "telegrammet", "radiogram", "radiogrammen"}
-VIEWS = (LogScreen, ChartScreen, ProfileScreen, SystemScreen, PeriscopeScreen,
+VIEWS = (LogScreen, ChartScreen, BoatScreen, PeriscopeScreen,
          BridgeScreen, TelegramScreen)
 GAUGE_EVERY_S = 0.5
 CENTRAL_EVERY_S = 0.1                  # centralens instrument: tio gånger i sekunden
@@ -295,10 +294,8 @@ class SubApp(App):
         """Ord som öppnar en vy (eller loggen). Sant om ordet var ett sådant."""
         if text in CHART_WORDS:
             self.action_chart()
-        elif text in PROFILE_WORDS:
-            self.action_profile()
-        elif text in SYSTEM_WORDS:
-            self.action_systems()
+        elif text in BOAT_WORDS:
+            self.action_boat()
         elif text in PERISCOPE_WORDS:
             self.action_periscope()
         elif text in BRIDGE_WORDS:
@@ -332,10 +329,10 @@ class SubApp(App):
                            "tal svenska byter språk.")
         if self.gs().big:
             log.add_system(self.game.clock_str(), "Tab växlar mellan centralen, loggboken, sjökort, "
-                           "djupprofil, systemtavla och periskopbild, i ytläge också bryggan.")
+                           "ubåten (djupprofil och systemtavla) och periskopbild, i ytläge också bryggan.")
         else:
-            log.add_system(self.game.clock_str(), "Tab växlar mellan logg, sjökort, djupprofil, "
-                           "systemtavla och periskopbild, i ytläge också bryggan.")
+            log.add_system(self.game.clock_str(), "Tab växlar mellan logg, sjökort, ubåten "
+                           "(djupprofil och systemtavla) och periskopbild, i ytläge också bryggan.")
         key = self.scenario_key or ""
         ru, sv = crew_announcement(key, SCENARIOS[key].title if key in SCENARIOS else "")
         log.add_system(self.game.clock_str(), f"Vakthavande i högtalaren: {sv}")
@@ -364,11 +361,8 @@ class SubApp(App):
     def action_chart(self) -> None:
         self._toggle_view(ChartScreen)
 
-    def action_profile(self) -> None:
-        self._toggle_view(ProfileScreen)
-
-    def action_systems(self) -> None:
-        self._toggle_view(SystemScreen)
+    def action_boat(self) -> None:
+        self._toggle_view(BoatScreen)
 
     def action_periscope(self) -> None:
         self._toggle_view(PeriscopeScreen)
@@ -379,7 +373,7 @@ class SubApp(App):
     def tab_views(self) -> tuple[type[Screen], ...]:
         """Tab-ordningen efter läget: under ytan ingen brygga; med folk på väg upp eller på
         bryggan kommer bryggan före periskopbilden (kikaren)."""
-        base = (ChartScreen, ProfileScreen, SystemScreen)
+        base = (ChartScreen, BoatScreen)
         if self._screen is not None and self._screen.big:
             base = (LogScreen,) + base
         if self.game is None or self.game.status().bridge == "shut":
@@ -387,8 +381,8 @@ class SubApp(App):
         return base + (BridgeScreen, PeriscopeScreen)
 
     def action_cycle(self) -> None:
-        """Tab: huvudvyn → (loggboken, om centralen är huvudvy) → sjökort → djupprofil →
-        systemtavla → periskop (och brygga) → huvudvyn."""
+        """Tab: huvudvyn → (loggboken, om centralen är huvudvy) → sjökort → ubåten →
+        periskop (och brygga) → huvudvyn."""
         if not self.running or self.game is None:
             return
         views = self.tab_views()

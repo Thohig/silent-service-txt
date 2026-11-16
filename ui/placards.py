@@ -14,9 +14,8 @@ PLATE_STYLE = "bold #1a160c on #a08850"
 VIEW_RU = {
     "LOGGBOKEN": "ВАХТЕННЫЙ ЖУРНАЛ",
     "NAVIGATÖRENS SJÖKORT": "ШТУРМАНСКАЯ КАРТА",
-    "DJUPPROFIL": "ПРОФИЛЬ ГЛУБИН",
+    "UBÅTEN": "ПОДВОДНАЯ ЛОДКА",
     "DJUPMÄTARE": "ГЛУБИНОМЕР",
-    "SYSTEMTAVLA": "ПУЛЬТ ЖИВУЧЕСТИ",
     "BRYGGAN": "МОСТИК",
     "TELEGRAM": "РАДИОГРАММЫ",
 }
