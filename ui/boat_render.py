@@ -39,13 +39,13 @@ class Layout:
 
 def layout(width: int, height: int, hull_rows: int, panel_rows: int) -> Layout:
     """Var delarna hamnar. `hull_rows`: genomskärningens höjd; `panel_rows`: panelernas
-    höjd fullt utfällda (det smala läget ger dem högst det, och högst en tredjedel)."""
+    höjd fullt utfällda (det smala läget ger dem högst det, och högst halva höjden)."""
     hull = hull_rows > 0 and height >= HULL_MIN_H
     rest = height - (hull_rows + 1 if hull else 0)
     if width >= SIDE_MIN_W:
         pw = round(width * PROFILE_SHARE)
         return Layout(hull, True, pw, rest, width - pw - GAP, rest)
-    ph = max(3, min(panel_rows, rest // 3))
+    ph = max(3, min(panel_rows, rest // 2, rest - PROFILE_MIN_H - 1))
     return Layout(hull, False, width, max(PROFILE_MIN_H, rest - ph - 1), width, ph)
 
 
@@ -89,7 +89,7 @@ def _lamps(comps: list[Compartment]) -> Text:
     return t
 
 
-def header(pv: ProfileView, sv: SystemsView, lay: Layout | None = None) -> Text:
+def header(pv: ProfileView, sv: SystemsView) -> Text:
     t = view_title(TITLE, " ")
     t.append(f" djup {pv.depth:.0f} m", style="bold")
     if abs(pv.ordered_depth - pv.depth) >= 1:
@@ -100,11 +100,19 @@ def header(pv: ProfileView, sv: SystemsView, lay: Layout | None = None) -> Text:
     t.append(" · ")
     word, style = WORST_TEXT[sv.worst()]
     t.append(f" {word} ", style=style)
-    if lay is not None and not lay.hull and sv.compartments():
-        t.append("  avd", style="dim")
-        t.append(_lamps(sv.compartments()))
-        if (fl := sv.first(Flooding)) is not None and fl.tons > 0.5:
-            t.append(f"  ≈ {fl.tons:.0f} ton", style=WATER)
+    return t
+
+
+def lamps(sv: SystemsView, lay: Layout | None) -> Text:
+    """Avdelningarna som lampor när genomskärningen inte får plats (annars tomt)."""
+    t = Text()
+    if lay is None or lay.hull or not sv.compartments():
+        return t
+    t.append(" avd", style="dim")
+    t.append(_lamps(sv.compartments()))
+    if (fl := sv.first(Flooding)) is not None and fl.tons > 0.5:
+        t.append(f"  ≈ {fl.tons:.0f} ton", style=WATER)
+    t.append(" ·")
     return t
 
 

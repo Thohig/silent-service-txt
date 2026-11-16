@@ -152,6 +152,7 @@ def test_compact_panels_put_danger_first_and_fold_calm_panels_when_short():
     assert len(short) <= 6
     assert "Läcka" in txt and "Pumpar" in txt                    # faran syns alltid fullt
     assert "SONAR" in txt and CALM_TEXT in txt and "Bakgrund" not in txt
+    assert txt.splitlines()[-1].strip().startswith("· " + CALM_TEXT)   # lugna sist, på en rad
     assert all(len(line.plain) == 50 for line in short)
 
 
@@ -168,3 +169,11 @@ def test_compact_panels_of_a_real_board_fit():
     _run(g, 60)
     rows = render_compact_panels(g.systems(), 56, 30)
     assert 0 < len(rows) <= 30 and "53-61" in _text(rows)
+
+
+def test_compact_panels_keep_only_alarms_when_even_folding_is_not_enough():
+    from ui.systems_render import render_compact_panels
+    v = _board(*(Gauge("MASKIN", f"Ok {i}", "bra", OK) for i in range(6)),
+               Gauge("MASKIN", "Vatten", "30 ton", DANGER), Gauge("SONAR", "Kontakter", "S-1", OK))
+    txt = _text(render_compact_panels(v, 50, 4))
+    assert "Vatten" in txt and "Ok 0" not in txt and "SONAR" in txt

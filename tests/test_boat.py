@@ -3,7 +3,7 @@ import random
 
 from sim.game import Game
 from sim.scenario import build_scenario
-from ui.boat_render import HULL_MIN_H, SIDE_MIN_W, header, layout, legend, render_boat
+from ui.boat_render import HULL_MIN_H, SIDE_MIN_W, header, lamps, layout, legend, render_boat
 
 
 def _game(seed=3):
@@ -19,7 +19,7 @@ def test_layout_side_by_side_when_wide_and_stacked_when_narrow():
     assert wide.profile_h == wide.panels_h == 40 - 7
     narrow = layout(90, 40, 6, 30)
     assert not narrow.side and narrow.profile_w == narrow.panels_w == 90
-    assert narrow.panels_h <= (40 - 7) // 3 and narrow.profile_h + narrow.panels_h + 1 <= 33
+    assert narrow.panels_h <= (40 - 7) // 2 and narrow.profile_h + narrow.panels_h + 1 <= 33
     low = layout(150, HULL_MIN_H - 1, 6, 30)
     assert not low.hull and low.profile_h == HULL_MIN_H - 1
 
@@ -36,11 +36,12 @@ def test_render_fits_and_shows_all_three_parts():
         assert ("III" in txt) == lay.hull                        # genomskärningen bara när högt
 
 
-def test_header_has_lamps_only_without_the_hull():
+def test_lamps_only_without_the_hull():
     g = _game()
     pv, sv = g.profile(), g.systems()
     _, tall = render_boat(pv, sv, 148, 36)
     _, low = render_boat(pv, sv, 148, 15)
-    assert "UBÅTEN" in header(pv, sv, tall).plain and "avd" not in header(pv, sv, tall).plain
-    assert "avd I II III" in header(pv, sv, low).plain
+    assert "UBÅTEN" in header(pv, sv).plain
+    assert lamps(sv, tall).plain == ""
+    assert "avd I II III" in lamps(sv, low).plain
     assert "fara" in legend().plain and "språngskikt" in legend().plain

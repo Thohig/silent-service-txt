@@ -7,7 +7,7 @@ from textual.app import ComposeResult
 from textual.css.query import NoMatches
 from textual.widgets import Static
 
-from .boat_render import header, legend, render_boat
+from .boat_render import header, lamps, legend, render_boat
 from .profile_render import DEFAULT_TIME_ZOOM, DEPTH_ZOOM, TIME_ZOOM, auto_depth_zoom
 from .viewbase import ViewScreen
 
@@ -78,8 +78,9 @@ class BoatScreen(ViewScreen):
         rows, lay = render_boat(pv, sv, w, h, spc, max_depth)
         self.profile_w = lay.profile_w
         body.update(Text("\n").join(rows))
-        t = header(pv, sv, lay)
+        t = header(pv, sv)
         t.append("\n")
+        t.append(lamps(sv, lay))
         t.append(f" 1 tecken = {spc} s · djup "
                  + ("automatiskt" if self.depth_zoom is None
                     else f"till {DEPTH_ZOOM[self.depth_zoom]} m"), style="dim")

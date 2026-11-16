@@ -115,16 +115,20 @@ def _tubes(rack: TubeRack, w: int) -> list[Text]:
     return out
 
 
-def _panel(view: SystemsView, name: str, w: int) -> list[Text]:
+def _panel(view: SystemsView, name: str, w: int, alarms_only: bool = False) -> list[Text]:
     head = Text(f"─ {name} ", style=TITLE, no_wrap=True)
     ru = PANEL_RU.get(name)
     if ru and len(name) + len(ru) + 6 <= w:
         head.append(f"{ru} ", style=RU_STYLE)
     head.append("─" * max(0, w - len(head.plain)), style="#2f4a36")
     rows = [head]
-    if name == "VAPEN" and (rack := view.first(TubeRack)) is not None:
+    gauges = view.gauges(name)
+    if alarms_only:                 # trångt: bara det som varnar, allvarligast först
+        gauges = sorted((g for g in gauges if SEVERITY[g.state] >= SEVERITY[WARN]),
+                        key=lambda g: -SEVERITY[g.state])
+    elif name == "VAPEN" and (rack := view.first(TubeRack)) is not None:
         rows.extend(_tubes(rack, w))
-    rows.extend(_gauge(g, w) for g in view.gauges(name))
+    rows.extend(_gauge(g, w) for g in gauges)
     return rows
 
 
@@ -163,34 +167,54 @@ def panel_state(view: SystemsView, name: str) -> str:
     return max((g.state for g in view.gauges(name)), key=SEVERITY.get, default=OK)
 
 
-def _calm_line(name: str, w: int) -> Text:
-    """En lugn panel på en rad: namnet och "allt i ordning"."""
+def _calm_rows(names: list[str], w: int) -> list[Text]:
+    """Lugna paneler på en gemensam rad (radbryts vid behov): "· allt i ordning: MASKIN · SONAR"."""
+    if not names:
+        return []
+    rows: list[Text] = []
     t = Text(no_wrap=True, overflow="ellipsis")
-    t.append(STATE_MARK[OK] + " ", style=STATE_STYLE[OK])
-    t.append(f"{name:<{LABEL_W}}", style=TITLE)
-    t.append(CALM_TEXT[:max(0, w - 2 - LABEL_W)], style=STATE_STYLE[OK])
-    return t
+    t.append(STATE_MARK[OK] + " " + CALM_TEXT + ":", style=STATE_STYLE[OK])
+    first = True
+    for n in names:
+        piece = (" " if first else " · ") + n
+        if not first and len(t.plain) + len(piece) > w:
+            rows.append(t)
+            t = Text("  ", no_wrap=True, overflow="ellipsis")
+            piece = n
+        t.append(piece, style=TITLE)
+        first = False
+    rows.append(t)
+    return rows
 
 
 def render_compact_panels(view: SystemsView, width: int, height: int) -> list[Text]:
     """Panelerna i en kolumn, högst `height` rader: fara och varning först och fullt;
-    får allt inte plats fälls lugna paneler (ok/info) ihop till en rad efter `FOLD_ORDER`."""
+    får allt inte plats fälls lugna paneler (ok/info) efter `FOLD_ORDER` till en gemensam
+    rad sist, och sedan visar de oroliga bara sina larm (varning och fara)."""
     names = sorted(view.panels(), key=lambda n: -SEVERITY[panel_state(view, n)])  # stabil
     full = {n: _panel(view, n, width) for n in names}
     calm = [n for n in names if SEVERITY[panel_state(view, n)] == 0]
-    folded: set[str] = set()
+    folded: list[str] = []
 
     def total() -> int:
-        return sum(1 if n in folded else len(full[n]) for n in names)
+        open_rows = sum(len(full[n]) for n in names if n not in folded)
+        return open_rows + len(_calm_rows([n for n in names if n in folded], width))
 
     rank = {n: i for i, n in enumerate(FOLD_ORDER)}
     for n in sorted(calm, key=lambda n: rank.get(n, -1)):
         if total() <= height:
             break
-        folded.add(n)
+        folded.append(n)
+    for n in reversed(names):       # fortfarande för högt: oroliga paneler bara med larmen
+        if total() <= height:
+            break
+        if n not in folded:
+            full[n] = _panel(view, n, width, alarms_only=True)
     rows: list[Text] = []
     for n in names:
-        rows.extend([_calm_line(n, width)] if n in folded else full[n])
+        if n not in folded:
+            rows.extend(full[n])
+    rows.extend(_calm_rows([n for n in names if n in folded], width))
     if len(rows) > height:
         rows = rows[:max(0, height - 1)] + [Text(" …", style="dim")]
     out = []
