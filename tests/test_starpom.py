@@ -308,3 +308,12 @@ def test_starpom_keeps_the_mast_for_a_required_report():
     g.say(Role.SONAR, "order.declined", {"order": "djup 91", "made_t": g.now}, kind="suggest")
     _run(g, 12)
     assert g.world.own.state.ordered_depth == 91
+
+
+def test_attack_order_widens_the_mandate_but_never_to_firing():
+    g, _ = _game()                              # kvadrat 7: patrull
+    assert not in_mandate(g, "anfall S-1")
+    g, _ = _game(key="konvoj")
+    assert in_mandate(g, "anfall S-1")
+    for order in ("salva S-1", "eld tub 1 mot S-1", "sänd rapport", "ytläge"):
+        assert not in_mandate(g, order), order

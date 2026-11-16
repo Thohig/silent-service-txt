@@ -19,7 +19,7 @@ from multiprocessing import Pool
 from sim.events import OrderIssued, ReportDelivered
 from sim.game import Game
 from sim.scenario import build_scenario
-from sim.stations.starpom import MANDATE
+from sim.stations.starpom import mandate_for
 
 LIMIT_S = 6 * 3600
 CALM_S = 600
@@ -39,7 +39,7 @@ def run(args):
         nonlocal xo_orders
         if e.by == "starpom":
             xo_orders += 1
-            if not isinstance(e.order, MANDATE):
+            if not isinstance(e.order, mandate_for(g.knowledge.order_tasks)):
                 bad.append(e.text)
 
     g.bus.subscribe(ReportDelivered, on_report)

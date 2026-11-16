@@ -3,9 +3,11 @@
 Kaptenen lämnar över (`starpom har befälet`) och går till sin hytt. Starpom håller då
 de stående orderna (kurs, fart, djup och pågående uppdrag som farleden, följ eller anfall
 fortsätter som förut) och beslutar om besättningens förslag inom ett fast mandat
-(MANDATE): djup, kurs, fart, smygmotor, periskop, fix, ventilera, skenmål … Aldrig
-avfyring, salva, anfall, radiosändning, ytläge eller att avbryta uppdraget; då
-väcker han kaptenen. Inga slumpade beslut, och han läser bara kunskapen och egna
+(MANDATE): djup, kurs, fart, smygmotor, periskop, fix, ventilera, skenmål … Ordern
+kan lägga till (ORDER_MANDATE): i ett anfallsuppdrag går han mot skjutläget. Aldrig
+avfyring, salva, radiosändning, ytläge eller att avbryta uppdraget; då väcker han
+kaptenen. Han väger förslagen mot ordern (`_objection`) och säger nej till det som
+skulle bryta anfallet, följandet eller rapporten. Inga slumpade beslut, och han läser bara kunskapen och egna
 instrument.
 
 Väckning på tre nivåer:
@@ -38,7 +40,7 @@ from ..reports import Quality
 from ..russian import ru
 from .base import Station
 from .engineering import EngineReport, SetPropulsion, Ventilate
-from .navigation import (BottomFix, EchoSounder, FollowFairway, GoToOpening, GoToStation,
+from .navigation import (AttackApproach, BottomFix, EchoSounder, FollowFairway, GoToOpening, GoToStation,
                          GoToWait, IceReport, NavigationStation, ReportPosition, SetCourse,
                          SetDepth, SetSpeed, SettleOnBottom, SteerTo, TakeFix)
 from .officer import is_big_ship, situation
@@ -63,6 +65,15 @@ MANDATE: tuple[type[Order], ...] = (
     QuerySolution, ShowPlot, EngineReport, TubeStatus, TorpedoStatus, FiringSolution,
     RadioStatus, LaunchDecoy, LoadTube,
 )
+
+# Det ordern lägger till: i ett anfallsuppdrag får starpom gå mot skjutläget (`anfall S-x`).
+# Avfyringen är alltid kaptenens; i skjutläget ropas han till centralen.
+ORDER_MANDATE: dict[str, tuple[type[Order], ...]] = {"anfall": (AttackApproach,)}
+
+
+def mandate_for(tasks) -> tuple[type[Order], ...]:
+    """Starpoms mandat med det ordern (Knowledge.order_tasks) lägger till."""
+    return MANDATE + tuple(c for t in sorted(tasks) for c in ORDER_MANDATE.get(t, ()))
 
 
 @dataclass(frozen=True)
@@ -135,9 +146,10 @@ def in_mandate(game, order_text: str) -> bool:
     parts = split_orders(order_text)
     if not parts:
         return False
+    allowed = mandate_for(game.knowledge.order_tasks)
     for part in parts:
         o = game.registry.parse(part)
-        if not isinstance(o, MANDATE):
+        if not isinstance(o, allowed):
             return False
         if isinstance(o, SetDepth) and o.depth < 1:     # ytläge är kaptenens beslut
             return False
