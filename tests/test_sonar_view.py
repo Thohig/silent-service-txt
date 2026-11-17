@@ -151,3 +151,17 @@ def test_heard_marks_lost_and_own_sounds():
     assert rows[2][0] == "!"
     lost_row = next(r for r in rows if "∅" in r)
     assert "S-2" in lost_row
+
+
+def test_solution_only_when_asked_and_turns_marked():
+    items = [SolutionTrace("S-1", tuple((t, 300.0) for t in range(0, 1801, 20)), Quality.GOD),
+             TargetTurn(900, "S-1", 300.0),
+             OwnTurn(1200, 90.0, 150.0), OwnTurn(600, 150.0, 120.0)]
+    off = _plain(render_sonar(_view(items=items), 100, 30, center=180.0))
+    on = _plain(render_sonar(_view(items=items), 100, 30, center=180.0, show_solution=True))
+    braille = lambda rows: sum(1 for r in rows for ch in r if "⠀" < ch <= "⣿")  # noqa: E731
+    assert braille(off) == 0 and braille(on) > 20
+    assert any("‹gir" in r for r in off)
+    margin = [r[1] for r in off]
+    assert "↻" in margin and "↺" in margin
+    assert any(r.count("╌") > 20 for r in off)

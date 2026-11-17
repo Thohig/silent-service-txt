@@ -10,9 +10,11 @@ from __future__ import annotations
 from rich.text import Text
 
 from sim.geo import angle_diff, norm360
-from sim.sonar_view import BearingTrace, HeardMark, LostMark, OwnMark, SonarView
+from sim.sonar_view import (BearingTrace, HeardMark, LostMark, OwnMark, OwnTurn, SolutionTrace,
+                            SonarView, TargetTurn)
 
 from .canvas import Canvas, DotLayer
+from .widgets import QUALITY_STYLE
 
 LEFT = 2                         # marginal för egna girar och egna ljud
 RIGHT = 6                        # klockslagen
@@ -24,8 +26,8 @@ BEARING_STEPS = (10, 15, 30, 45, 90)
 BEARING_LABEL_MIN_COLS = 7
 JOIN_GAP_S = 30                  # bäringar närmare i tid än så binds ihop med en linje …
 JOIN_MAX_DEG = 12.0              # … om bäringen inte hoppat mer (annars blir det vågräta streck)
-STRONG_SE = 12.0                 # dB: tre prickar breda
-MEDIUM_SE = 4.0                  # dB: två
+STRONG_SE = 20.0                 # dB: tre prickar breda
+MEDIUM_SE = 6.0                  # dB: två
 
 STYLE = {
     "threat": "bold #ff7f5f",
@@ -49,8 +51,14 @@ STYLE = {
     "heard_other": "cyan",
     "own_sound": "bold white",
     "lost": "#b8b4a4",
+    "target_turn": "bold #f0ead2",
+    "own_turn": "bold #c8d0b0",
+    "own_turn_line": "#33463a",
 }
-QUIET_MARKS = {"ping", "buoy_ping"}     # täta: ritas bara där inget annat står
+SOLUTION_PRIO = 1.0
+SOLUTION_DASH = 2
+QUIET_MARKS = {"ping", "buoy_ping"}
+BACKGROUND = {"┊", "╌"}                 # rutnätet och girlinjen: bakom prickarna     # täta: ritas bara där inget annat står
 TRACE_PRIO = 2.0
 
 
@@ -105,15 +113,20 @@ def render_sonar(view: SonarView, width: int, height: int, window_s: int = 1800,
 
     _bearing_axis(canvas, wf)
     _grid(over, wf)
+    if show_solution:
+        for sol in view.of(SolutionTrace):
+            _solution(dots, wf, sol)
     for tr in view.traces:
         _trace(dots, over, wf, tr)
     _heard(dots, over, wf, view)
+    _target_turns(dots, over, wf, view)
+    _own_turns(dots, over, wf, view)
     _time_axis(canvas, wf)
     _own_marks(canvas, wf, view)
 
     for r in range(rows):
         for c in range(cols):
-            if (r, c) in over and over[(r, c)][0] != "┊":
+            if (r, c) in over and over[(r, c)][0] not in BACKGROUND:
                 ch, st = over[(r, c)]
             elif (cell := dots.cell(r, c)) is not None:
                 ch, st = cell[0], cell[1]
@@ -207,7 +220,7 @@ def _trace(dots: DotLayer, over: dict, wf: Waterfall, tr: BearingTrace) -> None:
         prev = (t, x, y)
         if newest is None or y < newest[1]:
             newest = (x, y)
-    if newest is not None:
+    if newest is not None and tr.held:          # en tappad kontakt får sin etikett vid ∅
         _label(over, wf, newest, tr.designation, style)
 
 
@@ -219,7 +232,7 @@ def _label(over: dict, wf: Waterfall, at: tuple[float, float], text: str, style:
         return
     for i, ch in enumerate(text):
         cur = over.get((r, start + i))
-        if cur is not None and cur[0] != "┊":
+        if cur is not None and cur[0] not in BACKGROUND:
             return
     for i, ch in enumerate(text):
         over[(r, start + i)] = (ch, style)
@@ -228,7 +241,7 @@ def _label(over: dict, wf: Waterfall, at: tuple[float, float], text: str, style:
 # --- det sonar hört -----------------------------------------------------------------
 def _free(dots: DotLayer, over: dict, r: int, c: int) -> bool:
     cur = over.get((r, c))
-    return dots.cell(r, c) is None and (cur is None or cur[0] == "┊")
+    return dots.cell(r, c) is None and (cur is None or cur[0] in BACKGROUND)
 
 
 def _heard(dots: DotLayer, over: dict, wf: Waterfall, view: SonarView) -> None:
@@ -252,8 +265,56 @@ def _heard(dots: DotLayer, over: dict, wf: Waterfall, view: SonarView) -> None:
 
 
 def _own_marks(canvas: Canvas, wf: Waterfall, view: SonarView) -> None:
-    """Våra egna ljud (aktiv ping, avfyring, skenmål, nödblåsning) i vänstermarginalen."""
+    """Våra egna ljud (aktiv ping, avfyring, skenmål, nödblåsning) och girar i
+    vänstermarginalen."""
+    for turn in view.of(OwnTurn):
+        r = wf.row(turn.t)
+        if r is not None:
+            canvas.put(HEAD_ROWS + r, 1, own_turn_label(turn), STYLE["own_turn"])
     for m in view.of(OwnMark):
         r = wf.row(m.t)
         if r is not None:
             canvas.put(HEAD_ROWS + r, 0, m.symbol[0], STYLE["own_sound"])
+
+
+# --- plottet och våra girar -----------------------------------------------------------
+def _solution(dots: DotLayer, wf: Waterfall, sol: SolutionTrace) -> None:
+    """Plottets lösning: de bäringar den förutsäger, streckat i kvalitetens färg. Där
+    spåret och lösningen glider isär stämmer lösningen inte längre."""
+    style = QUALITY_STYLE[sol.quality]
+    pts = []
+    for t, b in sol.points:
+        y = wf.y(t)
+        if y is not None:
+            pts.append((wf.x(wf.bearing(t, b)), y))
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        if abs(x1 - x0) <= JOIN_MAX_DEG / 360.0 * wf.w:
+            dots.line(x0, y0, x1, y1, style, SOLUTION_PRIO, dash=SOLUTION_DASH)
+
+
+def _target_turns(dots: DotLayer, over: dict, wf: Waterfall, view: SonarView) -> None:
+    """Där plottet märkte att målet girat: ⟩ eller ⟨ bredvid spåret, mot den sida där
+    det finns plats, och "gir"."""
+    for turn in view.of(TargetTurn):
+        r = wf.row(turn.t)
+        if r is None:
+            continue
+        x = wf.x(wf.bearing(turn.t, turn.bearing))
+        _label(over, wf, (x, 4 * r), "‹gir", STYLE["target_turn"])
+
+
+def _own_turns(dots: DotLayer, over: dict, wf: Waterfall, view: SonarView) -> None:
+    """Våra girar: pil i vänstermarginalen (läggs på ritytan i `_own_turn_arrows`) och en
+    svag streckad linje tvärs över där inget annat står; där knäcker bäringskurvorna."""
+    for turn in view.of(OwnTurn):
+        r = wf.row(turn.t)
+        if r is None:
+            continue
+        for c in range(wf.cols):
+            if _free(dots, over, r, c) and c % 2 == 0:
+                over[(r, c)] = ("╌", STYLE["own_turn_line"])
+
+
+def own_turn_label(turn: OwnTurn) -> str:
+    """↻ styrbord, ↺ babord."""
+    return "↻" if angle_diff(turn.course_to, turn.course_from) > 0 else "↺"
