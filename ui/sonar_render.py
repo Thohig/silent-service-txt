@@ -10,7 +10,7 @@ from __future__ import annotations
 from rich.text import Text
 
 from sim.geo import angle_diff, norm360
-from sim.sonar_view import BearingTrace, SonarView
+from sim.sonar_view import BearingTrace, HeardMark, LostMark, OwnMark, SonarView
 
 from .canvas import Canvas, DotLayer
 
@@ -40,7 +40,17 @@ STYLE = {
     "label": "#c8d0b0",
     "time": "#7f9a80",
     "base": "#0b0f0c",
+    # det sonar hört (som djupprofilen) och våra egna ljud
+    "heard_ping": "cyan",
+    "heard_splash": "bold yellow",
+    "heard_explosion": "bold red",
+    "heard_practice": "yellow",
+    "heard_buoy": "#c6a0ff",
+    "heard_other": "cyan",
+    "own_sound": "bold white",
+    "lost": "#b8b4a4",
 }
+QUIET_MARKS = {"ping", "buoy_ping"}     # täta: ritas bara där inget annat står
 TRACE_PRIO = 2.0
 
 
@@ -97,7 +107,9 @@ def render_sonar(view: SonarView, width: int, height: int, window_s: int = 1800,
     _grid(over, wf)
     for tr in view.traces:
         _trace(dots, over, wf, tr)
+    _heard(dots, over, wf, view)
     _time_axis(canvas, wf)
+    _own_marks(canvas, wf, view)
 
     for r in range(rows):
         for c in range(cols):
@@ -211,3 +223,37 @@ def _label(over: dict, wf: Waterfall, at: tuple[float, float], text: str, style:
             return
     for i, ch in enumerate(text):
         over[(r, start + i)] = (ch, style)
+
+
+# --- det sonar hört -----------------------------------------------------------------
+def _free(dots: DotLayer, over: dict, r: int, c: int) -> bool:
+    cur = over.get((r, c))
+    return dots.cell(r, c) is None and (cur is None or cur[0] == "┊")
+
+
+def _heard(dots: DotLayer, over: dict, wf: Waterfall, view: SonarView) -> None:
+    """Transienter som tecken vid sin bäring och tid; tappade kontakter som ∅ med
+    beteckningen. Pingar är täta och står bara där inget annat står."""
+    for m in sorted(view.of(HeardMark), key=lambda m: m.t):
+        r = wf.row(m.t)
+        if r is None:
+            continue
+        c = wf.col(wf.bearing(m.t, m.bearing))
+        if m.kind in QUIET_MARKS and not _free(dots, over, r, c):
+            continue
+        over[(r, c)] = (m.symbol[0], STYLE.get(m.style, "white"))
+    for lost in view.of(LostMark):
+        r = wf.row(lost.t)
+        if r is None:
+            continue
+        x = wf.x(wf.bearing(lost.t, lost.bearing))
+        over[(r, int(x) // 2)] = ("∅", STYLE["lost"])
+        _label(over, wf, (x, 4 * r), lost.designation, STYLE["lost"])
+
+
+def _own_marks(canvas: Canvas, wf: Waterfall, view: SonarView) -> None:
+    """Våra egna ljud (aktiv ping, avfyring, skenmål, nödblåsning) i vänstermarginalen."""
+    for m in view.of(OwnMark):
+        r = wf.row(m.t)
+        if r is not None:
+            canvas.put(HEAD_ROWS + r, 0, m.symbol[0], STYLE["own_sound"])

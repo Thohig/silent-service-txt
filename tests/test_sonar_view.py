@@ -6,7 +6,8 @@ import pytest
 from sim.game import Game
 from sim.reports import Quality
 from sim.scenario import build_scenario
-from sim.sonar_view import (BearingTrace, ContactLine, HeardMark, OwnTurn, SolutionTrace,
+from sim.sonar_view import (BearingTrace, ContactLine, HeardMark, LostMark, OwnMark, OwnTurn,
+                            SolutionTrace,
                             SonarView, TargetTurn, bearing_drift, drift_words, own_turns)
 
 
@@ -132,3 +133,21 @@ def test_old_points_outside_window_are_not_drawn():
     v = _view(items=[BearingTrace("S-1", pts, "contact")])
     rows = _plain(render_sonar(v, 100, 30, window_s=600))
     assert not any(any("⠀" < ch <= "⣿" for ch in r) for r in rows)
+
+
+def test_heard_marks_lost_and_own_sounds():
+    pts = tuple((t, 100.0, 3.0) for t in range(600, 1500, 5))
+    items = [BearingTrace("S-2", pts, "threat", held=False),
+             HeardMark(1700, "explosion", 300.0, "✱", "heard_explosion"),
+             HeardMark(1500, "splash", 300.0, "↓", "heard_splash"),
+             HeardMark(1200, "ping", 100.0, "◦", "heard_ping", "S-2"),   # på spåret: syns inte
+             HeardMark(1000, "ping", 200.0, "◦", "heard_ping"),
+             LostMark(1500, "S-2", 100.0),
+             OwnMark(1790, "ping", "!")]
+    rows = _plain(render_sonar(_view(items=items), 100, 30, window_s=1800, center=180.0))
+    text = "\n".join(rows)
+    assert "✱" in text and "↓" in text and "∅" in text
+    assert text.count("◦") == 1
+    assert rows[2][0] == "!"
+    lost_row = next(r for r in rows if "∅" in r)
+    assert "S-2" in lost_row
