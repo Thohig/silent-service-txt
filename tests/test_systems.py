@@ -7,7 +7,7 @@ from sim.crew import Role
 from sim.game import Game
 from sim.scenario import build_scenario
 from sim.stations import DEFAULT_STATIONS, Station, TorpedoRoom
-from sim.systems import DANGER, OK, WARN, Compartment, Gauge, TubeRack
+from sim.systems import DANGER, OK, WARN, Compartment, Flooding, Gauge, TubeRack
 from ui.systems_render import render_systems
 
 
@@ -177,3 +177,25 @@ def test_compact_panels_keep_only_alarms_when_even_folding_is_not_enough():
                Gauge("MASKIN", "Vatten", "30 ton", DANGER), Gauge("SONAR", "Kontakter", "S-1", OK))
     txt = _text(render_compact_panels(v, 50, 4))
     assert "Vatten" in txt and "Ok 0" not in txt and "SONAR" in txt
+
+
+def test_hull_is_drawn_in_braille_with_compartments_as_text():
+    from ui.systems_render import HULL_ROWS, render_hull
+    g = _game()
+    _run(g, 5)
+    v = g.systems()
+    rows = render_hull(v.compartments(), None, 120)
+    assert len(rows) == HULL_ROWS
+    text = "\n".join(r.plain for r in rows)
+    assert sum(0x2800 < ord(ch) <= 0x28FF for ch in text) > 150     # skrov, torn och skott
+    for name in ("torped", "central", "reaktor", "akter", "IX"):
+        assert name in text
+    assert "╪" in text                                              # propellern
+    g.world.own.sys.flooding = 40.0
+    _run(g, 2)
+    v = g.systems()
+    wet = "\n".join(r.plain for r in render_hull(v.compartments(), v.first(Flooding), 120))
+    assert "40 ton vatten" in wet
+    assert sum(0x2800 < ord(ch) <= 0x28FF for ch in wet) > \
+        sum(0x2800 < ord(ch) <= 0x28FF for ch in text) + 50        # vattnet i kölsvinet
+    assert render_hull(v.compartments(), None, 40) == []           # för smalt

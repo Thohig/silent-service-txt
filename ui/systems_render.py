@@ -1,11 +1,14 @@
 """Ritar systemtavlan: genomskärning av ubåten överst, panelerna under."""
 from __future__ import annotations
 
+import math
+
 from rich.text import Text
 
 from sim.systems import (DANGER, INFO, OFF, OK, SEVERITY, WARN, Compartment, Flooding, Gauge,
                          SystemsView, TubeRack)
 
+from .canvas import Canvas, DotLayer
 from .placards import PANEL_RU, RU_STYLE
 
 STATE_STYLE = {OK: "#8fbf8f", INFO: "#c8d0b0", OFF: "#6f7f70", WARN: "bold yellow",
@@ -29,46 +32,99 @@ def _center(s: str, w: int) -> str:
 
 
 # --- genomskärningen ----------------------------------------------------------------
+HULL_ROWS = 7               # torn, överkant, tre textrader, kölsvin, underkant
+BOW_COLS, STERN_COLS = 3, 6
+
+
 def render_hull(comps: list[Compartment], flooding: Flooding | None, width: int) -> list[Text]:
+    """Genomskärningen: skrovet, tornet, skotten och vattnet i braille, avdelningarnas
+    nummer, namn och läge som text (färg efter läget). Fören till vänster."""
     if not comps:
         return []
     n = len(comps)
-    cw = min(12, (width - 7 - (n - 1)) // n)
+    cw = min(12, (width - BOW_COLS - STERN_COLS - 2 - (n - 1)) // n)
     if cw < 4:
         return []                           # för smalt för en genomskärning
     inner = n * cw + (n - 1)
-    pad = " " * max(0, (width - inner - 6) // 2)
+    total = BOW_COLS + inner + STERN_COLS
+    left = max(0, (width - total) // 2)
+    ic0 = left + BOW_COLS                   # första kolumnen inne i skrovet
+    ic1 = ic0 + inner - 1
+    w = min(width, left + total + 1)
+    c = Canvas(w, HULL_ROWS, "")
+    dots = DotLayer(w, HULL_ROWS)
+    y_top, y_bot = 6.0, 4.0 * (HULL_ROWS - 1) + 1
+    cy, ry = (y_top + y_bot) / 2, (y_bot - y_top) / 2
+    style_of = lambda cp: f"{STATE_STYLE[cp.state]} {CELL_BG.get(cp.state, '')}".strip()
 
-    def line(left: str, cells: list[tuple[str, str]], sep: str, right: str) -> Text:
-        t = Text(pad + " ", style=HULL, no_wrap=True, overflow="crop")
-        t.append(left, style=HULL)
-        for i, (s, style) in enumerate(cells):
-            if i:
-                t.append(sep, style=HULL)
-            t.append(s, style=style)
-        t.append(right, style=HULL)
-        return t
+    # avdelningarna: bakgrund vid varning/fara, nummer, namn och läge
+    seps = []
+    for i, cp in enumerate(comps):
+        x = ic0 + i * (cw + 1)
+        st = style_of(cp)
+        for r in range(2, HULL_ROWS - 1):
+            c.text(r, x, " " * cw, st)
+        num = ROMAN[cp.no - 1] if cp.no <= len(ROMAN) else str(cp.no)
+        for r, txt in ((2, num), (3, cp.name), (4, cp.note)):
+            c.text(r, x, _center(txt, cw), st)
+        if i:
+            seps.append(x - 1)
 
-    # tornet över centralen (III)
-    sail_at = next((i for i, c in enumerate(comps) if c.no == 3), n // 3)
-    x0 = 3 + sail_at * (cw + 1)
-    sail = Text(pad + " " * x0, no_wrap=True, overflow="crop")
-    sail.append(_center("▁▄▆▆▄▁", cw), style=HULL)
-    rows = [sail,
-            line(" ╭", [("─" * cw, HULL)] * n, "┬", "╮")]
-    style_of = lambda c: f"{STATE_STYLE[c.state]} {CELL_BG.get(c.state, '')}".strip()
-    rows.append(line("╱ ", [(_center(ROMAN[c.no - 1] if c.no <= len(ROMAN) else str(c.no), cw),
-                             style_of(c)) for c in comps], "│", "╲"))
-    rows.append(line("│ ", [(_center(c.name, cw), style_of(c)) for c in comps], "│", " ═╪═"))
-    rows.append(line("╲ ", [(_center(c.note, cw), style_of(c)) for c in comps], "│", "╱"))
+    # vattnet i kölsvinet: prickar från botten, högre ju mer det är
+    water_label = None
     if flooding is not None and flooding.tons > 0.5:
-        # vattnet ligger i kölsvinet längs hela skrovet; tätare ju mer det är
         frac = min(1.0, flooding.tons / flooding.limit)
+        level = y_bot - 1 - max(1.5, frac * (y_bot - y_top - 2))
+        for yy in range(int(math.ceil(level)), int(y_bot)):
+            for xx in range(2 * ic0, 2 * (ic1 + 1)):
+                if yy <= level + 1 or (xx + yy) % 2 == 0:
+                    dots.dot(xx, yy, WATER, prio=1)
         fill = "≈" if frac >= 0.2 else "~" if frac >= 0.05 else "·"
-        label = f" {flooding.tons:.0f} ton vatten" + (", läcker " if flooding.leaking else " ")
-        water = label.center(inner, fill) if len(label) < inner else fill * inner
-        rows.append(line(" │", [(water, WATER)], "", "│"))
-    rows.append(line(" ╰", [("─" * cw, HULL)] * n, "┴", "╯"))
+        label = f" {fill} {flooding.tons:.0f} ton vatten" + (", läcker " if flooding.leaking else " ") + f"{fill} "
+        if len(label) < inner:
+            water_label = (ic0 + (inner - len(label)) // 2, label)
+
+    # skrovet: rundad för, rak överkant och underkant, avsmalnande akter med propeller och roder
+    x_bow = 2.0 * ic0
+    x_aft = 2.0 * (ic1 + 1)
+    dots.line(x_bow, y_top, x_aft, y_top, HULL, prio=2)
+    dots.line(x_bow, y_bot, x_aft, y_bot, HULL, prio=2)
+    rx = 2.0 * BOW_COLS - 1
+    for k in range(0, 61):
+        a = math.pi / 2 + math.pi * k / 60
+        dots.dot(x_bow + rx * math.cos(a), cy - ry * math.sin(a), HULL, prio=2)
+    tip = x_aft + 2.0 * (STERN_COLS - 2)
+    dots.line(x_aft, y_top, tip, cy - 1.5, HULL, prio=2)
+    dots.line(x_aft, y_bot, tip, cy + 1.5, HULL, prio=2)
+    dots.line(tip + 1, cy - ry * 0.8, tip + 1, cy + ry * 0.8, HULL, prio=2)     # rodret
+    c.put(int(cy // 4), int(tip // 2) + 1, "╪", HULL)                            # propellern
+    # skotten mellan avdelningarna
+    for sc in seps:
+        dots.line(2 * sc + 1, y_top + 1, 2 * sc + 1, y_bot - 1, HULL, prio=2)
+    # tornet över centralen (III)
+    sail_at = next((i for i, cp in enumerate(comps) if cp.no == 3), n // 3)
+    sx0 = 2.0 * (ic0 + sail_at * (cw + 1)) + cw * 0.4
+    sx1 = sx0 + cw * 1.2
+    dots.line(sx0, y_top, sx0 + 2, 1, HULL, prio=2)
+    dots.line(sx0 + 2, 1, sx1 - 1, 1, HULL, prio=2)
+    dots.line(sx1 - 1, 1, sx1, y_top, HULL, prio=2)
+    dots.line((sx0 + sx1) / 2 + 1, 1, (sx0 + sx1) / 2 + 1, -3, HULL, prio=2)    # periskopet
+
+    rows = []
+    for r in range(HULL_ROWS):
+        for col in range(w):
+            ch, st = c.cells[r][col]
+            d = dots.cell(r, col)
+            if d is not None and ch == " ":
+                bg = st[st.index(" on "):] if " on " in st else (st if st.startswith("on ") else "")
+                c.cells[r][col] = (d[0], f"{d[1]}{(' ' + bg.strip()) if bg else ''}")
+        if water_label and r == HULL_ROWS - 2:          # etiketten ovanpå vattnet
+            c.text(r, water_label[0], water_label[1], WATER)
+        line = Text(no_wrap=True, overflow="crop")
+        for ch, st in c.cells[r]:
+            line.append(ch, style=st or None)
+        line.rstrip()
+        rows.append(line)
     return rows
 
 

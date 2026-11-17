@@ -126,7 +126,7 @@ class DotLayer:
         self.cells: dict[tuple[int, int], list] = {}      # (rad, kol) -> [bitar, stil, prio]
 
     def dot(self, x: float, y: float, style: str, prio: float = 0.0) -> tuple[int, int] | None:
-        xi, yi = math.floor(x), math.floor(y)
+        xi, yi = math.floor(x + 1e-6), math.floor(y + 1e-6)     # 53,9999… är 54
         col, row = xi // 2, yi // 4
         if not (0 <= col < self.cols and 0 <= row < self.rows):
             return None
