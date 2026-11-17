@@ -241,6 +241,13 @@ def test_cabin_render_shows_phone_and_walk():
     assert "På väg till centralen, 20 s" in text
     small = render_cabin(s, 0.0, 40, 14)
     assert len(small) == 14
+    # stort fönster: rummet från kudden med dörren och ljuset från gången, filten och handen
+    for w, h in ((120, 30), (90, 22), (64, 18)):
+        rows = [r.plain for r in render_cabin(s, 0.0, w, h)]
+        assert len(rows) == h and all(len(r) == w for r in rows)
+        room = "\n".join(rows)
+        assert "КАШТАН" in room and "▔" in room and "╼" in room and "▓" in room
+        assert "KURS" in room and "DJUP" in room
 
 
 @pytest.mark.slow

@@ -1,5 +1,10 @@
 """Kaptenens hytt (каюта командира) som bild.
 
+Från `ROOM_MIN_W` × `ROOM_MIN_H` ses hytten från kudden i perspektiv: taket med rörstråk,
+det bortre skottet med skrivbordet, repeatrarna och kassaskåpet, dörren längst bort på
+styrbords skott med ljuset från gången under, filten över benen och handen nederst, och
+«Каштан» inom räckhåll till vänster. I mindre fönster den enkla bilden:
+
 Kojen, skrivbordet med sjökortsrullen och nattlampan, repeatrarna för kurs och djup
 och skeppsklockan på skottet (braille, `ui/instruments.py`), och snabbtelefonen «Каштан»
 med sin lampa: släckt, lyser (något att veta) eller blinkar rött (det ringer). Inga
@@ -18,7 +23,7 @@ from sim.game import StatusSnapshot
 from sim.fmt import kn
 
 from . import instruments as ins
-from .canvas import Canvas
+from .canvas import Braille, Canvas
 from .central_render import PALETTES
 from .placards import PLATE_STYLE
 
@@ -159,17 +164,207 @@ def footer(s: StatusSnapshot) -> Text:
     return t
 
 
-def render_cabin(s: StatusSnapshot, t: float, width: int, height: int) -> list[Text]:
-    w, h = max(MIN_W, width), max(MIN_H, height)
-    c = Canvas(w, h, BG)
-    _plate(c, w)
-    if s.captain_at == "walking":
-        _walk(c, w, h, s, t)
-        return c.lines()[:height]
-    # skottets plåtfogar
+# --- rummet sett från kudden ----------------------------------------------------------
+ROOM_MIN_W, ROOM_MIN_H = 64, 18
+EDGE = "#6a5a42 on #15110c"
+SEAM = "#3a3226 on #15110c"
+PIPE = "#7a6e5a on #15110c"
+DOOR = "#4a3a24 on #15110c"
+DOOR_EDGE = "#8a6a40 on #15110c"
+STRIP = "#c0903a on #15110c"
+FLOOR = "#2e261c on #15110c"
+BLANKET_SH = ("#2e3648 on #15110c", "#46526e on #15110c", "#6a7a9c on #15110c")
+HAND = "#b89a78 on #15110c"
+HAND_DARK = "#7a6450 on #15110c"
+
+
+def _lerp(a: float, b: float, f: float) -> float:
+    return a + (b - a) * f
+
+
+def _on_line(p0: tuple[float, float], p1: tuple[float, float], x: float) -> float:
+    """y på linjen p0–p1 vid x (prickar)."""
+    (x0, y0), (x1, y1) = p0, p1
+    if x1 == x0:
+        return y0
+    return _lerp(y0, y1, (x - x0) / (x1 - x0))
+
+
+class _Room:
+    """Rummets geometri: det bortre skottet och linjerna mot fyra hörn nära ögat."""
+
+    def __init__(self, w: int, h: int) -> None:
+        self.w, self.h = w, h
+        self.fl, self.fr = round(w * 0.17), round(w * 0.74)   # bortre skottet, kolumner
+        self.ft, self.fb = max(3, round(h * 0.17)), round(h * 0.60)
+        W, H = 2 * w - 1, 4 * h - 1
+        self.near = {"tl": (0.0, 4.0), "tr": (float(W), 4.0), "bl": (0.0, float(H)),
+                     "br": (float(W), float(H))}
+        self.far = {"tl": (2.0 * self.fl, 4.0 * self.ft), "tr": (2.0 * self.fr + 1, 4.0 * self.ft),
+                    "bl": (2.0 * self.fl, 4.0 * self.fb + 3), "br": (2.0 * self.fr + 1, 4.0 * self.fb + 3)}
+        self.vp = (_lerp(self.far["tl"][0], self.far["tr"][0], 0.45),
+                   _lerp(self.far["tl"][1], self.far["bl"][1], 0.5))
+
+    def edge(self, corner: str) -> tuple[tuple[float, float], tuple[float, float]]:
+        return self.near[corner], self.far[corner]
+
+    def toward_vp(self, x: float, y: float, y_stop: float) -> tuple[float, float]:
+        """Punkten där linjen från (x, y) mot flyktpunkten når höjden y_stop."""
+        vx, vy = self.vp
+        f = (y_stop - y) / (vy - y) if vy != y else 0.0
+        return _lerp(x, vx, f), y_stop
+
+
+def _room_lines(c: Canvas, g: _Room) -> None:
+    """Hörnlinjerna, takets rör och skottens plåtfogar i braille."""
+    b = Braille(g.w, g.h)
+    for corner in ("tl", "tr", "bl", "br"):
+        (x0, y0), (x1, y1) = g.edge(corner)
+        b.line(x0, y0, x1, y1, EDGE, prio=2)
+    # rörstråk i taket mot flyktpunkten, två och två
+    y_far = g.far["tl"][1]
+    for f, gap in ((0.30, 3.0), (0.60, 2.0), (0.86, 4.0)):
+        for dx in (0.0, gap):
+            x = _lerp(0, g.near["tr"][0], f) + dx
+            x1, y1 = g.toward_vp(x, 4.0, y_far)
+            b.line(x, 4.0, x1, y1, PIPE, prio=1)
+    # plåtfogar på sidoskotten
+    for side in ("l", "r"):
+        top, bot = g.edge("t" + side), g.edge("b" + side)
+        x_near, x_far = top[0][0], top[1][0]
+        for f in ((0.55,) if side == "l" else (0.45,)):
+            x = _lerp(x_near, x_far, f)
+            b.line(x, _on_line(*top, x), x, _on_line(*bot, x), SEAM)
+    # durkplåtarnas fogar mellan kojen och styrbords skott
+    y_floor = g.far["br"][1]
+    for f in (0.86, 0.94):
+        x = _lerp(0, g.near["br"][0], f)
+        x1, y1 = g.toward_vp(x, g.near["br"][1], y_floor)
+        b.line(x, g.near["br"][1], x1, y1, FLOOR)
+    b.blit(c, 0, 0)
+
+
+def _far_wall(c: Canvas, g: _Room, s: StatusSnapshot) -> None:
+    """Det bortre skottet: ram, skrivbordshyllan, kassaskåpet och repeatrarna."""
+    fl, fr, ft, fb = g.fl, g.fr, g.ft, g.fb
+    c.text(ft, fl, "┌" + "─" * (fr - fl - 1) + "┐", EDGE)
+    c.text(fb, fl, "└" + "─" * (fr - fl - 1) + "┘", EDGE)
+    for r in range(ft + 1, fb):
+        c.put(r, fl, "│", EDGE)
+        c.put(r, fr, "│", EDGE)
+    inner = fr - fl - 1
+    # skrivbordsskivan längs skottet, nattlampan och loggboken
+    desk = fb - 2
+    c.text(desk, fl + 1, "▀" * inner, WOOD)
+    c.text(desk - 1, fl + 3, "◠", LAMP)
+    c.text(desk - 1, fl + 6, "▤", PAPER)
+    c.put(fb - 1, fl + 2, "▌", WOOD_DARK)
+    c.put(fb - 1, fr - 2, "▐", WOOD_DARK)
+    # repeatrar för kurs och djup och skeppsklockan högt upp till höger
+    rows = max(4, min(7, desk - ft - 3))
+    cols = max(2 * rows, 13)
+    n = 3 if inner >= 3 * (cols + 1) + 8 else 2
+    x0 = fr - n * (cols + 1)
+    dials = [ins.gyro(s.course, None, PAL), ins.depth_gauge(s.depth, None, PAL),
+             ins.clock_face(s.clock, PAL)][:n]
+    dials[0].title, dials[1].title = "KURS", "DJUP"
+    for i, d in enumerate(dials):
+        ins.draw_dial(c, ft + 1, x0 + i * (cols + 1), rows, cols, d, PAL)
+    # kassaskåpet under skivan till höger
+    if fb - desk >= 2 and inner > 30:
+        c.text(desk - 2, fr - 9, "┌СЕЙФ┐", PHONE)
+        c.text(desk - 1, fr - 9, "│ ◎ │", PHONE)
+
+
+def _door(c: Canvas, g: _Room) -> None:
+    """Dörren längst bort på styrbords skott, med ljus från gången under."""
+    top, bot = g.edge("tr"), g.edge("br")
+    x_far = g.far["tr"][0] + 3
+    x_near = _lerp(x_far, g.near["tr"][0], 0.28)
+    c0, c1 = int(x_far // 2), int(x_near // 2)
+    if c1 - c0 < 3:
+        return
+    spans = []
+    for col in range(c0, c1 + 1):
+        x = 2 * col + 1
+        yc, yf = _on_line(*top, x), _on_line(*bot, x)
+        r0 = int((yc + 0.12 * (yf - yc)) // 4)
+        r1 = min(g.h - 1, int((yf - 0.02 * (yf - yc)) // 4))
+        spans.append((col, r0, r1))
+    for col, r0, r1 in spans:
+        for r in range(r0, r1 + 1):
+            c.put(r, col, "░", DOOR)
+        c.put(r0, col, "▁", DOOR_EDGE)
+        c.put(r1, col, "▔", STRIP)                     # ljuset från gången
+    for col, r0, r1 in (spans[0], spans[-1]):
+        for r in range(r0 + 1, r1):
+            c.put(r, col, "▏" if col == spans[0][0] else "▕", DOOR_EDGE)
+    # ventilationsgaller och regeln vid närmaste kanten
+    col, r0, r1 = spans[len(spans) // 2]
+    vent = r0 + max(1, (r1 - r0) // 5)
+    for cc, a, z in spans[1:-1]:
+        if a < vent < z:
+            c.put(vent, cc, "≡", DOOR_EDGE)
+    col, r0, r1 = spans[-2]
+    c.put((r0 + r1) // 2, col, "╼", PHONE)
+
+
+def _blanket(c: Canvas, g: _Room, t: float) -> None:
+    """Kojen och filten över benen, sett från kudden: fotänden borta, knäna och handen."""
+    top = g.fb + 1
+    foot_l, foot_r = g.fl + 1, round(_lerp(g.fl, g.fr, 0.62))
+    rail_bottom = round(g.w * 0.80)
+    rows = g.h - top
+    if rows < 3:
+        return
+    left_floor = g.edge("bl")
+    # fotänden
+    c.text(top, foot_l, "▄" * (foot_r - foot_l + 1), WOOD)
+    for i, r in enumerate(range(top + 1, g.h)):
+        f = (i + 1) / rows
+        right = round(_lerp(foot_r, rail_bottom, f))
+        left = max(0, int(_lerp(foot_l, 0, min(1.0, f * 1.6))))
+        mid = (left + right) / 2
+        width = max(1, right - left)
+        for col in range(left, right):
+            u = (col - mid) / width                     # −0,5 … 0,5 över kojen
+            feet = max(0.0, 1 - (f / 0.25) ** 2) * max(0.0, 1 - (abs(abs(u) - 0.16) / 0.12) ** 2)
+            knees = max(0.0, 1 - ((f - 0.55) / 0.22) ** 2) * max(0.0, 1 - (abs(abs(u) - 0.17) / 0.17) ** 2)
+            fold = 0.25 * (1 - min(1.0, abs(u) / 0.5))
+            v = 0.15 + fold + 0.7 * max(feet, knees)
+            shade = 2 if v > 0.62 else (1 if v > 0.32 else 0)
+            c.put(r, col, "▓▒░"[2 - shade] if shade else "░", BLANKET_SH[shade])
+        c.put(r, right, "▐" if f < 0.5 else "█", WOOD)  # kojens kant
+        if right + 1 < g.w:
+            c.put(r, right + 1, "▌", WOOD_DARK)
+    # handen på filten nära ögat
+    hr = g.h - 2
+    hc = round(_lerp(foot_r, rail_bottom, 0.85)) - 9
+    if hc > 4:
+        c.text(hr, hc, "▗▄▄▖", HAND)
+        c.text(hr + 1, hc - 1, "▐████▌", HAND)
+        c.put(hr + 1, hc + 5, "▘", HAND_DARK)
+
+
+def _room(c: Canvas, s: StatusSnapshot, t: float) -> None:
+    g = _Room(c.w, c.h)
+    _room_lines(c, g)
+    _door(c, g)
+    _far_wall(c, g, s)
+    # taklampan mitt i rummet
+    lr = max(1, (1 + g.ft) // 2)
+    lc = int(g.vp[0] // 2)
+    c.put(lr - 1, lc, "│", PIPE)
+    c.put(lr, lc, "◓", LAMP)
+    _blanket(c, g, t)
+    _phone(c, 2, 1, s, t)                               # på skottet vid kojen, inom räckhåll
+
+
+def _flat(c: Canvas, s: StatusSnapshot, t: float) -> None:
+    """Liten hytt för små fönster: kojen, telefonen, repeatrarna och skrivbordet."""
+    w, h = c.w, c.h
     for r in range(2, h - 1, 4):
         c.text(r, 0, "·" + " " * (w - 2) + "·", WALL)
-    # repeatrar och skeppsklocka på skottet till höger
     rr = max(4, min((h - 6) // 2 + 1, (w // 2) // 6))
     cols = 2 * rr
     n = 3 if w >= 3 * cols + 16 else 2
@@ -179,7 +374,6 @@ def render_cabin(s: StatusSnapshot, t: float, width: int, height: int) -> list[T
     dials[0].title, dials[1].title = "KURS", "DJUP"
     for i, d in enumerate(dials):
         ins.draw_dial(c, 2, x0 + i * (cols + 1), rr, cols, d, PAL)
-    # telefonen och kojen till vänster, skrivbordet under repeatrarna
     _phone(c, 2, 2, s, t)
     bunk_w = min(32, max(14, w // 2 - 4), x0 - 3) if x0 > 20 else max(14, w // 2 - 2)
     if x0 - 18 >= 24:
@@ -188,4 +382,18 @@ def render_cabin(s: StatusSnapshot, t: float, width: int, height: int) -> list[T
     desk_left = max(bunk_w + 5, x0)
     if desk_left + 14 < w:
         _desk(c, h - 5, desk_left, w - desk_left - 2)
+
+
+def render_cabin(s: StatusSnapshot, t: float, width: int, height: int) -> list[Text]:
+    w, h = max(MIN_W, width), max(MIN_H, height)
+    c = Canvas(w, h, BG)
+    if s.captain_at == "walking":
+        _plate(c, w)
+        _walk(c, w, h, s, t)
+        return c.lines()[:height]
+    if w >= ROOM_MIN_W and h >= ROOM_MIN_H:
+        _room(c, s, t)
+    else:
+        _flat(c, s, t)
+    _plate(c, w)
     return c.lines()[:height]

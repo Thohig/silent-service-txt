@@ -305,7 +305,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   efter 20 s), fara = högtalaren (`alarm_level` "danger": övriga larm, jakttecken) ⇒ 1× och kaptenen går (40 s,
   `Station.intercept` stoppar hans order under tiden) och får lägesrapport (`xo.handback`, `officer.situation`).
   `tid 30`/`60` bara med starpom i befäl; `sov` ⇒ 60×. Status: `StatusSnapshot.command`, `captain_at`, `walk_s`,
-  `phone`, `sleeping` (via `Station.status_fields`). Vyn `hytt` (`ui/cabin.py`, `ui/cabin_render.py`) öppnas
+  `phone`, `sleeping` (via `Station.status_fields`). Vyn `hytt` (`ui/cabin.py`, `ui/cabin_render.py`: från 64 × 18 sedd från kudden i perspektiv,
+  dörren längst bort till höger, `_Room`; mindre fönster den enkla bilden) öppnas
   av sig själv (`SubApp._follow_command`) och står först i Tab-ordningen; visar bara starpoms och telefonens
   rapporter, Enter svarar. Ljudet i hytten (`ambience.muffled`, `audio.from_central`): båten ×0,55, mumlet
   svagt, inga hydrofonljud eller sväv, centralens repliker tysta (larm hörs); telefonen `phone`, knackning
