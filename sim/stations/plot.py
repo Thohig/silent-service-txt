@@ -16,12 +16,16 @@ from ..geo import angle_diff, norm360
 from ..knowledge import ContactTrack
 from ..orders import DESIG, CommandSpec, Order, desig
 from ..reports import Quality
+from ..sonar_view import KEEP_S as SONAR_KEEP_S, SONAR_SOURCES, SolutionTrace, TargetTurn
 from ..tma import (MANEUVER_CHI2, MANEUVER_SPLIT, MAX_TARGET_KN, BearingObs, Solution,
                    maneuver_statistic, own_maneuvered, predicted_bearing, solve)
 from ..zigzag import (ConvoyEstimate, LegFix, TrackPoint, base_course, escorts_near, groups,
                       mean_leg, merge_turns)
 from .base import Proposal, Station
 
+SOLUTION_STEP_S = 20          # sonarvyn: lösningens förutsagda bäring så här tätt
+TURN_SHOW_GAP_S = 300         # sonarvyn: högst ett girmärke per kontakt på så här lång tid
+TURN_NEAR_OBS_S = 120         # sonarvyn: giren märks bara om sonar hade en bäring så nära i tid
 PLOT_INTERVAL = 30              # sekunder mellan omräkningar
 LOOK_TURN_MIN_DEG = 20.0        # periskopets kurs så här långt från lösningens: målet har girat
 LOOK_TURN_SIGMAS = 3.0
@@ -272,6 +276,39 @@ class PlotTeam(Station):
                  {"designation": tr.designation, "n": len(tr.observations), "rows": rows,
                   "solution": solution_data(sol) if sol else None},
                  kind="plot", quality=sol.quality if sol else Quality.DALIG)
+
+    # --- sonarvyn ----------------------------------------------------------------
+    def sonar_items(self) -> list:
+        """Lösningens förutsagda bäringar för det nuvarande benet (från där vi trodde att vi
+        var när bäringen togs) och girarna plottet märkt, vid den bäring sonar hade då."""
+        items: list = []
+        cutoff = self.now - SONAR_KEEP_S
+        own_now = self.game.own_position_estimate()
+        for tr in self.game.knowledge.tracks.values():
+            obs = [o for o in tr.observations if o.t >= cutoff and o.source in SONAR_SOURCES]
+            shown = -10**9
+            for t in tr.turns:
+                if t - shown < TURN_SHOW_GAP_S:
+                    continue            # en jagare som söker girar hela tiden: ett märke räcker
+                near = min(obs, key=lambda o: abs(o.t - t), default=None)
+                if near is not None and t >= cutoff and abs(near.t - t) <= TURN_NEAR_OBS_S:
+                    items.append(TargetTurn(t, tr.designation, near.bearing))
+                    shown = t
+            sol = tr.solution
+            if sol is None:
+                continue
+            leg = [o for o in obs if o.t >= tr.tma_from_t]
+            pts: list[tuple[int, float]] = []
+            last = -10**9
+            for o in leg:
+                if o.t - last >= SOLUTION_STEP_S:
+                    pts.append((o.t, predicted_bearing(sol.state, sol.t_ref, o.t, o.own_x, o.own_y)))
+                    last = o.t
+            if tr.held:
+                pts.append((self.now, predicted_bearing(sol.state, sol.t_ref, self.now, *own_now)))
+            if len(pts) >= 2:
+                items.append(SolutionTrace(tr.designation, tuple(pts), sol.quality))
+        return items
 
     # --- sjökortet -------------------------------------------------------------
     def chart_items(self) -> list:

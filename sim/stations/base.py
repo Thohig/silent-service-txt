@@ -98,6 +98,10 @@ class Station:
         """Djupprofilens element (sim.profile) ur stationens kunskap. Aldrig ur World."""
         return []
 
+    def sonar_items(self) -> list:
+        """Sonarvyns element (sim.sonar_view) ur stationens kunskap. Aldrig ur World."""
+        return []
+
     def system_items(self) -> list:
         """Systemtavlans element (sim.systems) ur stationens egna instrument."""
         return []

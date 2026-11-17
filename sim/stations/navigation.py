@@ -19,6 +19,7 @@ from ..chart import LAYER_CONTOUR, LAYER_ICE, LAYER_OWN, LAYER_TRACK, Mark, Note
 from ..profile import BottomSounding, ChartBottom, DepthTrace, IceSounding, Level
 from ..reports import Quality
 from ..seabed import contours, match_soundings
+from ..sonar_view import KEEP_S as SONAR_KEEP_S, OwnHeading, own_turns
 from ..crew import Role
 from ..entities import Transient
 from ..events import IceSounded, OpeningNotFound
@@ -715,6 +716,7 @@ class NavigationStation(Station):
         self._goal_src = ""
         # djupprofilen: djupmätaren (t, djup) och ekolodets bottenlodningar
         self.depth_log: list[tuple[int, float]] = [(0, s.depth)]
+        self.course_log: list[tuple[int, float]] = [(0, round(s.course, 1))]   # sonarvyn: gyrot
         self.bottom_soundings: list[BottomSounding] = []
         cd = self.chart_depth_at(s.x, s.y)
         self.chart_depth_log: list[tuple[int, float]] = [] if cd is None else [(0, round(cd))]
@@ -1038,10 +1040,19 @@ class NavigationStation(Station):
                      for o in self.icemap.soundings)
         return items
 
+    # --- sonarvyn ----------------------------------------------------------------
+    def sonar_items(self) -> list:
+        """Vår kurs över tid (för relativ bäring) och våra girar, ur gyrot."""
+        pts = tuple(self.course_log) + ((self.now, round(self.ship.course, 1)),)
+        return [OwnHeading(pts), *own_turns(pts)]
+
     def _log_depth(self) -> None:
         if self.now % DEPTH_LOG_INTERVAL_S:
             return
         self.depth_log.append((self.now, round(self.ship.depth, 1)))
+        self.course_log.append((self.now, round(self.ship.course, 1)))
+        if self.course_log[0][0] < self.now - SONAR_KEEP_S:
+            self.course_log = [p for p in self.course_log if p[0] >= self.now - SONAR_KEEP_S]
         cd = self.chart_depth_at(self.est_x, self.est_y)
         if cd is not None:
             self.chart_depth_log.append((self.now, round(cd)))

@@ -24,6 +24,7 @@ from typing import Any, TypeVar
 from . import phrases, russian
 from .chart import ChartView
 from .profile import ProfileView
+from .sonar_view import SonarView
 from .systems import SystemsView
 from .crew import CrewMember, Role
 from .events import (EventBus, GameEnded, Handover, OrderIssued, PositionReported,
@@ -414,6 +415,15 @@ class Game:
                            s.ordered_depth, s.speed, s.course)
         for st in self.stations:
             view.items.extend(st.profile_items())
+        return view
+
+    # ------------------------------------------------------------------ sonarvyn
+    def sonar(self) -> SonarView:
+        """Sonarvyns vattenfall: stationernas element ur kunskapen, bäring mot tid."""
+        view = SonarView(self.clock_str(), self.now, self.start_clock,
+                         self.world.own.state.course)
+        for st in self.stations:
+            view.items.extend(st.sonar_items())
         return view
 
     # ------------------------------------------------------------------ systemtavla

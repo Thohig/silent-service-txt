@@ -21,6 +21,8 @@ from ..geo import angle_diff, circular_mean, norm360
 from ..orders import CommandSpec, Order
 from ..profile import HeardEvent, Level
 from ..reports import Quality
+from ..sonar_view import (KEEP_S as WATERFALL_KEEP_S, SONAR_SOURCES, BearingTrace, ContactLine,
+                          HeardMark, LostMark, OwnMark, bearing_drift, track_kind)
 from ..systems import INFO, OK, WARN, Gauge
 from ..sonar import (ClassificationUpdate, Detection, Lost, OwnTorpedo, SonarStation,
                      TransientHeard)
@@ -48,6 +50,16 @@ HEARD_SYMBOL = {
 }
 OWN_SYMBOL = {"ping": ("!", "own_sound"), "launch": ("»", "own_sound"),
               "decoy": ("o", "own_sound"), "blow": ("↑", "own_sound")}
+
+
+LINE_AFTER_LOST_S = 300     # en tappad kontakt står kvar i sonarvyns lista så här länge
+
+
+def _recent(marks: list, now: int) -> list:
+    """Vattenfallets märken från den senaste timmen."""
+    if marks and marks[0].t < now - WATERFALL_KEEP_S:
+        return [m for m in marks if m.t >= now - WATERFALL_KEEP_S]
+    return marks
 
 
 @dataclass(frozen=True)
@@ -191,11 +203,15 @@ class SonarRoom(Station):
         self._unknown_pingers = 0
         self._last_sound: dict[str, int] = {}
         self.heard: list[HeardEvent] = []          # för djupprofilen
+        self.marks: list[HeardMark] = []           # för vattenfallet (med bäring)
+        self.lost: list[LostMark] = []
+        self.own_marks: list[OwnMark] = []
 
     def attach(self, bus) -> None:
         super().attach(bus)
         bus.subscribe(SoundHeard, self._note_heard)
         bus.subscribe(OwnSoundMade, self._note_own)
+        bus.subscribe(ContactLost, self._note_lost)
 
     # --- djupprofilen ------------------------------------------------------------
     def _note(self, e: HeardEvent) -> None:
@@ -211,17 +227,51 @@ class SonarRoom(Station):
         sym, style = HEARD_SYMBOL[kind]
         near = e.se > (110 if kind == "explosion" else 45 if kind == "splash" else 75)
         self._note(HeardEvent(e.t, kind, sym, style, near))
+        self.marks.append(HeardMark(e.t, kind, e.bearing, sym, style, e.designation))
+        self.marks = _recent(self.marks, self.now)
 
     def _note_own(self, e: OwnSoundMade) -> None:
         if e.kind in OWN_SYMBOL:
             sym, style = OWN_SYMBOL[e.kind]
             self._note(HeardEvent(e.t, "own_" + e.kind, sym, style))
+            self.own_marks.append(OwnMark(e.t, e.kind, sym))
+            self.own_marks = _recent(self.own_marks, self.now)
+
+    def _note_lost(self, e: ContactLost) -> None:
+        tr = self.game.knowledge.track(e.designation)
+        if tr is None or tr.last_bearing is None:
+            return
+        self.lost.append(LostMark(e.t, e.designation, tr.last_bearing))
+        self.lost = _recent(self.lost, self.now)
 
     def profile_items(self) -> list:
         items: list = list(self.heard)
         layer = self.game.world.env.layer_depth
         if layer is not None:
             items.append(Level(layer, "språngskikt", "layer", "─"))
+        return items
+
+    # --- sonarvyn -----------------------------------------------------------------
+    def sonar_items(self) -> list:
+        """Vattenfallet: varje kontakts bäringar som vi tagit dem, det vi hört och tappat,
+        och en rad per kontakt med klassning och bäringsdrift (operatörens egen räkning)."""
+        cutoff = self.now - WATERFALL_KEEP_S
+        items: list = [*self.marks, *self.lost, *self.own_marks]
+        for tr in self.game.knowledge.tracks.values():
+            obs = [o for o in tr.observations if o.t >= cutoff and o.source in SONAR_SOURCES]
+            if not obs:
+                continue
+            kind = track_kind(tr)
+            items.append(BearingTrace(tr.designation,
+                                      tuple((o.t, o.bearing, o.se) for o in obs), kind, tr.held))
+            if not tr.held and self.now - obs[-1].t > LINE_AFTER_LOST_S:
+                continue
+            sol = tr.solution
+            drift = bearing_drift([(o.t, o.bearing) for o in obs if o.source == "sonar"],
+                                  self.now) if tr.held else None
+            items.append(ContactLine(tr.designation, tr.classification, tr.class_quality,
+                                     obs[-1].bearing, drift,
+                                     sol.quality if sol is not None else None, kind, tr.held))
         return items
 
     # --- systemtavlan ------------------------------------------------------------
