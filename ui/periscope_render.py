@@ -249,6 +249,15 @@ def _marker(o: SightedObject, day: bool) -> tuple[str, str]:
     return {"helt": "▲", "överbyggnad": "▴"}.get(o.visible, "ˈ"), STYLE["ship"]
 
 
+NOT_SHIPS = {"aircraft", "station", "net", "splash", "column", "hit", "wake"}
+
+
+def range_tag(o: SightedObject) -> str:
+    """Utkikens bedömda avstånd, kort: "0,6" eller "2,4" (sjömil). Tomt för det som inte
+    är fartyg. Det är utkikens siffra med sitt fel, ingen skala att räkna på."""
+    return "" if o.kind in NOT_SHIPS else nm(o.range_nm)
+
+
 def _old(o: SightedObject, pic: PeriscopePicture) -> bool:
     """Föremålet är från ett tidigare svep (utanför en kort titt)."""
     return 0 <= o.seen_t < pic.t
@@ -478,6 +487,8 @@ def render_strip(pic: PeriscopePicture, w: int, selected: SightedObject | None,
         ch, st = _marker(o, pic.day)
         g.put(x, 1, ch, STYLE["ship_old"] if stale or _old(o, pic) else st)
         lab = o.designation or {"aircraft": "flyg", "station": "ljus", "net": "nät"}.get(o.kind, "")
+        if lab and range_tag(o):
+            lab = f"{lab} {range_tag(o)}"
         span = set(range(x - len(lab) // 2 - 1, x - len(lab) // 2 + len(lab) + 1))
         if lab and not span & taken:
             taken |= span
@@ -558,7 +569,29 @@ def render_eyepiece(pic: PeriscopePicture, w: int, h: int, selected: SightedObje
     for o in shown:
         sel = o is selected
         _draw_object(g, inside, o, col_of(o.bearing), horizon, pic.day, sel, stale, pic.t)
+    _range_labels(g, inside, [o for o in shown if range_tag(o)], col_of, horizon, selected, stale)
     return g.rows()
+
+
+def _range_labels(g: _Grid, inside, objs: list[SightedObject], col_of, horizon: int,
+                  selected: SightedObject | None, stale: bool) -> None:
+    """Utkikens avstånd under vattenlinjen: det valda först, sedan närmast först; en etikett
+    som skulle krocka eller hamna utanför okularet utelämnas."""
+    row = horizon + 1
+    if row >= g.h:
+        return
+    taken: set[int] = set()
+    sel_key = object_key(selected) if selected is not None else None
+    for o in sorted(objs, key=lambda o: (object_key(o) != sel_key, o.range_nm)):
+        lab = f"{range_tag(o)} nm"
+        x0 = round(col_of(o.bearing)) - len(lab) // 2
+        span = set(range(x0 - 1, x0 + len(lab) + 1))
+        if span & taken or not all(0 <= x < g.w and inside[row][x] for x in range(x0, x0 + len(lab))):
+            continue
+        taken |= span
+        st = STYLE["ship_old"] if stale else \
+            STYLE["selected"] if object_key(o) == sel_key else STYLE["label"]
+        g.text(x0, row, lab, st)
 
 
 def _draw_ice(g: _Grid, inside, pic: PeriscopePicture, center: float, cx: float,

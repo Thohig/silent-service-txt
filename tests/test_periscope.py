@@ -543,3 +543,12 @@ def test_crew_suggests_lowering_a_mast_held_up_with_a_threat_in_the_plot():
     assert g.active_suggestion()[0] == "periskop ned"
     g.command("ja")
     assert g.station(PeriscopeWatch).mode is None
+
+
+def test_lookout_ranges_in_strip_and_eyepiece():
+    from ui.periscope_render import render_periscope
+    pic = _pic(_ship("S-1", 10.0), _ship("S-2", 200.0, rng=6.0, visible="överbyggnad"))
+    rows = [r.plain for r in render_periscope(pic, 100, 30, 0, 0)]
+    assert "S-1 1,5" in rows[0] and "S-2 6,0" in rows[0]
+    eye = "\n".join(rows[3:-1])
+    assert "6,0 nm" in eye                     # det valda föremålets avstånd i okularet
