@@ -31,7 +31,7 @@ from .. import phrases
 from .. import russian as R
 from ..arctic import STATION_LIGHT_NM
 from ..crew import Role
-from ..events import (BearingObserved, ClassificationChanged, ContactDetected, PeriscopeBlocked,
+from ..events import (OwnActionLogged, BearingObserved, ClassificationChanged, ContactDetected, PeriscopeBlocked,
                       PeriscopeSighted, PositionReported)
 from ..fmt import fmt_course, kn, nm
 from ..geo import angle_diff, norm360, velocity
@@ -295,6 +295,8 @@ class PeriscopeWatch(Station):
             self.optic = "kikare" if self.binoculars else "periskop"
             self._before = self.game.knowledge.periscope
             self._up_t = self.now
+            if self.optic == "periskop":
+                self.game.bus.publish(OwnActionLogged(self.now, "periscope"))
         self.mode = mode
         self.train = float(train)
         self._sweep_from = float(train)

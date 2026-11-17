@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass, field
 
 from .. import phrases
-from ..chart import Ray
+from ..chart import LAYER_RAY, Mark, Ray, Track
 from ..crew import Role
 from ..events import OwnSoundMade, OwnTorpedoHeard, SoundHeard
 from ..fmt import fmt_course, nm
@@ -41,6 +41,8 @@ RELOAD_S = 300
 MAX_LAUNCH_DEPTH = 120
 MAX_LAUNCH_SPEED = 12
 RUN_REPORT_AFTER = 10       # s efter avfyring innan sonar bekräftar normal gång
+TRACK_KEEP_S = 1800              # avslutade banor ligger kvar på kortet så länge
+TRACK_FADE_S = 600
 END_GRACE_S = 30            # marginal efter räckvidden innan vi säger trolig miss
 
 TYPE_ALIASES = {
@@ -126,6 +128,10 @@ class Running:
     turned: bool = False
     confirmed: bool = False
     timed: bool = False
+    launch_x: float = 0.0         # vårt beräknade läge vid avfyringen: banan börjar där
+    launch_y: float = 0.0
+    end_t: int | None = None      # när torpedrummet räknade den som slut
+    end: str = ""                 # hit, silent, timeout
 
 
 def _mmss(s: float) -> str:
@@ -312,6 +318,7 @@ class TorpedoRoom(Station):
             self.inventory = dict(arm["inventory"])
         self.decoys = 6
         self.in_water: list[Running] = []
+        self.finished: list[Running] = []         # ritas kvar på kortet en stund
         self._launches = 0
         self._ready_said: dict[str, Quality] = {}
 
@@ -470,11 +477,12 @@ class TorpedoRoom(Station):
         tube.load = None
         self._launches += 1
         run_nm = min(detonate_at, spec.range_nm) if detonate_at else spec.range_nm
+        lx, ly = self.game.own_position_estimate()
         self.in_water.append(Running(
             no=self._launches, tube=o.tube, type=spec.key, designation=o.designation,
             course=course, launch_t=self.now,
             t_hit=int(self.now + run_s) if run_s else None,
-            t_end=int(self.now + run_nm / spec.speed * 3600)))
+            t_end=int(self.now + run_nm / spec.speed * 3600), launch_x=lx, launch_y=ly))
         self.say("torp.fired", {"tube": o.tube, "type": spec.key, "course": course,
                                 "run_s": run_s, "quality": quality},
                  kind="ack", quality=quality, alarm=True)
@@ -552,7 +560,7 @@ class TorpedoRoom(Station):
                 r.timed = True
                 self.say("torp.time", {"tube": r.tube, "designation": r.designation}, kind="info")
             if self.now >= r.t_end + END_GRACE_S:
-                self.in_water.remove(r)
+                self._finish(r, "timeout")
                 if TORPEDO_TYPES[r.type].exercise:
                     self.say("torp.run.exercise_end", {"tube": r.tube})
                 else:
@@ -614,16 +622,36 @@ class TorpedoRoom(Station):
                 for r in self.in_water), INFO))
         return items
 
+    def _finish(self, r: Running, how: str) -> None:
+        self.in_water.remove(r)
+        r.end_t, r.end = self.now, how
+        self.finished.append(r)
+
     def chart_items(self) -> list:
-        """Egna torpeder: senast hörda bäring, utritad så långt torpeden har gått."""
+        """Egna torpeder som eldledningen räknar dem: från avfyrningspunkten längs den
+        inställda kursen så långt de hunnit, med minutstreck. Har en målsökande torped
+        girat ritas också den hörda bäringen."""
+        self.finished = [r for r in self.finished if self.now - r.end_t < TRACK_KEEP_S]
+        items: list = []
         x, y = self.game.own_position_estimate()
-        items = []
-        for r in self.in_water:
-            if r.bearing is None:
-                continue
-            run = TORPEDO_TYPES[r.type].speed * max(0, self.now - r.launch_t) / 3600
-            items.append(Ray(x, y, r.bearing, max(run, 0.1), "torpedo", f"tub {r.tube}",
-                             faded=r.lost))
+        for r in self.finished + self.in_water:
+            done = r.end_t is not None
+            faded = done and self.now - r.end_t >= TRACK_FADE_S or r.lost
+            speed = TORPEDO_TYPES[r.type].speed
+            t = min(self.now if not done else r.end_t, r.t_end)
+            run = speed * max(0, t - r.launch_t) / 3600
+            b = math.radians(r.course)
+            hx, hy = r.launch_x + run * math.sin(b), r.launch_y + run * math.cos(b)
+            items.append(Track(((r.launch_x, r.launch_y), (hx, hy)), "torpedo_path", LAYER_RAY, None))
+            for m in range(1, int((t - r.launch_t) // 60) + 1):
+                d = speed * m / 60
+                items.append(Mark(r.launch_x + d * math.sin(b), r.launch_y + d * math.cos(b),
+                                  "+", "torpedo", faded=True, layer=LAYER_RAY + 0.1))
+            head = "✱" if r.end == "hit" else "?" if done or r.lost else "•"
+            items.append(Mark(hx, hy, head, "torpedo", f"tub {r.tube}", faded=faded))
+            if r.turned and r.bearing is not None and not done:
+                items.append(Ray(x, y, r.bearing, max(run, 0.1), "torpedo", "hörd",
+                                 faded=r.lost))
         return items
 
     # --- torpeder i vattnet ---------------------------------------------------------
@@ -657,11 +685,11 @@ class TorpedoRoom(Station):
                 r.lost = True
                 self.say("torp.run.lost", d)
             case "detonated":
-                self.in_water.remove(r)
+                self._finish(r, "hit")
                 self.say("torp.run.hit", {**d, "nuclear": TORPEDO_TYPES[r.type].nuclear},
                          kind="contact", quality=Quality.SAKER, alarm=True)
             case "silent":
-                self.in_water.remove(r)
+                self._finish(r, "silent")
                 self.say("torp.run.silent", d, quality=Quality.GOD)
 
     def _on_sound(self, e: SoundHeard) -> None:

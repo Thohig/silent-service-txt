@@ -15,7 +15,7 @@ import numpy as np
 from dataclasses import dataclass
 
 from .. import acoustics, phrases
-from ..chart import LAYER_CONTOUR, LAYER_ICE, LAYER_OWN, Mark, Note, Ray, Ring, Track
+from ..chart import LAYER_CONTOUR, LAYER_ICE, LAYER_OWN, LAYER_TRACK, Mark, Note, Ray, Ring, Track
 from ..profile import BottomSounding, ChartBottom, DepthTrace, IceSounding, Level
 from ..reports import Quality
 from ..seabed import contours, match_soundings
@@ -38,6 +38,8 @@ FIX_TIME_S = 120
 IDLE_FIX_SIGMA_NM = 0.5     # vid tystnad: föreslå fix redan vid denna osäkerhet
 SEARCH_LEG_S = 1800         # utan kontakt: nytt sökben efter så här lång rak kurs
 DR_GROWTH_NM_PER_H = 0.5
+DR_TICK_S = 600             # tidsstreck på besticket var 10:e minut på klockan
+DR_LABEL_S = 1800           # klockslag vid strecket varje halvtimme
 SOUNDER_INTERVAL_S = 5      # isekolodet lodar så här ofta
 SAFE_ICE_DEPTH = 60         # under isen: djupare än de djupaste kölarna (≤ 45 m)
 VAK_SPEED = 3.0             # fart mot en öppning
@@ -670,6 +672,7 @@ class NavigationStation(Station):
         self.est_x, self.est_y = s.x, s.y
         # besticket på kortet: ett spår per fix, och fixarna (x, y, tid)
         self.dr_track: list[list[tuple[float, float]]] = [[(s.x, s.y)]]
+        self.dr_ticks: list[tuple[int, float, float]] = []   # besticket var 10:e min på klockan
         self.fixes: list[tuple[float, float, int]] = []
         rng = game.rng
         skill = self.member.effective_skill()
@@ -797,6 +800,10 @@ class NavigationStation(Station):
                                   layer=LAYER_ICE))
         for x, y, _ in self.fixes:
             items.append(Mark(x, y, "+", "fix"))
+        for t, x, y in self.dr_ticks:            # tidsstreck: klockslaget varje halvtimme
+            c = self.game.start_clock + t
+            label = clock(c)[:5] if c % DR_LABEL_S == 0 else ""
+            items.append(Mark(x, y, "◦", "track", label, layer=LAYER_TRACK + 0.2))
         # isen: lodningarna där vi beräknade att vi var
         for o in self.icemap.soundings:
             # i samma ruta vinner tunnast: öppet vatten är det vi letar efter
@@ -2280,6 +2287,8 @@ class NavigationStation(Station):
     # --- löpande -----------------------------------------------------------------
     def update(self) -> None:
         self._dead_reckon()
+        if (self.game.start_clock + self.now) % DR_TICK_S == 0:
+            self.dr_ticks.append((self.now, self.est_x, self.est_y))
         if self.goal == "follow" and self.now % FOLLOW_STEP_S == 0:
             self._follow_step()
         if self.goal == "attack" and self.now % ATTACK_STEP_S == 0:

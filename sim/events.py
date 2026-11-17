@@ -143,6 +143,12 @@ class OwnSoundMade(Event):
 
 
 @dataclass(frozen=True)
+class OwnActionLogged(Event):
+    """En egen handling som kan ha röjt oss och som plottet skriver upp: report, periscope."""
+    kind: str
+
+
+@dataclass(frozen=True)
 class OwnTorpedoHeard(Event):
     """Sonaren hör en egen torped. no = ordningsnummer i avfyrningsordning.
 

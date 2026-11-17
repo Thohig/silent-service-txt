@@ -230,7 +230,12 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   ping `P`/`PP` (snabb), boj `B`/`BP`, plask `✕`, detonation `✱`, övning `○`, brytljud `↓`; på kontaktens
   lösning om den är ≥ osäker, annars ett streck 0,6 nm längs bäringen från vårt beräknade läge. Samma
   märke och källa (beteckning eller 15°-sektor) högst var `PENCIL_GAP_S` (ping 5 min); skarpt första
-  minuten, blekt efter 10, borta efter 30; klockslag bara på de 5 nyaste. Linjer (spår, djupkurvor, kust, farled streckad, bäringar,
+  minuten, blekt efter 10, borta efter 30; klockslag bara på de 5 nyaste. Egna handlingar (`OwnSoundMade`,
+  `OwnActionLogged` från radion och periskopet, inte kikaren) där vi trodde att vi var: `!` aktiv ping,
+  `≋` skenmål, `▲` nödblåsning, `R` rapport, `⊙` periskop (högst var 5:e min). Egna torpeder
+  (`TorpedoRoom.chart_items`): från avfyrningspunkten (beräknad) längs inställd kurs så långt de hunnit,
+  `+` varje minut, huvud `•`/`✱` träff/`?`, kvar 30 min (`finished`); girad målsökare också med hörd bäring.
+  Besticket får `◦` var 10:e min på klockan (`dr_ticks`), klockslag varje halvtimme. Linjer (spår, djupkurvor, kust, farled streckad, bäringar,
   vektorer, osäkerhetsringar streckade) ritas i braille i prickskiktet `ui/canvas.DotLayer` (prickkoordinater
   2 per kolumn, 4 per rad); märken, etiketter, rutnät och gräns är hela tecken; högst lager vinner per ruta.
   Nytt system ritar sig självt.

@@ -12,7 +12,7 @@ from .. import russian as R
 from ..crew import Role
 from ..entities import Emission
 from ..broadcasts import broadcasts_for, order_day
-from ..events import Handover, PositionReported, TelegramReceived
+from ..events import OwnActionLogged, Handover, PositionReported, TelegramReceived
 from ..fmt import fmt_course, nm
 from ..icemap import thickness_words
 from ..ice import masts_clear
@@ -307,6 +307,7 @@ class RadioStation(Station):
                 w.mission["last_report_t"] = self.now
                 self._reported_t = self.now
                 self.say("radio.sent", {"contacts": len(self.game.knowledge.tracks)})
+                self.game.bus.publish(OwnActionLogged(self.now, "report"))
 
         for i, w0 in enumerate(self.windows):
             if w0 <= self.now < w0 + self.window_len:

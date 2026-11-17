@@ -1,6 +1,7 @@
 """Sjökortet: elementen byggs ur kunskapen, i navigatörens beräknade koordinater."""
 import pytest
 import random
+import re
 
 from sim.chart import Mark, Note, Ray, Ring, Track
 from sim.events import BearingObserved, ContactDetected, ReportDelivered
@@ -227,3 +228,88 @@ def test_pencil_marks_in_a_hunt_come_from_what_sonar_heard():
     assert any(m.kind == "ping" for m in marks)
     labels = [m.label for m in _pencil(g.chart())]
     assert labels and not any(tid in s for s in labels for tid in TRUTH_IDS)
+
+
+# --- egna handlingar, torpedbanan och tidsstrecken (B2) --------------------------
+from sim.events import OwnActionLogged, OwnSoundMade  # noqa: E402
+from sim.stations import TorpedoRoom  # noqa: E402
+from sim.stations.navigation import DR_TICK_S  # noqa: E402
+
+
+def test_own_actions_are_pencilled_where_we_thought_we_were():
+    g = _game("ovning")
+    nav = g.station(NavigationStation)
+    nav.est_y -= 0.4
+    g.bus.publish(OwnSoundMade(g.now, "decoy"))
+    g.bus.publish(OwnActionLogged(g.now, "report"))
+    g.bus.publish(OwnActionLogged(g.now, "report"))     # samma minut: ett märke
+    g.bus.publish(OwnSoundMade(g.now, "launch"))         # torpedrummet ritar avfyringen
+    marks = [m for m in _pencil(g.chart()) if isinstance(m, Mark)]
+    assert sorted(m.symbol for m in marks) == ["R", "≋"]
+    assert all((m.x, m.y) == (nav.est_x, nav.est_y) for m in marks)
+    assert {m.label.rsplit(" ", 1)[0] for m in marks} == {"rapport", "skenmål"}
+
+
+def test_raising_the_periscope_is_pencilled_but_not_the_binoculars():
+    g = _game("ovning")
+    plot = g.station(PlotTeam)
+    s = g.world.own.state
+    assert g.world.own.sys.bridge != "shut"                # ytläge, bryggan bemannad: kikaren
+    g.command("periskop")
+    for _ in range(20):
+        g.tick()
+    assert not any(m.kind == "periscope" for m in plot.pencil)
+
+
+def test_periscope_hoist_marked_once_per_five_minutes():
+    g = _game()
+    plot = g.station(PlotTeam)
+    s = g.world.own.state
+    s.depth = s.ordered_depth = 15
+    s.speed = s.ordered_speed = 3
+    g.command("periskop")
+    for _ in range(30):
+        g.tick()
+    g.command("periskop")
+    for _ in range(30):
+        g.tick()
+    assert [m.symbol for m in plot.pencil if m.kind == "periscope"] == ["⊙"]
+
+
+def test_own_torpedo_drawn_along_the_set_course_from_the_launch_point():
+    g = _game()
+    s = g.world.own.state
+    s.speed = s.ordered_speed = 3
+    nav = g.station(NavigationStation)
+    lx, ly = nav.est_x, nav.est_y
+    g.command("eld tub 1 kurs 090")
+    g.tick()
+    for _ in range(150):
+        g.tick()
+    room = g.station(TorpedoRoom)
+    (r,) = room.in_water
+    assert (r.launch_x, r.launch_y) == (lx, ly)
+    view = g.chart()
+    path = next(i for i in view.drawables if isinstance(i, Track) and i.style == "torpedo_path")
+    (x0, y0), (x1, y1) = path.points
+    assert (x0, y0) == (lx, ly) and y1 == pytest.approx(ly) and x1 > lx + 1.0
+    head = next(i for i in view.drawables if isinstance(i, Mark) and i.label == "tub 1")
+    assert head.symbol == "•" and (head.x, head.y) == (x1, y1)
+    ticks = [i for i in view.drawables if isinstance(i, Mark) and i.style == "torpedo"
+             and i.symbol == "+"]
+    assert len(ticks) == 2                                # två hela minuter
+    room._finish(r, "silent")
+    head = next(i for i in g.chart().drawables if isinstance(i, Mark) and i.label == "tub 1")
+    assert head.symbol == "?"
+
+
+def test_dead_reckoning_gets_a_tick_every_ten_minutes_on_the_clock():
+    g = _game()
+    nav = g.station(NavigationStation)
+    for _ in range(2 * DR_TICK_S):
+        g.tick()
+    assert len(nav.dr_ticks) == 2 and not g.over
+    assert all((g.start_clock + t) % DR_TICK_S == 0 for t, _, _ in nav.dr_ticks)
+    ticks = [i for i in g.chart().drawables if isinstance(i, Mark) and i.symbol == "◦"]
+    assert len(ticks) == 2
+    assert all(m.label == "" or re.fullmatch(r"\d\d:[03]0", m.label) for m in ticks)

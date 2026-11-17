@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import math
 
 from ..chart import LAYER_MARK, LAYER_TRACK, Mark, Ray, Ring
-from ..events import ConvoyAssessed, SoundHeard
+from ..events import ConvoyAssessed, OwnActionLogged, OwnSoundMade, SoundHeard
 from ..crew import Role
 from ..fmt import fmt_course
 from ..geo import angle_diff, norm360
@@ -49,6 +49,10 @@ PENCIL_SYMBOL = {"ping": "P", "buoy_ping": "BP", "splash": "✕", "buoy": "B",
                  "explosion": "✱", "breakup": "↓"}
 PENCIL_GAP_S = {"ping": 300, "buoy_ping": 300, "splash": 60, "buoy": 300,
                 "explosion": 30, "breakup": 60}   # samma märke och källa högst så ofta
+# egna handlingar som kan ha röjt oss: symbol, ord och minsta mellanrum
+OWN_PENCIL = {"ping": ("!", "aktiv ping", 300), "decoy": ("≋", "skenmål", 60),
+              "blow": ("▲", "nödblåsning", 300), "report": ("R", "rapport", 60),
+              "periscope": ("⊙", "periskop", 300)}
 LAYER_PENCIL = LAYER_TRACK + 0.5                 # strecken under bäringar och lösningar
 LAYER_PENCIL_MARK = LAYER_MARK - 0.5             # märken på en lösning: under kontaktens märke
 
@@ -68,6 +72,7 @@ class PencilMark:
     bearing: float
     on_bearing: bool
     key: str
+    word: str = ""                  # förklaring bredvid de nyaste, t.ex. "skenmål"
 
 
 @dataclass(frozen=True)
@@ -108,6 +113,20 @@ class PlotTeam(Station):
     def attach(self, bus) -> None:
         super().attach(bus)
         bus.subscribe(SoundHeard, self._on_sound)
+        bus.subscribe(OwnSoundMade, lambda e: self._on_own(e.t, e.kind))
+        bus.subscribe(OwnActionLogged, lambda e: self._on_own(e.t, e.kind))
+
+    def _on_own(self, t: int, kind: str) -> None:
+        """Egna handlingar som kan ha röjt oss, där vi trodde att vi var."""
+        if kind not in OWN_PENCIL:
+            return
+        symbol, word, gap = OWN_PENCIL[kind]
+        key = f"own:{kind}"
+        if t - self._pencil_last.get(key, -10**9) < gap:
+            return
+        self._pencil_last[key] = t
+        x, y = self.game.own_position_estimate()
+        self.pencil.append(PencilMark(t, kind, symbol, x, y, 0.0, False, key, word))
 
     # --- blyertsmärken -----------------------------------------------------------
     def _on_sound(self, e: SoundHeard) -> None:
@@ -146,8 +165,9 @@ class PlotTeam(Station):
                 items.append(Ray(m.x, m.y, m.bearing, PENCIL_STROKE_NM, style, label,
                                  faded=faded, layer=LAYER_PENCIL))
             else:                       # symbolen på lösningen (en ruta), klockslaget bredvid
-                extra = "snabb" if m.symbol == "PP" else m.symbol[1:]
-                items.append(Mark(m.x, m.y, m.symbol[0], style, f"{extra} {clock}".strip(),
+                extra = m.word or ("snabb" if m.symbol == "PP" else m.symbol[1:])
+                label = f"{extra} {clock}".strip() if clock else ""
+                items.append(Mark(m.x, m.y, m.symbol[0], style, label,
                                   faded=faded, layer=LAYER_PENCIL_MARK))
         return items
 
