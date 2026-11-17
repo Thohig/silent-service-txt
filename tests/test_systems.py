@@ -200,3 +200,11 @@ def test_hull_is_drawn_in_braille_with_compartments_as_text():
     assert sum(0x2800 < ord(ch) <= 0x28FF for ch in wet) > \
         sum(0x2800 < ord(ch) <= 0x28FF for ch in text) + 50        # vattnet i kölsvinet
     assert render_hull(v.compartments(), None, 40) == []           # för smalt
+
+
+def test_sonar_panel_counts_contacts_instead_of_clipping():
+    from sim.stations.sonar_room import contacts_text
+    assert contacts_text([], 0) == "inga"
+    assert contacts_text(["S-1"], 0) == "S-1"
+    assert contacts_text(["S-1", "S-4"], 1) == "S-1, S-4 (1 hot)"
+    assert contacts_text(["S-1", "S-2", "S-3", "S-12"], 2) == "4 (2 hot)"

@@ -52,7 +52,19 @@ OWN_SYMBOL = {"ping": ("!", "own_sound"), "launch": ("»", "own_sound"),
               "decoy": ("o", "own_sound"), "blow": ("↑", "own_sound")}
 
 
+CONTACTS_NAMED = 2          # systemtavlan: så här många kontakter nämns vid namn
 LINE_AFTER_LOST_S = 300     # en tappad kontakt står kvar i sonarvyns lista så här länge
+
+
+def contacts_text(held: list[str], threats: int) -> str:
+    """Systemtavlans rad: antalet och hur många som är hot; beteckningarna bara när de är
+    få (panelen är smal, listan står i huvudraden och sonarvyn)."""
+    if not held:
+        return "inga"
+    hot = f"{threats} hot" if threats else ""
+    if len(held) <= CONTACTS_NAMED:
+        return ", ".join(held) + (f" ({hot})" if hot else "")
+    return f"{len(held)}" + (f" ({hot})" if hot else "")
 
 
 def _recent(marks: list, now: int) -> list:
@@ -280,7 +292,7 @@ class SonarRoom(Station):
         k = self.game.knowledge
         threats = [d for d in held if (tr := k.track(d)) is not None and tr.threat]
         noise, ice = self.background()
-        items = [Gauge("SONAR", "Kontakter", ", ".join(held) if held else "inga",
+        items = [Gauge("SONAR", "Kontakter", contacts_text(held, len(threats)),
                        WARN if threats else INFO if held else OK),
                  Gauge("SONAR", "Bakgrund", f"{noise:.0f} dB" + (", isbrus" if ice else ""), INFO)]
         if self.game.world.own.sys.health["sonar"] < 0.5:
