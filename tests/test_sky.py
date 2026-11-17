@@ -81,3 +81,25 @@ def test_scenarios_get_the_date_of_the_order_and_a_place(key, day):
     lt = env.light(g.now)
     assert lt.phase == {"kuba": "natt", "jagad": "natt", "sundet": "natt", "konvoj": "dag",
                         "ovning": "dag", "arktis": "natt"}[key]
+
+
+def test_destroyer_sees_our_periscope_plume_easier_in_the_moon_glitter():
+    """D2: fullmåne natten mot 14 oktober. Ligger vi åt månens håll sett från jagaren
+    syns plymen lättare; åt andra hållet, eller på dagen, gäller bara radarn."""
+    from sim.enemy import MOON_GLITTER_F
+    g = Game(build_scenario("kuba", random.Random(2)), seed=2)
+    w = g.world
+    w.env.date = (1962, 10, 13)
+    w.env.clock_start = 0                         # midnatt, lokal medeltid: månen högt i söder
+    lt = w.env.light(w.time)
+    assert lt.phase == "natt" and lt.moon_light > 0.5 and 120 < lt.moon_az < 240
+    dd = next(v for v in w.contacts if v.kind == "destroyer")
+    ai = next(a for a in w.ais if getattr(a, "vessel", None) is dd)
+    o = w.own.state
+    dd.state.x, dd.state.y = o.x, o.y + 2.0           # jagaren norr om oss: vi åt månens håll
+    assert ai.glitter_factor(w) == MOON_GLITTER_F
+    dd.state.x, dd.state.y = o.x, o.y - 2.0           # söder om oss: vi mot den mörka sidan
+    assert ai.glitter_factor(w) == 1.0
+    w.env.clock_start = 12 * 3600                     # dag
+    dd.state.x, dd.state.y = o.x, o.y + 2.0
+    assert ai.glitter_factor(w) == 1.0

@@ -36,7 +36,8 @@ from typing import TYPE_CHECKING
 
 from . import acoustics
 from .entities import Transient, Vessel
-from .geo import bearing_to, distance, norm360
+from .environment import MOON_SIL_DEG, MOON_SIL_LIGHT
+from .geo import angle_diff, bearing_to, distance, norm360
 from .seabed import bottom_clutter, shallow_reverb
 from .weapons import Decoy, Torpedo, drop_charges
 
@@ -56,6 +57,9 @@ DEAD_ZONE_DEG = 20.0        # skrovsonaren ser inte brantare nedåt: djup ubåt 
 DEAF_S = 60                 # efter en detonation nära jagaren hör sonaren ingenting
 DEAF_NM = 1.5
 SHARED_SIGMA_NM = 0.4       # ett fix från en annan jagare, med navigationsfel och fördröjning
+
+
+MOON_GLITTER_F = 1.5        # plymen i månglittret: så mycket lättare att se
 
 
 @dataclass
@@ -230,6 +234,16 @@ class DestroyerAI:
                 self._datum_from_bearing(world, tr.x, tr.y, 0.25 if tr.kind == "ping" else 0.3,
                                          depth_guess=max(20.0, tr.depth + self.rng.gauss(0, 40)))
 
+    def glitter_factor(self, world: World) -> float:
+        """Utkiken ser plymen efter periskopet lättare i månglittret: på natten, när månen
+        lyser nog och vi ligger åt månens håll sett från fartyget. Annars 1 (radarn)."""
+        lt = world.env.light(world.time)
+        if lt.daylight or lt.moon_light < MOON_SIL_LIGHT:
+            return 1.0
+        s, o = self.vessel.state, world.own.state
+        b = bearing_to(s.x, s.y, o.x, o.y)
+        return MOON_GLITTER_F if abs(angle_diff(b, lt.moon_az)) <= MOON_SIL_DEG else 1.0
+
     def _masts(self, world: World) -> None:
         own = world.own
         if own.sunk:
@@ -238,7 +252,7 @@ class DestroyerAI:
         if own.surfaced:
             det_r, p = 6.0 + 4.0 * world.env.light(world.time).level, 0.2   # dag 10, natt 6
         elif own.masts_up(world.time):
-            det_r, p = self.MAST_NM, self.MAST_P
+            det_r, p = self.MAST_NM, self.MAST_P * self.glitter_factor(world)
         else:
             return
         if r < det_r and self.rng.random() < p:

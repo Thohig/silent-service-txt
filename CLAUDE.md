@@ -177,6 +177,9 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   (testerna sätter `env.lat = None`). Okt 1962: fullmåne 13, nymåne 28. Soluppgång kvadrat 7 ~06:05
   (förut 06:10). Botarna (sundet, sundet-in, konvoj-kort salva, kuba-kort, arktis-kort) gav samma utfall
   före och efter.
+  Månglittret (`DestroyerAI.glitter_factor`, även patrullbåten): på natten med månljus ≥ 0,2 och oss inom
+  ±35° från månens bäring sett från fartyget ser utkiken masterna × 1,5 lättare. Krisens nätter (22–28 okt)
+  har för lite måne för det, så kalibreringen ändras inte.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen
