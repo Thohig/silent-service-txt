@@ -69,7 +69,8 @@ def _wave(b: int, d: int) -> int:
 
 def _sea(g: _Grid, horizon: int, bottom: int, day: bool, t: int, center: float,
          cols_per_deg: float, cx: float) -> None:
-    """Sjön: glesa korta vågor vid horisonten, fler och längre nära oss; de rör sig med tiden."""
+    """Sjön: korta vågkammar i prickar, glesa och korta vid horisonten, fler och längre
+    nära oss; fasta i världen och de driver med tiden."""
     st = STYLE["sea_day"] if day else STYLE["sea_night"]
     rows = max(1, bottom - horizon - 1)
     for y in range(horizon + 1, bottom):
@@ -78,24 +79,36 @@ def _sea(g: _Grid, horizon: int, bottom: int, day: bool, t: int, center: float,
         period = round(18 - 12 * near)
         drift = t // 2
         base = round(center * cols_per_deg)
+        length = 2 + round(7 * near)             # kammens längd i prickar
         for x in range(g.w):
             b = base + x - round(cx) + (drift if d % 2 else -drift)
-            if (_wave(b, d) % period) == 0:
-                g.put(x, y, "~" if near > 0.3 else "-", st)
-                if near > 0.6 and x + 1 < g.w:
-                    g.put(x + 1, y, "~", st)
+            n = _wave(b, d)
+            if n % period == 0:
+                y0 = 4 * y + 1 + (n >> 8) % 2
+                x0 = 2 * x + (n >> 9) % 2
+                for k in range(length):
+                    lift = 1 if 0 < k < length - 1 and length > 3 else 0     # kammen i mitten
+                    g.dots.dot(x0 + k, y0 - lift, st)
 
 
 def _sky(g: _Grid, horizon: int, day: bool, center: float, cols_per_deg: float,
          cx: float) -> None:
     if day:
-        # några låga moln, fasta i världen
+        # några låga moln i prickar, fasta i världen: en rundad ovansida och platt botten
         for y in range(1, max(2, horizon // 2)):
             for x in range(g.w):
                 b = int(round(center * cols_per_deg)) + x - round(cx)
                 if b % 9 == 0 and _wave(b // 9, y) % 7 == 0:
-                    for k, ch in enumerate("._-‾‾-_."):
-                        g.put(x + k, y, ch, BRIDGE_STYLE["cloud"])
+                    n = _wave(b, y + 7)
+                    length = 12 + n % 8                  # prickar
+                    tall = 3 + (n >> 4) % 3
+                    x0, base_y = 2 * x, 4 * y + 3
+                    for k in range(length):
+                        top = tall * math.sin(math.pi * (k + 0.5) / length) ** 0.7
+                        g.dots.dot(x0 + k, base_y, BRIDGE_STYLE["cloud"])
+                        g.dots.dot(x0 + k, base_y - top, BRIDGE_STYLE["cloud"])
+                        if (k + y) % 3 == 0:
+                            g.dots.dot(x0 + k, base_y - top / 2, BRIDGE_STYLE["cloud"])
         return
     for y in range(0, horizon - 1):
         for x in range(g.w):
@@ -109,24 +122,32 @@ PARTIAL = " ▁▂▃▄▅▆▇█"
 
 def _land(g: _Grid, pic: PeriscopePicture, horizon: int, center: float, cols_per_deg: float,
           cx: float) -> None:
-    """Landets kontur ovanför horizonten: högre ju närmare, kullar fasta i världen."""
+    """Landets silhuett ovanför horisonten i prickar: en jämn kam, högre ju närmare, kullar
+    fasta i världen, och skrafferad mark under kammen ned till vattenlinjen."""
     if not pic.land:
         return
     st = STYLE["land_day"] if pic.day else STYLE["land_night"]
-    for x in range(g.w):
-        b = norm360(center + (x - cx) / cols_per_deg)
+    base = 4 * horizon + 2                       # vattenlinjen, mitt i horisontens rad
+    ridge_prev = None
+    for xd in range(2 * g.w):
+        b = norm360(center + (xd / 2 - cx) / cols_per_deg)
         land = _land_at(pic, b)
         if land is None:
+            ridge_prev = None
             continue
         hill = 0.5 + 0.3 * math.sin(math.radians(b) * 7) + 0.2 * math.sin(math.radians(b) * 19 + 1)
         height = 0.7 + 3.0 * min(1.0, 1.5 / max(land.range_nm, 0.3)) * (0.5 + hill)
-        g.put(x, horizon, "█", st)
-        full = int(height)
-        for k in range(1, full + 1):
-            g.put(x, horizon - k, "█", st)
-        part = PARTIAL[round((height - full) * 8)]
-        if part != " ":
-            g.put(x, horizon - full - 1, part, st)
+        ridge = base - 4 * height
+        if xd % 2 == 0:
+            g.put(xd // 2, horizon, " ", st)     # horisontlinjen går bakom landet
+        lo = ridge if ridge_prev is None else min(ridge, ridge_prev)
+        hi = ridge if ridge_prev is None else max(ridge, ridge_prev)
+        for yd in range(int(lo), int(hi) + 1):   # kammen, sammanhängande där den lutar
+            g.dots.dot(xd, yd, st, prio=1)
+        for yd in range(int(ridge) + 2, base + 1):
+            if (xd + yd) % 3 == 0 or yd >= base - 1:
+                g.dots.dot(xd, yd, st, prio=1)
+        ridge_prev = ridge
 
 
 def _draw_event(g: _Grid, inside, o: SightedObject, x: float, horizon: int, t: int,
@@ -183,22 +204,26 @@ def _foreground(g: _Grid, horizon: int, view_rel: float, cx: float, cols_per_deg
     if abs(bow) <= FOV_DEG / 2 + 10:
         apex = cx + bow * cols_per_deg
         rows = rail_y - deck_top
+        spread = (g.w / 9) / max(rows, 1)              # kolumner per rad åt varje sida
         for i, y in enumerate(range(deck_top, rail_y)):
-            half = 0.5 + (i + 1) * (g.w / 9) / max(rows, 1)
+            half = 0.5 + (i + 1) * spread
             left, right = round(apex - half), round(apex + half)
             for x in range(max(0, left + 1), min(g.w, right)):
                 g.put(x, y, "▒", BRIDGE_STYLE["deck"])
-            g.put(left, y, "/", BRIDGE_STYLE["deck_edge"])
-            g.put(right, y, "\\", BRIDGE_STYLE["deck_edge"])
-        g.put(round(apex), deck_top - 1, "^", BRIDGE_STYLE["deck_edge"])
+        # relingen i prickar från stäven och ut mot räcket
+        ax, ay = 2 * apex + 1, 4 * deck_top - 2
+        span = 2 * (0.5 + rows * spread)
+        g.dots.line(ax, ay, ax - span, 4 * rail_y, BRIDGE_STYLE["deck_edge"])
+        g.dots.line(ax, ay, ax + span, 4 * rail_y, BRIDGE_STYLE["deck_edge"])
     elif abs(stern) <= FOV_DEG / 2 + 10 and own_speed > 0.5:
         apex = cx + stern * cols_per_deg
         rows = rail_y - (horizon + 1)
         for i, y in enumerate(range(horizon + 1, rail_y)):
             half = 1 + (i + 1) * (g.w / 8) / max(rows, 1)
-            for x in range(round(apex - half), round(apex + half) + 1):
-                if (x * 5 + y * 3 + t) % 4 == 0:
-                    g.put(x, y, "≈", BRIDGE_STYLE["wake"])
+            for xd in range(round(2 * (apex - half)), round(2 * (apex + half)) + 1):
+                for yd in range(4 * y, 4 * y + 4):
+                    if (xd * 5 + yd * 3 + t) % 7 == 0:   # skum som virvlar i kölvattnet
+                        g.dots.dot(xd, yd, BRIDGE_STYLE["wake"])
     for x in range(g.w):
         g.put(x, rail_y, "╤" if x % 12 == 0 else "═", BRIDGE_STYLE["rail"])
 

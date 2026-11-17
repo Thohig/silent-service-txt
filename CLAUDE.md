@@ -254,7 +254,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   Sonar skriver inte över en bättre klassning (utkikens GOD) med sämre.
   Vyn (`ui/bridge.py`, `ui/bridge_render.py`, `brygga`): 120° synfält åt `view_rel` relativt fören (← → 15°,
   mellanslag förut), himmel (moln/stjärnor), horisont, sjö med vågor fasta i världen som driver med tiden,
-  fördäck förut och kölvatten akterut, räcket nederst; föremål ritas med periskopets `_draw_object`
+  fördäck förut och kölvatten akterut, räcket nederst (land, vågkammar, moln, reling och kölvatten i braille i
+  `_Grid.dots`, som periskopet delar); föremål ritas med periskopets `_draw_object`
   (siluett, lanternor, flyg, is), längre bort än 8 nm bara ett tecken. Bäringsskala, 360°-remsa
   (`render_strip(window=...)`) och datarad om föremålet närmast blickens mitt (±12°). Utan bild säger
   vyn varför ur `StatusSnapshot.bridge` och djupet.

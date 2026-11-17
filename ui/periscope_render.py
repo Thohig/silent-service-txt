@@ -23,6 +23,8 @@ from sim.geo import angle_diff, norm360
 from sim.ice import ICE_LOOK_NM
 from sim.periscope import SECTOR_HALF_DEG, IceBearing, PeriscopePicture, SightedObject, in_sector
 
+from .canvas import DotLayer
+
 FOV_DEG = 32.0              # okularets synfält i låg förstoring
 STALE_S = 60                # äldre bild än så ritas nedtonad
 STRIP_ROWS = 3
@@ -188,9 +190,13 @@ def object_key(o: SightedObject) -> str:
 
 # --- rutnät -------------------------------------------------------------------------
 class _Grid:
+    """Bildens rutor, och under dem ett prickskikt i braille (`dots`, prickkoordinater
+    2 per kolumn, 4 per rad) som syns där rutan är tom: land, sjö, moln, däck."""
+
     def __init__(self, w: int, h: int):
         self.w, self.h = w, h
         self.cells: list[list[tuple[str, str]]] = [[(" ", "")] * w for _ in range(h)]
+        self.dots = DotLayer(w, h)
 
     def put(self, x: int, y: int, ch: str, style: str = "") -> None:
         if 0 <= x < self.w and 0 <= y < self.h:
@@ -202,9 +208,13 @@ class _Grid:
 
     def rows(self) -> list[Text]:
         out = []
-        for row in self.cells:
+        for y, row in enumerate(self.cells):
             t = Text()
-            for ch, st in row:
+            for x, (ch, st) in enumerate(row):
+                if ch == " ":
+                    d = self.dots.cell(y, x)
+                    if d is not None:
+                        ch, st = d[0], d[1]
                 t.append(ch, st)
             out.append(t)
         return out

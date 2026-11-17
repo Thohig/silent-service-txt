@@ -262,14 +262,20 @@ def test_focus_is_the_object_nearest_the_middle_of_the_view():
     assert focus_object(_bpic(a, b, course=80.0), 15.0) is b
 
 
+def _braille(s: str) -> int:
+    return sum(0x2800 < ord(ch) <= 0x28FF for ch in s)
+
+
 def test_scene_shows_ships_in_view_with_labels_and_the_bow_ahead():
     pic = _bpic(_obj("S-1", 20.0), _obj("S-4", 200.0))
     ahead = _plain(render_scene(pic, 110, 24, 0.0, 0))
     assert "S-1 1,8" in ahead and "S-4" not in ahead
     assert "▒" in ahead and "╤" in ahead, "fördäcket och räcket syns förut"
     astern = _plain(render_scene(pic, 110, 24, 180.0, 0, own_speed=8.0))
+    still = _plain(render_scene(pic, 110, 24, 180.0, 0, own_speed=0.0))
     assert "S-4" in astern and "S-1" not in astern
-    assert "▒" not in astern and "≈" in astern, "akterut syns kölvattnet, inte fördäcket"
+    assert astern.count("▒") < ahead.count("▒") // 2, "akterut inget fördäck"
+    assert _braille(astern) > _braille(still) + 30, "akterut syns kölvattnet (prickar)"
 
 
 def test_far_ships_are_a_mark_and_night_ships_only_lights():
@@ -443,7 +449,10 @@ def test_scene_draws_land_and_events():
             SightedObject("wake", "torpedspår", 5.0, 0.3, Quality.GOD, aob=60.0, seen_t=100))
     pic = PeriscopePicture(100, True, 10.0, 0.0, "brygga", objs, land=land)
     txt = _plain(render_bridge(pic, 110, 30, 0.0, 100))
-    assert "█" in txt and "|||" in txt and "▲▲▲" in txt and "===" in txt
+    bare = _plain(render_bridge(PeriscopePicture(100, True, 10.0, 0.0, "brygga", objs), 110, 30,
+                                0.0, 100))
+    assert _braille(txt) > _braille(bare) + 60, "landet är en silhuett i prickar"
+    assert "|||" in txt and "▲▲▲" in txt and "===" in txt
     later = _plain(render_scene(pic, 110, 24, 0.0, 130))
     assert "░" in later or "▒" in later, "röken stiger efter en stund"
     night = PeriscopePicture(100, False, 2.5, 0.0, "brygga", objs, land=land)
