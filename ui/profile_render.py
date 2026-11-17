@@ -67,10 +67,11 @@ LEGEND = [
     ("⠄⠠", "layer", "språngskikt"), ("▓", "bottom", "ekolod"), ("⠒⠒", "chart_bottom", "sjökortets djup"),
     ("█", "ice_thick", "is"),
     ("≈", "ice_open", "öppet vatten"),
-    None, ("◦", "heard_ping", "ping"), ("↓", "heard_splash", "plask"),
+    None, ("Sonar hörde:", "dim", ""), ("◦", "heard_ping", "ping"), ("↓", "heard_splash", "plask"),
     ("✱", "heard_explosion", "detonation"),
     ("⊥", "heard_buoy", "boj"), ("~", "heard_other", "telefon"),
     ("!", "own_sound", "egen ping"), ("»", "own_sound", "avfyring"), ("o", "own_sound", "skenmål"),
+    ("✱", "near", "nära"),
 ]
 
 
@@ -399,7 +400,7 @@ def _events_row(view: ProfileView, cols: int, col_of) -> Text:
             prio[c] = p
             g.put(c, 0, e.symbol, STYLE.get(e.style, "white") + (" reverse" if e.near else ""))
     return Text.assemble(Text(" " * (MARGIN - 1) + "╵", style=STYLE["axis"]), g.line(0),
-                         _pad(Text(" hört", style=STYLE["dim"])))
+                         _pad(Text(" sonar hörde", style=STYLE["dim"])))
 
 
 def legend() -> Text:
@@ -409,8 +410,11 @@ def legend() -> Text:
             t.append("\n ")
             continue
         sym, style, what = item
-        t.append(sym, style=STYLE[style])
-        t.append(f" {what}  ", style="dim")
+        if style == "near":                       # omvänt tecken: ljudet var nära
+            t.append(sym, style=STYLE["heard_explosion"] + " reverse")
+        else:
+            t.append(sym, style=STYLE[style])
+        t.append(f" {what}  " if what else " ", style="dim")
     return t
 
 

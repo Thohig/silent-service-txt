@@ -162,3 +162,17 @@ def test_tab_cycles_the_views(tmp_path):
             assert not isinstance(app.screen, BoatScreen)
 
     asyncio.run(run())
+
+
+def test_heard_band_is_explained():
+    from ui.profile_render import legend
+    leg = legend().plain
+    assert "Sonar hörde:" in leg and "nära" in leg
+    out = _text(render_profile(_view_with_heard(), 100, 30))
+    assert "sonar hörde" in out
+
+
+def _view_with_heard():
+    v = ProfileView("12:00:00", 600, 0, 50.0, 50.0, 5.0, 90.0)
+    v.items.extend([Level(0.0, "yta", "surface", "≈"), HeardEvent(500, "ping", "◦", "heard_ping")])
+    return v
