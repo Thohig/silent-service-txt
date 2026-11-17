@@ -235,7 +235,10 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   `≋` skenmål, `▲` nödblåsning, `R` rapport, `⊙` periskop (högst var 5:e min). Egna torpeder
   (`TorpedoRoom.chart_items`): från avfyrningspunkten (beräknad) längs inställd kurs så långt de hunnit,
   `+` varje minut, huvud `•`/`✱` träff/`?`, kvar 30 min (`finished`); girad målsökare också med hörd bäring.
-  Besticket får `◦` var 10:e min på klockan (`dr_ticks`), klockslag varje halvtimme. Linjer (spår, djupkurvor, kust, farled streckad, bäringar,
+  Besticket får `◦` var 10:e min på klockan (`dr_ticks`), klockslag varje halvtimme. Kontakter: `»` först
+  hörd (bäringen, en gång per beteckning) och `∅` tappad (lösningen ≥ osäker, annars senaste bäringen;
+  inte isljud/civila), alltid med beteckningen. Etiketter: högre lager vinner där de krockar, inom ett
+  lager den som kom först (stationerna lägger det nyaste först). Teckenförklaringen har en tredje rad. Linjer (spår, djupkurvor, kust, farled streckad, bäringar,
   vektorer, osäkerhetsringar streckade) ritas i braille i prickskiktet `ui/canvas.DotLayer` (prickkoordinater
   2 per kolumn, 4 per rad); märken, etiketter, rutnät och gräns är hela tecken; högst lager vinner per ruta.
   Nytt system ritar sig självt.

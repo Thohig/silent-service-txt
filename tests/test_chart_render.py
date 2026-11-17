@@ -121,3 +121,16 @@ def test_label_is_separated_from_its_mark():
                        Mark(10.0, 10.0, "Ö", "opening", "Ö1 god", Quality.GOD)))
     (c, r), = [p for p in _find(rows, "Ö") if rows[p[1]][p[0] + 1] != "1"]
     assert rows[r][c + 1] == " " and rows[r][c + 2:c + 4] == "Ö1"
+
+
+def test_label_of_a_higher_layer_wins_where_labels_collide():
+    """Kontaktens etikett vinner över ett blyertsmärke på samma ställe, oavsett ordning;
+    inom ett lager vinner den som kom först (stationen lägger det nyaste först)."""
+    pencil = Ray(10.0, 10.0, 90.0, 0.6, "pencil", "P 03:01", layer=0.5)
+    contact = Mark(10.7, 10.0, "◆", "contact", "S-1 god")
+    rows = _grid(_view(pencil, contact))
+    text = "".join(rows)
+    assert "S-1 god" in text and "P 03:01" not in text
+    newer = Ray(10.0, 10.0, 90.0, 0.6, "pencil", "✕ 03:05", layer=0.5)
+    text = "".join(_grid(_view(newer, pencil)))
+    assert "✕ 03:05" in text and "P 03:01" not in text

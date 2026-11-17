@@ -132,9 +132,14 @@ from sim.stations.plot import PENCIL_CLOCKS, PENCIL_FADE_S, PENCIL_GAP_S, PENCIL
 from sim.tma import Solution  # noqa: E402
 
 
-def _pencil(view):
-    return [i for i in view.drawables
-            if isinstance(i, (Mark, Ray)) and i.style.startswith("pencil")]
+def _pencil(view, contacts=False):
+    """Blyertsmärkena, äldst först. Utan contacts: inte först hörd/tappad (sonar hör
+    fartygen i övningen av sig själv)."""
+    out = [i for i in view.drawables
+           if isinstance(i, (Mark, Ray)) and i.style.startswith("pencil")]
+    if not contacts:
+        out = [i for i in out if (i.symbol if isinstance(i, Mark) else i.label[:1]) not in "»∅"]
+    return out[::-1]
 
 
 def _hear(g, kind, bearing, designation=None, detail="", practice=False):
@@ -231,7 +236,7 @@ def test_pencil_marks_in_a_hunt_come_from_what_sonar_heard():
 
 
 # --- egna handlingar, torpedbanan och tidsstrecken (B2) --------------------------
-from sim.events import OwnActionLogged, OwnSoundMade  # noqa: E402
+from sim.events import ContactLost, OwnActionLogged, OwnSoundMade  # noqa: E402
 from sim.stations import TorpedoRoom  # noqa: E402
 from sim.stations.navigation import DR_TICK_S  # noqa: E402
 
@@ -313,3 +318,24 @@ def test_dead_reckoning_gets_a_tick_every_ten_minutes_on_the_clock():
     ticks = [i for i in g.chart().drawables if isinstance(i, Mark) and i.symbol == "◦"]
     assert len(ticks) == 2
     assert all(m.label == "" or re.fullmatch(r"\d\d:[03]0", m.label) for m in ticks)
+
+
+def test_contact_first_heard_and_lost_pencilled_with_designation():
+    g = _game("ovning")
+    plot = g.station(PlotTeam)
+    nav = g.station(NavigationStation)
+    g.bus.publish(ContactDetected(g.now, "S-9", 120.0, "okänd kontakt", Quality.DALIG))
+    g.bus.publish(ContactDetected(g.now, "S-9", 121.0, "ytfartyg", Quality.OSAKER))
+    first = [m for m in plot.pencil if m.kind == "first"]
+    assert len(first) == 1 and first[0].bearing == 120.0
+    assert (first[0].x, first[0].y) == (nav.est_x, nav.est_y)
+    g.bus.publish(BearingObserved(g.now, BearingObs(g.now, 125.0, 1.0, 5.0, 2.0, 0.0,
+                                                    designation="S-9")))
+    g.bus.publish(ContactLost(g.now, "S-9"))
+    (lost,) = [m for m in plot.pencil if m.kind == "lost"]
+    assert lost.on_bearing and lost.bearing == 125.0 and (lost.x, lost.y) == (5.0, 2.0)
+    for _ in range(PENCIL_CLOCKS + 1):                  # inte längre bland de nyaste
+        g.bus.publish(SoundHeard(g.now, "splash", 10.0 + 40 * _, None, False, "", se=20.0))
+    labels = [m.label for m in _pencil(g.chart(), contacts=True)
+              if m.label.startswith(("»", "∅"))]
+    assert sorted(labels) == ["» S-9", "∅ S-9"]

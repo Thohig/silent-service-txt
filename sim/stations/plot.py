@@ -8,7 +8,8 @@ from dataclasses import dataclass
 import math
 
 from ..chart import LAYER_MARK, LAYER_TRACK, Mark, Ray, Ring
-from ..events import ConvoyAssessed, OwnActionLogged, OwnSoundMade, SoundHeard
+from ..events import (ContactDetected, ContactLost, ConvoyAssessed, OwnActionLogged, OwnSoundMade,
+                      SoundHeard)
 from ..crew import Role
 from ..fmt import fmt_course
 from ..geo import angle_diff, norm360
@@ -44,6 +45,8 @@ PENCIL_FRESH_S = 60             # nytt märke: skarpt
 PENCIL_FADE_S = 600             # äldre än så: blekt
 PENCIL_CLOCKS = 5               # klockslag bara på de nyaste
 PENCIL_STROKE_NM = 0.6          # streck längs bäringen när avståndet är okänt
+PENCIL_LOST_GAP_S = 600         # samma kontakt tappad: högst ett märke så ofta
+PENCIL_NAMED = ("first", "lost")   # beteckningen står alltid bredvid
 PENCIL_SECTOR_DEG = 15          # okänd källa: samma märke inom sektorn
 PENCIL_SYMBOL = {"ping": "P", "buoy_ping": "BP", "splash": "✕", "buoy": "B",
                  "explosion": "✱", "breakup": "↓"}
@@ -109,12 +112,44 @@ class PlotTeam(Station):
         self._convoy_quality: Quality | None = None
         self.pencil: list[PencilMark] = []
         self._pencil_last: dict[str, int] = {}
+        self._first_heard: set[str] = set()
 
     def attach(self, bus) -> None:
         super().attach(bus)
         bus.subscribe(SoundHeard, self._on_sound)
         bus.subscribe(OwnSoundMade, lambda e: self._on_own(e.t, e.kind))
         bus.subscribe(OwnActionLogged, lambda e: self._on_own(e.t, e.kind))
+        bus.subscribe(ContactDetected, self._on_detected)
+        bus.subscribe(ContactLost, self._on_lost)
+
+    def _on_detected(self, e: ContactDetected) -> None:
+        """Första gången en kontakt hörs: dess beteckning vid bäringen."""
+        if e.designation in self._first_heard:
+            return
+        self._first_heard.add(e.designation)
+        x, y = self.game.own_position_estimate()
+        self.pencil.append(PencilMark(e.t, "first", "»", x, y, e.bearing, True,
+                                      f"first:{e.designation}", e.designation))
+
+    def _on_lost(self, e: ContactLost) -> None:
+        """Tappad kontakt: på lösningen om plottet har en, annars vid senaste bäringen."""
+        tr = self.game.knowledge.track(e.designation)
+        if tr is None or tr.benign or not tr.observations:
+            return
+        key = f"lost:{tr.designation}"
+        if e.t - self._pencil_last.get(key, -10**9) < PENCIL_LOST_GAP_S:
+            return
+        self._pencil_last[key] = e.t
+        sol = tr.solution
+        if sol is not None and sol.quality >= Quality.OSAKER:
+            dt = (e.t - sol.t) / 3600.0
+            x, y = sol.x + sol.state[2] * dt, sol.y + sol.state[3] * dt
+            mark = PencilMark(e.t, "lost", "∅", x, y, 0.0, False, key, tr.designation)
+        else:
+            o = tr.observations[-1]
+            mark = PencilMark(e.t, "lost", "∅", o.own_x, o.own_y, o.bearing, True, key,
+                              tr.designation)
+        self.pencil.append(mark)
 
     def _on_own(self, t: int, kind: str) -> None:
         """Egna handlingar som kan ha röjt oss, där vi trodde att vi var."""
@@ -152,21 +187,25 @@ class PlotTeam(Station):
         self.pencil.append(PencilMark(e.t, e.kind, symbol, x, y, e.bearing, on_bearing, key))
 
     def _pencil_items(self) -> list:
+        """Nyaste först, så att deras etiketter vinner där de krockar."""
         self.pencil = [m for m in self.pencil if self.now - m.t < PENCIL_KEEP_S]
         items: list = []
         n = len(self.pencil)
-        for i, m in enumerate(self.pencil):
+        for i in range(n - 1, -1, -1):
+            m = self.pencil[i]
             age = self.now - m.t
             style = "pencil_new" if age < PENCIL_FRESH_S else "pencil"
-            clock = self.game.clock_str(m.t)[:5] if i >= n - PENCIL_CLOCKS else ""
+            newest = i >= n - PENCIL_CLOCKS
+            clock = self.game.clock_str(m.t)[:5] if newest else ""
+            word = m.word if newest or m.kind in PENCIL_NAMED else ""
             faded = age >= PENCIL_FADE_S
             if m.on_bearing:            # strecket, sedan symbolen och klockslaget vid änden
-                label = f"{m.symbol} {clock}".strip()
+                label = " ".join(p for p in (m.symbol, word, clock) if p)
                 items.append(Ray(m.x, m.y, m.bearing, PENCIL_STROKE_NM, style, label,
                                  faded=faded, layer=LAYER_PENCIL))
             else:                       # symbolen på lösningen (en ruta), klockslaget bredvid
-                extra = m.word or ("snabb" if m.symbol == "PP" else m.symbol[1:])
-                label = f"{extra} {clock}".strip() if clock else ""
+                extra = word or ("snabb" if m.symbol == "PP" and newest else m.symbol[1:])
+                label = " ".join(p for p in (extra, clock) if p)
                 items.append(Mark(m.x, m.y, m.symbol[0], style, label,
                                   faded=faded, layer=LAYER_PENCIL_MARK))
         return items

@@ -223,7 +223,7 @@ def render_chart(view: ChartView, cx: float, cy: float, scale: float,
     """Kortet som `height` rader text, `width` tecken breda."""
     cv = Canvas(max(1, width - MARGIN), max(1, height - 1), cx, cy, scale)
     _background(cv, view.size_nm)
-    labels: list[tuple[float, float, str, str, int]] = []   # x, y, text, stil, förskjutning
+    labels: list[tuple[float, float, str, str, int, float]] = []  # x, y, text, stil, förskjutning, lager
     for it in view.drawables:
         match it:
             case Track(points=pts, style=s):
@@ -251,21 +251,24 @@ def render_chart(view: ChartView, cx: float, cy: float, scale: float,
                 last = cv.dot_line(it.x, it.y, x1, y1, st, it.layer, skip=3)
                 if it.label and last is not None:
                     labels.append((cv.x_of(last[0]) + scale / 2, cv.y_of(last[1]) - scale,
-                                   it.label, st, 1))
+                                   it.label, st, 1, it.layer))
             case Mark():
                 st = item_style(it.style, it.quality, it.faded)
                 c, r = cv.cell(it.x, it.y)
                 if cv.inside(c, r):
                     cv.put(c, r, it.symbol, st, it.layer)
                     if it.label:
-                        labels.append((it.x, it.y, it.label, st, 2))
+                        labels.append((it.x, it.y, it.label, st, 2, it.layer))
                 elif it.label and it.style in EDGE_STYLES:
                     # utanför kortet: en pil vid kanten åt rätt håll
                     ec, er, arrow = cv.edge(it.x, it.y)
                     cv.put(ec, er, arrow, st, it.layer)
                     labels.append((cv.x_of(ec) + scale / 2, cv.y_of(er) - scale,
-                                   it.label, st, 2))
-    for x, y, s, st, off in labels:
+                                   it.label, st, 2, it.layer))
+    # högre lager först: där etiketter krockar vinner kontakten över blyertsen; inom ett
+    # lager vinner den som kom först (stationerna lägger det nyaste först)
+    labels.sort(key=lambda lb: -lb[5])
+    for x, y, s, st, off, _ in labels:
         c, r = cv.cell(x, y)
         if cv.inside(c, r):
             cv.text(c + off, r, s, st, LABEL_PRIO)

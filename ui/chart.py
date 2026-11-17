@@ -25,9 +25,15 @@ LEGEND = [
     ("⊕", "waypoint", "position från huvudstaben"), ("≈", "ice_open", "öppet vatten"),
     ("=", "ice_thin", "tunn is"), ("#", "ice_thick", "tjock is"), ("Ö", "opening", "öppning"),
     (".", "own", "osäkerhet"), ("╱", "contour", "djupkurva"), ("∙", "sounding", "ekolod"),
+    ("◦", "track", "var 10:e min"),
+    # plottets blyertsmärken och egna torpeder
+    ("P", "pencil", "ping"), ("✕", "pencil", "plask"), ("✱", "pencil", "detonation"),
+    ("↓", "pencil", "brytljud"), ("»", "pencil", "först hörd"), ("∅", "pencil", "tappad"),
+    ("⊙", "pencil", "periskop"), ("R", "pencil", "rapport"), ("≋", "pencil", "skenmål"),
+    ("•", "torpedo", "egen torped"),
 ]
 
-LEGEND_SPLIT = 7                  # andra raden: isen och osäkerheten
+LEGEND_SPLITS = (7, 15)           # andra raden: isen och osäkerheten; tredje: blyertsen
 
 
 class ChartScreen(ViewScreen):
@@ -35,7 +41,7 @@ class ChartScreen(ViewScreen):
     ChartScreen { background: #0b0f0c; }
     #chart-head { height: 2; background: #1c2a20; color: #c8d0b0; }
     #chart-body { height: 1fr; }
-    #chart-legend { height: 2; color: #7f9a80; }
+    #chart-legend { height: 3; color: #7f9a80; }
     #chart-ticker { height: 2; background: #0f1611; }
     """
     PREFIX = "chart"
@@ -116,7 +122,7 @@ def _nm(v: float) -> str:
 def _legend() -> Text:
     t = Text(" ", no_wrap=True, overflow="crop")
     for i, (sym, style, what) in enumerate(LEGEND):
-        if i == LEGEND_SPLIT:
+        if i in LEGEND_SPLITS:
             t.append("\n ")
         t.append(sym, style=STYLE[style])
         t.append(f" {what}  ", style="dim")
