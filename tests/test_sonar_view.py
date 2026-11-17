@@ -221,3 +221,31 @@ def test_sonar_screen_keys_and_words(tmp_path):
             assert isinstance(app.screen, SonarScreen)
 
     asyncio.run(run())
+
+
+def test_status_bar_contacts_threats_first_in_colour():
+    import dataclasses
+
+    from ui.widgets import CONTACT_STYLE, contacts_text
+    g = _game("kuba", seed=3)
+    s = g.status()
+    s = dataclasses.replace(s, contacts_held=("S-2", "S-4", "S-10"),
+                            contact_kinds=("threat", "contact", "civil"))
+    t = contacts_text(s, 80)
+    assert t.plain == " S-2 S-4 S-10"
+    assert [sp.style for sp in t.spans] == [CONTACT_STYLE["threat"], CONTACT_STYLE["contact"],
+                                            CONTACT_STYLE["civil"]]
+    hunted = contacts_text(dataclasses.replace(s, hunted=True), 80)
+    assert "blink" in str(hunted.spans[0].style) and "blink" not in str(hunted.spans[1].style)
+    assert contacts_text(s, 9).plain == " S-2 +2"
+
+
+def test_game_orders_held_contacts_by_kind():
+    from sim.game import _desig_no
+    assert sorted(["S-10", "S-2", "S-1"], key=_desig_no) == ["S-1", "S-2", "S-10"]
+    g = _game("jagad-kort", seed=2)
+    for _ in range(60):
+        g.tick()
+    s = g.status()
+    assert len(s.contact_kinds) == len(s.contacts_held)
+    assert set(s.contact_kinds) <= {"threat", "contact", "civil", "benign", "friendly"}

@@ -42,6 +42,29 @@ def _clock(seconds: int) -> str:
     return f"{seconds // 3600:02d}:{seconds % 3600 // 60:02d}:{seconds % 60:02d}"
 
 
+# huvudradens färg per kontaktslag (som sonarvyns spår)
+CONTACT_STYLE = {"threat": "bold #ff7f5f", "contact": "bold #e8c860", "civil": "#a8b890",
+                 "benign": "#5f7a68", "friendly": "bold #5fd7ff"}
+
+
+def contacts_text(s: StatusSnapshot, room: int) -> Text:
+    """Kontakterna i huvudraden, hot först och i sin färg; hot blinkar när vi är jagade.
+    Får de inte plats står resten som +n."""
+    t = Text()
+    kinds = s.contact_kinds or ("contact",) * len(s.contacts_held)
+    n = len(s.contacts_held)
+    for i, (d, k) in enumerate(zip(s.contacts_held, kinds)):
+        more = f" +{n - i}"
+        if t.cell_len + 1 + len(d) + (len(more) if i < n - 1 else 0) > room:
+            t.append(more, style="dim")
+            break
+        style = CONTACT_STYLE.get(k, CONTACT_STYLE["contact"])
+        if k == "threat" and s.hunted:
+            style += " blink"
+        t.append(" " + d, style=style)
+    return t
+
+
 class StatusBar(Static):
     def show(self, s: StatusSnapshot) -> None:
         t = Text()
@@ -76,8 +99,9 @@ class StatusBar(Static):
                 t.append(" ●", style="bold #ffaf00")
         if s.contacts_held:
             t.append("  │ ", style="")
-            t.append("KONTAKT ", style="dim")
-            t.append(" ".join(s.contacts_held), style="bold cyan")
+            t.append("KONTAKT", style="dim")
+            room = max(8, self.size.width - t.cell_len) if self.size.width else 200
+            t.append(contacts_text(s, room))
 
         # rad 2: ubåtens system
         t.append("\n")

@@ -24,7 +24,7 @@ from typing import Any, TypeVar
 from . import phrases, russian
 from .chart import ChartView
 from .profile import ProfileView
-from .sonar_view import SonarView
+from .sonar_view import KINDS, SonarView, track_kind
 from .systems import SystemsView
 from .crew import CrewMember, Role
 from .events import (EventBus, GameEnded, Handover, OrderIssued, PositionReported,
@@ -62,7 +62,7 @@ class StatusSnapshot:
     ordered_depth: float
     changing: frozenset[str]
     time_scale: int
-    contacts_held: tuple[str, ...]
+    contacts_held: tuple[str, ...]          # hot först, sedan okända, handel, is och eget
     reactor: str = "online"
     propulsion: str = "turbine"
     battery: float = 1.0
@@ -86,6 +86,7 @@ class StatusSnapshot:
     periscope_optic: str = "periskop"   # periskop, eller kikare från bryggan
     night: bool = False             # mörkt ute (centralen går på rött ljus)
     hunted: bool = False            # sonar hör att fienden har oss
+    contact_kinds: tuple[str, ...] = ()   # slaget per hållen kontakt (sonar_view.KINDS)
     command: str = "captain"        # vem som har befälet: captain eller starpom
     captain_at: str = "central"     # var kaptenen är: central, cabin (hytten) eller walking
     walk_s: int = 0                 # sekunder kvar till centralen
@@ -435,15 +436,25 @@ class Game:
         return view
 
     # ------------------------------------------------------------------ status
+    def _held_by_kind(self, held: list[str]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+        """De hållna kontakterna, hot först (ur kunskapens klassning), och slaget för var och en."""
+        order = {k: i for i, k in enumerate(KINDS)}
+        pairs = []
+        for d in held:
+            tr = self.knowledge.track(d)
+            pairs.append((d, track_kind(tr) if tr is not None else "contact"))
+        pairs.sort(key=lambda p: (order[p[1]], _desig_no(p[0])))
+        return tuple(d for d, _ in pairs), tuple(k for _, k in pairs)
+
     def status(self) -> StatusSnapshot:
         own = self.world.own
         s, sy = own.state, own.sys
         try:
             sonar = self.station(SonarRoom)
-            held = tuple(sonar.held_designations())
+            held, kinds = self._held_by_kind(sonar.held_designations())
             sea_noise, under_ice = sonar.background()
         except KeyError:
-            held, sea_noise, under_ice = (), 0.0, False
+            held, kinds, sea_noise, under_ice = (), (), 0.0, False
         from .acoustics import cavitation_speed
         sug = self.active_suggestion()
         try:
@@ -458,7 +469,7 @@ class Game:
             speed=s.speed, ordered_speed=s.ordered_speed,
             depth=s.depth, ordered_depth=s.ordered_depth,
             changing=frozenset(s.changing()), time_scale=self.time_scale,
-            contacts_held=held,
+            contacts_held=held, contact_kinds=kinds,
             reactor=sy.reactor, propulsion=sy.propulsion, battery=sy.battery,
             hull=sy.hull, flooding=sy.flooding,
             periscope_depth=s.depth <= PERISCOPE_DEPTH, masts_up=own.masts_up(self.now),
@@ -471,3 +482,9 @@ class Game:
             night=not self.world.env.is_day(self.now), hunted=self.knowledge.hunted(self.now),
             **{k: v for st in self.stations for k, v in st.status_fields().items()},
         )
+
+
+def _desig_no(d: str) -> tuple[int, str]:
+    """S-2 före S-10."""
+    tail = d.rsplit("-", 1)[-1]
+    return (int(tail), d) if tail.isdigit() else (10**6, d)
