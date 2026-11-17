@@ -90,6 +90,7 @@ def test_orders_can_be_given_in_every_view(tmp_path):
     from ui.chart import ChartScreen
     from ui.periscope import PeriscopeScreen
     from ui.boat import BoatScreen
+    from ui.sonar import SonarScreen
     from ui.viewbase import OrderLine
 
     async def run():
@@ -97,7 +98,7 @@ def test_orders_can_be_given_in_every_view(tmp_path):
         async with app.run_test(size=(110, 40)) as pilot:
             await pilot.press("enter", "enter")
             # under ytan: ingen brygga i Tab-ordningen
-            for i, cls in enumerate((ChartScreen, BoatScreen, PeriscopeScreen)):
+            for i, cls in enumerate((ChartScreen, SonarScreen, BoatScreen, PeriscopeScreen)):
                 await pilot.press("tab")
                 assert isinstance(app.screen, cls)
                 course = 100 + 10 * i

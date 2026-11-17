@@ -114,7 +114,8 @@ def test_tab_cycles_through_the_boat_view(tmp_path):
             await pilot.press("enter", "enter")
             for _ in range(60):
                 app.game.tick()
-            for cls in (LogScreen, ChartScreen, BoatScreen):
+            from ui.sonar import SonarScreen
+            for cls in (LogScreen, ChartScreen, SonarScreen, BoatScreen):
                 await pilot.press("tab")
                 assert isinstance(app.screen, cls)
             await pilot.pause(0.6)

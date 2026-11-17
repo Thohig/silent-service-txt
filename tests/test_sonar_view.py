@@ -85,3 +85,50 @@ def test_no_contacts_no_traces():
     v = g.sonar()
     assert v.traces == [] and v.lines == []
     assert v.heading and v.heading[-1] == (g.now, round(g.world.own.state.course, 1))
+
+
+# --- rastreringen -------------------------------------------------------------------
+from sim.sonar_view import OwnHeading  # noqa: E402
+from ui.sonar_render import LEFT, render_sonar  # noqa: E402
+
+
+def _view(now=1800, course=90.0, items=()):
+    v = SonarView("12:30:00", now, 12 * 3600, course)
+    v.items.extend(items)
+    return v
+
+
+def _plain(lines):
+    return [line.plain for line in lines]
+
+
+def test_render_axes_and_bow():
+    rows = _plain(render_sonar(_view(), 100, 30))
+    assert len(rows) == 30 and all(len(r) == 100 for r in rows)
+    assert "000" in rows[0] and "090" in rows[0] and "270" in rows[0]
+    assert "F" in rows[1]                                     # fören på 090
+    assert rows[2].rstrip().endswith("◂ nu")
+    assert any("12:" in r for r in rows[3:])                  # klockslag i marginalen
+
+
+def test_trace_drawn_at_its_bearing_newest_on_top():
+    pts = tuple((t, 45.0, 10.0) for t in range(0, 1801, 5))
+    v = _view(items=[BearingTrace("S-3", pts, "threat")])
+    rows = _plain(render_sonar(v, 100, 30, window_s=1800, center=0.0))
+    cols = 100 - LEFT - 6
+    col = LEFT + int((45 + 180) / 360 * 2 * cols) // 2
+    body = rows[2:]
+    assert all("⠀" < r[col] <= "⣿" for r in body[1:])   # brailleprickar hela vägen
+    assert "S-3" in body[0]
+    # relativ bäring: fören (090) i mitten ⇒ 045 sann = 315 relativt
+    rel = _plain(render_sonar(v, 100, 30, window_s=1800, center=0.0, relative=True))
+    col_rel = LEFT + int((-45 + 180) / 360 * 2 * cols) // 2
+    assert "⠀" < rel[10][col_rel] <= "⣿"
+    assert "för" in rel[0] and "akter" in rel[0]
+
+
+def test_old_points_outside_window_are_not_drawn():
+    pts = tuple((t, 200.0, 10.0) for t in range(0, 300, 5))      # bara för 25–30 min sedan
+    v = _view(items=[BearingTrace("S-1", pts, "contact")])
+    rows = _plain(render_sonar(v, 100, 30, window_s=600))
+    assert not any(any("⠀" < ch <= "⣿" for ch in r) for r in rows)

@@ -34,6 +34,7 @@ from .menu import MenuScreen
 from .menu_audio import MenuSound
 from .bridge import BridgeScreen
 from .periscope import PeriscopeScreen
+from .sonar import SonarScreen
 from .menutext import INK as PAPER_INK
 from .menutext import stamp_for
 from .strips import TelegramStrip
@@ -44,6 +45,7 @@ from .widgets import CentralView, DepthGauge, ReportLog, StatusBar
 
 MAX_TICKS_PER_FRAME = 20
 CHART_WORDS = {"sjökort", "sjokort", "kort", "karta"}
+SONAR_WORDS = {"sonar", "sonarvy", "vattenfall", "vattenfallet", "hydrofon", "lurarna"}
 BOAT_WORDS = {"ubåt", "ubåten", "båten", "profil", "djupprofil", "sidovy", "system",
               "systemtavla", "systemtavlan", "tavla", "tavlan"}
 PERISCOPE_WORDS = {"periskopbild", "periskopvy", "bild"}
@@ -52,7 +54,7 @@ LOG_WORDS = {"logg", "loggen", "loggbok", "loggboken"}
 CENTRAL_WORDS = {"central", "centralen"}
 CABIN_WORDS = {"hytt", "hytten", "kajuta", "kajutan"}
 TELEGRAM_WORDS = {"telegram", "telegrammen", "telegrammet", "radiogram", "radiogrammen"}
-VIEWS = (LogScreen, ChartScreen, BoatScreen, PeriscopeScreen, BridgeScreen, CabinScreen)
+VIEWS = (LogScreen, ChartScreen, SonarScreen, BoatScreen, PeriscopeScreen, BridgeScreen, CabinScreen)
 GAUGE_EVERY_S = 0.5
 CENTRAL_EVERY_S = 0.1                  # centralens instrument: tio gånger i sekunden
 CENTRAL_MIN_WIDTH = 100                # smalare terminal: bara djupmätaren
@@ -300,6 +302,8 @@ class SubApp(App):
         """Ord som öppnar en vy (eller loggen). Sant om ordet var ett sådant."""
         if text in CHART_WORDS:
             self.action_chart()
+        elif text in SONAR_WORDS:
+            self._toggle_view(SonarScreen)
         elif text in BOAT_WORDS:
             self.action_boat()
         elif text in PERISCOPE_WORDS:
@@ -340,9 +344,9 @@ class SubApp(App):
                            "tal svenska byter språk.")
         if self.gs().big:
             log.add_system(self.game.clock_str(), "Tab växlar mellan centralen, loggboken, sjökort, "
-                           "ubåten (djupprofil och systemtavla) och periskopbild, i ytläge också bryggan.")
+                           "sonar (vattenfallet), ubåten (djupprofil och systemtavla) och periskopbild, i ytläge också bryggan.")
         else:
-            log.add_system(self.game.clock_str(), "Tab växlar mellan logg, sjökort, ubåten "
+            log.add_system(self.game.clock_str(), "Tab växlar mellan logg, sjökort, sonar, ubåten "
                            "(djupprofil och systemtavla) och periskopbild, i ytläge också bryggan.")
         key = self.scenario_key or ""
         ru, sv = crew_announcement(key, SCENARIOS[key].title if key in SCENARIOS else "")
@@ -405,7 +409,7 @@ class SubApp(App):
     def tab_views(self) -> tuple[type[Screen], ...]:
         """Tab-ordningen efter läget: under ytan ingen brygga; med folk på väg upp eller på
         bryggan kommer bryggan före periskopbilden (kikaren)."""
-        base = (ChartScreen, BoatScreen)
+        base = (ChartScreen, SonarScreen, BoatScreen)
         if self._screen is not None and self._screen.big:
             base = (LogScreen,) + base
         if self.game is not None and self.game.status().command == "starpom":
@@ -415,7 +419,7 @@ class SubApp(App):
         return base + (BridgeScreen, PeriscopeScreen)
 
     def action_cycle(self) -> None:
-        """Tab: huvudvyn → (loggboken, om centralen är huvudvy) → sjökort → ubåten →
+        """Tab: huvudvyn → (loggboken, om centralen är huvudvy) → sjökort → sonar → ubåten →
         periskop (och brygga) → huvudvyn."""
         if not self.running or self.game is None:
             return
