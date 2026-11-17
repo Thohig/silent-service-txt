@@ -260,6 +260,49 @@ def _land_at(pic: PeriscopePicture, bearing: float, tol: float = 2.0):
     return best if best is not None and abs(angle_diff(best.bearing, bearing)) <= tol else None
 
 
+def draw_land(g: _Grid, pic: PeriscopePicture, horizon: int, center: float, cols_per_deg: float,
+              cx: float, inside=None) -> None:
+    """Landets silhuett ovanför horisonten i prickar (bryggan och kikaren): en jämn kam,
+    högre ju närmare, kullar fasta i världen, och skrafferad mark ned till vattenlinjen.
+    `inside`: bara rutor där masken är sann (okularet)."""
+    if not pic.land:
+        return
+    st = STYLE["land_day"] if pic.day else STYLE["land_night"]
+    base = 4 * horizon + 2                       # vattenlinjen, mitt i horisontens rad
+
+    def dot(xd: int, yd: float) -> None:
+        r, c = int(yd) // 4, xd // 2
+        if inside is None or (0 <= r < g.h and 0 <= c < g.w and inside[r][c]):
+            g.dots.dot(xd, yd, st, prio=1)
+
+    ridge_prev = None
+    for xd in range(2 * g.w):
+        b = norm360(center + (xd / 2 - cx) / cols_per_deg)
+        land = _land_at(pic, b)
+        if land is None:
+            ridge_prev = None
+            continue
+        hill = 0.5 + 0.3 * math.sin(math.radians(b) * 7) + 0.2 * math.sin(math.radians(b) * 19 + 1)
+        height = 0.7 + 3.0 * min(1.0, 1.5 / max(land.range_nm, 0.3)) * (0.5 + hill)
+        ridge = base - 4 * height
+        x = xd // 2
+        if xd % 2 == 0 and (inside is None or inside[horizon][x]) and \
+                g.cells[horizon][x][0] == "─":
+            g.put(x, horizon, " ", st)           # horisontlinjen går bakom landet, siktet syns
+        lo = ridge if ridge_prev is None else min(ridge, ridge_prev)
+        hi = ridge if ridge_prev is None else max(ridge, ridge_prev)
+        for yd in range(int(lo), int(hi) + 1):   # kammen, sammanhängande där den lutar
+            dot(xd, yd)
+        for yd in range(int(ridge) + 2, base + 1):
+            if (xd + yd) % 3 == 0 or yd >= base - 1:
+                dot(xd, yd)
+        ridge_prev = ridge
+
+
+def _wave_hash(b: int, d: int) -> int:
+    return hash((b, d, 627)) & 0xFFFFFF
+
+
 def _ice_at(pic: PeriscopePicture, bearing: float) -> IceBearing | None:
     if not pic.ice:
         return None
@@ -343,10 +386,28 @@ def render_eyepiece(pic: PeriscopePicture, w: int, h: int, selected: SightedObje
                 inside[y][x] = True
                 if y == horizon:
                     g.put(x, y, "─", sea)
-                elif y > horizon and (x * 7 + y * 3) % 11 == 0:
-                    g.put(x, y, "~", sea)
             else:
                 g.put(x, y, "░", STYLE["tube"])
+    # sjön: korta vågkammar i prickar, längre närmare oss
+    for y in range(horizon + 1, h):
+        near = (y - horizon) / max(1, h - horizon)
+        length = 2 + round(5 * near)
+        for x in range(w):
+            n = _wave_hash(x, y)
+            if inside[y][x] and n % 9 == 0:
+                y0, x0 = 4 * y + 1 + (n >> 8) % 2, 2 * x + (n >> 9) % 2
+                for k in range(length):
+                    xx = x0 + k
+                    if xx // 2 < w and inside[y][xx // 2]:
+                        g.dots.dot(xx, y0 - (1 if 0 < k < length - 1 and length > 3 else 0), sea)
+    # okularets kant: en mjuk ellips
+    ecx, ecy, erx, ery = 2 * cx + 1, 4 * cy + 2, 2 * rx - 0.5, 4 * ry + 0.5
+    for k in range(int(2 * math.pi * max(erx, ery))):
+        a = 2 * math.pi * k / int(2 * math.pi * max(erx, ery))
+        xd, yd = ecx + erx * math.cos(a), ecy + ery * math.sin(a)
+        r, c = int(yd) // 4, int(xd) // 2
+        if 0 <= r < h and 0 <= c < w and inside[r][c]:
+            g.dots.dot(xd, yd, STYLE["tube"], prio=2)
     # sikte och gradering (var 4:e grad)
     cols_per_deg = 2 * rx / FOV_DEG
     for y in range(h):
@@ -360,6 +421,7 @@ def render_eyepiece(pic: PeriscopePicture, w: int, h: int, selected: SightedObje
         pic.sector if pic.sector is not None else pic.own_course)
     if pic.ice:
         _draw_ice(g, inside, pic, center, cx, cols_per_deg, horizon, stale)
+    draw_land(g, pic, horizon, center, cols_per_deg, cx, inside)   # kikaren: bryggans land
     if selected is None and aim is None:
         return g.rows()
 

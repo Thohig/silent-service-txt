@@ -580,3 +580,15 @@ def test_the_last_bridge_picture_becomes_the_periscope_picture_on_diving():
     pic = g.knowledge.periscope
     assert pic is not None and pic.eye == "brygga" and pic.t >= last.t
     assert pic.ships()
+
+
+def test_eyepiece_has_a_soft_rim_waves_and_the_binoculars_land():
+    from ui.periscope_render import render_eyepiece
+    land = tuple(LandBearing(float(b), 2.0) for b in range(330, 391, 3))
+    bare = PeriscopePicture(100, True, 10.0, 0.0, "kikare", ())
+    with_land = PeriscopePicture(100, True, 10.0, 0.0, "kikare", (), land=land)
+    plain = _plain(render_eyepiece(bare, 90, 20, None, False, aim=0.0))
+    shore = _plain(render_eyepiece(with_land, 90, 20, None, False, aim=0.0))
+    assert _braille(plain) > 40                           # kanten och vågorna i prickar
+    assert _braille(shore) > _braille(plain) + 100        # landet som silhuett
+    assert "┼" in shore                                   # siktet syns över landet

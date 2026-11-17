@@ -21,8 +21,8 @@ from sim.fmt import fmt_course, nm
 from sim.geo import angle_diff, norm360
 from sim.periscope import EVENT_KINDS, PeriscopePicture, SightedObject
 
-from .periscope_render import (STYLE, _draw_ice, _draw_object, _Grid, _land_at, _marker,
-                               data_line, object_key, render_strip)
+from .periscope_render import (STYLE, _draw_ice, _draw_object, _Grid, _marker, data_line,
+                               draw_land, object_key, render_strip)
 from .placards import view_title
 
 FOV_DEG = 120.0             # synfältet från bryggan
@@ -122,32 +122,7 @@ PARTIAL = " ▁▂▃▄▅▆▇█"
 
 def _land(g: _Grid, pic: PeriscopePicture, horizon: int, center: float, cols_per_deg: float,
           cx: float) -> None:
-    """Landets silhuett ovanför horisonten i prickar: en jämn kam, högre ju närmare, kullar
-    fasta i världen, och skrafferad mark under kammen ned till vattenlinjen."""
-    if not pic.land:
-        return
-    st = STYLE["land_day"] if pic.day else STYLE["land_night"]
-    base = 4 * horizon + 2                       # vattenlinjen, mitt i horisontens rad
-    ridge_prev = None
-    for xd in range(2 * g.w):
-        b = norm360(center + (xd / 2 - cx) / cols_per_deg)
-        land = _land_at(pic, b)
-        if land is None:
-            ridge_prev = None
-            continue
-        hill = 0.5 + 0.3 * math.sin(math.radians(b) * 7) + 0.2 * math.sin(math.radians(b) * 19 + 1)
-        height = 0.7 + 3.0 * min(1.0, 1.5 / max(land.range_nm, 0.3)) * (0.5 + hill)
-        ridge = base - 4 * height
-        if xd % 2 == 0:
-            g.put(xd // 2, horizon, " ", st)     # horisontlinjen går bakom landet
-        lo = ridge if ridge_prev is None else min(ridge, ridge_prev)
-        hi = ridge if ridge_prev is None else max(ridge, ridge_prev)
-        for yd in range(int(lo), int(hi) + 1):   # kammen, sammanhängande där den lutar
-            g.dots.dot(xd, yd, st, prio=1)
-        for yd in range(int(ridge) + 2, base + 1):
-            if (xd + yd) % 3 == 0 or yd >= base - 1:
-                g.dots.dot(xd, yd, st, prio=1)
-        ridge_prev = ridge
+    draw_land(g, pic, horizon, center, cols_per_deg, cx)
 
 
 def _draw_event(g: _Grid, inside, o: SightedObject, x: float, horizon: int, t: int,
