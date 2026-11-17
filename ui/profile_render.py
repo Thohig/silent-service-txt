@@ -4,6 +4,10 @@ Sidovyn: vågrätt simtid (högerkanten är nu), lodrätt djup. Rad 0 är ytan
 och varje rad `dpr` meter. Djupare än skalan, där botten brukar ligga, bryts
 axeln och botten ritas i ett eget band med lodat djup. Under bilden en rad
 med det sonar hört.
+
+Vårt djup, sjökortets botten och de tunna djupnivåerna (språngskikt, periskopdjup,
+provdjup) ritas i braille (`DotLayer`, 2 × 4 prickar per ruta) vid sitt exakta djup;
+is, lodad botten, ubåten och beordrat djup är hela tecken och går före prickarna.
 """
 from __future__ import annotations
 
@@ -13,6 +17,8 @@ from rich.text import Text
 
 from sim.fmt import clock
 from sim.profile import ProfileView
+
+from .canvas import DotLayer
 
 
 MARGIN = 7                  # djupetiketter till vänster: "  450 ┤"
@@ -57,8 +63,8 @@ EVENT_PRIO = {"explosion": 6, "breakup": 6, "splash": 5, "own_launch": 5, "own_b
               "uwt": 2, "ping": 1}
 
 LEGEND = [
-    ("▬▶", "own", "vi nu"), ("·", "trace", "vårt djup"), ("┆", "ordered", "beordrat"),
-    ("─", "layer", "språngskikt"), ("▓", "bottom", "ekolod"), ("~", "chart_bottom", "sjökortets djup"),
+    ("▬▶", "own", "vi nu"), ("⠤⠤", "trace", "vårt djup"), ("┆", "ordered", "beordrat"),
+    ("⠄⠠", "layer", "språngskikt"), ("▓", "bottom", "ekolod"), ("⠒⠒", "chart_bottom", "sjökortets djup"),
     ("█", "ice_thick", "is"),
     ("≈", "ice_open", "öppet vatten"),
     None, ("◦", "heard_ping", "ping"), ("↓", "heard_splash", "plask"),
@@ -110,6 +116,7 @@ class _Grid:
         self.cols, self.rows = cols, rows
         self.ch = [[" "] * cols for _ in range(rows)]
         self.st = [[""] * cols for _ in range(rows)]
+        self.dots = DotLayer(cols, rows)
 
     def put(self, c: int, r: int, ch: str, style: str) -> None:
         if 0 <= c < self.cols and 0 <= r < self.rows:
@@ -123,10 +130,18 @@ class _Grid:
             self.put(c + i, r, ch, style)
 
     def line(self, r: int) -> Text:
+        """Raden: tecknen, och prickarna där rutan är tom."""
         t = Text(no_wrap=True, overflow="crop")
-        for ch, st in zip(self.ch[r], self.st[r]):
+        for c, (ch, st) in enumerate(zip(self.ch[r], self.st[r])):
+            if ch == " ":
+                d = self.dots.cell(r, c)
+                if d is not None:
+                    ch, st = d[0], d[1]
             t.append(ch, style=st)
         return t
+
+
+DOTTED_LEVELS = {"─": 1, "┄": 2, "╌": 3}      # tunna nivåer i prickar: streckens längd
 
 
 def render_profile(view: ProfileView, width: int, height: int,
@@ -160,6 +175,12 @@ def render_profile(view: ProfileView, width: int, height: int,
     def row_of(d: float) -> int:
         return min(plot_rows - 1, max(0, round(d / dpr)))
 
+    def dot_x(t: float) -> float:
+        return 2 * (cols - 1 - (now - t) / sec_per_col) + 1
+
+    def dot_y(d: float) -> float:
+        return min(4 * plot_rows - 1, max(0.0, 4 * d / dpr + 1.5))
+
     g = _Grid(cols, plot_rows)
     left = [Text(" " * (MARGIN - 1) + "│", style=STYLE["axis"]) for _ in range(plot_rows)]
     right = [Text("") for _ in range(plot_rows)]
@@ -181,16 +202,19 @@ def render_profile(view: ProfileView, width: int, height: int,
             continue
         r = row_of(lv.depth)
         st = warn_style.get(lv.style, STYLE.get(lv.style, "white"))
-        for c in range(cols):
-            g.put(c, r, lv.char if lv.char != "─" or c % 2 == 0 else " ", st)
+        if lv.char in DOTTED_LEVELS:                  # tunn linje vid det exakta djupet
+            y = dot_y(lv.depth)
+            g.dots.line(0, y, 2 * cols - 1, y, st, dash=DOTTED_LEVELS[lv.char])
+        else:
+            for c in range(cols):
+                g.put(c, r, lv.char, st)
         right[r] = Text(f" {lv.label}", style=st)
         left[r] = Text(f"{lv.depth:>{MARGIN - 2}.0f} ┼", style=st)
 
     # botten i bilden (grunt vatten): sjökortets djup och lodningarna
     if not band:
-        for c, d in chart_cols.items():
-            if d <= max_depth:
-                g.put(c, row_of(d), "~", STYLE["chart_bottom"])
+        pts = [(2 * c + 1, dot_y(d)) for c, d in sorted(chart_cols.items()) if d <= max_depth]
+        g.dots.polyline(pts, STYLE["chart_bottom"], prio=1)
         if chart_cols:
             c_last = max(chart_cols)
             d = chart_cols[c_last]
@@ -235,20 +259,11 @@ def render_profile(view: ProfileView, width: int, height: int,
     if cells:
         right[0] = Text(" is", style=STYLE["ice_thick"])
 
-    # vårt djup: medel per kolumn, prickat och sammanbundet
-    by_col: dict[int, list[float]] = {}
-    for t, d in view.trace:
-        c = col_of(t)
-        if 0 <= c < cols:
-            by_col.setdefault(c, []).append(d)
-    prev = None
-    for c in sorted(by_col):
-        r = row_of(sum(by_col[c]) / len(by_col[c]))
-        lo, hi = (r, r) if prev is None or c - prev[0] > 1 else sorted((prev[1], r))
-        for rr in range(lo, hi + 1):
-            if g.get(c, rr) not in ("█", "▀", "▓"):
-                g.put(c, rr, "·", STYLE["trace"])
-        prev = (c, r)
+    # vårt djup: en sammanhängande linje i prickar genom navigatörens djuplogg
+    pts = [(dot_x(t), dot_y(d)) for t, d in view.trace if t >= t0 - sec_per_col]
+    if len(pts) == 1:
+        g.dots.dot(*pts[0], STYLE["trace"], prio=2)
+    g.dots.polyline(pts, STYLE["trace"], prio=2)
 
     # beordrat djup och ubåten nu
     r_now = row_of(view.depth)
@@ -345,15 +360,17 @@ def _bottom_band(view: ProfileView, bottoms, chart_cols: dict[int, float], cols:
 
     for r in range(BAND_ROWS):
         left[r] = Text(f"{fmt_m(lo + r * step):>{MARGIN - 2}} ┤", style=STYLE["axis"])
-    for c, d in chart_cols.items():
-        g.put(c, row_of(d), "~", STYLE["chart_bottom"])
+    pts = [(2 * c + 1, min(4 * BAND_ROWS - 1, max(0.0, 4 * (d - lo) / step + 1.5)))
+           for c, d in sorted(chart_cols.items())]
+    g.dots.polyline(pts, STYLE["chart_bottom"], prio=1)
     for c, (d, fresh) in sounded.items():
         for r in range(row_of(d), BAND_ROWS):
             g.put(c, r, "▓", STYLE["bottom" if fresh else "bottom_old"])
     # okända sträckor (varken kort eller lodning) får ett frågetecken i mitten
     run_start = None
     for c in range(cols + 1):
-        empty = c < cols and all(g.get(c, r) == " " for r in range(BAND_ROWS))
+        empty = c < cols and all(g.get(c, r) == " " and g.dots.cell(r, c) is None
+                                 for r in range(BAND_ROWS))
         if empty and run_start is None:
             run_start = c
         elif not empty and run_start is not None:
