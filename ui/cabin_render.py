@@ -17,6 +17,9 @@ Ren funktion: `render_cabin(status, t, width, height)` ger en rad `Text` per rad
 """
 from __future__ import annotations
 
+import math
+import re
+
 from rich.text import Text
 
 from sim.game import StatusSnapshot
@@ -348,8 +351,10 @@ def _wall_items(c: Canvas, left: int, right: int, top: int, bottom: int,
         col += iw + 2
 
 
-def _far_wall(c: Canvas, g: _Room, s: StatusSnapshot) -> None:
-    """Det bortre skottet: ram, skrivbordet, repeatrarna, kassaskåpet och hans saker."""
+def _far_wall(c: Canvas, g: _Room, s: StatusSnapshot, sway: float = 0.0) -> dict:
+    """Det bortre skottet: ram, skrivbordet, repeatrarna, kassaskåpet och hans saker.
+    Ger platserna för det som lever (`desk_lamp`, `tea`, `cap`). Mössan svänger med `sway`."""
+    spots: dict = {}
     fl, fr, ft, fb = g.fl, g.fr, g.ft, g.fb
     c.text(ft, fl, "┌" + "─" * (fr - fl - 1) + "┐", EDGE)
     c.text(fb, fl, "└" + "─" * (fr - fl - 1) + "┘", EDGE)
@@ -377,11 +382,13 @@ def _far_wall(c: Canvas, g: _Room, s: StatusSnapshot) -> None:
         c.text(desk - 1, safe, "│ ◎  │", PHONE)
         cap = safe - 7
         if cap > x0 and desk - 3 > ft + rows:
-            c.put(desk - 3, cap + 2, "┬", PHONE)
-            c.text(desk - 2, cap, "▄█", CAP)
-            c.put(desk - 2, cap + 2, "★", MEDAL)
-            c.text(desk - 2, cap + 3, "█▄", CAP)
-            c.text(desk - 1, cap, "▀▀▀▀▀", CAP_BAND)
+            c.put(desk - 3, cap + 2, "┬", PHONE)       # kroken sitter fast, mössan svänger
+            dx = max(-1, min(1, round(sway)))
+            c.text(desk - 2, cap + dx, "▄█", CAP)
+            c.put(desk - 2, cap + 2 + dx, "★", MEDAL)
+            c.text(desk - 2, cap + 3 + dx, "█▄", CAP)
+            c.text(desk - 1, cap + dx, "▀▀▀▀▀", CAP_BAND)
+            spots["cap"] = (desk - 2, cap + 2)
     # saker på skrivbordet: nattlampan, loggboken, teglaset, schackpartiet, klockan
     on_desk = [(fl + 3, "◠", LAMP), (fl + 6, "▤▤", PAPER), (fl + 10, "▯", TEA),
                (fl + 11, ")", TEA), (fl + 14, "♜♞♟", PAPER)]
@@ -389,11 +396,16 @@ def _far_wall(c: Canvas, g: _Room, s: StatusSnapshot) -> None:
     for col, text, style in on_desk:
         if col + len(text) < x0 - 2:
             c.text(desk - 1, col, text, style)
+            if text == "◠":
+                spots["desk_lamp"] = (desk - 1, col)
+            elif text == "▯":
+                spots["tea"] = (desk - 1, col)
     clock_col = min(x0 - 2 - len(clock), safe - 9 - len(clock)) if inner > 30 else -1
     if clock_col > fl + 18:
         c.text(desk - 1, clock_col, clock, PAPER)
     # de personliga sakerna mellan skottets kant och repeatrarna
     _wall_items(c, fl + 2, x0 - 2, ft + 1, desk - 2, s)
+    return spots
 
 
 def _door(c: Canvas, g: _Room) -> None:
@@ -429,7 +441,7 @@ def _door(c: Canvas, g: _Room) -> None:
     c.put((r0 + r1) // 2, col, "╼", PHONE)
 
 
-def _blanket(c: Canvas, g: _Room, t: float) -> None:
+def _blanket(c: Canvas, g: _Room, t: float, breath: float = 0.0) -> None:
     """Kojen och filten över benen, sett från kudden: fotänden borta, knäna och handen."""
     top = g.fb + 1
     foot_l, foot_r = g.fl + 1, round(_lerp(g.fl, g.fr, 0.62))
@@ -458,26 +470,178 @@ def _blanket(c: Canvas, g: _Room, t: float) -> None:
         if right + 1 < g.w:
             c.put(r, right + 1, "▌", WOOD_DARK)
     # handen på filten nära ögat
-    hr = g.h - 2
+    hr = g.h - 2 - (1 if breath > 0.6 else 0)        # bröstet häver sig, handen följer med
     hc = round(_lerp(foot_r, rail_bottom, 0.85)) - 9
     if hc > 4:
         c.text(hr, hc, "▗▄▄▖", HAND)
         c.text(hr + 1, hc - 1, "▐████▌", HAND)
         c.put(hr + 1, hc + 5, "▘", HAND_DARK)
+        if hr + 2 < g.h:
+            c.text(hr + 2, hc - 1, "▀▀▀▀▀▀", BLANKET_SH[2])
+
+
+# --- liv och ljus ----------------------------------------------------------------------
+LID = "#050403 on #050403"
+LID_EDGE = "#2a2018 on #050403"
+DUST = "#8a7a60 on #15110c"
+HAZE = "#4a463e on #15110c"
+SPLASH = "#c0903a on #15110c"
+BREATH_S = 5.0                     # ett andetag, sekunder (sovande)
+_HEX = re.compile(r"#([0-9a-fA-F]{6})")
+
+
+def _hash(*xs: int) -> float:
+    """Fast brus 0–1 ur heltal (ingen slump: samma bild varje gång)."""
+    h = 2166136261
+    for x in xs:
+        h = ((h ^ (x & 0xFFFFFFFF)) * 16777619) & 0xFFFFFFFF
+    return (h % 10007) / 10007.0
+
+
+def _clip(x: float) -> float:
+    return max(0.0, min(1.0, x))
+
+
+def sway_of(s: StatusSnapshot, t: float) -> float:
+    """Hur långt det som hänger svänger ut (kolumner, + åt höger).
+
+    Jagade: sjunkbomberna skakar båten. Nära ytan rullar sjön (havsbruset). I en gir
+    kränger båten och det som hänger står snett mot rummet."""
+    shake = 1.6 * math.sin(t * 2.3) * (0.6 + 0.4 * math.sin(t * 0.7)) if s.hunted else 0.0
+    roll = 1.4 * _clip((s.sea_noise - 48) / 24) * _clip(1 - s.depth / 30) * math.sin(t * 2 * math.pi / 8)
+    turn = ((s.ordered_course - s.course + 540) % 360) - 180
+    heel = 1.2 * _clip(abs(turn) / 30) * (1 if turn > 0 else -1) if abs(turn) > 2 else 0.0
+    return shake + roll + heel
+
+
+def lids_of(s: StatusSnapshot, t: float) -> float:
+    """Hur slutna ögonen är (0 öppna, 1 slutna). Sover han är de nästan slutna och glider
+    med andningen; ringer telefonen slår han upp dem (han måste se telefonen)."""
+    if not s.sleeping or s.phone == "ring":
+        return 0.0
+    return 0.86 + 0.06 * math.sin(t * 2 * math.pi / BREATH_S)
+
+
+def _light_at(g: _Room, s: StatusSnapshot, t: float, spots: dict):
+    """Ljusets styrka och färgton per ruta: (r, c) -> (gånger, ton, tonens andel)."""
+    lamps = []
+    if s.night or s.sleeping:
+        base = 0.28 if s.sleeping else 0.42             # taklampan släckt
+        if "desk_lamp" in spots and not s.sleeping:     # nattlampan lyser på skrivbordet
+            lamps.append((spots["desk_lamp"], 9.0, 1.0, (240, 192, 96), 0.25))
+    else:
+        base = 0.92
+    phone = (3, 3)
+    if s.phone == "ring":
+        on = int(t * 4) % 2 == 0
+        if on:
+            lamps.append((phone, 24.0, 0.9, (255, 60, 50), 0.9))
+    elif s.phone == "lamp":
+        lamps.append((phone, 6.0, 0.5, (255, 175, 0), 0.35))
+    dim = 1.0 - 0.55 * _clip(s.smoke)
+
+    def light(r: int, c: int) -> tuple[float, tuple[int, int, int] | None, float]:
+        k, tone, amount = base, None, 0.0
+        for (lr, lc), radius, gain, color, tint in lamps:
+            d = math.hypot((r - lr) * 2.0, c - lc) / radius
+            if d < 1.0:
+                f = 1 - d
+                k += gain * f
+                if f * tint > amount:
+                    tone, amount = color, f * tint
+        far = g.ft <= r <= g.fb and g.fl <= c <= g.fr
+        k *= dim * (1 - 0.25 * _clip(s.smoke) if far else 1.0)
+        return min(1.15, k), tone, amount
+    return light
+
+
+def _restyle(style: str, k: float, tone, amount: float) -> str:
+    m = _HEX.search(style)
+    if not m:
+        return style
+    v = int(m.group(1), 16)
+    rgb = [(v >> 16) & 255, (v >> 8) & 255, v & 255]
+    if tone is not None and amount > 0:
+        rgb = [x + (tc - x) * amount for x, tc in zip(rgb, tone)]
+    rgb = [max(0, min(255, round(x * k))) for x in rgb]
+    return style[:m.start()] + "#%02x%02x%02x" % tuple(rgb) + style[m.end():]
+
+
+def _shade(c: Canvas, light) -> None:
+    """Färga om varje rutas tecken efter ljuset (bakgrunden lämnas)."""
+    cache: dict = {}
+    for r in range(c.h):
+        row = c.cells[r]
+        for col in range(c.w):
+            ch, st = row[col]
+            if ch == " ":
+                continue
+            k, tone, amount = light(r, col)
+            key = (st, round(k, 2), tone, round(amount, 2))
+            if key not in cache:
+                cache[key] = _restyle(st, *key[1:])
+            row[col] = (ch, cache[key])
+
+
+def _dust_and_haze(c: Canvas, g: _Room, s: StatusSnapshot, t: float) -> None:
+    """Damm som faller från rören när sjunkbomberna slår, dis när det luktar rök."""
+    if s.hunted:
+        for i in range(10):
+            col = int(_hash(i, 7) * (c.w - 2)) + 1
+            fall = (t * (2.0 + 2.0 * _hash(i, 3)) + 30 * _hash(i, 11)) % (g.fb + 4)
+            r = 1 + int(fall)
+            if 1 <= r < g.fb and c.blank(r, col):
+                c.put(r, col, "·" if _hash(i, r) > 0.3 else "˙", DUST)
+    if s.smoke > 0.05:
+        step = int(t * 0.8)                              # diset driver långsamt
+        for r in range(1, c.h):
+            for col in range(c.w):
+                n = _hash(r, col + step, 5)
+                if n < 0.25 * _clip(s.smoke) and c.blank(r, col):
+                    c.put(r, col, "░" if n < 0.1 * s.smoke else "·", HAZE)
+
+
+def _lids(c: Canvas, closed: float) -> None:
+    """Ögonlocken: mörkret uppifrån och nedifrån, böjt som ett ögonlock."""
+    if closed <= 0.02:
+        return
+    half = c.h / 2
+    for col in range(c.w):
+        u = (col - c.w / 2) / (c.w / 2)                  # −1 … 1
+        bow = 1 - 0.35 * u * u                            # lockets kant högst på mitten
+        top = closed * half * (1.15 - 0.15 * bow * 2 + 0.3 * u * u)
+        bot = c.h - closed * half * (0.9 + 0.3 * u * u)
+        for r in range(c.h):
+            if r < top - 0.5 or r > bot + 0.5:
+                c.put(r, col, "█", LID)
+            elif r < top:
+                c.put(r, col, "▀", LID_EDGE)
+            elif r > bot:
+                c.put(r, col, "▄", LID_EDGE)
 
 
 def _room(c: Canvas, s: StatusSnapshot, t: float) -> None:
     g = _Room(c.w, c.h)
+    sway = sway_of(s, t)
     _room_lines(c, g)
     _door(c, g)
-    _far_wall(c, g, s)
-    # taklampan mitt i rummet
-    lr = max(1, (1 + g.ft) // 2)
+    spots = _far_wall(c, g, s, sway)
+    # taklampan mitt i rummet hänger i sin sladd och svänger
+    lr = max(2, (1 + g.ft) // 2)
     lc = int(g.vp[0] // 2)
-    c.put(lr - 1, lc, "│", PIPE)
-    c.put(lr, lc, "◓", LAMP)
-    _blanket(c, g, t)
+    dx = max(-2, min(2, round(sway * 1.3)))
+    c.put(lr - 1, lc + (dx // 2), "│" if dx == 0 else ("╲" if dx > 0 else "╱"), PIPE)
+    c.put(lr, lc + dx, "◓", LAMP if not (s.night or s.sleeping) else LAMP_OFF)
+    # teglaset skvätter när det skakar
+    if "tea" in spots and abs(sway) > 1.0 and int(t * 3) % 2 == 0:
+        r, col = spots["tea"]
+        c.put(r - 1, col, "'", SPLASH)
+    breath = 0.5 + 0.5 * math.sin(t * 2 * math.pi / (BREATH_S if s.sleeping else 4.0))
+    _blanket(c, g, t, breath)
     _phone(c, 2, 1, s, t)                               # på skottet vid kojen, inom räckhåll
+    _dust_and_haze(c, g, s, t)
+    _shade(c, _light_at(g, s, t, spots))
+    _lids(c, lids_of(s, t))
 
 
 def _flat(c: Canvas, s: StatusSnapshot, t: float) -> None:

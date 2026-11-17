@@ -396,3 +396,48 @@ def test_cabin_calendar_follows_the_order_date():
     assert "ДИПЛОМ" in big and "★" in big
     none = "\n".join(r.plain for r in render_cabin(replace(s, order_day=None), 0.0, 120, 30))
     assert "ОКТЯБРЯ" not in none
+
+
+def _fg(text, col):
+    """Förgrundsfärgen (r, g, b) i kolumnen col av en renderad rad."""
+    import re
+    pos = 0
+    for span in text.spans:
+        if span.start <= col < span.end:
+            m = re.search(r"#([0-9a-f]{6})", str(span.style))
+            v = int(m.group(1), 16)
+            return (v >> 16) & 255, (v >> 8) & 255, v & 255
+    return None
+
+
+def test_cabin_light_and_life():
+    """H3: telefonen lyser rött på skottet när den ringer, natten släcker taklampan,
+    ögonlocken sluts när han sover, det som hänger svänger när vi är jagade, rök ger dis."""
+    from dataclasses import replace
+    from ui.cabin_render import lids_of, render_cabin, sway_of
+    g, _ = _game()
+    s = replace(g.status(), order_day=24, phone=None, sleeping=False, hunted=False, night=False,
+                smoke=0.0, ordered_course=g.status().course)
+    calm = render_cabin(s, 0.0, 100, 26)
+    ring = render_cabin(replace(s, phone="ring"), 0.0, 100, 26)     # t = 0: lampan tänd
+    r0, g0, _b = _fg(calm[3], 13)                                  # skottet strax intill telefonen
+    r1, g1, _b = _fg(ring[3], 13)
+    assert r1 - g1 > r0 - g0 + 30                                  # rödare
+    night = render_cabin(replace(s, night=True), 0.0, 100, 26)
+    assert sum(_fg(night[5], 50)) < sum(_fg(calm[5], 50))          # mörkare mitt på skottet
+    assert lids_of(s, 0.0) == 0.0
+    asleep = replace(s, sleeping=True)
+    assert all(lids_of(asleep, t) > 0.75 for t in range(0, 10))
+    assert lids_of(replace(asleep, phone="ring"), 0.0) == 0.0      # telefonen väcker
+    rows = [r.plain for r in render_cabin(asleep, 1.0, 100, 26)]
+    assert rows[3].count("█") > 90 and rows[-2].count("█") > 90     # bara en springa mitt i
+    assert sway_of(s, 0.7) == 0.0
+    assert max(abs(sway_of(replace(s, hunted=True), t / 10)) for t in range(60)) > 1.0
+    turning = replace(s, ordered_course=(s.course + 40) % 360)
+    assert sway_of(turning, 0.0) > 1.0 and sway_of(replace(s, ordered_course=(s.course - 40) % 360), 0.0) < -1.0
+    hazy = "\n".join(r.plain for r in render_cabin(replace(s, smoke=0.8), 0.0, 100, 26))
+    clear = "\n".join(r.plain for r in calm)
+    assert hazy.count("·") > clear.count("·") + 40
+    for state in (dict(sleeping=True), dict(hunted=True), dict(smoke=1.0), dict(night=True)):
+        out = render_cabin(replace(s, **state), 2.0, 100, 26)
+        assert len(out) == 26 and all(len(r.plain) == 100 for r in out)

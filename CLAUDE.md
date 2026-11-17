@@ -308,7 +308,10 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   `phone`, `sleeping` (via `Station.status_fields`). Vyn `hytt` (`ui/cabin.py`, `ui/cabin_render.py`: från 64 × 18 sedd från kudden i perspektiv,
   dörren längst bort till höger, `_Room`; på skottet rivkalendern för orderns dag
   (`StatusSnapshot.order_day` via starpom, nästa blad vid midnatt), fotot av hans första ubåt, diplomet,
-  medaljerna och familjen så långt platsen räcker; mindre fönster den enkla bilden) öppnas
+  medaljerna och familjen så långt platsen räcker; ljuset (`_shade` färgar om varje ruta: natt ⇒ bara
+  nattlampan, telefonens sken gult/rött på skottet, rök dämpar), ögonlocken när han sover (`lids_of`, öppna när
+  det ringer), andningen, taklampan och mössan svänger (`sway_of`: jagade, sjön nära ytan, krängning i gir),
+  damm från rören när vi är jagade och dis av rök; mindre fönster den enkla bilden) öppnas
   av sig själv (`SubApp._follow_command`) och står först i Tab-ordningen; visar bara starpoms och telefonens
   rapporter, Enter svarar. Ljudet i hytten (`ambience.muffled`, `audio.from_central`): båten ×0,55, mumlet
   svagt, inga hydrofonljud eller sväv, centralens repliker tysta (larm hörs); telefonen `phone`, knackning
