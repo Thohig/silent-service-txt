@@ -22,7 +22,7 @@ from sim.geo import angle_diff, norm360
 from sim.periscope import EVENT_KINDS, PeriscopePicture, SightedObject
 
 from .periscope_render import (STYLE, _draw_ice, _draw_object, _Grid, _marker, data_line,
-                               draw_land, object_key, render_strip)
+                               draw_land, draw_sky, object_key, phase_text, render_strip)
 from .placards import view_title
 
 FOV_DEG = 120.0             # synfältet från bryggan
@@ -92,7 +92,7 @@ def _sea(g: _Grid, horizon: int, bottom: int, day: bool, t: int, center: float,
 
 
 def _sky(g: _Grid, horizon: int, day: bool, center: float, cols_per_deg: float,
-         cx: float) -> None:
+         cx: float, phase: str = "") -> None:
     if day:
         # några låga moln i prickar, fasta i världen: en rundad ovansida och platt botten
         for y in range(1, max(2, horizon // 2)):
@@ -110,10 +110,13 @@ def _sky(g: _Grid, horizon: int, day: bool, center: float, cols_per_deg: float,
                         if (k + y) % 3 == 0:
                             g.dots.dot(x0 + k, base_y - top / 2, BRIDGE_STYLE["cloud"])
         return
+    if phase == "skymning":
+        return                                   # för ljust för stjärnor
+    every = 97 if phase != "nautisk" else 211    # i nautisk skymning bara de klaraste
     for y in range(0, horizon - 1):
         for x in range(g.w):
             b = int(round((center + (x - cx) / cols_per_deg) * 2)) % 720
-            if (b * 31 + y * 17) % 97 == 0:
+            if (b * 31 + y * 17) % every == 0:
                 g.put(x, y, "·", BRIDGE_STYLE["star"])
 
 
@@ -238,7 +241,8 @@ def render_scene(pic: PeriscopePicture, w: int, h: int, view_rel: float, t: int,
     center = norm360(pic.own_course + view_rel)
     horizon = max(6, round(h * 0.45))
     sea_bottom = h - 1
-    _sky(g, horizon, pic.day, center, cols_per_deg, cx)
+    _sky(g, horizon, pic.day, center, cols_per_deg, cx, pic.phase)
+    draw_sky(g, pic, horizon, center, cols_per_deg, cx, t)
     for x in range(w):
         g.put(x, horizon, "─", STYLE["sea_day"] if pic.day else STYLE["sea_night"])
     _sea(g, horizon, sea_bottom, pic.day, t, center, cols_per_deg, cx)
@@ -305,7 +309,7 @@ def header(pic: PeriscopePicture | None, clock: str, view_rel: float) -> Text:
         t.append("   ingen på bryggan", style="dim")
         return t
     center = norm360(pic.own_course + view_rel)
-    t.append(f"   {clock[:5]} · {'dag' if pic.day else 'natt'} · sikt {nm(pic.visibility_nm)} nm"
+    t.append(f"   {clock[:5]} · {phase_text(pic)} · sikt {nm(pic.visibility_nm)} nm"
              f" · vår kurs {fmt_course(pic.own_course)}"
              f" · blicken {view_text(view_rel)} (bäring {fmt_course(center)})")
     return t

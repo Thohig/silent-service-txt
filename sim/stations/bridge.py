@@ -28,7 +28,7 @@ from ..fmt import fmt_course, kn, nm
 from ..geo import bearing_to, distance, norm360, velocity
 from ..ice import ice_view
 from ..ownship import BRIDGE_CLEAR_S
-from ..periscope import (AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, IceBearing, Judgement, Judges, LandBearing,
+from ..periscope import (sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, IceBearing, Judgement, Judges, LandBearing,
                          PeriscopePicture, SightedObject, angle_on_bow, aob_quality, lights,
                          range_quality, visible_part)
 from ..reports import Quality
@@ -216,7 +216,7 @@ class BridgeWatch(Station):
         objects += [o for _, o in self._events]
         self.game.bus.publish(BridgeSighted(now, PeriscopePicture(
             now, day, vis, self.own.state.course, "brygga", tuple(objects), None, self._ice(),
-            self._land(vis if day else vis * NIGHT_LAND))))
+            self._land(vis if day else vis * NIGHT_LAND), **sky_of(light))))
 
     # --- land, händelser och torpedspår ------------------------------------------------
     def _seen_at(self, x: float, y: float, key: str | None) -> tuple[float, float]:

@@ -180,6 +180,11 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   Månglittret (`DestroyerAI.glitter_factor`, även patrullbåten): på natten med månljus ≥ 0,2 och oss inom
   ±35° från månens bäring sett från fartyget ser utkiken masterna × 1,5 lättare. Krisens nätter (22–28 okt)
   har för lite måne för det, så kalibreringen ändras inte.
+  Himlen i bilden (`PeriscopePicture.phase`/`morning`/`sun`/`moon` via `periscope.sky_of`): `draw_sky` i
+  `ui/periscope_render.py` (bryggan och okularet) ritar skymningens sken i strimmor åt solens håll (inom 80°),
+  solens och månens skiva i braille (månen med fasen, tilltagande ljus till höger; för högt ⇒ utanför bilden)
+  och glittret på vattnet under dem; stjärnor bara i nautisk skymning (glest) och natt. Rubriken `phase_text`:
+  dag, gryning/skymning, nautisk …, natt med månen.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen

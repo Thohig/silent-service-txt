@@ -103,3 +103,44 @@ def test_destroyer_sees_our_periscope_plume_easier_in_the_moon_glitter():
     w.env.clock_start = 12 * 3600                     # dag
     dd.state.x, dd.state.y = o.x, o.y + 2.0
     assert ai.glitter_factor(w) == 1.0
+
+
+def _braille(s: str) -> int:
+    return sum(0x2800 < ord(ch) <= 0x28FF for ch in s)
+
+
+def _pic(phase, sun=(-4.0, 260.0), moon=(-10.0, 0.0, 0.0, True), morning=False, day=False):
+    from sim.periscope import PeriscopePicture
+    return PeriscopePicture(100, day, 6.0, 0.0, "brygga", (), phase=phase, morning=morning,
+                            sun=sun, moon=moon)
+
+
+def test_phase_text_in_the_header():
+    from ui.periscope_render import phase_text
+    assert phase_text(_pic("dag", sun=(20.0, 180.0), day=True)) == "dag"
+    assert phase_text(_pic("skymning")) == "skymning"
+    assert phase_text(_pic("skymning", morning=True)) == "gryning"
+    assert phase_text(_pic("nautisk")) == "nautisk skymning"
+    assert phase_text(_pic("natt", moon=(30.0, 150.0, 0.19, False))) == "natt, måne 19 % avtagande"
+    assert phase_text(_pic("natt", moon=(-5.0, 150.0, 0.5, True))) == "natt, månen nere"
+    assert phase_text(_pic("natt", moon=(30.0, 150.0, 1.0, True))) == "natt, fullmåne"
+
+
+def test_twilight_glow_toward_the_sun_and_the_moon_with_its_phase():
+    """D3: skymningens sken åt solens håll, inte åt andra hållet; månen ritas med rätt sida
+    belyst och glittret under den."""
+    from ui.bridge_render import render_scene
+    from ui.periscope_render import _Grid, draw_sky
+    dusk = _pic("skymning", sun=(-3.0, 260.0))
+    toward = "\n".join(t.plain for t in render_scene(dusk, 110, 22, 260.0, 0)[:9])
+    away = "\n".join(t.plain for t in render_scene(dusk, 110, 22, 80.0, 0)[:9])
+    assert _braille(toward) > _braille(away) + 10 and _braille(away) < 3
+    for waxing in (True, False):
+        g = _Grid(40, 12)
+        draw_sky(g, _pic("natt", moon=(4.0, 0.0, 0.5, waxing)), 8, 0.0, 40 / 120, 19.5)
+        lit = [(c, r) for (r, c), cell in g.dots.cells.items() if "e8e8d8" in cell[1]]
+        assert lit
+        mean_c = sum(c for c, _ in lit) / len(lit)
+        assert (mean_c > 19.5) == waxing                  # tilltagande: ljust till höger
+        below = [r for (r, c), cell in g.dots.cells.items() if r > 8]
+        assert below                                      # glittret på vattnet

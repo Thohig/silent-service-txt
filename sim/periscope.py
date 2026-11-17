@@ -175,9 +175,22 @@ class PeriscopePicture:
     sector: float | None = None     # kort titt mot denna bäring (± SECTOR_HALF_DEG), annars runt
     ice: tuple[IceBearing, ...] = ()
     land: tuple[LandBearing, ...] = ()
+    # himlen som utkiken ser den: ljusfasen (dag, skymning, nautisk, natt), gryning eller
+    # skymning, solen (höjd, azimut) och månen (höjd, azimut, belyst andel, tilltagande)
+    phase: str = ""
+    morning: bool = False
+    sun: tuple[float, float] | None = None
+    moon: tuple[float, float, float, bool] | None = None
 
     def ships(self) -> list[SightedObject]:
         return [o for o in self.objects if o.designation is not None]
+
+
+def sky_of(light) -> dict:
+    """Himlen ur ljuset (`environment.Light`) till bildens fält."""
+    return {"phase": light.phase, "morning": light.morning,
+            "sun": (light.sun_elev, light.sun_az),
+            "moon": (light.moon_elev, light.moon_az, light.moon_frac, light.waxing)}
 
 
 def in_sector(bearing: float, sector: float | None) -> bool:

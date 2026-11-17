@@ -299,6 +299,129 @@ def draw_land(g: _Grid, pic: PeriscopePicture, horizon: int, center: float, cols
         ridge_prev = ridge
 
 
+# --- himlen: skymningens sken, solen, månen och glittret --------------------------------
+SKY_STYLE = {
+    "sun": "bold #ffe070", "sun_low": "bold #ff9a40",
+    "moon": "bold #e8e8d8", "moon_dark": "#3a3e44",
+    "glow_civil": "#c8703a", "glow_far": "#7a5a7a", "glow_nautical": "#4a5a8a",
+    "glitter_sun": "bold #ffd070", "glitter_moon": "#c8d0d8",
+}
+SUN_R, MOON_R = 2.2, 3.4        # skivornas radie i prickar (större än verkligheten: syns)
+
+
+def phase_text(pic: PeriscopePicture) -> str:
+    """Ljuset i ord för rubriken: dag, gryning/skymning, nautisk, natt med månen."""
+    if not pic.phase:
+        return "dag" if pic.day else "natt"
+    when = "gryning" if pic.morning else "skymning"
+    if pic.phase == "dag":
+        return "dag"
+    if pic.phase == "skymning":
+        return when
+    if pic.phase == "nautisk":
+        return f"nautisk {when}"
+    if pic.moon is None or pic.moon[0] <= 0:
+        return "natt, månen nere"
+    frac, waxing = pic.moon[2], pic.moon[3]
+    if frac < 0.03:
+        return "natt, nymåne"
+    if frac > 0.97:
+        return "natt, fullmåne"
+    return f"natt, måne {frac * 100:.0f} % {'tilltagande' if waxing else 'avtagande'}"
+
+
+def _h(*xs: int) -> float:
+    v = 2166136261
+    for x in xs:
+        v = ((v ^ (x & 0xFFFFFFFF)) * 16777619) & 0xFFFFFFFF
+    return (v % 10007) / 10007.0
+
+
+def draw_sky(g: _Grid, pic: PeriscopePicture, horizon: int, center: float, cols_per_deg: float,
+             cx: float, t: int = 0, inside=None) -> None:
+    """Himlen i prickar: skymningens sken åt solens håll, solens och månens skiva (månen med
+    sin fas, tilltagande ljus till höger) och glittret på vattnet under dem.
+    `inside`: bara rutor där masken är sann (okularet)."""
+    if pic.sun is None:
+        return
+    base = 4 * horizon + 2                              # horisonten i prickar
+    rows_per_deg = cols_per_deg / 2                     # en rad är dubbelt så hög som en kolumn
+
+    def ok(xd: float, yd: float) -> bool:
+        r, c = int(yd) // 4, int(xd) // 2
+        return 0 <= r < g.h and 0 <= c < g.w and (inside is None or inside[r][c])
+
+    def dot(xd: float, yd: float, st: str, prio: float = 0.0) -> None:
+        if ok(xd, yd):
+            g.dots.dot(xd, yd, st, prio)
+
+    def col_of(b: float) -> float:
+        return 2 * (cx + angle_diff(b, center) * cols_per_deg) + 1
+
+    sun_elev, sun_az = pic.sun
+    # skymningens sken: lågt över horisonten åt solens håll, glesare uppåt och åt sidorna
+    if pic.phase in ("skymning", "nautisk"):
+        strength = 1.0 if pic.phase == "skymning" else 0.55
+        for xd in range(2 * g.w):
+            b = center + (xd / 2 - cx) / cols_per_deg
+            off = abs(angle_diff(b, sun_az))
+            s = strength * max(0.0, 1 - off / 80)
+            if s <= 0:
+                continue
+            top = 3 + 12 * s                             # så högt skenet når (prickar)
+            for k in range(1, int(top), 2):              # vågräta strimmor av efterglöd
+                band = 0.5 + 0.5 * math.sin(xd * 0.07 + k * 1.3)
+                if _h(xd, k, 7) < s * 0.45 * band * (1 - k / top) ** 2:
+                    st = (SKY_STYLE["glow_nautical"] if pic.phase == "nautisk" else
+                          SKY_STYLE["glow_civil"] if off < 50 else SKY_STYLE["glow_far"])
+                    dot(xd, base - 2 - k, st)
+
+    def disc(b: float, elev: float, r: float, lit) -> float | None:
+        """Skivan på himlen (om den står inom bilden); ger kolumnen i prickar om
+        den står åt det hållet, även när den är för högt för att synas."""
+        x0 = col_of(b)
+        y0 = base - 2 - elev * rows_per_deg * 4
+        if not (-r <= x0 <= 2 * g.w + r):
+            return None
+        if y0 < -r or y0 > base:
+            return x0
+        for dy in range(-int(r) - 1, int(r) + 2):
+            for dx in range(-int(r) - 1, int(r) + 2):
+                if dx * dx + dy * dy <= r * r:
+                    st = lit(dx, dy, r)
+                    if st:
+                        dot(x0 + dx, y0 + dy, st, prio=3)
+        return x0
+
+    def glitter(x0: float, st: str, width: float) -> None:
+        for y in range(horizon + 1, g.h):
+            near = (y - horizon) / max(1, g.h - horizon)
+            spread = 1 + width * near * 6
+            for k in range(int(4 * near + 2)):
+                if _h(int(x0), y, k, t) < 0.6:
+                    dot(x0 + (_h(y, k, t, 3) - 0.5) * 2 * spread, 4 * y + int(_h(k, y, t) * 4), st)
+
+    # solen: över (eller precis vid) horisonten
+    if sun_elev > -1.0 and abs(angle_diff(sun_az, center)) <= 90:
+        st = SKY_STYLE["sun_low"] if sun_elev < 6 else SKY_STYLE["sun"]
+        at = disc(sun_az, max(sun_elev, 0.3), SUN_R, lambda dx, dy, r: st)
+        if at is not None and sun_elev < 25:
+            glitter(at, SKY_STYLE["glitter_sun"], 1.0)
+    # månen med sin fas
+    if pic.moon is not None:
+        m_elev, m_az, frac, waxing = pic.moon
+        if m_elev > 0 and frac > 0.02 and abs(angle_diff(m_az, center)) <= 90:
+            def lit(dx, dy, r):
+                edge = (1 - 2 * frac) * math.sqrt(max(0.0, r * r - dy * dy))
+                on = dx >= edge if waxing else -dx >= edge
+                return SKY_STYLE["moon"] if on else (SKY_STYLE["moon_dark"]
+                                                     if dx * dx + dy * dy >= (r - 1) ** 2 else None)
+            at = disc(m_az, m_elev, MOON_R, lit)
+            if at is not None and frac > 0.25 and pic.phase == "natt":
+                glitter(at, SKY_STYLE["glitter_moon"], frac)
+
+
+
 def _wave_hash(b: int, d: int) -> int:
     return hash((b, d, 627)) & 0xFFFFFF
 
@@ -421,6 +544,7 @@ def render_eyepiece(pic: PeriscopePicture, w: int, h: int, selected: SightedObje
         pic.sector if pic.sector is not None else pic.own_course)
     if pic.ice:
         _draw_ice(g, inside, pic, center, cx, cols_per_deg, horizon, stale)
+    draw_sky(g, pic, horizon, center, cols_per_deg, cx, pic.t, inside)
     draw_land(g, pic, horizon, center, cols_per_deg, cx, inside)   # kikaren: bryggans land
     if selected is None and aim is None:
         return g.rows()
@@ -545,7 +669,7 @@ def header(pic: PeriscopePicture | None, clock: str, age_s: int,
                  style="bold #e0d090")
         t.append(f" · {MODE_TEXT.get(mode, mode)} · okular {fmt_course(train)}")
         if pic is not None:
-            t.append(f" · {'dag' if pic.day else 'natt'} · sikt {nm(pic.visibility_nm)} nm"
+            t.append(f" · {phase_text(pic)} · sikt {nm(pic.visibility_nm)} nm"
                      f" · vår kurs {fmt_course(pic.own_course)}")
         return t
     if note:
@@ -556,7 +680,7 @@ def header(pic: PeriscopePicture | None, clock: str, age_s: int,
     t.append(f"   bild {clock[:5]}")
     if age_s >= STALE_S:
         t.append(f" ({age_s // 60} min sedan)", style="yellow")
-    t.append(f" · {'dag' if pic.day else 'natt'} · sikt {nm(pic.visibility_nm)} nm"
+    t.append(f" · {phase_text(pic)} · sikt {nm(pic.visibility_nm)} nm"
              f" · {pic.eye} · vår kurs {fmt_course(pic.own_course)}")
     if pic.sector is not None:
         t.append(f" · kort titt {fmt_course(pic.sector)}")

@@ -38,7 +38,7 @@ from ..geo import angle_diff, norm360, velocity
 from ..ice import ice_view, masts_clear
 from ..orders import DESIG, CommandSpec, Order, desig
 from ..ownship import PERISCOPE_DEPTH
-from ..periscope import (AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
+from ..periscope import (sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
                          Judges, PeriscopePicture, SightedObject, angle_on_bow, aob_quality,
                          carried, lights, range_quality, visible_part)
 from ..reports import Quality
@@ -547,4 +547,4 @@ class PeriscopeWatch(Station):
         self.game.bus.publish(PeriscopeSighted(now, PeriscopePicture(
             now, world.env.daylight(now), world.env.visibility_nm(now), self.own.state.course,
             "brygga" if self.own.surfaced else "periskop", tuple(objects), sector, self._ice,
-            self._land), live=live))
+            self._land, **sky_of(world.env.light(now))), live=live))
