@@ -3,6 +3,10 @@
 En kolumn är `scale` sjömil bred och en rad `2·scale` hög, eftersom en
 teckenruta är ungefär dubbelt så hög som bred. Då blir cirklar runda och
 bäringar ritas i rätt vinkel.
+
+Linjer (besticket, djupkurvor, kust, farled, bäringar, vektorer, osäkerhetsringar) ritas
+med brailleprickar i ett eget skikt (`DotLayer`), 2 × 4 per ruta. Märken, etiketter,
+rutnätet och gränsen är hela tecken; i varje ruta vinner det med högst lager.
 """
 from __future__ import annotations
 
@@ -14,6 +18,7 @@ from rich.text import Text
 from sim.chart import LAYER_MARK, ChartView, Mark, Ray, Ring, Track
 from sim.reports import Quality
 
+from .canvas import DotLayer
 from .widgets import QUALITY_STYLE
 
 MARGIN = 5                      # kolumner till vänster för nordkoordinaterna
@@ -99,6 +104,34 @@ class Canvas:
         self.prio = [[-2.0] * self.cols for _ in range(self.rows)]
         self.grid_xs: list[float] = []
         self.grid_ys: list[float] = []
+        self.dots = DotLayer(self.cols, self.rows)
+
+    def dot_xy(self, x: float, y: float) -> tuple[float, float]:
+        """Sjömil till prickkoordinater (2 per kolumn, 4 per rad)."""
+        return (2 * ((x - self.cx) / self.scale + self.cols / 2),
+                4 * ((self.cy - y) / (2 * self.scale) + self.rows / 2))
+
+    def dot_line(self, x0, y0, x1, y1, style: str, prio: float, dash: int = 0,
+                 skip: float = 0.0) -> tuple[int, int] | None:
+        """Linje i prickar; ger sista rutan (kolumn, rad) som fick en prick."""
+        a, b = self.dot_xy(x0, y0)
+        c, d = self.dot_xy(x1, y1)
+        hit = self.dots.line(a, b, c, d, style, prio, dash, skip)
+        return None if hit is None else (hit[1], hit[0])
+
+    def dot_ring(self, x, y, radius, style, prio, dash: int = 0) -> None:
+        a, b = self.dot_xy(x, y)
+        r = 2 * radius / self.scale                  # prickar (2 per kolumn)
+        if r < 2.5:
+            return                      # ryms i själva märket
+        self.dots.circle(a, b, r, style, prio, dash)
+
+    def shown(self, r: int, c: int) -> tuple[str, str]:
+        """Det som syns i rutan: prickarna om de ligger högre än tecknet."""
+        d = self.dots.cell(r, c)
+        if d is not None and d[2] > self.prio[r][c]:
+            return d[0], d[1]
+        return self.ch[r][c], self.st[r][c]
 
     def cell(self, x: float, y: float) -> tuple[int, int]:
         c = math.floor((x - self.cx) / self.scale + self.cols / 2)
@@ -192,19 +225,27 @@ def render_chart(view: ChartView, cx: float, cy: float, scale: float,
         match it:
             case Track(points=pts, style=s):
                 st = item_style(s)
-                for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
-                    cv.line(x0, y0, x1, y1, it.char, st, it.layer)
-                if len(pts) == 1:
-                    c, r = cv.cell(*pts[0])
-                    cv.put(c, r, it.char or "·", st, it.layer)
+                if it.char in (None, "·", "╌"):            # linjer i prickar, farleden streckad
+                    dash = 3 if it.char == "╌" else 0
+                    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+                        cv.dot_line(x0, y0, x1, y1, st, it.layer, dash)
+                    if len(pts) == 1:
+                        a, b = cv.dot_xy(*pts[0])
+                        cv.dots.dot(a, b, st, it.layer)
+                else:
+                    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+                        cv.line(x0, y0, x1, y1, it.char, st, it.layer)
+                    if len(pts) == 1:
+                        c, r = cv.cell(*pts[0])
+                        cv.put(c, r, it.char, st, it.layer)
             case Ring():
-                cv.ring(it.x, it.y, it.radius, item_style(it.style, it.quality, faded=True),
-                        it.layer)
+                cv.dot_ring(it.x, it.y, it.radius, item_style(it.style, it.quality, faded=True),
+                            it.layer, dash=2)
             case Ray():
                 b = math.radians(it.bearing)
                 x1, y1 = it.x + it.length * math.sin(b), it.y + it.length * math.cos(b)
                 st = item_style(it.style, it.quality, it.faded)
-                last = cv.line(it.x, it.y, x1, y1, None, st, it.layer, skip_start=True)
+                last = cv.dot_line(it.x, it.y, x1, y1, st, it.layer, skip=3)
                 if it.label and last is not None:
                     labels.append((cv.x_of(last[0]) + scale / 2, cv.y_of(last[1]) - scale,
                                    it.label, st, 1))
@@ -274,7 +315,8 @@ def _with_axes(cv: Canvas) -> list[Text]:
     for r in range(cv.rows):
         t = Text(f"{row_label.get(r, ''):>{MARGIN - 1}} ", style=axis)
         run, run_st = "", None
-        for ch, st in zip(cv.ch[r], cv.st[r]):
+        for c in range(cv.cols):
+            ch, st = cv.shown(r, c)
             if st != run_st and run:
                 t.append(run, style=run_st or None)
                 run = ""

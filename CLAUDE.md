@@ -200,7 +200,10 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   med 0,8 nm fel: medel 0,75 nm efter (angivet ~0,93); över berget 0,53 nm.
 - **Sjökortet**: `Station.chart_items()` ger ritelement (`sim/chart.py`) ur
   kunskapen i beräknade koordinater; `Game.chart()` samlar, `ui/chart_render.py`
-  rastrerar (en rad = två kolumner i höjd). Nytt system ritar sig självt.
+  rastrerar (en rad = två kolumner i höjd). Linjer (spår, djupkurvor, kust, farled streckad, bäringar,
+  vektorer, osäkerhetsringar streckade) ritas i braille i prickskiktet `ui/canvas.DotLayer` (prickkoordinater
+  2 per kolumn, 4 per rad); märken, etiketter, rutnät och gräns är hela tecken; högst lager vinner per ruta.
+  Nytt system ritar sig självt.
 - **Ubåten** (`ubåt`, även `profil`/`system`; `ui/boat.py`, `ui/boat_render.py`): djupprofilen och
   systemtavlan i en vy. Genomskärningen överst (från `HULL_MIN_H` rader, annars avdelningarna som lampor
   på andra rubrikraden), profilen till vänster (60 %) och panelerna till höger; under `SIDE_MIN_W` (110)

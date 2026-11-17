@@ -112,3 +112,65 @@ class Braille:
                 if b:
                     st = self.styles[r][c]
                     canvas.put(row0 + r, col0 + c, chr(BRAILLE_BASE + b), st[1] if st else "")
+
+
+class DotLayer:
+    """Glest prickskikt i braille ovanpå ett teckenrutnät (sjökortet, profilen …).
+
+    Ritar i prickkoordinater: x = 2·kolumn, y = 4·rad, så att en prick är ungefär kvadratisk.
+    Varje ruta samlar sina prickar och får stilen från pricken med högst prioritet. Rutnätet
+    som äger skiktet avgör per ruta om tecknet eller prickarna syns (`cell`)."""
+
+    def __init__(self, cols: int, rows: int) -> None:
+        self.cols, self.rows = cols, rows
+        self.cells: dict[tuple[int, int], list] = {}      # (rad, kol) -> [bitar, stil, prio]
+
+    def dot(self, x: float, y: float, style: str, prio: float = 0.0) -> tuple[int, int] | None:
+        xi, yi = math.floor(x), math.floor(y)
+        col, row = xi // 2, yi // 4
+        if not (0 <= col < self.cols and 0 <= row < self.rows):
+            return None
+        cell = self.cells.get((row, col))
+        bit = DOT_BITS[(xi % 2, yi % 4)]
+        if cell is None:
+            self.cells[(row, col)] = [bit, style, prio]
+        else:
+            cell[0] |= bit
+            if prio >= cell[2]:
+                cell[1], cell[2] = style, prio
+        return row, col
+
+    def line(self, x0: float, y0: float, x1: float, y1: float, style: str,
+             prio: float = 0.0, dash: int = 0, skip: float = 0.0) -> tuple[int, int] | None:
+        """Linje prick för prick; `dash` > 0 ger streck och luckor om så många prickar,
+        `skip` hoppar över de första prickarna (en linje som börjar i ett märke).
+        Ger den sista rutan som fick en prick."""
+        n = max(1, int(math.ceil(max(abs(x1 - x0), abs(y1 - y0)))))
+        last = None
+        for i in range(n + 1):
+            if i < skip or (dash and (i // dash) % 2 == 1):
+                continue
+            f = i / n
+            hit = self.dot(x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, style, prio)
+            if hit is not None:
+                last = hit
+        return last
+
+    def polyline(self, pts, style: str, prio: float = 0.0, dash: int = 0) -> None:
+        for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+            self.line(x0, y0, x1, y1, style, prio, dash)
+
+    def circle(self, cx: float, cy: float, r: float, style: str, prio: float = 0.0,
+               dash: int = 0) -> None:
+        n = max(12, int(2 * math.pi * r * 1.2))
+        for i in range(n):
+            if dash and (i // dash) % 2 == 1:
+                continue
+            a = 2 * math.pi * i / n
+            self.dot(cx + r * math.sin(a), cy - r * math.cos(a), style, prio)
+
+    def cell(self, row: int, col: int) -> tuple[str, str, float] | None:
+        c = self.cells.get((row, col))
+        if c is None:
+            return None
+        return chr(BRAILLE_BASE + c[0]), c[1], c[2]

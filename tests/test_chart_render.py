@@ -20,6 +20,12 @@ def _find(rows, ch):
     return [(c, r) for r, row in enumerate(rows) for c, x in enumerate(row) if x == ch]
 
 
+def _dots(rows):
+    """Rutorna med brailleprickar."""
+    return [(c, r) for r, row in enumerate(rows) for c, x in enumerate(row)
+            if 0x2800 < ord(x) <= 0x28FF]
+
+
 def test_mark_lands_in_the_right_cell():
     rows = _grid(_view(Mark(10.0, 10.0, "@", "own"), Mark(11.0, 10.0, "◆", "contact"),
                        Mark(10.0, 11.0, "Ö", "opening")))
@@ -30,14 +36,19 @@ def test_mark_lands_in_the_right_cell():
     assert (c2 - c0, r2 - r0) == (0, -5)          # 1 nm = 5 rader (rutorna är höga)
 
 
-def test_rays_use_the_right_character_and_are_clipped():
-    rows = _grid(_view(Ray(10.0, 10.0, 90.0, 100.0, "bearing", "S-1 090"),
-                       Ray(10.0, 10.0, 0.0, 0.5, "own_vector"),
-                       Ray(10.0, 10.0, 135.0, 0.5, "contact_vector")))
-    assert len(_find(rows, "─")) >= 15               # klippt vid kanten, ingen krasch
-    assert len(_find(rows, "│")) in (2, 3)          # 0,5 nm = 2,5 rader
-    assert _find(rows, "╲")
+def test_rays_are_dotted_lines_and_clipped():
+    rows = _grid(_view(Ray(10.0, 10.0, 90.0, 100.0, "bearing", "S-1 090")))
+    (c0, r0), = [(c, r) for c, r in _dots(rows)][:1]
+    east = [(c, r) for c, r in _dots(rows) if r == r0]
+    assert len(east) >= 15                           # klippt vid kanten, ingen krasch
     assert "S-1 090" in "".join(rows)                # etiketten flyttas in vid kanten
+    north = _grid(_view(Ray(10.0, 10.0, 0.0, 0.5, "own_vector")))
+    cols = {c for c, _ in _dots(north)}
+    assert len(cols) == 1 and len(_dots(north)) in (2, 3)   # 0,5 nm = 2,5 rader, lodrät
+    se = _grid(_view(Ray(10.0, 10.0, 135.0, 0.5, "contact_vector")))
+    pts = _dots(se)
+    assert pts and max(c for c, _ in pts) > min(c for c, _ in pts) and \
+        max(r for _, r in pts) > min(r for _, r in pts)     # snett nedåt höger
     assert [ray_char(b) for b in (0, 45, 90, 135, 180, 225, 270, 315)] == \
         ["│", "╱", "─", "╲", "│", "╱", "─", "╲"]
 
@@ -59,13 +70,16 @@ def test_offscreen_contact_gets_an_arrow_at_the_edge_but_ice_does_not():
 
 
 def test_rings_tracks_and_grid():
-    rows = _grid(_view(Ring(10.0, 10.0, 0.5, "own"),
-                       Track(((9.0, 9.0), (9.0, 9.6)), "track")))
-    assert len(_find(rows, ".")) >= 16
-    assert len(_find(rows, "·")) >= 3
+    ring = _grid(_view(Ring(10.0, 10.0, 0.5, "own")))
+    assert len(_dots(ring)) >= 16                          # streckad ring i prickar
+    rows = _grid(_view(Track(((9.0, 9.0), (9.0, 9.6)), "track")))
+    assert len(_dots(rows)) >= 3
     assert _find(rows, "┼")
     small = _grid(_view(Ring(10.0, 10.0, 0.1, "own")))     # ryms i märket: ritas inte
-    assert not _find(small, ".")
+    assert not _dots(small)
+    fairway = _grid(_view(Track(((8.0, 10.0), (12.0, 10.0)), "fairway", char="╌")))
+    solid = _grid(_view(Track(((8.0, 10.0), (12.0, 10.0)), "track")))
+    assert 0 < len(_dots(fairway)) < len(_dots(solid))     # farleden streckad
 
 
 def test_area_border_and_axis_labels():
@@ -81,17 +95,24 @@ def test_grid_step_follows_zoom():
     assert grid_step(0.4) == 5.0
 
 
-def test_oblique_lines_are_one_cell_thick():
+def test_oblique_lines_are_thin():
     rows = _grid(_view(Ray(10.0, 10.0, 300.0, 100.0, "bearing")))
     per_col = {}
-    for c, r in _find(rows, "╲"):
+    for c, r in _dots(rows):
         per_col[c] = per_col.get(c, 0) + 1
-    assert per_col and max(per_col.values()) == 1    # grund linje: en ruta per kolumn
+    assert per_col and max(per_col.values()) <= 2    # grund linje: högst två rutor per kolumn
     rows = _grid(_view(Ray(10.0, 10.0, 20.0, 100.0, "bearing")))
     per_row = {}
-    for c, r in _find(rows, "│"):
+    for c, r in _dots(rows):
         per_row[r] = per_row.get(r, 0) + 1
-    assert per_row and max(per_row.values()) == 1    # brant linje: en ruta per rad
+    assert per_row and max(per_row.values()) <= 2    # brant linje: högst två rutor per rad
+
+
+def test_marks_and_labels_sit_on_top_of_lines():
+    rows = _grid(_view(Ray(9.0, 10.0, 90.0, 3.0, "bearing"),
+                       Mark(10.0, 10.0, "◆", "contact", "S-1", Quality.GOD)))
+    (c, r), = _find(rows, "◆")
+    assert rows[r][c + 2:c + 5] == "S-1"             # linjen under, märke och etikett syns
 
 
 def test_label_is_separated_from_its_mark():
