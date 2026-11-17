@@ -311,7 +311,9 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   medaljerna och familjen så långt platsen räcker; ljuset (`_shade` färgar om varje ruta: natt ⇒ bara
   nattlampan, telefonens sken gult/rött på skottet, rök dämpar), ögonlocken när han sover (`lids_of`, öppna när
   det ringer), andningen, taklampan och mössan svänger (`sway_of`: jagade, sjön nära ytan, krängning i gir),
-  damm från rören när vi är jagade och dis av rök; mindre fönster den enkla bilden) öppnas
+  damm från rören när vi är jagade och dis av rök; dörren (`StatusSnapshot.door` ur starpom: `steps` fötter i
+  ljusstrimman 4 s före ordonnansens knackning, `ajar` 12 s med honom i springan, `open` de första 4 s när kaptenen
+  går, sedan gången); mindre fönster den enkla bilden) öppnas
   av sig själv (`SubApp._follow_command`) och står först i Tab-ordningen; visar bara starpoms och telefonens
   rapporter, Enter svarar. Ljudet i hytten (`ambience.muffled`, `audio.from_central`): båten ×0,55, mumlet
   svagt, inga hydrofonljud eller sväv, centralens repliker tysta (larm hörs); telefonen `phone`, knackning

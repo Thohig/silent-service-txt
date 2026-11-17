@@ -52,6 +52,9 @@ from .torpedo_room import FiringSolution, LaunchDecoy, LoadTube, TorpedoStatus, 
 
 WALK_S = 40             # från hytten till centralen (gången och lejdaren)
 ORDERLY_S = 20          # obesvarat samtal: ordonnansen knackar
+STEPS_S = 4             # så länge före knackningen hörs (syns) han utanför dörren
+AJAR_S = 12             # så länge står dörren på glänt medan han talar
+DOOR_OPEN_S = 4         # kaptenen öppnar dörren och går
 WATCH_S = 5             # så ofta starpom ser över läget
 SUMMON_S = 120          # så långt före skjutläget ropas kaptenen till centralen
 SUMMON_RANGE_NM = 3.5   # anfallsorder: ett stort fartyg så nära enligt plottet ⇒ kaptenen hit
@@ -317,6 +320,7 @@ class FirstOfficer(Station):
         self.walk_until = 0
         self.sleeping = False
         self.ring_t: int | None = None      # telefonen ringer sedan
+        self.orderly_t: int | None = None   # ordonnansen knackade
         self.pending: list[dict] = []       # det kaptenen ska få veta (orsaker)
         self.lamp = False
         self.decisions: list[tuple[str, str]] = []   # (klocka, order) sedan förra samtalet
@@ -340,7 +344,19 @@ class FirstOfficer(Station):
                 "captain_at": self.captain_at,
                 "walk_s": max(0, self.walk_until - self.now) if self.captain_at == "walking" else 0,
                 "phone": "ring" if self.ring_t is not None else "lamp" if self.lamp else None,
-                "sleeping": self.sleeping, "order_day": self.order_day}
+                "sleeping": self.sleeping, "order_day": self.order_day, "door": self._door()}
+
+    def _door(self) -> str | None:
+        """Hyttdörren: kaptenen öppnar den när han går, ordonnansen står utanför och knackar."""
+        if self.captain_at == "walking":
+            return "open" if self.now - (self.walk_until - WALK_S) < DOOR_OPEN_S else None
+        if self.captain_at != "cabin":
+            return None
+        if self.ring_t is not None and self.now - self.ring_t >= ORDERLY_S - STEPS_S:
+            return "steps"
+        if self.orderly_t is not None and self.now - self.orderly_t < AJAR_S:
+            return "ajar"
+        return None
 
     def _situation(self) -> dict:
         from .officer import OfficerStation
@@ -620,6 +636,7 @@ class FirstOfficer(Station):
                 self.now - self.ring_t >= ORDERLY_S:
             d = {"reasons": list(self.pending)}
             self._clear_calls()
+            self.orderly_t = self.now
             self.say("xo.orderly", d, kind="system", extra_delay=-1)
         if self.now % WATCH_S == 0:
             self._watch()

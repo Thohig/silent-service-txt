@@ -441,3 +441,42 @@ def test_cabin_light_and_life():
     for state in (dict(sleeping=True), dict(hunted=True), dict(smoke=1.0), dict(night=True)):
         out = render_cabin(replace(s, **state), 2.0, 100, 26)
         assert len(out) == 26 and all(len(r.plain) == 100 for r in out)
+
+
+def test_cabin_door_orderly_and_departure():
+    """H4: ordonnansen syns under dörren innan han knackar, står i dörren på glänt medan han
+    talar, och dörren står öppen när kaptenen går, innan gången visas."""
+    from dataclasses import replace
+    from sim.stations.starpom import AJAR_S, DOOR_OPEN_S, STEPS_S
+    from ui.cabin_render import lids_of, render_cabin
+    g, reports = _game()
+    g.command("starpom har befälet")
+    _run(g, 3)
+    g.say(Role.RADIO, "order.declined", {"order": "sänd rapport", "made_t": g.now}, kind="suggest")
+    doors = []
+    for _ in range(12 + ORDERLY_S + AJAR_S + 5):
+        g.tick()
+        doors.append(g.status().door)
+    first_steps, first_ajar = doors.index("steps"), doors.index("ajar")
+    assert first_steps < first_ajar and first_ajar - first_steps >= STEPS_S - 1
+    assert doors.count("ajar") == AJAR_S and doors[-1] is None
+    assert any(r.type == "xo.orderly" for r in reports)
+    s = g.status()
+    ajar = "\n".join(r.plain for r in render_cabin(replace(s, door="ajar"), 0.0, 100, 26))
+    assert "●" in ajar and "▓" in ajar                    # ordonnansen i ljuset från gången
+    closed = "\n".join(r.plain for r in render_cabin(replace(s, door=None), 0.0, 100, 26))
+    assert "╼" in closed and "▓▓" not in closed.split("\n")[8]
+    assert lids_of(replace(s, sleeping=True, door="steps"), 0.0) == 0.0
+    # kaptenen går: dörren öppen först, sedan gången
+    g.command("jag har befälet")
+    opened = []
+    for _ in range(DOOR_OPEN_S + 3):
+        opened.append(g.status().door)
+        st = g.status()
+        text = "\n".join(r.plain for r in render_cabin(st, 0.0, 100, 26))
+        assert ("På väg till centralen" in text) == (st.door != "open")
+        g.tick()
+    assert opened[:DOOR_OPEN_S] == ["open"] * DOOR_OPEN_S and opened[-1] is None
+    # för litet fönster för rummet: gången direkt
+    small = "\n".join(r.plain for r in render_cabin(replace(st, door="open"), 0.0, 60, 16))
+    assert "På väg till centralen" in small

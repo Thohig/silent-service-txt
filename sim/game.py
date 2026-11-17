@@ -89,6 +89,7 @@ class StatusSnapshot:
     phone: str | None = None        # snabbtelefonen i hytten: lamp eller ring
     sleeping: bool = False          # kaptenen sover (snabbspolat tills han väcks)
     order_day: int | None = None    # orderns dag i oktober 1962 (almanackan i hytten)
+    door: str | None = None         # hyttdörren: steps (någon utanför), ajar (ordonnansen), open (kaptenen går)
 
 
 def build_registry(station_classes: list[type[Station]]) -> CommandRegistry:
