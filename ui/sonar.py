@@ -9,7 +9,7 @@ from textual.css.query import NoMatches
 from textual.widgets import Static
 
 from .placards import view_title
-from .sonar_render import render_sonar
+from .sonar_render import STYLE, render_sonar
 from .viewbase import ViewScreen
 
 WINDOWS_S = (600, 1800, 3600)          # tidsfönster: 10, 30, 60 min
@@ -17,12 +17,22 @@ DEFAULT_WINDOW = 1
 PAN_DEG = 30
 REDRAW_S = 0.5
 
+LEGEND = [
+    ("⣿", "threat", "jagare/ubåt"), ("⣿", "contact", "okänd"), ("⣿", "civil", "handelsfartyg"),
+    ("⣿", "benign", "is, drivstation"), ("⣿", "friendly", "eget"),
+    ("◦", "heard_ping", "ping"), ("↓", "heard_splash", "plask"), ("✱", "heard_explosion", "detonation"),
+    ("⊥", "heard_buoy", "boj"), ("∅", "lost", "tappad"), ("‹gir", "target_turn", "plottet: målet girade"),
+    ("↻↺", "own_turn", "vi girade"), ("!", "own_sound", "egen ping"),
+]
+LEGEND_SPLIT = 5                       # andra raden: ljuden och girarna
+
 
 class SonarScreen(ViewScreen):
     CSS = """
     SonarScreen { background: #0b0f0c; }
     #sonar-head { height: 2; background: #1c2a20; color: #c8d0b0; }
     #sonar-body { height: 1fr; }
+    #sonar-legend { height: 2; color: #7f9a80; }
     #sonar-ticker { height: 2; background: #0f1611; }
     """
     PREFIX = "sonar"
@@ -41,6 +51,7 @@ class SonarScreen(ViewScreen):
     def compose(self) -> ComposeResult:
         yield Static(id="sonar-head")
         yield Static(id="sonar-body")
+        yield Static(_legend(), id="sonar-legend")
         yield Static(id="sonar-ticker")
         yield self.order_line()
 
@@ -98,3 +109,13 @@ class SonarScreen(ViewScreen):
                  + ("fören" if self.relative else "norr") + " i mitten · Tab vidare · Esc tillbaka",
                  style="dim")
         head.update(t)
+
+
+def _legend() -> Text:
+    t = Text(" ", no_wrap=True, overflow="crop")
+    for i, (sym, style, what) in enumerate(LEGEND):
+        if i == LEGEND_SPLIT:
+            t.append(" bredare spår = starkare ljud\n ", style="dim")
+        t.append(sym, style=STYLE[style])
+        t.append(f" {what}  ", style="dim")
+    return t

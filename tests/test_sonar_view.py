@@ -165,3 +165,59 @@ def test_solution_only_when_asked_and_turns_marked():
     margin = [r[1] for r in off]
     assert "↻" in margin and "↺" in margin
     assert any(r.count("╌") > 20 for r in off)
+
+
+def test_contact_lines_under_the_waterfall():
+    lines = [ContactLine("S-1", "jagare", Quality.GOD, 47.0, 2.04, Quality.OSAKER, "threat"),
+             ContactLine("S-2", "handelsfartyg", Quality.SAKER, 300.0, None, None, "civil",
+                         held=False)]
+    rows = _plain(render_sonar(_view(items=lines), 100, 30))
+    assert len(rows) == 30
+    assert rows[-2].startswith(" S-1") and "bäring 047" in rows[-2]
+    assert "drar höger 2,0°/min" in rows[-2] and "lösning osäker" in rows[-2]
+    assert "tappad" in rows[-1] and "lösning ingen" in rows[-1]
+    many = [ContactLine(f"S-{i}", "okänd", Quality.DALIG, 10.0 * i, 0.0, None) for i in range(12)]
+    rows = _plain(render_sonar(_view(items=many), 100, 24))
+    assert len(rows) == 24 and rows[-1].strip() == "… och 7 till"
+
+
+@pytest.mark.slow
+def test_sonar_screen_keys_and_words(tmp_path):
+    import asyncio
+
+    from ui.app import SubApp
+    from ui.chart import ChartScreen
+    from ui.sonar import SonarScreen
+
+    async def run():
+        app = SubApp(seed=2, log_dir=tmp_path, scenario="jagad-kort")
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.press("enter", "enter")
+            await pilot.pause(0.3)
+            for _ in range(300):
+                app.game.tick()
+            await pilot.press(*"sonar", "enter")
+            assert isinstance(app.screen, SonarScreen)
+            await pilot.pause(0.7)
+            body = str(app.screen.query_one("#sonar-body").render())
+            assert "◂ nu" in body and "S-1" in body
+            head = str(app.screen.query_one("#sonar-head").render())
+            assert "SONARRUMMET" in head and "ГИДРОАКУСТИЧЕСКАЯ РУБКА" in head
+            await pilot.press("down")
+            assert app.screen.relative
+            await pilot.press("up", "minus", "right")
+            assert app.screen.show_solution and app.screen.window_s == 3600 and app.screen.turn == 30
+            await pilot.press("space")
+            assert app.screen.turn == 0
+            app.save_screenshot(str(tmp_path / "sonar.svg"))
+            await pilot.press(*"kurs 200", "enter")              # order i vyn
+            assert isinstance(app.screen, SonarScreen)
+            assert app.game.world.own.state.ordered_course == 200
+            await pilot.press("escape")
+            assert not isinstance(app.screen, SonarScreen)
+            await pilot.press("tab", "tab")       # stort fönster: loggboken → sjökort → sonar
+            assert isinstance(app.screen, ChartScreen)
+            await pilot.press("tab")
+            assert isinstance(app.screen, SonarScreen)
+
+    asyncio.run(run())

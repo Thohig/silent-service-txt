@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from rich.text import Text
 
+from sim.fmt import fmt_course
 from sim.geo import angle_diff, norm360
-from sim.sonar_view import (BearingTrace, HeardMark, LostMark, OwnMark, OwnTurn, SolutionTrace,
+from sim.sonar_view import (BearingTrace, ContactLine, drift_words, HeardMark, LostMark, OwnMark, OwnTurn, SolutionTrace,
                             SonarView, TargetTurn)
 
 from .canvas import Canvas, DotLayer
@@ -20,6 +21,7 @@ LEFT = 2                         # marginal för egna girar och egna ljud
 RIGHT = 6                        # klockslagen
 HEAD_ROWS = 2                    # bäringsskalan och linjalen
 MIN_BODY_ROWS = 4
+LINES_SHARE = 4                  # kontaktraderna tar högst var fjärde rad
 TIME_STEPS_S = (60, 120, 300, 600, 900, 1800, 3600)
 TIME_LABEL_MIN_ROWS = 4          # klockslag högst så här tätt
 BEARING_STEPS = (10, 15, 30, 45, 90)
@@ -103,9 +105,15 @@ def kind_style(kind: str, held: bool = True) -> str:
 def render_sonar(view: SonarView, width: int, height: int, window_s: int = 1800,
                  center: float = 0.0, relative: bool = False,
                  show_solution: bool = False) -> list[Text]:
-    """Vattenfallet i `width` × `height` tecken."""
+    """Vattenfallet i `width` × `height` tecken, med en rad per kontakt under."""
+    contact_lines = view.lines
+    n_lines = min(len(contact_lines), max(1, height // LINES_SHARE)) if contact_lines else 0
+    if n_lines and len(contact_lines) > n_lines:
+        n_lines -= 1                 # sista raden säger hur många fler
+    more = len(contact_lines) - n_lines
+    foot = n_lines + (1 if more else 0)
     cols = max(8, width - LEFT - RIGHT)
-    rows = max(MIN_BODY_ROWS, height - HEAD_ROWS)
+    rows = max(MIN_BODY_ROWS, height - HEAD_ROWS - foot)
     wf = Waterfall(view, cols, rows, window_s, center, relative)
     canvas = Canvas(LEFT + cols + RIGHT, HEAD_ROWS + rows, STYLE["base"])
     dots = DotLayer(cols, rows)
@@ -135,7 +143,29 @@ def render_sonar(view: SonarView, width: int, height: int, window_s: int = 1800,
             else:
                 continue
             canvas.put(HEAD_ROWS + r, LEFT + c, ch, st)
-    return canvas.lines()
+    out = canvas.lines()
+    out.extend(contact_line(c, width) for c in contact_lines[:n_lines])
+    if more:
+        out.append(Text(f" … och {more} till", style="dim", no_wrap=True, overflow="crop"))
+    return out
+
+
+def contact_line(c: ContactLine, width: int) -> Text:
+    """Sonarrummets och plottets ord om en kontakt: klassning, bäring, drift, lösning."""
+    t = Text(" ", no_wrap=True, overflow="crop")
+    t.append(f"{c.designation:<5}", style=kind_style(c.kind, c.held))
+    t.append(f" bäring {fmt_course(c.bearing)}", style="" if c.held else "dim")
+    drift = drift_words(c.drift) if c.held else "tappad"
+    t.append(f"  {drift:<22}", style="" if c.held else "dim")
+    t.append(" lösning ")
+    if c.solution_quality is None:
+        t.append(f"{'ingen':<7}", style="dim")
+    else:
+        t.append(f"{c.solution_quality.label:<7}", style=QUALITY_STYLE[c.solution_quality])
+    t.append(f"  {c.classification}", style="" if c.held else "dim")
+    t.append(f" ({c.class_quality.label})", style=QUALITY_STYLE[c.class_quality])
+    t.truncate(width)
+    return t
 
 
 # --- axlar ------------------------------------------------------------------------

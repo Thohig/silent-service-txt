@@ -42,11 +42,9 @@ Granskning 2026-11-15. Byggt sedan dess: braille i sjökort, profil, genomskärn
 periskopets okular (2026-11-17), ubåtsvyn (djupprofil + systemtavla, 2026-11-16), plottlagets
 blyertsmärken på sjökortet (B1–B3, 2026-11-17; valt i stället för animering, se nedan).
 
-**Största luckan: sonarvy med vattenfall** – bäring mot tid i braille, bara det sonarrummet hört
-(kunskap), plottets lösning ovanpå med sin kvalitet (`Station.sonar_items()` + renderare). Skälet:
-sonar är ubåtens viktigaste sinne men det enda utan bild; kaptenen ser varför plottet säger manöver
-eller tappar kvalitet. Risk: lockar spelaren att räkna TMA själv, så vyn ska förklara, inte bli ett
-verktyg. Inte nödvändig: att lita på sonarrummets ord är också en giltig design.
+~~**Sonarvy med vattenfall**~~ – byggd 2026-11-17 (S1–S5, se CLAUDE.md). Kvar att pröva: om
+lösningskurvan ska vara på som standard, och om vyn behöver ett läge med bara hot. Ej provkörd
+för hand i riktig terminal.
 
 **Snabba fixar kvar:**
 - Periskopet: avståndsskala saknas.

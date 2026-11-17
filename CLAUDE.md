@@ -242,6 +242,15 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   vektorer, osäkerhetsringar streckade) ritas i braille i prickskiktet `ui/canvas.DotLayer` (prickkoordinater
   2 per kolumn, 4 per rad); märken, etiketter, rutnät och gräns är hela tecken; högst lager vinner per ruta.
   Nytt system ritar sig självt.
+- **Sonarvyn** (`sonar`, `vattenfall`; `sim/sonar_view.py`, `ui/sonar_render.py`, `ui/sonar.py`): vattenfallet,
+  bäring vågrätt (sann, eller relativt fören ur navigatörens kurslogg) och tid lodrätt, nyast överst, 10/30/60 min.
+  `Station.sonar_items()` ⇒ `Game.sonar()` (`SonarView`), bara kunskap: sonarrummet ger bäringsspår ur
+  `ContactTrack.observations` (källorna sonar/ping/aktiv; prickarna bredare efter `se`), hörda transienter med
+  bäring (`HeardMark`; pingar bara där inget annat står), tappade (`∅`), egna ljud i marginalen och en rad per
+  kontakt (bäring, operatörens bäringsdrift över 3 min, lösningens kvalitet, klassning); plottet lösningens
+  förutsagda bäringar för benet (streckade i kvalitetens färg, bara med ↑) och sina märkta girar (`‹gir`, högst
+  var 5:e min); navigatören kursloggen (var 10:e s) och våra girar ≥ 15° (`↻`/`↺` och en svag linje). Vyn räknar
+  inget själv och ger inga verktyg (designprincip 1). Tab-ordningen: sjökort → sonar → ubåten.
 - **Ubåten** (`ubåt`, även `profil`/`system`; `ui/boat.py`, `ui/boat_render.py`): djupprofilen och
   systemtavlan i en vy. Genomskärningen överst (från `HULL_MIN_H` rader, annars avdelningarna som lampor
   på andra rubrikraden), profilen till vänster (60 %) och panelerna till höger; under `SIDE_MIN_W` (110)
@@ -252,7 +261,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   fasta djup (`Level`), navigatörens djuplogg (var 10:e s), ekolodets bottenlodningar
   (bara efter `ekolod`), isekolodets lodningar och sonarrummets hörda ljud. `Game.profile()`
   samlar, `ui/profile_render.py` ritar sidovyn (tid vågrätt, botten i eget band under
-  bruten axel; vårt djup, kortets botten och tunna nivåer i braille vid exakt djup) och djupmätaren bredvid loggen. Tab växlar (hytten, när starpom har befälet) → logg → sjökort → ubåten → periskopbild → logg, med luckan öppen brygga före
+  bruten axel; vårt djup, kortets botten och tunna nivåer i braille vid exakt djup) och djupmätaren bredvid loggen. Tab växlar (hytten, när starpom har befälet) → logg → sjökort → sonar → ubåten → periskopbild → logg, med luckan öppen brygga före
   periskopbild (`SubApp.tab_views`; `VIEWS` är alla vyer).
 - **Centralen** (`ui/central_render.py`, `CentralView` i `ui/widgets.py`): bild av центральный пост.
   Huvudvyns layout efter fönstret (`GameScreen.on_resize`, klasserna `big`/`narrow`): minst 120 × 36 ⇒
