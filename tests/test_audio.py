@@ -148,7 +148,12 @@ def test_headless_game_speaks_crew_reports():
     assert any("noll nio noll" in s for s, _ in p.said)
 
 
-def test_app_is_silent_by_default(tmp_path):
+def test_app_is_silent_by_default(tmp_path, monkeypatch):
+    # Utan ljudspelare (som i molnet): ctrl+t kan inte slå på ljudet. På en Mac skulle
+    # ctrl+t annars bygga ljudbordet och spela ljud under testet.
+    from ui.audio import MacPlayer
+    monkeypatch.setattr(MacPlayer, "available", staticmethod(lambda: False))
+
     async def run():
         app = SubApp(seed=1, log_dir=tmp_path, scenario="kuba")
         async with app.run_test(size=(100, 30)) as pilot:
