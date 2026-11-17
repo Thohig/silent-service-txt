@@ -182,6 +182,7 @@ class Ambience:
         self._targets: dict[str, Target] = {}
         self._layers: dict[str, _Layer] = {}
         self._master = 1.0
+        self._fading = 0                   # löpnummer för lager som tonar ut efter ett byte
         self._lock = threading.Lock()
 
     def set_targets(self, targets: dict[str, Target]) -> None:
@@ -196,7 +197,15 @@ class Ambience:
         master_to = self.volume if self.enabled else 0.0
         m0, self._master = self._master, self._master + (master_to - self._master) * k * 2
         for key, t in targets.items():
-            if key not in self._layers and t.sample in self.samples:
+            if t.sample not in self.samples:
+                continue
+            old = self._layers.get(key)
+            if old is not None and old.sample != t.sample:
+                # Ljudet byts (kontakten klassad om): det gamla tonar ut, det nya tonar in.
+                self._fading += 1
+                self._layers[f"{key}~{self._fading}"] = self._layers.pop(key)
+                old = None
+            if old is None:
                 self._layers[key] = _Layer(t.sample, pan=t.pan, rate=t.rate)
         for key in list(self._layers):
             lay = self._layers[key]

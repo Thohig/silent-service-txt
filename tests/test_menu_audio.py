@@ -165,3 +165,15 @@ def test_music_ducks_and_static_plays_while_on_air(tiny_samples):
     snd._targets()
     assert "static" in snd.mixer._targets
     assert snd.mixer._targets["music"].gain < GAIN["music"]
+
+
+def test_one_shot_ending_while_another_plays_keeps_the_sound_going():
+    """Ett kort ljud tar slut medan ett längre spelas (ratten under rösten): mixern får inte
+    fastna i ett fel i ljudtråden (då blir menyn tyst för gott)."""
+    mixer = MenuMixer(samples={})
+    mixer.oneshot(np.full(500, 0.1))
+    mixer.oneshot(np.full(50_000, 0.1))
+    mixer.oneshot(np.full(60_000, 0.1))
+    mixer.render(1024)
+    assert len(mixer._shots) == 2
+    assert np.abs(mixer.render(1024)).max() > 0.1

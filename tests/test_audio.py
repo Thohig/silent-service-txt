@@ -321,3 +321,40 @@ def test_announcement_speaks_russian_with_russian_voice_otherwise_swedish():
     board.announce("Внимание экипажу.", "Till besättningen.")
     _run(board, p, 0.0, 3.0)
     assert p.voices == [None] and "besättningen" in p.said[0][0]
+
+
+def test_closed_board_leaves_the_bus():
+    bus, p, board = _board()
+    board.close()
+    _deliver(bus, text="Kontakt.", alarm=True)
+    bus.publish(SoundHeard(0, kind="ping", bearing=0.0, se=60.0))
+    assert p.cues == []
+
+
+def test_sound_switched_off_in_the_menu_can_be_switched_on_in_the_mission(tmp_path, monkeypatch):
+    """Ljud av i menyn ⇒ ctrl+t i spelet bygger ljudbordet (inte "avstängt (--tyst)")."""
+    import ui.app as app_mod
+    from ui.audio import NullPlayer
+
+    def fake_make(bus, enabled, heading=None):
+        if not enabled:
+            return SoundBoard(bus, NullPlayer(), enabled=False), None
+        return SoundBoard(bus, RecordingPlayer(), heading=heading), None
+
+    monkeypatch.setattr(app_mod.MacPlayer, "available", staticmethod(lambda: True))
+    monkeypatch.setattr(app_mod, "make_soundboard", fake_make)
+
+    async def run():
+        app = SubApp(seed=1, log_dir=tmp_path, scenario="kuba")
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.press("enter")
+            await pilot.press("enter")
+            old = app.sound
+            assert not old.available
+            await pilot.press("ctrl+t")
+            assert app.sound is not old and app.sound.available and app.sound.enabled
+            assert app.sound_wanted
+            await pilot.press("ctrl+t")
+            assert not app.sound.enabled
+
+    asyncio.run(run())

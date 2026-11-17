@@ -161,3 +161,19 @@ def test_menace_when_hunted_or_a_warship_is_loud_in_the_sonar():
     assert hunted.gain > near.gain > 0
     dd.observations[-1] = BearingObs(0, 90, 1.0, 0.0, 0.0, 0.0, se=3)
     assert "dread" not in ambient_targets(_st(), [dd])                # svag: inget hot än
+
+
+def test_contact_sound_follows_a_new_classification():
+    """Kontakten klassas om (okänd ⇒ jagare): ljudet byts, det gamla tonar ut."""
+    amb = Ambience(samples={"screws_unknown": np.full(100, 0.1),
+                            "screws_warship": np.full(100, -0.1)})
+    amb.set_targets({"contact:S-1": Target("screws_unknown", 0.5)})
+    for _ in range(20):
+        amb.render(1024)
+    amb.set_targets({"contact:S-1": Target("screws_warship", 0.5)})
+    amb.render(1024)
+    assert amb.layers["contact:S-1"].sample == "screws_warship"
+    assert any(lay.sample == "screws_unknown" for lay in amb.layers.values())   # tonar ut
+    for _ in range(100):
+        amb.render(1024)
+    assert [lay.sample for lay in amb.layers.values()] == ["screws_warship"]

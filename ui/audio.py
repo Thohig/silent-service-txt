@@ -377,6 +377,9 @@ class SoundBoard:
         return self.enabled
 
     def close(self) -> None:
+        self.bus.unsubscribe(ReportDelivered, self._on_report)
+        self.bus.unsubscribe(SoundHeard, self._on_sound)
+        self.bus.unsubscribe(OwnSoundMade, self._on_own_sound)
         self.queue.clear()
         self._parts = []
         self.player.stop()

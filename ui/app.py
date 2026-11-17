@@ -25,7 +25,7 @@ from sim.fmt import fmt_course, kn
 from sim.scenario import SCENARIOS, build_scenario
 from sim.truthlog import TruthLog
 
-from .audio import SoundBoard, make_soundboard
+from .audio import MacPlayer, SoundBoard, make_soundboard
 from .boat import BoatScreen
 from .cabin import CabinScreen
 from .chart import ChartScreen
@@ -232,10 +232,7 @@ class SubApp(App):
         game.bus.subscribe(ReportDelivered, self._on_report)
         game.bus.subscribe(TimeScaleChanged, self._on_time_scale)
         game.bus.subscribe(GameEnded, self._on_game_ended)
-        self.sound, self._sound_note = make_soundboard(
-            game.bus, self.sound_wanted, heading=lambda: game.status().course)
-        if self.language is not None:
-            self.sound.set_language(self.language)
+        self._make_sound(self.sound_wanted)
         self._game_ready = True
         self._spoke = {}
         try:
@@ -460,15 +457,32 @@ class SubApp(App):
             return
         if not self.running or self.sound is None:
             return
+        if not self.sound.available and want is not False and MacPlayer.available():
+            # Ljudet var avslaget när uppdraget började: bygg ljudbordet nu.
+            self.sound.close()
+            self._make_sound(True)
+            self.sound_wanted = self.sound.enabled
+            log = self.gs().query_one(ReportLog)
+            log.add_system(self.game.clock_str(), "Ljudet på.")
+            if self._sound_note:
+                log.add_system(self.game.clock_str(), self._sound_note)
+            return
         if not self.sound.available:
             self.gs().query_one(ReportLog).add_system(
-                self.game.clock_str(), self._sound_note or "Ljudet är avstängt (--tyst).")
+                self.game.clock_str(), self._sound_note or "Ljudet är avstängt.")
             return
         if want is None or want != self.sound.enabled:
             self.sound.toggle()
         self.sound_wanted = self.sound.enabled
         self.gs().query_one(ReportLog).add_system(
             self.game.clock_str(), "Ljudet på." if self.sound.enabled else "Ljudet av.")
+
+    def _make_sound(self, enabled: bool) -> None:
+        game = self.game
+        self.sound, self._sound_note = make_soundboard(
+            game.bus, enabled, heading=lambda: game.status().course)
+        if self.language is not None:
+            self.sound.set_language(self.language)
 
     def action_speech(self, language: str) -> None:
         """"tal ryska" / "tal svenska": vilket språk besättningen talar. Loggen är alltid svensk."""

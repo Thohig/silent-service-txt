@@ -422,8 +422,11 @@ class MenuMixer(Ambience):
             if shot[1] >= len(snd):
                 done.append(shot)
         if done:
+            # Jämför på identitet: `in` jämför listorna element för element, och två
+            # numpy-ljud av olika längd går inte att jämföra (ValueError i ljudtråden ⇒ tyst).
+            gone = {id(s) for s in done}
             with self._lock:
-                self._shots = [s for s in self._shots if s not in done]
+                self._shots = [s for s in self._shots if id(s) not in gone]
 
 
 class MenuSound:
