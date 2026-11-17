@@ -226,7 +226,11 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   med 0,8 nm fel: medel 0,75 nm efter (angivet ~0,93); över berget 0,53 nm.
 - **Sjökortet**: `Station.chart_items()` ger ritelement (`sim/chart.py`) ur
   kunskapen i beräknade koordinater; `Game.chart()` samlar, `ui/chart_render.py`
-  rastrerar (en rad = två kolumner i höjd). Linjer (spår, djupkurvor, kust, farled streckad, bäringar,
+  rastrerar (en rad = två kolumner i höjd). Blyertsmärken (`PlotTeam.pencil`, ur `SoundHeard`):
+  ping `P`/`PP` (snabb), boj `B`/`BP`, plask `✕`, detonation `✱`, övning `○`, brytljud `↓`; på kontaktens
+  lösning om den är ≥ osäker, annars ett streck 0,6 nm längs bäringen från vårt beräknade läge. Samma
+  märke och källa (beteckning eller 15°-sektor) högst var `PENCIL_GAP_S` (ping 5 min); skarpt första
+  minuten, blekt efter 10, borta efter 30; klockslag bara på de 5 nyaste. Linjer (spår, djupkurvor, kust, farled streckad, bäringar,
   vektorer, osäkerhetsringar streckade) ritas i braille i prickskiktet `ui/canvas.DotLayer` (prickkoordinater
   2 per kolumn, 4 per rad); märken, etiketter, rutnät och gräns är hela tecken; högst lager vinner per ruta.
   Nytt system ritar sig självt.

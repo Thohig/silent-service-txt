@@ -7,8 +7,8 @@ from dataclasses import dataclass
 
 import math
 
-from ..chart import Mark, Ray, Ring
-from ..events import ConvoyAssessed
+from ..chart import LAYER_MARK, LAYER_TRACK, Mark, Ray, Ring
+from ..events import ConvoyAssessed, SoundHeard
 from ..crew import Role
 from ..fmt import fmt_course
 from ..geo import angle_diff, norm360
@@ -37,6 +37,37 @@ CONVOY_POINT_AGE_S = 300        # en lösning så gammal räknas inte i grupperi
 CONVOY_MAX_KN = 25.0            # snabbare lösning på ett konvojfartyg är fel
 CONVOY_COURSE_SIGMA = 30.0      # sämre bestämd kurs än så räknas inte i grupperingen
 CONVOY_SPEED_SIGMA = 6.0
+
+# Blyertsmärken: det sonar hört, skrivet på kortet med klockslag där och när det hördes
+PENCIL_KEEP_S = 1800            # suddas ut efter så här länge
+PENCIL_FRESH_S = 60             # nytt märke: skarpt
+PENCIL_FADE_S = 600             # äldre än så: blekt
+PENCIL_CLOCKS = 5               # klockslag bara på de nyaste
+PENCIL_STROKE_NM = 0.6          # streck längs bäringen när avståndet är okänt
+PENCIL_SECTOR_DEG = 15          # okänd källa: samma märke inom sektorn
+PENCIL_SYMBOL = {"ping": "P", "buoy_ping": "BP", "splash": "✕", "buoy": "B",
+                 "explosion": "✱", "breakup": "↓"}
+PENCIL_GAP_S = {"ping": 300, "buoy_ping": 300, "splash": 60, "buoy": 300,
+                "explosion": 30, "breakup": 60}   # samma märke och källa högst så ofta
+LAYER_PENCIL = LAYER_TRACK + 0.5                 # strecken under bäringar och lösningar
+LAYER_PENCIL_MARK = LAYER_MARK - 0.5             # märken på en lösning: under kontaktens märke
+
+
+@dataclass(frozen=True)
+class PencilMark:
+    """Ett blyertsmärke: ett hört ljud där plottet trodde det kom ifrån (kunskap).
+
+    on_bearing: avståndet okänt, (x, y) är vårt beräknade läge och märket ett streck
+    längs bäringen. Annars ligger (x, y) på kontaktens lösning när ljudet hördes.
+    """
+    t: int
+    kind: str
+    symbol: str
+    x: float
+    y: float
+    bearing: float
+    on_bearing: bool
+    key: str
 
 
 @dataclass(frozen=True)
@@ -71,6 +102,54 @@ class PlotTeam(Station):
         self._look_checked: dict[str, int] = {}     # senaste periskoptitt prövad mot lösningen
         self._convoy_turn_said = -10**9
         self._convoy_quality: Quality | None = None
+        self.pencil: list[PencilMark] = []
+        self._pencil_last: dict[str, int] = {}
+
+    def attach(self, bus) -> None:
+        super().attach(bus)
+        bus.subscribe(SoundHeard, self._on_sound)
+
+    # --- blyertsmärken -----------------------------------------------------------
+    def _on_sound(self, e: SoundHeard) -> None:
+        symbol = PENCIL_SYMBOL.get(e.kind)
+        if symbol is None:
+            return
+        if e.kind == "ping" and e.detail == "fast":
+            symbol = "PP"
+        elif e.practice and e.kind in ("splash", "explosion"):
+            symbol = "○"
+        source = e.designation or f"{round(e.bearing / PENCIL_SECTOR_DEG) % (360 // PENCIL_SECTOR_DEG)}"
+        key = f"{symbol}:{source}"
+        if e.t - self._pencil_last.get(key, -10**9) < PENCIL_GAP_S[e.kind]:
+            return
+        self._pencil_last[key] = e.t
+        x, y = self.game.own_position_estimate()
+        on_bearing = True
+        tr = self.game.knowledge.track(e.designation) if e.designation else None
+        sol = tr.solution if tr is not None else None
+        if sol is not None and sol.quality >= Quality.OSAKER:
+            dt = (e.t - sol.t) / 3600.0
+            x, y, on_bearing = sol.x + sol.state[2] * dt, sol.y + sol.state[3] * dt, False
+        self.pencil.append(PencilMark(e.t, e.kind, symbol, x, y, e.bearing, on_bearing, key))
+
+    def _pencil_items(self) -> list:
+        self.pencil = [m for m in self.pencil if self.now - m.t < PENCIL_KEEP_S]
+        items: list = []
+        n = len(self.pencil)
+        for i, m in enumerate(self.pencil):
+            age = self.now - m.t
+            style = "pencil_new" if age < PENCIL_FRESH_S else "pencil"
+            clock = self.game.clock_str(m.t)[:5] if i >= n - PENCIL_CLOCKS else ""
+            faded = age >= PENCIL_FADE_S
+            if m.on_bearing:            # strecket, sedan symbolen och klockslaget vid änden
+                label = f"{m.symbol} {clock}".strip()
+                items.append(Ray(m.x, m.y, m.bearing, PENCIL_STROKE_NM, style, label,
+                                 faded=faded, layer=LAYER_PENCIL))
+            else:                       # symbolen på lösningen (en ruta), klockslaget bredvid
+                extra = "snabb" if m.symbol == "PP" else m.symbol[1:]
+                items.append(Mark(m.x, m.y, m.symbol[0], style, f"{extra} {clock}".strip(),
+                                  faded=faded, layer=LAYER_PENCIL_MARK))
+        return items
 
     # --- order ------------------------------------------------------------------
     def on_order(self, order: Order) -> None:
@@ -137,8 +216,9 @@ class PlotTeam(Station):
 
     # --- sjökortet -------------------------------------------------------------
     def chart_items(self) -> list:
-        """Lösningar som läge, fartvektor och avståndsosäkerhet; annars senaste bäringen."""
-        items: list = []
+        """Lösningar som läge, fartvektor och avståndsosäkerhet; annars senaste bäringen.
+        Därtill blyertsmärkena för det sonar hört."""
+        items: list = self._pencil_items()
         for tr in self.game.knowledge.tracks.values():
             if tr.benign and "drivstation" not in tr.classification and not tr.civil:
                 continue

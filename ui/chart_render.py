@@ -43,6 +43,8 @@ STYLE = {
     "merchant": "#c8b070",
     "merchant_vector": "#a08c58",
     "torpedo": "bold red",
+    "pencil": "#b8b4a4",            # blyerts
+    "pencil_new": "bold #f0ead2",
     "contour": "#33505a",
     "coast": "#9c8a5a",
     "fairway": "#8a7fb0",
