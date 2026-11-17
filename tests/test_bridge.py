@@ -597,3 +597,34 @@ def test_eyepiece_has_a_soft_rim_waves_and_the_binoculars_land():
     assert _braille(plain) > 40                           # kanten och vågorna i prickar
     assert _braille(shore) > _braille(plain) + 100        # landet som silhuett
     assert "┼" in shore                                   # siktet syns över landet
+
+
+def test_sea_state_shows_in_the_picture_and_the_report():
+    from dataclasses import replace
+
+    from sim.periscope import PeriscopePicture
+    from sim.stations.bridge import sea_words
+    from ui.bridge_render import render_scene, swell_rows
+    from ui.periscope_render import STYLE
+
+    calm = PeriscopePicture(100, True, 10.0, 0.0, "brygga", sea_state=1)
+    rough = replace(calm, sea_state=6)
+
+    def dots(pic):
+        rows = render_scene(pic, 100, 24, 0.0, 100)
+        return sum(1 for r in rows[11:] for ch in r.plain if "⠀" < ch <= "⣿")
+
+    assert dots(rough) > 2 * dots(calm)
+    foam = lambda pic: any(STYLE["foam"] in str(sp.style)  # noqa: E731
+                           for r in render_scene(pic, 100, 24, 0.0, 100) for sp in r.spans)
+    assert foam(rough) and not foam(calm)
+    assert swell_rows(3, 2) == 0 and {swell_rows(6, t) for t in range(9)} == {-1, 0, 1}
+    assert sea_words(0) == "Spegelblankt" and sea_words(4) == "Måttlig sjö, vind 4"
+    assert sea_words(6) == "Grov sjö, vind 6"
+
+
+def test_bridge_reports_sea_when_manned():
+    from sim.phrases import render
+    from sim.reports import Report
+    rep = render(Report(0, "Vakthavande", "bridge.manned", {"sea": 3}), str)
+    assert rep.text.endswith("Måttlig sjö, vind 3.") and "Волнение 3 балла" in rep.speech

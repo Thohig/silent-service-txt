@@ -251,6 +251,12 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   förutsagda bäringar för benet (streckade i kvalitetens färg, bara med ↑) och sina märkta girar (`‹gir`, högst
   var 5:e min); navigatören kursloggen (var 10:e s) och våra girar ≥ 15° (`↻`/`↺` och en svag linje). Vyn räknar
   inget själv och ger inga verktyg (designprincip 1). Tab-ordningen: sjökort → sonar → ubåten.
+- **Huvudraden och sjögången:** kontakterna hot först i sitt slags färg (`StatusSnapshot.contact_kinds`,
+  `track_kind`), hot blinkar när vi är jagade, resten `+n`; sonarpanelen räknar (`contacts_text`).
+  Sjögången `Environment.sea_state` (Beaufort; Kuba 3, konvoj 4, sundet och övningen 2, Arktis 1) syns
+  bara i bilden (`PeriscopePicture.sea_state`: vågornas täthet och längd, skum från 5, bryggans horisont
+  gungar från 5) och när bryggan bemannas (`bridge.manned`); ingen verkan på sonar, sikt eller radar än.
+  Periskopet visar utkikens bedömda avstånd på remsan och under vattenlinjen (`range_tag`), ingen skala.
 - **Ubåten** (`ubåt`, även `profil`/`system`; `ui/boat.py`, `ui/boat_render.py`): djupprofilen och
   systemtavlan i en vy. Genomskärningen överst (från `HULL_MIN_H` rader, annars avdelningarna som lampor
   på andra rubrikraden), profilen till vänster (60 %) och panelerna till höger; under `SIDE_MIN_W` (110)

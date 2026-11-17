@@ -249,6 +249,23 @@ def _marker(o: SightedObject, day: bool) -> tuple[str, str]:
     return {"helt": "▲", "överbyggnad": "▴"}.get(o.visible, "ˈ"), STYLE["ship"]
 
 
+# sjögången (Beaufort 0–7) i bilden: hur glest vågkammarna står och hur långa de är;
+# skum på kammarna från 5 (vita gäss), en av så här många
+SEA_PERIOD_F = (3.0, 2.0, 1.4, 1.0, 0.8, 0.65, 0.55, 0.5)
+SEA_LENGTH_F = (0.3, 0.55, 0.8, 1.0, 1.15, 1.3, 1.45, 1.6)
+WHITECAPS_FROM = 5
+
+
+def sea_factors(sea_state: int) -> tuple[float, float]:
+    s = min(max(int(sea_state), 0), len(SEA_PERIOD_F) - 1)
+    return SEA_PERIOD_F[s], SEA_LENGTH_F[s]
+
+
+def whitecap(n: int, sea_state: int) -> bool:
+    """Har vågkammen med slumptalet n skum? Fler ju grövre sjön är."""
+    return sea_state >= WHITECAPS_FROM and (n >> 12) % max(2, 9 - sea_state) == 0
+
+
 NOT_SHIPS = {"aircraft", "station", "net", "splash", "column", "hit", "wake"}
 
 
@@ -525,15 +542,21 @@ def render_eyepiece(pic: PeriscopePicture, w: int, h: int, selected: SightedObje
     # sjön: korta vågkammar i prickar, längre närmare oss
     for y in range(horizon + 1, h):
         near = (y - horizon) / max(1, h - horizon)
-        length = 2 + round(5 * near)
+        period_f, length_f = sea_factors(pic.sea_state)
+        length = max(1, round((2 + 5 * near) * length_f))
+        period = max(2, round(9 * period_f))
         for x in range(w):
             n = _wave_hash(x, y)
-            if inside[y][x] and n % 9 == 0:
+            if inside[y][x] and n % period == 0:
                 y0, x0 = 4 * y + 1 + (n >> 8) % 2, 2 * x + (n >> 9) % 2
+                cap = whitecap(n, pic.sea_state) and not stale
                 for k in range(length):
                     xx = x0 + k
                     if xx // 2 < w and inside[y][xx // 2]:
-                        g.dots.dot(xx, y0 - (1 if 0 < k < length - 1 and length > 3 else 0), sea)
+                        lift = 1 if 0 < k < length - 1 and length > 3 else 0
+                        g.dots.dot(xx, y0 - lift, STYLE["foam"] if cap else sea)
+                        if cap and lift:
+                            g.dots.dot(xx, y0 - 2, STYLE["foam"])
     # okularets kant: en mjuk ellips
     ecx, ecy, erx, ery = 2 * cx + 1, 4 * cy + 2, 2 * rx - 0.5, 4 * ry + 0.5
     for k in range(int(2 * math.pi * max(erx, ery))):

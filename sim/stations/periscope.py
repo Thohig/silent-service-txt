@@ -549,4 +549,4 @@ class PeriscopeWatch(Station):
         self.game.bus.publish(PeriscopeSighted(now, PeriscopePicture(
             now, world.env.daylight(now), world.env.visibility_nm(now), self.own.state.course,
             "brygga" if self.own.surfaced else "periskop", tuple(objects), sector, self._ice,
-            self._land, **sky_of(world.env.light(now))), live=live))
+            self._land, **sky_of(world.env.light(now)), sea_state=world.env.sea_state), live=live))

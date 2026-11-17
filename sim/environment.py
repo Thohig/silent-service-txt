@@ -252,6 +252,9 @@ class Environment:
     ice: IceField | None = None      # packis ovanför, se ice.py
     seabed: Seabed | None = None     # bottentopografi, se seabed.py
     tide: TidalStream | None = None  # tidvattenström (kustnära)
+    # sjögången (Beaufort 0–7). Än så länge bara det utkiken ser: bryggans och periskopets
+    # vågor, skum och gungande horisont. Ingen verkan på sonar, sikt eller radar.
+    sea_state: int = 3
 
     def bottom_at(self, x: float, y: float) -> float:
         """Bottendjupet (m) på platsen. Sanning: bara ekolodet frågar."""

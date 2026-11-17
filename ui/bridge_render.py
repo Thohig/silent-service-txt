@@ -22,7 +22,8 @@ from sim.geo import angle_diff, norm360
 from sim.periscope import EVENT_KINDS, PeriscopePicture, SightedObject
 
 from .periscope_render import (STYLE, _draw_ice, _draw_object, _Grid, _marker, data_line,
-                               draw_land, draw_sky, object_key, phase_text, render_strip)
+                               draw_land, draw_sky, object_key, phase_text, render_strip,
+                               sea_factors, whitecap)
 from .placards import view_title
 
 FOV_DEG = 120.0             # synfältet från bryggan
@@ -62,33 +63,49 @@ def focus_object(pic: PeriscopePicture, view_rel: float) -> SightedObject | None
     return min(near, key=lambda o: (abs(angle_diff(o.bearing, center)), o.range_nm), default=None)
 
 
+SWELL_FROM = 5                 # från denna sjögång gungar horisonten
+SWELL_PERIOD_S = 9
+
+
+def swell_rows(sea_state: int, t: int) -> int:
+    """Hur många rader horisonten står högre (−) eller lägre (+) just nu när båten rullar."""
+    if sea_state < SWELL_FROM:
+        return 0
+    return round(math.sin(2 * math.pi * t / SWELL_PERIOD_S) * (1 if sea_state < 7 else 1.5))
+
+
 def _wave(b: int, d: int) -> int:
     """Ett fast slumptal per bäringskolumn och rad, så att vågorna sitter i världen."""
     return hash((b, d, 114)) & 0xFFFFFF       # heltalstupler hashas lika i varje körning
 
 
 def _sea(g: _Grid, horizon: int, bottom: int, day: bool, t: int, center: float,
-         cols_per_deg: float, cx: float) -> None:
+         cols_per_deg: float, cx: float, sea_state: int = 3) -> None:
     """Sjön: korta vågkammar i prickar, glesa och korta vid horisonten, fler och längre
-    nära oss; fasta i världen och de driver med tiden."""
+    nära oss; fasta i världen och de driver med tiden. Sjögången gör dem tätare och längre,
+    och från 5 har en del kammar skum (i dagsljus)."""
     st = STYLE["sea_day"] if day else STYLE["sea_night"]
+    period_f, length_f = sea_factors(sea_state)
     rows = max(1, bottom - horizon - 1)
     for y in range(horizon + 1, bottom):
         d = y - horizon
         near = d / rows                          # 0 vid horisonten, 1 närmast
-        period = round(18 - 12 * near)
+        period = max(2, round((18 - 12 * near) * period_f))
         drift = t // 2
         base = round(center * cols_per_deg)
-        length = 2 + round(7 * near)             # kammens längd i prickar
+        length = max(1, round((2 + 7 * near) * length_f))     # kammens längd i prickar
         for x in range(g.w):
             b = base + x - round(cx) + (drift if d % 2 else -drift)
             n = _wave(b, d)
             if n % period == 0:
                 y0 = 4 * y + 1 + (n >> 8) % 2
                 x0 = 2 * x + (n >> 9) % 2
+                cap = day and whitecap(n, sea_state)
                 for k in range(length):
                     lift = 1 if 0 < k < length - 1 and length > 3 else 0     # kammen i mitten
-                    g.dots.dot(x0 + k, y0 - lift, st)
+                    g.dots.dot(x0 + k, y0 - lift, STYLE["foam"] if cap else st)
+                    if cap and lift:
+                        g.dots.dot(x0 + k, y0 - 2, STYLE["foam"])
 
 
 def _sky(g: _Grid, horizon: int, day: bool, center: float, cols_per_deg: float,
@@ -239,13 +256,13 @@ def render_scene(pic: PeriscopePicture, w: int, h: int, view_rel: float, t: int,
     cx = (w - 1) / 2
     cols_per_deg = w / FOV_DEG
     center = norm360(pic.own_course + view_rel)
-    horizon = max(6, round(h * 0.45))
+    horizon = max(6, round(h * 0.45)) + swell_rows(pic.sea_state, t)
     sea_bottom = h - 1
     _sky(g, horizon, pic.day, center, cols_per_deg, cx, pic.phase)
     draw_sky(g, pic, horizon, center, cols_per_deg, cx, t)
     for x in range(w):
         g.put(x, horizon, "─", STYLE["sea_day"] if pic.day else STYLE["sea_night"])
-    _sea(g, horizon, sea_bottom, pic.day, t, center, cols_per_deg, cx)
+    _sea(g, horizon, sea_bottom, pic.day, t, center, cols_per_deg, cx, pic.sea_state)
     _land(g, pic, horizon, center, cols_per_deg, cx)
     inside = [[y < h - FOOT_ROWS + 1 for _ in range(w)] for y in range(h)]
     if pic.ice:

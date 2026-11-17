@@ -79,8 +79,19 @@ def _contact(d: dict) -> str:
     return out
 
 
+
+SEA_WORDS = ((0, "Spegelblankt"), (2, "Lugn sjö"), (4, "Måttlig sjö"), (6, "Grov sjö"),
+             (99, "Hård sjö"))
+
+
+def sea_words(beaufort: int) -> str:
+    """Vakthavandes ord om sjögången, med vindstyrkan."""
+    word = next(w for top, w in SEA_WORDS if beaufort <= top)
+    return word if beaufort == 0 else f"{word}, vind {beaufort}"
+
 PHRASES = {
-    "bridge.manned": lambda d: "Luckan öppen, utkikarna på bryggan.",
+    "bridge.manned": lambda d: "Luckan öppen, utkikarna på bryggan."
+                               + (f" {sea_words(d['sea'])}." if "sea" in d else ""),
     "bridge.clearing": lambda d: f"Utrym bryggan! Alla man ned, luckan stängs. "
     f"Cirka {d['seconds']} sekunder.",
     "bridge.shut": lambda d: "Bryggan utrymd, tornluckan stängd. Klart att dyka.",
@@ -108,7 +119,9 @@ def _contact_ru(d: dict) -> str:
 
 
 RU_PHRASES = {
-    "bridge.manned": lambda d: "Рубочный люк открыт, сигнальщики на мостике.",
+    "bridge.manned": lambda d: "Рубочный люк открыт, сигнальщики на мостике."
+                               + (f" Волнение {R.count(d['sea'], ('балл', 'балла', 'баллов'))}."
+                                  if "sea" in d else ""),
     "bridge.clearing": lambda d: "Все вниз! Задраить рубочный люк!",
     "bridge.shut": lambda d: "Рубочный люк задраен, мостик пуст. К погружению готовы.",
     "bridge.contact": _contact_ru,
@@ -160,7 +173,7 @@ class BridgeWatch(Station):
             return
         prev, self._hatch = self._hatch, b
         if b == "manned":
-            self.say("bridge.manned")
+            self.say("bridge.manned", {"sea": self.game.world.env.sea_state})
         elif b == "clearing":
             self.game.bus.publish(BridgeSighted(self.now, None))
             self.say("bridge.clearing", {"seconds": BRIDGE_CLEAR_S}, kind="ack")
@@ -216,7 +229,8 @@ class BridgeWatch(Station):
         objects += [o for _, o in self._events]
         self.game.bus.publish(BridgeSighted(now, PeriscopePicture(
             now, day, vis, self.own.state.course, "brygga", tuple(objects), None, self._ice(),
-            self._land(vis if day else vis * NIGHT_LAND), **sky_of(light))))
+            self._land(vis if day else vis * NIGHT_LAND), **sky_of(light),
+            sea_state=world.env.sea_state)))
 
     # --- land, händelser och torpedspår ------------------------------------------------
     def _seen_at(self, x: float, y: float, key: str | None) -> tuple[float, float]:

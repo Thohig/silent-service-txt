@@ -46,12 +46,14 @@ blyertsmärken på sjökortet (B1–B3, 2026-11-17; valt i stället för animeri
 lösningskurvan ska vara på som standard, och om vyn behöver ett läge med bara hot. Ej provkörd
 för hand i riktig terminal.
 
-**Snabba fixar kvar:**
-- Periskopet: avståndsskala saknas.
-- Bryggan: sjögång saknas.
-- Systemtavlan: kontaktlistan klipps ("S").
-- Profilen: "hört"-bandet oförklarat.
-- Huvudraden: kontaktlistan utan hotfärg och sortering.
+~~**Snabba fixar**~~ – gjorda 2026-11-17 (F1–F5a): huvudradens kontakter hot först och i färg,
+sonarpanelen räknar, profilens band heter "sonar hörde", utkikens avstånd i periskopbilden,
+sjögång i bilden (`Environment.sea_state`).
+
+**Sjögångens verkan (F5b, "avvakta"):** sjögången bara i bilden än så länge. Nästa steg vore
+verkan: bakgrundsbrus (havsbrus efter Beaufort), utkikens sikt och bedömningsfel, flygets radar
+mot master, periskopdjupet (masten sköljs över, svårare hålla djupet) och kanske slumpad sjögång
+per uppdrag. Kräver ny kalibrering.
 
 **Framtidsspår med insats:**
 1. ~~Braille i sjökort, profil och brygga~~ – byggt 2026-11-17.

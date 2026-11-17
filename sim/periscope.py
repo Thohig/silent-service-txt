@@ -181,6 +181,7 @@ class PeriscopePicture:
     morning: bool = False
     sun: tuple[float, float] | None = None
     moon: tuple[float, float, float, bool] | None = None
+    sea_state: int = 3              # sjögången utkiken ser (Beaufort)
 
     def ships(self) -> list[SightedObject]:
         return [o for o in self.objects if o.designation is not None]
