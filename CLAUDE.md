@@ -185,6 +185,14 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   solens och månens skiva i braille (månen med fasen, tilltagande ljus till höger; för högt ⇒ utanför bilden)
   och glittret på vattnet under dem; stjärnor bara i nautisk skymning (glest) och natt. Rubriken `phase_text`:
   dag, gryning/skymning, nautisk …, natt med månen.
+  Almanackan (`Knowledge.almanac`, `environment.Almanac`: plats, datum, klocka; samma astronomi, ingen världen).
+  Vakthavande (`stations/daylight.py`, `LightWatch`, var 30:e s): `light.sunset_soon`/`sunrise_soon` (30 min),
+  `light.sunset`, `light.dark` (med månen), `light.dawn`, `light.sunrise`, `light.moonrise` (≥ 30 %); i ytläge med
+  hot i plottet och solnedgång inom 45 min förslag `djup 40` (vänta på mörkret). Navigatörens `stjärnfix`
+  (`StarFix`, 4 min): solen −3 till −11° ⇒ stjärnor σ 0,05; natt med månljus ≥ 0,4 ⇒ månen σ 0,15; genom
+  periskopet × 1,5 (krav som för fix), på bemannad brygga sextanten; annars nej med skäl. Föreslås i skymning
+  och gryning när besticket > 0,25 nm. Vanlig `fix` i periskopet är oförändrad (σ 0,1 dygnet runt). Ja-boten
+  i kuba, jagad och sundet: samma utfall före och efter D1–D4.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen

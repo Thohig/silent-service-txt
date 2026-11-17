@@ -1,6 +1,7 @@
 """Besättningsstationer. Lägg till nya system här."""
 from .base import Station
 from .bridge import BridgeWatch
+from .daylight import LightWatch
 from .engineering import EngineeringStation
 from .navigation import NavigationStation, SetCourse, SetDepth, SetSpeed
 from .officer import OfficerStation
@@ -16,7 +17,7 @@ from .training import TrainingOfficer
 # egen rörelse och teknik först, sedan sensorer, sedan analys och vapen.
 DEFAULT_STATIONS: list[type[Station]] = [
     NavigationStation, EngineeringStation, SonarRoom, OfficerStation, PeriscopeWatch, BridgeWatch,
-    RadioStation, PlotTeam, TorpedoRoom, TrainingOfficer, FirstOfficer,
+    RadioStation, PlotTeam, TorpedoRoom, TrainingOfficer, FirstOfficer, LightWatch,
 ]
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "NavigationStation", "SetCourse", "SetSpeed", "SetDepth",
     "EngineeringStation", "SonarRoom", "OfficerStation", "PeriscopeWatch", "BridgeWatch", "RadioStation",
     "PlotTeam", "QuerySolution", "ShowPlot", "TorpedoRoom", "TrainingOfficer", "FirstOfficer",
+    "LightWatch",
 ]

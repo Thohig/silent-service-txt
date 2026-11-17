@@ -15,7 +15,7 @@ from .events import (BearingObserved, BridgeSighted, ClassificationChanged, Cont
 from .icemap import IceMap
 from .periscope import PeriscopePicture
 from .seabed import Seabed
-from .environment import TidalStream
+from .environment import Almanac, TidalStream
 from .reports import Quality
 from .tma import HUNTER_MANEUVER_Q, BearingObs, Solution, solve
 from .zigzag import ConvoyEstimate, LegFix
@@ -95,6 +95,7 @@ class Knowledge:
     waypoints: dict[str, Waypoint] = field(default_factory=dict)
     bathymetry: Seabed | None = None     # det gamla sjökortets djupkurvor (inte sanningen)
     tide_table: TidalStream | None = None   # tidvattentabellen (förutsägelse, inte sanningen)
+    almanac: Almanac | None = None          # sol och måne för platsen och datumet (D4)
     # farleden enligt sjökortet (beräknade koordinater, i gångriktningen) och vart den leder
     fairway: tuple[tuple[float, float], ...] = ()
     fairway_to: str | None = None

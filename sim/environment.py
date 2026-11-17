@@ -199,6 +199,38 @@ class Light:
         return self.moon_light >= MOON_SIL_LIGHT and abs(angle_diff(bearing, self.moon_az)) <= MOON_SIL_DEG
 
 
+def light_at(lat: float, lon: float, jd: float, day_vis: float = 10.0,
+             night_vis: float = 2.5) -> Light:
+    """Ljuset på en plats vid en juliansk dag (UTC)."""
+    elev, az = sun_position(lat, lon, jd)
+    m_elev, m_az = moon_position(lat, lon, jd)
+    frac, waxing = moon_phase(jd)
+    return Light(elev, az, m_elev, m_az, frac, waxing, day_vis, night_vis)
+
+
+@dataclass(frozen=True)
+class Almanac:
+    """Navigatörens almanacka: solens och månens läge för vår ungefärliga plats, datumet och
+    klockan. Kunskap (tabeller ombord), inte sanning: samma astronomi, ingen tillgång till
+    världen."""
+    lat: float
+    lon: float
+    utc_offset_h: float
+    date: tuple[int, int, int]
+    clock_start: int
+
+    @classmethod
+    def of(cls, env: "Environment") -> "Almanac | None":
+        if env.lat is None or env.date is None:
+            return None
+        return cls(env.lat, env.lon, env.utc_offset_h, env.date, env.clock_start)
+
+    def light(self, sim_t: int) -> Light:
+        y, m, d = self.date
+        return light_at(self.lat, self.lon,
+                        julian_day(y, m, d, self.clock_start + sim_t - self.utc_offset_h * 3600))
+
+
 @dataclass
 class Environment:
     profile: SoundProfile = field(default_factory=Thermocline)
@@ -277,11 +309,7 @@ class Environment:
             elev, az = self._fallback_sun(sim_t)
             out = Light(elev, az, **vis)
         else:
-            jd = self.jd(sim_t)
-            elev, az = sun_position(self.lat, self.lon, jd)
-            m_elev, m_az = moon_position(self.lat, self.lon, jd)
-            frac, waxing = moon_phase(jd)
-            out = Light(elev, az, m_elev, m_az, frac, waxing, **vis)
+            out = light_at(self.lat, self.lon, self.jd(sim_t), **vis)
         if len(cache) > 4:
             cache.clear()
         cache[key] = out

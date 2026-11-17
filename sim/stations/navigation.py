@@ -74,6 +74,14 @@ BFIX_GAIN = 2.0             # föreslå bara om besticket är så här mycket s�
 BFIX_RELIEF_M_PER_NM = 150  # föreslå bottenfix bara där kortet visar så här brant botten
 PERISCOPE_FIX_SIGMA = 0.1
 COAST_FIX_SIGMA = 0.05      # bäringar på landmärken: snabbare och bättre
+STAR_FIX_S = 240            # stjärnfix: flera stjärnor med sextanten och räkning
+STAR_FIX_SIGMA = 0.05       # stjärnor mot horisonten i skymning eller gryning
+MOON_FIX_SIGMA = 0.15       # månen och några stjärnor mot månhorisonten en ljus natt
+PERISCOPE_SEXTANT_F = 1.5   # genom periskopet (periskopsextant) sämre än på bryggan
+STAR_SUN_HIGH = -3.0        # för ljust för stjärnorna över denna solhöjd
+STAR_SUN_LOW = -11.0        # för mörkt för horisonten under denna (utan månen)
+MOON_FIX_LIGHT = 0.4        # månljus som ger en horisont att mäta mot
+STAR_SUGGEST_SIGMA = 0.25   # navigatören föreslår stjärnfix när besticket är sämre än så
 COAST_FIX_S = 30
 COAST_FIX_NIGHT_S = 45      # fyrar
 LANDMARK_DAY_NM = 8.0
@@ -172,6 +180,11 @@ class SetDepth(Order):
 @dataclass(frozen=True)
 class TakeFix(Order):
     pass
+
+
+@dataclass(frozen=True)
+class StarFix(Order):
+    """Astronomisk fix med sextanten: stjärnor i skymningen, månen en ljus natt."""
 
 
 @dataclass(frozen=True)
@@ -370,6 +383,18 @@ PHRASES = {
                                 if d.get("coast") else "Tar fix i periskopet, cirka två minuter."),
     "nav.fix.refused": lambda d: f"Kapten, {d['reason']}.",
     "nav.fix.aborted": lambda d: "Fixen avbröts, vi lämnade periskopdjup.",
+    "nav.starfix.start": lambda d: (
+        "Sextanten upp på bryggan" if d.get("bridge") else "Periskopsextanten") + (
+        ", tar höjder på stjärnorna mot horisonten, cirka fyra minuter."
+        if d["method"] == "stjärnor" else
+        ", tar höjder på månen och några stjärnor mot månhorisonten, cirka fyra minuter."),
+    "nav.starfix.refused": lambda d: f"Ingen stjärnfix nu: {d['reason']}.",
+    "nav.starfix.aborted": lambda d: "Stjärnfixen avbröts, vi gick under periskopdjup.",
+    "nav.starfix.done": lambda d: f"Stjärnfix klar, osäkerhet {nm(d['sigma'])} sjömil. Bestick "
+    f"korrigerat {nm(d['error'])} sjömil åt {fmt_course(d['bearing'])}.",
+    "nav.suggest.starfix": lambda d: f"Kapten, navigatören. {d['when'].capitalize()}: horisonten och "
+    f"stjärnorna syns samtidigt. Bestickets osäkerhet är {nm(d['sigma'])} sjömil. Föreslår "
+    "stjärnfix.",
     "nav.fix.done": lambda d: f"Fix tagen. Bestick korrigerat {nm(d['error'])} sjömil "
     f"åt {fmt_course(d['bearing'])}.",
     "nav.position": lambda d: f"Beräknad position {nm(d['x'])} sjömil öst och "
@@ -523,6 +548,14 @@ RU_PHRASES = {
     "nav.fix.start": lambda d: "Есть, определяемся по береговым ориентирам." if d.get("bridge")
     else "Есть, определяемся по перископу.",
     "nav.fix.aborted": lambda d: "Определение прервано, мы ушли с перископной глубины.",
+    "nav.starfix.start": lambda d: "Есть, определяемся по звёздам." if d["method"] == "stjärnor"
+    else "Есть, определяемся по луне.",
+    "nav.starfix.refused": lambda d: "Определиться по звёздам сейчас нельзя.",
+    "nav.starfix.aborted": lambda d: "Определение по звёздам прервано.",
+    "nav.starfix.done": lambda d: f"Место по звёздам определено. Поправка "
+    f"{R.dec(d['error'], R.MILE)} по пеленгу {R.course(d['bearing'])}.",
+    "nav.suggest.starfix": lambda d: f"{R.CAPTAIN}, штурман. Сумерки, видны и горизонт, и звёзды. "
+    "Предлагаю определиться по звёздам.",
     "nav.fix.done": lambda d: f"Место определено. Поправка {R.dec(d['error'], R.MILE)} "
     f"по пеленгу {R.course(d['bearing'])}.",
     "nav.suggest.shoal": lambda d: f"{R.CAPTAIN}, штурман. "
@@ -606,6 +639,8 @@ class NavigationStation(Station):
         CommandSpec(r"antenndjup", lambda m: SetDepth(int(ANTENNA_DEPTH - 2)), "antenndjup"),
         CommandSpec(r"ytläge|ytlage|upp till ytan|till ytan", lambda m: SetDepth(0), "ytläge"),
         CommandSpec(r"fix|ta fix", lambda m: TakeFix(), "fix"),
+        CommandSpec(r"stjärnfix|stjarnfix|ta stjärnfix|astrofix|sextant", lambda m: StarFix(),
+                    "stjärnfix"),
         CommandSpec(r"position|var är vi\??|pos", lambda m: ReportPosition(), "position"),
         CommandSpec(r"ekolod|loda", lambda m: EchoSounder(), "ekolod"),
         CommandSpec(r"isekolod|isläge|islage", lambda m: IceReport(), "isekolod"),
@@ -642,6 +677,7 @@ class NavigationStation(Station):
         self.log_bias = rng.gauss(0, 0.01 + 0.02 * (1 - skill))
         self.last_fix_t = 0
         self.fix_sigma = PERISCOPE_FIX_SIGMA
+        self._star: tuple[int, float, str, bool] | None = None   # (klar, σ, metod, brygga)
         self._tide_fix_t, self._tide_sigma = 0, 0.0
         self._fix_coast = False   # tidvattnets bidrag sedan senaste fix
         self._bfix: list[tuple[float, float, float]] | None = None   # (x, y beräknat, djup)
@@ -1101,6 +1137,8 @@ class NavigationStation(Station):
                 self._ack("depth", data, s.depth == s.ordered_depth)
             case TakeFix():
                 self._start_fix()
+            case StarFix():
+                self._start_star_fix()
             case ReportPosition():
                 self.say("nav.position", {"x": self.est_x, "y": self.est_y,
                                           "sigma": self.uncertainty(),
@@ -1274,6 +1312,86 @@ class NavigationStation(Station):
         own.sys.periscope_until = max(own.sys.periscope_until, self.now + t)
         self.fix_done_t = self.now + t
         self.say("nav.fix.start", {"coast": self._fix_coast, "day": day}, kind="ack")
+
+    def _star_method(self, alm=None) -> tuple[str | None, float, str]:
+        """Vad himlen tillåter just nu, ur almanackan: (metod, σ, varför inte)."""
+        alm = alm or self.game.knowledge.almanac
+        if alm is None:
+            return None, 0.0, "ingen almanacka för området"
+        lt = alm.light(self.now)
+        if STAR_SUN_LOW <= lt.sun_elev <= STAR_SUN_HIGH:
+            return "stjärnor", STAR_FIX_SIGMA, ""
+        if lt.sun_elev < STAR_SUN_LOW and lt.moon_light >= MOON_FIX_LIGHT:
+            return "månen", MOON_FIX_SIGMA, ""
+        if lt.sun_elev > STAR_SUN_HIGH:
+            return None, 0.0, "det är för ljust för stjärnorna, de syns först i skymningen"
+        return None, 0.0, "det är för mörkt, ingen horisont att mäta mot"
+
+    def _start_star_fix(self) -> None:
+        own, s = self.own, self.ship
+        method, sigma, why = self._star_method()
+        bridge = own.surfaced and own.sys.bridge == "manned"
+        reason = why or None
+        if reason is None and not bridge:
+            if s.depth > PERISCOPE_DEPTH:
+                reason = "vi måste upp på periskopdjup"
+            elif s.speed > 7:
+                reason = "farten är för hög för periskopet"
+            elif own.sys.health["periscope"] < 0.3:
+                reason = "periskopet är skadat"
+            elif not masts_clear(self.game.world):
+                reason = "det är is ovanför, periskopet kommer inte upp"
+        if reason:
+            self.say("nav.starfix.refused", {"reason": reason})
+            return
+        if not bridge:
+            sigma *= PERISCOPE_SEXTANT_F
+            own.sys.periscope_until = max(own.sys.periscope_until, self.now + STAR_FIX_S)
+        self._star = (self.now + STAR_FIX_S, sigma, method, bridge)
+        self.say("nav.starfix.start", {"method": method, "bridge": bridge}, kind="ack")
+
+    def _star_step(self) -> None:
+        """Stjärnfixen pågår: avbryts under periskopdjup, ger annars ett fix med sin σ."""
+        if self._star is None:
+            return
+        done_t, sigma, method, bridge = self._star
+        s = self.ship
+        if not bridge and s.depth > PERISCOPE_DEPTH + 1:
+            self._star = None
+            self.say("nav.starfix.aborted")
+            return
+        if self.now < done_t:
+            return
+        self._star = None
+        rng = self.game.rng
+        new_x, new_y = s.x + rng.gauss(0, sigma), s.y + rng.gauss(0, sigma)
+        err = distance(self.est_x, self.est_y, new_x, new_y)
+        b = bearing_to(self.est_x, self.est_y, new_x, new_y)
+        self.dr_track[-1].append((self.est_x, self.est_y))
+        self.dr_track.append([(new_x, new_y)])
+        self.fixes.append((new_x, new_y, self.now))
+        self.est_x, self.est_y = new_x, new_y
+        self.last_fix_t = self.now
+        self.fix_sigma = sigma
+        q = Quality.SAKER if sigma < 0.1 else Quality.GOD
+        self.say("nav.starfix.done", {"error": err, "bearing": b, "sigma": sigma}, quality=q)
+
+    def _star_watch(self) -> None:
+        """I skymning och gryning: föreslå stjärnfix när besticket är osäkert och vi kan."""
+        if self._star is not None or self.fix_done_t is not None or self.now % 60:
+            return
+        method, _, _ = self._star_method()
+        if method != "stjärnor":
+            return
+        own, s = self.own, self.ship
+        sigma = self.uncertainty()
+        able = (own.surfaced and own.sys.bridge == "manned") or \
+            (s.depth <= PERISCOPE_DEPTH and s.speed <= 7)
+        if sigma > STAR_SUGGEST_SIGMA and able:
+            lt = self.game.knowledge.almanac.light(self.now)
+            self.suggest("starfix", "nav.suggest.starfix",
+                         {"sigma": sigma, "when": "gryning" if lt.morning else "skymning"},
+                         order="stjärnfix", cooldown=4 * 3600)
 
     def _land_in_sight(self, day: bool) -> bool:
         """Visar kortet land inom synhåll? Då tas fixen med bäringar på landmärken."""
@@ -2216,6 +2334,8 @@ class NavigationStation(Station):
                 and self._bridge_bearings():
             self._start_fix(quiet=True)       # navigatören pejlar landmärken från bryggan
 
+        self._star_step()
+        self._star_watch()
         sigma = self.uncertainty()
         if s.depth <= PERISCOPE_DEPTH and sigma > 0.8 and self.fix_done_t is None \
                 and s.speed <= 7 and "depth" not in changing:

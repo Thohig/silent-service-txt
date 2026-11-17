@@ -29,6 +29,7 @@ from .crew import CrewMember, Role
 from .events import (EventBus, GameEnded, Handover, OrderIssued, PositionReported,
                      ReportDelivered, Tick, TimeScaleChanged)
 from .broadcasts import order_day
+from .environment import Almanac
 from .fmt import clock
 from .knowledge import Knowledge
 from .logbook import Logbook
@@ -151,7 +152,8 @@ class Game:
                                    tide_table=scenario.tide_table,
                                    fairway=tuple(scenario.fairway),
                                    fairway_to=scenario.fairway_to,
-                                   order_tasks=frozenset(scenario.tasks))
+                                   order_tasks=frozenset(scenario.tasks),
+                                   almanac=Almanac.of(self.world.env))
         self.knowledge.attach(self.bus)          # före stationerna, se events.py
 
         station_classes = stations if stations is not None else DEFAULT_STATIONS
