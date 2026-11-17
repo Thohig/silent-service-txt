@@ -167,6 +167,16 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   (masten fri, radion hel) ⇒ efter `LISTEN_S` (20 s) säger radiomannen en sändning för orderns datum
   (`order_day` ur `DATUM:`-raden, `broadcasts_for`); bara stämning, aldrig information. Den 28 okt bara
   bärvåg. Ljudet `shortwave` (menyns ratt och brus) före rösten.
+- **Ljuset** (`sim/sky.py`, `Environment.light(t)` ⇒ `Light`): solens och månens höjd och azimut ur
+  scenariots plats (`_place`: lat/lon, lokal medeltid, Kola UTC+3) och orderns datum (`Game` sätter
+  `env.date` ur `DATUM:`). Faser dag (sol > −0,833°), skymning (borgerlig, till −6°), nautisk (till −12°),
+  natt; `morning` = gryning. `level` 1 → 0,5 → 0,1, natt 0,05 + 0,3·månljus; sikt 10 → 6,25 → 2,5 nm,
+  natt × (1 + månljus). `daylight` (nivå ≥ 0,5) för foto, plask, flyg, landmärken, hamnnät. `silhouette(b)`:
+  dag/borgerlig överallt, nautisk inom 75° från solen, natt i månglittret (±35°, månljus ≥ 0,2); annars bara
+  lanternor. Siluett utan dag: kursens σ × 1,6 (högst mastoppar). Utan plats följer ljuset sunrise/sunset
+  (testerna sätter `env.lat = None`). Okt 1962: fullmåne 13, nymåne 28. Soluppgång kvadrat 7 ~06:05
+  (förut 06:10). Botarna (sundet, sundet-in, konvoj-kort salva, kuba-kort, arktis-kort) gav samma utfall
+  före och efter.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen

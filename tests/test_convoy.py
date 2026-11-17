@@ -104,6 +104,7 @@ def test_periscope_names_convoy_ships():
     o.depth = o.ordered_depth = 15.0
     o.speed = o.ordered_speed = 3.0
     g.world.env.sunrise, g.world.env.sunset = 0, 24 * 3600
+    g.world.env.lat = None            # utan plats: ljuset följer sunrise/sunset
     c = make_convoy(g.world, ConvoyDef(start=(o.x, o.y + 2.0), base_course=90.0),
                     random.Random(3))
     g.command("periskop")

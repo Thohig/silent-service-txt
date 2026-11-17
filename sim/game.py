@@ -28,6 +28,7 @@ from .systems import SystemsView
 from .crew import CrewMember, Role
 from .events import (EventBus, GameEnded, Handover, OrderIssued, PositionReported,
                      ReportDelivered, Tick, TimeScaleChanged)
+from .broadcasts import order_day
 from .fmt import clock
 from .knowledge import Knowledge
 from .logbook import Logbook
@@ -126,6 +127,10 @@ class Game:
         self.rng = random.Random(seed)
         self.scenario = scenario
         self.world = scenario.world
+        env = self.world.env
+        if env.date is None:                 # datumet ur orderns DATUM-rad (solen och månen)
+            day = order_day(scenario.secret_order or "")
+            env.date = (1962, 10, day) if day else None
         self.crew: dict[Role, CrewMember] = scenario.crew
         self.start_clock = scenario.start_clock
         self.secret_order = scenario.secret_order

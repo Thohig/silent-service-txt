@@ -60,6 +60,7 @@ def _game_at_periscope_depth(seed=3, day=False, dd_range=2.0):
     dd.state.course = dd.state.ordered_course = 270.0
     if day:
         w.env.sunrise = 0
+        w.env.lat = None            # utan plats: ljuset följer sunrise/sunset
         w.env.sunset = 24 * 3600
     return g
 

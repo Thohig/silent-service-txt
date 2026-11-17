@@ -26,8 +26,10 @@ def _game(seed=3, day=True, dd_at=(4.0, 8.5)):
     dd.state.x, dd.state.y = st.x + dd_at[0], st.y + dd_at[1]
     if day:
         w.env.sunrise, w.env.sunset = 0, 24 * 3600
+        w.env.lat = None            # utan plats: ljuset följer sunrise/sunset
     else:
         w.env.sunrise = w.env.sunset = 0
+        w.env.lat = None            # utan plats: ljuset följer sunrise/sunset
     reports = []
     g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
     return g, reports
@@ -327,6 +329,7 @@ def test_tab_reaches_the_bridge_view_and_arrows_turn_it(tmp_path):
             for ai in g.world.ais:
                 ai.can_force = False
             g.world.env.sunrise, g.world.env.sunset = 0, 24 * 3600
+            g.world.env.lat = None            # utan plats: ljuset följer sunrise/sunset
             _surface(g)
             await pilot.press("tab", "tab", "tab")       # i ytläge före periskopet
             assert isinstance(app.screen, BridgeScreen)
@@ -427,6 +430,7 @@ def test_land_is_seen_from_the_bridge_in_the_strait():
     for ai in g.world.ais:
         ai.can_force = False
     g.world.env.sunrise, g.world.env.sunset = 0, 24 * 3600
+    g.world.env.lat = None            # utan plats: ljuset följer sunrise/sunset
     reports = []
     g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
     _surface(g)
@@ -539,6 +543,7 @@ def test_periscope_view_shows_the_bridge_and_shares_the_look(tmp_path):
             await pilot.press("enter", "enter")
             g = app.game
             g.world.env.sunrise, g.world.env.sunset = 0, 24 * 3600
+            g.world.env.lat = None            # utan plats: ljuset följer sunrise/sunset
             st = g.world.own.state
             dd = next(v for v in g.world.contacts if v.kind == "destroyer")
             dd.state.x, dd.state.y = st.x + 2.0, st.y + 0.3        # tvärs styrbord

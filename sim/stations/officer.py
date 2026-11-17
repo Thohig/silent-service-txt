@@ -439,7 +439,7 @@ class OfficerStation(Station):
         return [v for v in world.contacts if v.kind == PHOTO_TARGET_KIND and not v.sunk]
 
     def _photo_quality(self, r: float) -> Quality | None:
-        day = self.game.world.env.is_day(self.now)
+        day = self.game.world.env.daylight(self.now)
         for limit, q in PHOTO_RANGES[day]:
             if r <= limit:
                 return q
@@ -452,18 +452,18 @@ class OfficerStation(Station):
             return
         targets = self._photo_targets()
         if not targets:
-            self.say("off.photo.nothing", {"day": world.env.is_day(self.now)})
+            self.say("off.photo.nothing", {"day": world.env.daylight(self.now)})
             return
         r = min(world.true_range(v) for v in targets)
         q = self._photo_quality(r)
         if q is None:
-            self.say("off.photo.nothing", {"day": world.env.is_day(self.now), "far": True})
+            self.say("off.photo.nothing", {"day": world.env.daylight(self.now), "far": True})
             return
         n = sum(1 for v in targets if world.true_range(v) <= r + 1.0)
         world.mission["best_photo"] = max(world.mission.get("best_photo", -1), int(q))
         self.game.bus.publish(PhotoTaken(self.now, q, "ankarplatsen"))
         self.say("off.photo.done", {"range": r * self.game.rng.uniform(0.9, 1.1), "count": n,
-                                    "quality": q.label, "day": world.env.is_day(self.now)},
+                                    "quality": q.label, "day": world.env.daylight(self.now)},
                  quality=q)
 
     def _suggest_photo(self) -> None:

@@ -74,6 +74,7 @@ def test_plot_finds_the_convoy_and_its_base_course_with_periscope_looks():
         o.depth = o.ordered_depth = 15.0
         o.speed = o.ordered_speed = 3.0
         w.env.sunrise, w.env.sunset = 0, 24 * 3600
+        w.env.lat = None            # utan plats: ljuset följer sunrise/sunset
         make_convoy(w, ConvoyDef(start=(o.x + 7, o.y + 9), base_course=225.0), random.Random(seed))
         types = []
         g.bus.subscribe(ReportDelivered, lambda e: types.append(e.report.type))

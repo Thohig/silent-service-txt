@@ -38,7 +38,7 @@ from ..geo import angle_diff, norm360, velocity
 from ..ice import ice_view, masts_clear
 from ..orders import DESIG, CommandSpec, Order, desig
 from ..ownship import PERISCOPE_DEPTH
-from ..periscope import (AOB_SIGMA, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
+from ..periscope import (AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
                          Judges, PeriscopePicture, SightedObject, angle_on_bow, aob_quality,
                          carried, lights, range_quality, visible_part)
 from ..reports import Quality
@@ -367,7 +367,7 @@ class PeriscopeWatch(Station):
     def _finish(self) -> None:
         world = self.game.world
         if not self._seen:
-            self._say("off.periscope.none", {"day": world.env.is_day(self.now),
+            self._say("off.periscope.none", {"day": world.env.daylight(self.now),
                                             "visibility": world.env.visibility_nm(self.now),
                                             "sector": self.train if self.mode == "look" else None})
         self._publish(live=False)
@@ -395,7 +395,8 @@ class PeriscopeWatch(Station):
     def _observe(self) -> None:
         """Det som ligger i okularet just nu (World: periskopet är en sensor)."""
         world, now = self.game.world, self.now
-        day, vis = world.env.is_day(now), world.env.visibility_nm(now)
+        light = world.env.light(now)
+        day, vis = light.daylight, light.visibility_nm
         eye = EYE_BRIDGE_M if self.own.surfaced else EYE_PERISCOPE_M
         self._cover()
         for v in world.contacts:
@@ -405,7 +406,7 @@ class PeriscopeWatch(Station):
                 continue
             r = world.true_range(v)
             if v.is_ship and v.depth < 10 and r <= vis and world.in_sight(v.state.x, v.state.y):
-                self._seen[v.id] = self._ship(v, r, day, eye)
+                self._seen[v.id] = self._ship(v, r, light, eye)
             elif v.kind == "aircraft" and day and r <= vis:
                 self._seen[v.id] = self._aircraft(v, r)
             elif v.kind == "station" and r <= STATION_LIGHT_NM:
@@ -429,13 +430,17 @@ class PeriscopeWatch(Station):
     def _judgement(self, key: str):
         return self._judges.get(key, self.now, self.rng, since=self._up_t)
 
-    def _ship(self, v, r: float, day: bool, eye: float) -> SightedObject:
+    def _ship(self, v, r: float, light, eye: float) -> SightedObject:
         world = self.game.world
         desig_ = self.game.station(SonarRoom).sensor.designate(v.id)
         j, fresh = self._judgement(v.id)
         full, short = SIGHTED.get(v.kind, ("ytfartyg", "fartyg"))
-        part = visible_part(v.kind, r, eye) if day else "ljus"
-        c_sig = AOB_SIGMA[part]
+        day = light.phase == "dag"
+        sil = light.silhouette(world.true_bearing(v))     # siluett, eller bara lanternor
+        part = visible_part(v.kind, r, eye) if sil else "ljus"
+        c_sig = AOB_SIGMA[part] if day or not sil else min(AOB_SIGMA["mastoppar"],
+                                                           AOB_SIGMA[part] * TWILIGHT_AOB_F)
+        known = sil and light.daylight                    # klassning god ur siluetten
         r_sig = RANGE_REL_SIGMA * r + RANGE_ABS_SIGMA
         bearing = norm360(world.true_bearing(v) + j.bearing * BEARING_SIGMA)
         r_meas = max(0.05, r + j.range_rel * r_sig)
@@ -444,7 +449,7 @@ class PeriscopeWatch(Station):
         aob = angle_on_bow(bearing, course)
         ls = () if day else lights(aob)
         if fresh:
-            self._plot(desig_, full if day else "ytfartyg", day, bearing, r_meas, r_sig,
+            self._plot(desig_, full if sil else "ytfartyg", known, bearing, r_meas, r_sig,
                        course, c_sig, speed)
         if v.id not in self._called:
             self._called.add(v.id)
@@ -540,6 +545,6 @@ class PeriscopeWatch(Station):
                            lambda b: int(norm360(round(b))) in covered, objects)
         sector = None if (self.mode == "sweep" and not live) else self.train
         self.game.bus.publish(PeriscopeSighted(now, PeriscopePicture(
-            now, world.env.is_day(now), world.env.visibility_nm(now), self.own.state.course,
+            now, world.env.daylight(now), world.env.visibility_nm(now), self.own.state.course,
             "brygga" if self.own.surfaced else "periskop", tuple(objects), sector, self._ice,
             self._land), live=live))

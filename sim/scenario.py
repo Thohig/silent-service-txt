@@ -108,6 +108,22 @@ class Scenario:
     tasks: tuple[str, ...] = ("patrull",)
 
 
+
+# platserna för solen och månen (sim/sky.py): (latitud, longitud); klockan är lokal medeltid
+# utom i Kolafjorden (Moskvatid, UTC+3)
+KUBA_PLACE = (24.5, -68.0)          # kvadrat 7, nordost om Kuba
+GUANTANAMO_PLACE = (19.9, -75.15)
+CONVOY_PLACE = (23.0, -72.0)        # kvadrat 12
+ARCTIC_PLACE = (85.0, 10.0)
+KOLA_PLACE = (69.2, 33.45)          # Poljarnyj
+
+
+def _place(place: tuple[float, float], utc_offset_h: float | None = None) -> dict:
+    lat, lon = place
+    return {"lat": lat, "lon": lon,
+            "utc_offset_h": lon / 15.0 if utc_offset_h is None else utc_offset_h}
+
+
 def _crew() -> dict[Role, CrewMember]:
     return {
         Role.SONAR: CrewMember("Volkov", Role.SONAR, 0.75, rank="Starsjina"),
@@ -136,7 +152,7 @@ KUBA_AIR = AirDef()
 
 def default_scenario(rng: random.Random) -> Scenario:
     start_clock = 4 * 3600 + 30 * 60
-    env = Environment(clock_start=start_clock)
+    env = Environment(clock_start=start_clock, **_place(KUBA_PLACE))
     own = OwnShip(ShipState(x=10.0, y=3.0, course=0, speed=5, depth=100, max_depth=400))
     dd = Vessel("DD1", "destroyer",
                 ShipState(x=1.0 + rng.uniform(-0.5, 0.5), y=12.0 + rng.uniform(-1.5, 1.5),
@@ -200,8 +216,7 @@ def arctic_scenario(rng: random.Random, short: bool = False) -> Scenario:
     ice = IceField(random.Random(rng.random()), drift_set=200.0, drift_kn=0.25)
     env = Environment(profile=ArcticProfile(), clock_start=start_clock, ice=ice,
                       background_noise=52.0, current_set=150.0, current_kn=0.1,
-                      sunrise=0, sunset=0,                     # polarnatt
-                      night_visibility_nm=1.0)
+                      night_visibility_nm=1.0, **_place(ARCTIC_PLACE))   # polarnatt
     x, y = 10.0, 3.0
     # starta inte inne i en isköl
     while clearance(ice, x, y, 0.0, 120.0) < 10:
@@ -356,7 +371,7 @@ def hunted_scenario(rng: random.Random, short: bool = False) -> Scenario:
     short: kort variant (`jagad-kort`): kvadraten 8 nm, DD1 1,5 nm bort i anfallsgång med
     skarpa bomber från start, DD2 spärrar den korta vägen ut över djupt vatten."""
     start_clock = 40 * 60                               # 00:40, mörkt
-    env = Environment(clock_start=start_clock)
+    env = Environment(clock_start=start_clock, **_place(KUBA_PLACE))
     size = HUNTED_SHORT_SIZE if short else 20.0
     # botten först: ubåten börjar på djupt vatten några sjömil från bankens kant
     sb_rng = random.Random(rng.random())
@@ -502,7 +517,7 @@ def strait_scenario(rng: random.Random, short: bool = False, out: bool = False) 
     tide = TidalStream(flood_set=0.0, peak_kn=rng.uniform(0.9, 1.3),
                        phase_s=rng.uniform(0, 44712))
     env = Environment(clock_start=start_clock, background_noise=64.0, current_set=270.0,
-                      current_kn=0.2, seabed=seabed, tide=tide)
+                      current_kn=0.2, seabed=seabed, tide=tide, **_place(GUANTANAMO_PLACE))
     own = OwnShip(ShipState(x=cx + rng.uniform(-3.0, 3.0), y=1.5, course=0, speed=5, depth=100,
                             max_depth=400))
     world = World(own=own, env=env, rng=random.Random(rng.random()), size_nm=size,
@@ -714,7 +729,7 @@ def convoy_scenario(rng: random.Random, run_in_nm: tuple[float, float] = (16.0, 
     """Konvojen: krig, en eskorterad konvoj sicksackar förbi; sänk ett fartyg och kom undan."""
     start_clock = 6 * 3600 + 30 * 60                   # 06:30, just efter gryningen
     size = 20.0
-    env = Environment(clock_start=start_clock)
+    env = Environment(clock_start=start_clock, **_place(CONVOY_PLACE))
     ox, oy = size / 2, rng.uniform(5.0, 8.0)
     own = OwnShip(ShipState(x=ox, y=oy, course=0, speed=4, depth=60, max_depth=400))
     world = World(own=own, env=env, rng=random.Random(rng.random()), size_nm=size,
@@ -1010,8 +1025,7 @@ def training_scenario(rng: random.Random) -> Scenario:
     tide = TidalStream(flood_set=190.0, peak_kn=rng.uniform(0.8, 1.2),
                        phase_s=rng.uniform(0, 44712))
     env = Environment(clock_start=TRAINING_CLOCK, background_noise=62.0, current_set=270.0,
-                      current_kn=0.1, seabed=seabed, tide=tide,
-                      sunrise=8 * 3600, sunset=16 * 3600 + 40 * 60)
+                      current_kn=0.1, seabed=seabed, tide=tide, **_place(KOLA_PLACE, 3.0))
     # ut från kajen: på farledens styrbordssida, kurs längs första benet, i ytläge
     (ax, ay), (bx, by) = path[0], path[1]
     f = (TRAINING_START_Y - ay) / (by - ay)

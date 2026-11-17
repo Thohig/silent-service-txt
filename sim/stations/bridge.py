@@ -28,7 +28,7 @@ from ..fmt import fmt_course, kn, nm
 from ..geo import bearing_to, distance, norm360, velocity
 from ..ice import ice_view
 from ..ownship import BRIDGE_CLEAR_S
-from ..periscope import (AOB_SIGMA, EYE_BRIDGE_M, IceBearing, Judgement, Judges, LandBearing,
+from ..periscope import (AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, IceBearing, Judgement, Judges, LandBearing,
                          PeriscopePicture, SightedObject, angle_on_bow, aob_quality, lights,
                          range_quality, visible_part)
 from ..reports import Quality
@@ -188,7 +188,8 @@ class BridgeWatch(Station):
 
     def _look(self) -> None:
         world, now = self.game.world, self.now
-        day, vis = world.env.is_day(now), world.env.visibility_nm(now)
+        light = world.env.light(now)
+        day, vis = light.daylight, light.visibility_nm
         objects: list[SightedObject] = []
         for v in world.contacts:
             if v.kind == "torpedo" and not v.sunk and day:
@@ -201,7 +202,7 @@ class BridgeWatch(Station):
             if r <= vis and not world.in_sight(v.state.x, v.state.y):
                 continue                        # bakom land
             if v.is_ship and v.depth < 10 and r <= vis:
-                objects.append(self._ship(v, r, day))
+                objects.append(self._ship(v, r, light))
             elif v.kind == "aircraft" and day and r <= vis:
                 objects.append(self._aircraft(v, r))
             elif v.kind == "station" and r <= STATION_LIGHT_NM:
@@ -265,7 +266,7 @@ class BridgeWatch(Station):
         """Plask, vattenpelare och träffar bland transienterna (hörbara i år, alltså
         skedde de nyss). Sant om något nytt syntes."""
         world, now = self.game.world, self.now
-        day, vis = world.env.is_day(now), world.env.visibility_nm(now)
+        day, vis = world.env.daylight(now), world.env.visibility_nm(now)
         torpedoes = {v.id: v for v in world.contacts if v.kind == "torpedo"}
         new = False
         for tr in world.transients:
@@ -318,13 +319,17 @@ class BridgeWatch(Station):
         return tuple(IceBearing(b, None if e is None else e * k, ridged)
                      for (b, e, ridged), k in zip(view, f))
 
-    def _ship(self, v, r: float, day: bool) -> SightedObject:
+    def _ship(self, v, r: float, light) -> SightedObject:
         world = self.game.world
         desig = self.game.station(SonarRoom).sensor.designate(v.id)
         j, fresh = self._judgement(v.id)
         full, short = SIGHTED.get(v.kind, ("ytfartyg", "fartyg"))
-        part = visible_part(v.kind, r, EYE_BRIDGE_M) if day else "ljus"
-        c_sig = AOB_SIGMA[part]
+        day = light.phase == "dag"
+        sil = light.silhouette(world.true_bearing(v))     # siluett, eller bara lanternor
+        part = visible_part(v.kind, r, EYE_BRIDGE_M) if sil else "ljus"
+        c_sig = AOB_SIGMA[part] if day or not sil else min(AOB_SIGMA["mastoppar"],
+                                                           AOB_SIGMA[part] * TWILIGHT_AOB_F)
+        known = sil and light.daylight                    # klassning god ur siluetten
         r_sig = RANGE_REL_SIGMA * r + RANGE_ABS_SIGMA
         bearing = norm360(world.true_bearing(v) + j.bearing * BEARING_SIGMA)
         r_meas = max(0.05, r * (1 + j.range_rel * RANGE_REL_SIGMA) + j.range_abs * RANGE_ABS_SIGMA)
@@ -333,7 +338,7 @@ class BridgeWatch(Station):
         aob = angle_on_bow(bearing, course)
         ls = () if day else lights(aob)
         if fresh:
-            self._plot(desig, full if day else "ytfartyg", day, bearing, r_meas, r_sig,
+            self._plot(desig, full if sil else "ytfartyg", known, bearing, r_meas, r_sig,
                        course, c_sig, speed)
         if self._call_out(v.id):
             self.say("bridge.contact", {"designation": desig, "label": short, "bearing": bearing,

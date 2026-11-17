@@ -236,7 +236,7 @@ class DestroyerAI:
             return
         r = distance(self.vessel.state.x, self.vessel.state.y, own.state.x, own.state.y)
         if own.surfaced:
-            det_r, p = (10.0 if world.env.is_day(world.time) else 6.0), 0.2
+            det_r, p = 6.0 + 4.0 * world.env.light(world.time).level, 0.2   # dag 10, natt 6
         elif own.masts_up(world.time):
             det_r, p = self.MAST_NM, self.MAST_P
         else:

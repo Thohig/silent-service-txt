@@ -1244,11 +1244,11 @@ class NavigationStation(Station):
     def _bridge_bearings(self) -> bool:
         """I ytläge med folk på bryggan och land i sikte: fix med pejlskivan, inget periskop."""
         return self.own.surfaced and self.own.sys.bridge == "manned" and \
-            self._land_in_sight(self.game.world.env.is_day(self.now))
+            self._land_in_sight(self.game.world.env.daylight(self.now))
 
     def _start_fix(self, quiet: bool = False) -> None:
         own, s = self.own, self.ship
-        day = self.game.world.env.is_day(self.now)
+        day = self.game.world.env.daylight(self.now)
         self._fix_quiet = quiet
         if self._bridge_bearings():
             self._fix_coast = True
@@ -1268,7 +1268,7 @@ class NavigationStation(Station):
         if reason:
             self.say("nav.fix.refused", {"reason": reason})
             return
-        day = self.game.world.env.is_day(self.now)
+        day = self.game.world.env.daylight(self.now)
         self._fix_coast = self._land_in_sight(day)
         t = (COAST_FIX_S if day else COAST_FIX_NIGHT_S) if self._fix_coast else FIX_TIME_S
         own.sys.periscope_until = max(own.sys.periscope_until, self.now + t)

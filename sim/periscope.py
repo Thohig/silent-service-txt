@@ -37,6 +37,7 @@ DEFAULT_HEIGHTS = (6.0, 14.0, 25.0)
 
 # synlig del -> vinkel på bogen, 1σ i grader
 AOB_SIGMA = {"helt": 8.0, "överbyggnad": 15.0, "mastoppar": 30.0, "ljus": 25.0}
+TWILIGHT_AOB_F = 1.6           # en siluett i skymning eller månljus: kursen svårare att bedöma
 SECTOR_HALF_DEG = 16.0         # en kort titt (periskop 047) ser så här långt åt sidorna
 CARRY_S = 600                  # föremål utanför en kort titt finns kvar i bilden så här länge
 SIDELIGHT_ARC = 112.5          # lanternorna syns från rakt förut till 22,5° akter om tvärs

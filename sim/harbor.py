@@ -248,7 +248,7 @@ class HarborDefense:
         if net is None:
             return []
         o = world.own.state
-        day = world.env.is_day(world.time)
+        day = world.env.daylight(world.time)
         reach = NET_SPOT_DAY_NM if day else NET_SPOT_NIGHT_NM
         # närmaste punkt på bojraden
         nx = min(max(o.x, net.x0), net.x1)
