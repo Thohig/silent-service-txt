@@ -244,8 +244,112 @@ def _room_lines(c: Canvas, g: _Room) -> None:
     b.blit(c, 0, 0)
 
 
+# personliga saker på skottet: (rader, stilar per rad); ritas bara där de får plats
+FRAME = "#a08850 on #15110c"
+PHOTO = "#9a9480 on #15110c"
+PHOTO_DARK = "#5a5648 on #15110c"
+SEA = "#4a5a6a on #15110c"
+RIBBON = "#b03a2e on #15110c"
+MEDAL = "bold #e0b040 on #15110c"
+CAL = "#d8d0b8 on #15110c"
+CAL_RED = "bold #c04030 on #15110c"
+TEA = "#c0903a on #15110c"
+CAP = "#2a3040 on #15110c"
+CAP_BAND = "#1a1a1a on #15110c"
+
+MONTH_RU = "ОКТЯБРЯ"
+WEEKDAY_RU = ["ПОНЕДЕЛЬНИК", "ВТОРНИК", "СРЕДА", "ЧЕТВЕРГ", "ПЯТНИЦА", "СУББОТА",
+              "ВОСКРЕСЕНЬЕ"]
+
+
+def _calendar(day: int, rows: int = 6) -> list[tuple[str, str]]:
+    """Rivkalendern (отрывной календарь): dagens blad, söndagar i rött. Kortare om
+    höjden inte räcker: först utan året, sedan utan veckodagen."""
+    import datetime
+    if not 1 <= day <= 31:
+        return []
+    wd = datetime.date(1962, 10, day).weekday()
+    red = CAL_RED if wd == 6 else CAL
+    name = WEEKDAY_RU[wd]
+    w = max(9, len(name) + 2)
+    body = [("│" + "1962".center(w) + "│", CAL),
+            ("│" + f"{day}".center(w) + "│", red),
+            ("│" + MONTH_RU.center(w) + "│", CAL),
+            ("│" + name.center(w) + "│", red)]
+    if rows < 6:
+        body = body[1:]
+    if rows < 5:
+        body = body[:2]
+    return [("┌" + "─" * w + "┐", FRAME)] + body + [("└" + "▔" * w + "┘", FRAME)]
+
+
+def _boat_photo() -> list[tuple[str, str]]:
+    """Fotot av hans första ubåt, en Projekt 613 vid kaj i Poljarnyj."""
+    return [("┌──────────┐", FRAME),
+            ("│    ▗▅▖   │", PHOTO),
+            ("│▁▂▄▅▅██▅▅▄│", PHOTO),
+            ("│≈≈≈≈≈≈≈≈≈≈│", SEA),
+            ("└─ Пр.613 ─┘", FRAME)]
+
+
+def _diploma() -> list[tuple[str, str]]:
+    """Examensbeviset från sjökrigsskolan Frunze i Leningrad."""
+    return [("╔════════╗", FRAME),
+            ("║ ДИПЛОМ ║", PAPER),
+            ("║  ВВМУ  ║", PAPER),
+            ("║ ≈≈≈≈ ✪ ║", PAPER),
+            ("╚════════╝", FRAME)]
+
+
+def _family() -> list[tuple[str, str]]:
+    """Hustrun och dottern."""
+    return [("┌─────┐", FRAME),
+            ("│ ●  •│", PHOTO),
+            ("│▟█▙▗▙│", PHOTO_DARK),
+            ("└─────┘", FRAME)]
+
+
+def _medals() -> list[tuple[str, str]]:
+    """Röda stjärnans orden och medaljen «За боевые заслуги» på en filtlapp."""
+    return [("▐▀▌ ▐▀▌", RIBBON), (" ★   ✠ ", MEDAL)]
+
+
+def _hang(c: Canvas, row: int, col: int, item: list[tuple[str, str]]) -> None:
+    for i, (line, style) in enumerate(item):
+        c.text(row + i, col, line, style)
+    if item and item[0][1] == RIBBON:        # banden i rött, medaljerna i guld
+        c.text(row + 1, col, item[1][0], MEDAL)
+
+
+def _wall_items(c: Canvas, left: int, right: int, top: int, bottom: int,
+                s: StatusSnapshot) -> None:
+    """Hänger sakerna från vänster i prioritetsordning, lite olika höjd, tills platsen tar slut."""
+    items = []
+    if s.order_day:
+        day = s.order_day + s.clock // 86400
+        items.append((_calendar(day, bottom - top + 1), 0))
+    items += [(_boat_photo(), 1), (_diploma(), 0), (_family(), 2)]
+    col = left
+    for item, drop in items:
+        if not item:
+            continue
+        iw, ih = max(len(line) for line, _ in item), len(item)
+        if col + iw > right:
+            break
+        row = top + min(drop, max(0, bottom - top + 1 - ih))
+        if row + ih - 1 > bottom:
+            continue
+        _hang(c, row, col, item)
+        if item[0][0].startswith("╔"):          # medaljerna under diplomet
+            m = _medals()
+            if row + ih + len(m) - 1 <= bottom:
+                for i, (line, style) in enumerate(m):
+                    c.text(row + ih + i, col + 1, line, style)
+        col += iw + 2
+
+
 def _far_wall(c: Canvas, g: _Room, s: StatusSnapshot) -> None:
-    """Det bortre skottet: ram, skrivbordshyllan, kassaskåpet och repeatrarna."""
+    """Det bortre skottet: ram, skrivbordet, repeatrarna, kassaskåpet och hans saker."""
     fl, fr, ft, fb = g.fl, g.fr, g.ft, g.fb
     c.text(ft, fl, "┌" + "─" * (fr - fl - 1) + "┐", EDGE)
     c.text(fb, fl, "└" + "─" * (fr - fl - 1) + "┘", EDGE)
@@ -253,27 +357,43 @@ def _far_wall(c: Canvas, g: _Room, s: StatusSnapshot) -> None:
         c.put(r, fl, "│", EDGE)
         c.put(r, fr, "│", EDGE)
     inner = fr - fl - 1
-    # skrivbordsskivan längs skottet, nattlampan och loggboken
+    # skrivbordsskivan längs skottet
     desk = fb - 2
     c.text(desk, fl + 1, "▀" * inner, WOOD)
-    c.text(desk - 1, fl + 3, "◠", LAMP)
-    c.text(desk - 1, fl + 6, "▤", PAPER)
     c.put(fb - 1, fl + 2, "▌", WOOD_DARK)
     c.put(fb - 1, fr - 2, "▐", WOOD_DARK)
-    # repeatrar för kurs och djup och skeppsklockan högt upp till höger
+    # repeatrarna för kurs och djup högt upp till höger
     rows = max(4, min(7, desk - ft - 3))
     cols = max(2 * rows, 13)
-    n = 3 if inner >= 3 * (cols + 1) + 8 else 2
-    x0 = fr - n * (cols + 1)
-    dials = [ins.gyro(s.course, None, PAL), ins.depth_gauge(s.depth, None, PAL),
-             ins.clock_face(s.clock, PAL)][:n]
+    x0 = fr - 2 * (cols + 1)
+    dials = [ins.gyro(s.course, None, PAL), ins.depth_gauge(s.depth, None, PAL)]
     dials[0].title, dials[1].title = "KURS", "DJUP"
     for i, d in enumerate(dials):
         ins.draw_dial(c, ft + 1, x0 + i * (cols + 1), rows, cols, d, PAL)
-    # kassaskåpet under skivan till höger
-    if fb - desk >= 2 and inner > 30:
-        c.text(desk - 2, fr - 9, "┌СЕЙФ┐", PHONE)
-        c.text(desk - 1, fr - 9, "│ ◎ │", PHONE)
+    # kassaskåpet vid skivan till höger, mössan på kroken bredvid
+    safe = fr - 8
+    if desk - 2 > ft + rows and inner > 30:
+        c.text(desk - 2, safe, "┌СЕЙФ┐", PHONE)
+        c.text(desk - 1, safe, "│ ◎  │", PHONE)
+        cap = safe - 7
+        if cap > x0 and desk - 3 > ft + rows:
+            c.put(desk - 3, cap + 2, "┬", PHONE)
+            c.text(desk - 2, cap, "▄█", CAP)
+            c.put(desk - 2, cap + 2, "★", MEDAL)
+            c.text(desk - 2, cap + 3, "█▄", CAP)
+            c.text(desk - 1, cap, "▀▀▀▀▀", CAP_BAND)
+    # saker på skrivbordet: nattlampan, loggboken, teglaset, schackpartiet, klockan
+    on_desk = [(fl + 3, "◠", LAMP), (fl + 6, "▤▤", PAPER), (fl + 10, "▯", TEA),
+               (fl + 11, ")", TEA), (fl + 14, "♜♞♟", PAPER)]
+    clock = f"◷ {(s.clock // 3600) % 24:02d}:{(s.clock // 60) % 60:02d}"
+    for col, text, style in on_desk:
+        if col + len(text) < x0 - 2:
+            c.text(desk - 1, col, text, style)
+    clock_col = min(x0 - 2 - len(clock), safe - 9 - len(clock)) if inner > 30 else -1
+    if clock_col > fl + 18:
+        c.text(desk - 1, clock_col, clock, PAPER)
+    # de personliga sakerna mellan skottets kant och repeatrarna
+    _wall_items(c, fl + 2, x0 - 2, ft + 1, desk - 2, s)
 
 
 def _door(c: Canvas, g: _Room) -> None:

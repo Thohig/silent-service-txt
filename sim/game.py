@@ -88,6 +88,7 @@ class StatusSnapshot:
     walk_s: int = 0                 # sekunder kvar till centralen
     phone: str | None = None        # snabbtelefonen i hytten: lamp eller ring
     sleeping: bool = False          # kaptenen sover (snabbspolat tills han väcks)
+    order_day: int | None = None    # orderns dag i oktober 1962 (almanackan i hytten)
 
 
 def build_registry(station_classes: list[type[Station]]) -> CommandRegistry:

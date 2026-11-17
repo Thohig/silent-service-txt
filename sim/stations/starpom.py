@@ -30,6 +30,7 @@ from typing import Any
 
 from .. import phrases
 from .. import russian as R
+from ..broadcasts import order_day
 from ..crew import Role
 from ..events import ReportDelivered
 from ..fmt import clock, fmt_course, kn, nm
@@ -326,6 +327,8 @@ class FirstOfficer(Station):
         self._hunt_seen = False
         self._time_warned = False
         self._asked: dict[str, int] = {}    # fråga -> senast ringd
+        sc = getattr(game, "scenario", None)
+        self.order_day = order_day(sc.secret_order) if sc and sc.secret_order else None
 
     def attach(self, bus) -> None:
         super().attach(bus)
@@ -337,7 +340,7 @@ class FirstOfficer(Station):
                 "captain_at": self.captain_at,
                 "walk_s": max(0, self.walk_until - self.now) if self.captain_at == "walking" else 0,
                 "phone": "ring" if self.ring_t is not None else "lamp" if self.lamp else None,
-                "sleeping": self.sleeping}
+                "sleeping": self.sleeping, "order_day": self.order_day}
 
     def _situation(self) -> dict:
         from .officer import OfficerStation

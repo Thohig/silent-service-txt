@@ -375,3 +375,24 @@ def test_big_ship_in_range_calls_captain_under_attack_orders_only():
         _run(g, 8)
         assert (g.status().captain_at == "walking") == called, key
         assert any(r.type == "xo.danger" and "S-9" in r.text for r in reports) == called
+
+
+def test_cabin_calendar_follows_the_order_date():
+    """Almanackan i hytten visar orderns dag; dagarna går vid midnatt; söndagen i rött."""
+    from dataclasses import replace
+    from ui.cabin_render import _calendar, render_cabin
+    g, _ = _game()
+    s = g.status()
+    assert s.order_day == 24                       # Kvadrat 7: 24 oktober 1962, en onsdag
+    room = "\n".join(r.plain for r in render_cabin(s, 0.0, 120, 30))
+    assert "ОКТЯБРЯ" in room and "СРЕДА" in room and " 24 " in room
+    assert "Пр.613" in room and "◷" in room
+    later = replace(s, clock=s.clock + 86400)
+    assert "ЧЕТВЕРГ" in "\n".join(r.plain for r in render_cabin(later, 0.0, 120, 30))
+    sunday = _calendar(28)
+    assert "ВОСКРЕСЕНЬЕ" in sunday[4][0] and "c04030" in sunday[4][1]
+    assert len(_calendar(24, 5)) == 5 and len(_calendar(24, 4)) == 4
+    big = "\n".join(r.plain for r in render_cabin(s, 0.0, 160, 40))
+    assert "ДИПЛОМ" in big and "★" in big
+    none = "\n".join(r.plain for r in render_cabin(replace(s, order_day=None), 0.0, 120, 30))
+    assert "ОКТЯБРЯ" not in none
