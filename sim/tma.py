@@ -48,6 +48,7 @@ MAX_SPAN_S = 1800                 # använd bäringar från de senaste 30 min
 MAX_OBS = 400
 MIN_OBS = 6
 MIN_SPAN_S = 60
+RANGE_SIGMA_FLOOR_NM = 0.05       # ~90 m: avståndets σ blir aldrig mindre (båtens längd)
 MANEUVER_CHI2 = 4.0     # över detta passar rak-kurs-modellen inte datan
 # Brytpunktstest: hur mycket bättre två raka ben (före/efter de senaste minuterna)
 # förklarar bäringarna än ett. Utan manöver ~chi² med 4 frihetsgrader (median 2,
@@ -346,6 +347,9 @@ def solve(observations: Sequence[BearingObs], t_now: int | None = None,
     turn_p = age_n / (age_n + UNSEEN_TURN_LEG_H)
     range_sigma = math.sqrt(max(float(g_r @ P @ g_r), 0.0) + maneuver_q * age_n ** 3 / 3.0
                             + turn_p * (speed * age_n) ** 2)
+    # avståndet blir aldrig bättre känt än ungefär båtens längd (hydrofonerna i fören, målets
+    # utsträckning); utan golvet krymper σ mot noll när en lösning kollapsar mot oss
+    range_sigma = max(range_sigma, RANGE_SIGMA_FLOOR_NM)
 
     course = norm360(math.degrees(math.atan2(vx, vy)))
     if speed > 1e-6:

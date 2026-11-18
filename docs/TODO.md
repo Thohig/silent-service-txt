@@ -27,8 +27,9 @@ inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18 (kväll). Str
   som sonar hade. Både botens och spelets fel: se beslutet nedan.
 - ~~Sjökortet: bara den ena jagaren fick "först hörd"~~ – 2026-11-18: båda fick märket, men en etikett
   som krockade (t.ex. med ett nyare pingmärke) ritades inte alls; nu flyttas den en rad.
-- **Plottet:** grova fel bland goda/säkra 6,9 % ⇒ 4,8 % (2026-11-18, `tma_kvalitet.py`). Kvar:
-  sundet (få lösningar, säker grovt 18 %) och girar de senaste minuterna.
+- ~~Plottet: grova fel i sundet~~ – 2026-11-18: alla gällde patrullbåten på nära håll, där lösningen
+  kollapsade mot oss med σ ≈ 0 (modellens fel, inte verklighetens). Golv för avståndets σ 0,05 nm. Grova fel
+  bland goda/säkra 6,9 % ⇒ 3,9 % under dagen. Kvar är fel av verklig sort: girar plottet inte hunnit se.
 
 ## Beslut som väntar på kaptenen
 

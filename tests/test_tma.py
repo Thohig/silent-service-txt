@@ -309,3 +309,19 @@ def test_knowledge_gives_a_zigzagging_contact_more_maneuver_noise():
     tr.turns = [t - 1500, t - 900]                  # plottet har sett två girar
     assert k.zigzags(tr)
     assert k.resolve("S-1", t, (own.x, own.y)).range_sigma > 1.5 * straight.range_sigma
+
+
+def test_range_sigma_never_collapses_below_the_boats_length():
+    """En lösning som kollapsar mot oss får inte påstå att avståndet är känt på meter."""
+    from sim.tma import RANGE_SIGMA_FLOOR_NM
+    obs, t, own, tgt = _two_legs(4)
+    sol = solve(obs, t_now=t, own_now=(own.x, own.y))
+    assert sol.range_sigma >= RANGE_SIGMA_FLOOR_NM
+    own2 = ShipState(x=0, y=0, course=0, speed=5)
+    near = ShipState(x=0.05, y=0.04, course=200, speed=10)
+    obs2 = []
+    rng = random.Random(1)
+    t2 = _run(own2, near, 120, rng, obs2, every=5)
+    s2 = solve(obs2, t_now=t2, own_now=(own2.x, own2.y))
+    if s2 is not None and s2.range_nm < 0.1:
+        assert s2.range_sigma >= RANGE_SIGMA_FLOOR_NM and s2.quality <= Quality.OSAKER
