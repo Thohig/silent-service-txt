@@ -58,7 +58,7 @@ per uppdrag. Kräver ny kalibrering.
 4. Webb: A) Textual Serve – 1 steg, ingen grafisk vinst; B) egen webbklient – 15–30 steg, dubbelt
    underhåll, `sim/` oförändrad.
 
-### Periskopets förstoring (2026-11-16, "avvakta")
+### ~~Periskopets förstoring~~ (byggd 2026-11-18, Z1–Z4, se `docs/system/utkik.md`)
 
 - **Z1** låg/hög förstoring (32°/8° synfält), bedömningens σ efter förstoringen.
 - **Z2** besättningen växlar själv: svep i låg, titt i hög.

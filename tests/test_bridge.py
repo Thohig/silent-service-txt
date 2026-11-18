@@ -208,7 +208,7 @@ def test_russian_speech_for_bridge_reports_is_cyrillic():
 
 @pytest.mark.slow
 def test_range_by_eye_is_rough_but_honest_over_seeds():
-    """Avståndet med ögat: σ ≈ 15 % + 0,05 nm; kvaliteten följer felet."""
+    """Avståndet i kikaren: σ ≈ 12 % + 0,03 nm; kvaliteten följer felet (god, inte säker)."""
     rel = []
     for seed in range(8):
         g, _ = _game(seed=seed, dd_at=(1.5, 5.0))
@@ -628,3 +628,36 @@ def test_bridge_reports_sea_when_manned():
     from sim.reports import Report
     rep = render(Report(0, "Vakthavande", "bridge.manned", {"sea": 3}), str)
     assert rep.text.endswith("Måttlig sjö, vind 3.") and "Волнение 3 балла" in rep.speech
+
+
+def test_lookout_judges_ships_through_the_binoculars():
+    """Utkiken bedömer fartyg i kikaren: avståndets σ 12 % + 0,03 nm, inte ögats 15 % + 0,05."""
+    from sim.stations.bridge import BINOC_RANGE_ABS, BINOC_RANGE_REL
+    g, _ = _game()
+    obs = []
+    g.bus.subscribe(BearingObserved, lambda e: obs.append(e.obs)
+                    if e.obs.source == "brygga" else None)
+    _surface(g)
+    for _ in range(5):
+        g.tick()
+    assert obs
+    for o in obs:
+        assert o.range_sigma == pytest.approx(BINOC_RANGE_REL * o.range_nm + BINOC_RANGE_ABS,
+                                              rel=0.3)
+
+
+def test_nothing_below_the_horizon_from_the_bridge():
+    g, _ = _game(dd_at=(0.0, 18.0))
+    g.world.env.day_visibility_nm = 25.0
+    _surface(g)
+    assert not any(o.kind == "destroyer" for o in g.knowledge.bridge.ships())
+
+
+def test_bridge_view_binoculars_narrow_the_view():
+    from ui.bridge_render import render_bridge
+    g, _ = _game(dd_at=(0.0, 6.0))
+    _surface(g)
+    pic = g.knowledge.bridge
+    eye = "\n".join(r.plain for r in render_bridge(pic, 100, 26, 0.0, g.now))
+    glass = "\n".join(r.plain for r in render_bridge(pic, 100, 26, 0.0, g.now, binoculars=True))
+    assert "░" in glass and glass != eye                    # okularets rör runt bilden

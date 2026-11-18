@@ -7,13 +7,14 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (`OwnSystems.bridge`: shut → manning 20 s i ytläge → manned → clearing 20 s vid order att dyka → shut);
   `OwnShip.bridge_open` håller djupet (depth_rate 0). Utkiken är en sensor: varannan sekund medan bryggan
   är bemannad `BridgeSighted` med en `PeriscopePicture` (eye "brygga", 8 m, ingen sektor) ⇒
-  `Knowledge.bridge` (None vid utrymning). Bäring σ 1°, avstånd med ögat σ 15 % + 0,05 nm, kurs `AOB_SIGMA`,
+  `Knowledge.bridge` (None vid utrymning). Fartyg i kikaren (7×50, `BINOC_POWER`): syns om `detectable` (se
+  Periskopbilden), avstånd σ 12 % + 0,03 nm (strecksskalan, sämre än stadimetern); land och händelser med ögat 15 % + 0,05. Bäring σ 1°, kurs `AOB_SIGMA`,
   fart σ 3 kn; felen dras om var 60:e s per föremål (bilden fladdrar inte), och då får plottet en
   observation (`source="brygga"`). Egen slumpström (`game.rng_for("bridge")`).
   Ropar ut nytt eller > 5 min ur sikte; flyg i sikte eller jagare < 3 nm ⇒ förslag `djup 60`.
   Sonar skriver inte över en bättre klassning (utkikens GOD) med sämre.
   Vyn (`ui/bridge.py`, `ui/bridge_render.py`, `brygga`): 120° synfält åt `view_rel` relativt fören (← → 15°,
-  mellanslag förut), himmel (moln/stjärnor), horisont, sjö med vågor fasta i världen som driver med tiden,
+  mellanslag förut; `+` kikaren: periskopets okular med 7° mot blicken, `-` ögat igen), himmel (moln/stjärnor), horisont, sjö med vågor fasta i världen som driver med tiden,
   fördäck förut och kölvatten akterut, räcket nederst (land, vågkammar, moln, reling och kölvatten i braille i
   `_Grid.dots`, som periskopet delar); föremål ritas med periskopets `_draw_object`
   (siluett, lanternor, flyg, is), längre bort än 8 nm bara ett tecken. Bäringsskala, 360°-remsa
@@ -46,7 +47,11 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `Knowledge.periscope` om den är nyare. Samma fartyg utan ändring (kurs < 15°, fart ≤ 3 kn) inom 5 min
   efter förra utropet: `off.periscope.again`. Hålläge > 60 s med ett hot i plottet: vakthavande föreslår
   `periskop ned` (var 3:e min).
-- **Periskopbilden** (`sim/periscope.py`): `Knowledge.periscope` håller den senaste bilden. Synlig del (helt/överbyggnad/mastoppar) ur ögonhöjd (periskop 1,5 m, brygga 8 m)
+- **Periskopbilden** (`sim/periscope.py`): `Knowledge.periscope` håller den senaste bilden.
+  Upptäckt (`detectable`): ett fartyg under horisonten (masttoppen, `HEIGHTS`) syns aldrig; annars om dess
+  skenbara höjd över horisonten × förstoringen är minst `DETECT_ARCMIN` (1,5′). Med sikten 10 nm (alla
+  scenarier i dagsljus) syns stora fartyg i båda förstoringarna; låg tappar patrullbåten bortom ~7 nm och
+  jagaren bortom ~12 nm (bara med längre sikt). Titten letar i hög ±4° och i låg ±16° (`_spots`). Synlig del (helt/överbyggnad/mastoppar) ur ögonhöjd (periskop 1,5 m, brygga 8 m)
   och `HEIGHTS`; kursbedömningens σ (`AOB_SIGMA`) följer synlig del, natt = bara lanternor (σ 25°).
   Vinkel på bogen `aob` + styrbord. Fartyg bär plottets beteckning, aldrig sanningens id.
   Vyn (`ui/periscope_render.py`, `ui/periscope.py`): 360°-remsa med fören i mitten, okular (32° i låg och 8° i

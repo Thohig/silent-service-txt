@@ -30,11 +30,13 @@ class BridgeScreen(ViewScreen):
     """
     PREFIX = "bridge"
     REDRAW_S = REDRAW_S
-    EMPTY_KEYS = {"escape": "close", "left": "turn(-1)", "right": "turn(1)", "space": "ahead"}
+    EMPTY_KEYS = {"escape": "close", "left": "turn(-1)", "right": "turn(1)", "space": "ahead",
+                  "plus": "glass(True)", "equals_sign": "glass(True)", "minus": "glass(False)"}
 
     def __init__(self) -> None:
         super().__init__()
         self.view_rel = 0.0          # blicken relativt fören, grader
+        self.binoculars = False      # kikaren (7°) i stället för ögat
 
     def compose(self) -> ComposeResult:
         yield Static(id="bridge-head")
@@ -60,6 +62,10 @@ class BridgeScreen(ViewScreen):
         self._share_look()
         self.draw()
 
+    def action_glass(self, on: bool) -> None:
+        self.binoculars = on
+        self.draw()
+
     def action_ahead(self) -> None:
         self.view_rel = 0.0
         self._share_look()
@@ -80,8 +86,9 @@ class BridgeScreen(ViewScreen):
         pic = game.knowledge.bridge
         st = game.status()
         body.update(Text("\n").join(render_bridge(
-            pic, w, h, self.view_rel, game.now, st.speed, st.bridge, st.depth)))
-        t = header(pic, game.clock_str(), self.view_rel)
+            pic, w, h, self.view_rel, game.now, st.speed, st.bridge, st.depth, self.binoculars)))
+        t = header(pic, game.clock_str(), self.view_rel, self.binoculars)
         t.append("\n")
-        t.append(" ←/→ vrid blicken · mellanslag rakt förut · Tab logg · Esc tillbaka", style="dim")
+        t.append(" ←/→ vrid blicken · mellanslag rakt förut · + kikaren · − ögat · Tab logg"
+                 " · Esc tillbaka", style="dim")
         head.update(t)

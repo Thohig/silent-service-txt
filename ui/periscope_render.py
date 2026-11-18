@@ -26,8 +26,8 @@ from sim.periscope import SECTOR_HALF_DEG, IceBearing, PeriscopePicture, Sighted
 from .canvas import DotLayer
 
 FOV_DEG = 32.0              # okularets synfält i låg förstoring
-POWER_FOV = {"låg": FOV_DEG, "hög": FOV_DEG / 4}     # synfältet efter förstoringen
-POWER_TEXT = {"låg": "låg förstoring 1,5×", "hög": "hög förstoring 6×"}
+POWER_FOV = {"låg": FOV_DEG, "hög": FOV_DEG / 4, "kikare": 7.0}  # synfältet efter optiken
+POWER_TEXT = {"låg": "låg förstoring 1,5×", "hög": "hög förstoring 6×", "kikare": "kikare 7×"}
 
 
 def fov_of(power: str | None) -> float:

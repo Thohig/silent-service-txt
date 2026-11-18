@@ -12,6 +12,8 @@ inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18 (kväll). Str
 
 ## Prova för hand (riktig terminal, macOS)
 
+- Periskopets förstoring (`+`/`-` i hålläge, titt i hög) och bryggans kikare (`+`/`-` i bryggvyn).
+
 - Övningen, periskopet i realtid, ubåtsvyn, hyttvyn (färgerna), sjökortets blyertsmärken.
 - Sonarvyn (`sonar`): läsbarheten, relativ bäring under girar, kontaktraderna i små fönster.
 - Att ctrl+p inte längre gör något, och att ett klick i loggen lämnar fokus i orderraden.

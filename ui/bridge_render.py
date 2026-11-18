@@ -320,7 +320,8 @@ def no_picture(status_bridge: str, depth: float) -> list[Text]:
     return [Text(""), Text(f" {msg}", style=STYLE["dim"])]
 
 
-def header(pic: PeriscopePicture | None, clock: str, view_rel: float) -> Text:
+def header(pic: PeriscopePicture | None, clock: str, view_rel: float,
+           binoculars: bool = False) -> Text:
     t = view_title("BRYGGAN")
     if pic is None:
         t.append("   ingen på bryggan", style="dim")
@@ -328,21 +329,30 @@ def header(pic: PeriscopePicture | None, clock: str, view_rel: float) -> Text:
     center = norm360(pic.own_course + view_rel)
     t.append(f"   {clock[:5]} · {phase_text(pic)} · sikt {nm(pic.visibility_nm)} nm"
              f" · vår kurs {fmt_course(pic.own_course)}"
-             f" · blicken {view_text(view_rel)} (bäring {fmt_course(center)})")
+             f" · blicken {view_text(view_rel)} (bäring {fmt_course(center)})"
+             + (" · kikare 7×" if binoculars else ""))
     return t
 
 
 def render_bridge(pic: PeriscopePicture | None, w: int, h: int, view_rel: float, t: int,
                   own_speed: float = 0.0, status_bridge: str = "shut",
-                  depth: float = 0.0) -> list[Text]:
-    """Hela vyn: bilden, bäringsskalan, remsan och dataraden."""
+                  depth: float = 0.0, binoculars: bool = False) -> list[Text]:
+    """Hela vyn: bilden, bäringsskalan, remsan och dataraden. binoculars: kikaren (7°, som
+    periskopets okular) mot blicken i stället för ögat (FOV_DEG)."""
     if pic is None:
         return no_picture(status_bridge, depth)
     focus = focus_object(pic, view_rel)
     scene_h = max(MIN_SCENE_ROWS, h - STRIP_ROWS - 2)
-    rows = render_scene(pic, w, scene_h, view_rel, t, own_speed)
-    rows.append(render_scale(pic, w, view_rel))
-    rows += render_bridge_strip(pic, w, view_rel, focus)
+    center = norm360(pic.own_course + view_rel)
+    if binoculars:
+        from .periscope_render import POWER_FOV, in_eyepiece, render_eyepiece
+        focus = in_eyepiece(pic, center, POWER_FOV["kikare"])
+        rows = render_eyepiece(pic, w, scene_h + 1, focus, False, center, "kikare")
+        rows += render_strip(pic, w, focus, False, window=(center, POWER_FOV["kikare"]))
+    else:
+        rows = render_scene(pic, w, scene_h, view_rel, t, own_speed)
+        rows.append(render_scale(pic, w, view_rel))
+        rows += render_bridge_strip(pic, w, view_rel, focus)
     line = data_line(focus) if focus is not None else Text(
         " Inget i sikte mitt i blicken. ← → vrider blicken.", style=STYLE["dim"])
     rows.append(line)

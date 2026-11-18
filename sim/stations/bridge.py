@@ -29,7 +29,7 @@ from ..ice import ice_view
 from ..ownship import BRIDGE_CLEAR_S
 from ..periscope import (sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, IceBearing, Judgement, Judges, LandBearing,
                          PeriscopePicture, SightedObject, angle_on_bow, aob_quality, lights,
-                         range_quality, visible_part)
+                         detectable, range_quality, visible_part)
 from ..reports import Quality
 from ..systems import INFO, OK, WARN, Gauge
 from ..tma import BearingObs
@@ -39,8 +39,13 @@ from .sonar_room import SonarRoom
 
 LOOK_EVERY_S = 2
 BEARING_SIGMA = 1.0          # pejlskivan på bryggan, grader
-RANGE_REL_SIGMA = 0.15       # avstånd med ögat: σ = 15 % + 0,05 nm
+RANGE_REL_SIGMA = 0.15       # avstånd med ögat: σ = 15 % + 0,05 nm (land, händelser)
 RANGE_ABS_SIGMA = 0.05
+# Utkiken tittar på fartyg i kikaren (7×50 med strecksskala): ser det som hög förstoring ser
+# och bedömer avståndet bättre än med ögat
+BINOC_POWER = 7.0
+BINOC_RANGE_REL = 0.12
+BINOC_RANGE_ABS = 0.03
 SPEED_SIGMA = 3.0            # fart ur bogvåg och svall, knop
 JUDGE_EVERY_S = 60           # ny bedömning (och observation till plottet) så här ofta
 RESIGHT_S = 300              # ett föremål ur sikte så länge ropas ut igen när det syns
@@ -212,6 +217,8 @@ class BridgeWatch(Station):
             if r <= vis and not world.in_sight(v.state.x, v.state.y):
                 continue                        # bakom land
             if v.is_ship and v.depth < 10 and r <= vis:
+                if not detectable(v.kind, r, EYE_BRIDGE_M, BINOC_POWER):
+                    continue                    # under horisonten eller för litet i kikaren
                 objects.append(self._ship(v, r, light))
             elif v.kind == "aircraft" and day and r <= vis:
                 objects.append(self._aircraft(v, r))
@@ -341,9 +348,9 @@ class BridgeWatch(Station):
         c_sig = AOB_SIGMA[part] if day or not sil else min(AOB_SIGMA["mastoppar"],
                                                            AOB_SIGMA[part] * TWILIGHT_AOB_F)
         known = sil and light.daylight                    # klassning god ur siluetten
-        r_sig = RANGE_REL_SIGMA * r + RANGE_ABS_SIGMA
         bearing = norm360(world.true_bearing(v) + j.bearing * BEARING_SIGMA)
-        r_meas = max(0.05, r * (1 + j.range_rel * RANGE_REL_SIGMA) + j.range_abs * RANGE_ABS_SIGMA)
+        r_meas = max(0.05, r * (1 + j.range_rel * BINOC_RANGE_REL) + j.range_abs * BINOC_RANGE_ABS)
+        r_sig = BINOC_RANGE_REL * r_meas + BINOC_RANGE_ABS   # utkiken vet bara sitt mätta avstånd
         course = norm360(v.state.course + j.course * c_sig)
         speed = max(0, round(v.state.speed + j.speed * SPEED_SIGMA))
         aob = angle_on_bow(bearing, course)
