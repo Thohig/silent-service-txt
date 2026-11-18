@@ -38,10 +38,12 @@ from ..ice import ice_view
 from ..orders import DESIG, CommandSpec, Order, desig
 from ..ownship import PERISCOPE_DEPTH
 from ..periscope import (sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
+                         LandBearing, NIGHT_LAND,
                          HIGH, LOW, OPTICS, Optic, detectable,
                          Judges, PeriscopePicture, SightedObject, angle_on_bow, aob_quality,
                          carried, lights, range_quality, visible_part)
 from ..reports import Quality
+from ..seabed import shore_ranges
 from ..tma import BearingObs
 from .base import Station
 from .officer import PHOTO_TARGET_KIND, SIGHTED, OfficerStation, _view_object, mast_refusal
@@ -54,6 +56,8 @@ SWEEP_DEG_S = 360.0 / LOOK_S
 FRAME_S = 2                  # en bild så här ofta medan masten är uppe
 JUDGE_EVERY_S = 60           # i hålläge: ny bedömning (och observation) så här ofta
 ICE_EVERY_S = 60
+LAND_EVERY_S = 30           # stranden mäts om så här ofta medan masten är uppe
+LAND_RESIGHT_S = 600        # land ur sikte så länge ropas ut igen
 # bäring och avstånd efter förstoringen (`periscope.OPTICS`): låg 1° och 15 % + 0,05 nm (ögonmått),
 # hög 0,5° och 8 % + 0,03 nm (stadimetern)
 SPEED_SIGMA = 2.0            # fart ur bogvåg och varvtal, knop
@@ -145,6 +149,8 @@ PHRASES = {
     "off.binoculars.none": lambda d: (f"Kikaren: inget i sikte i bäring {fmt_course(d['sector'])}. "
                                       if d.get("sector") is not None else "Kikaren: inget i sikte. ")
     + f"{'Dagsljus' if d['day'] else 'Mörkt'}, sikt cirka {nm(d['visibility'])} sjömil.",
+    "off.periscope.land": lambda d: f"Periskop: land i sikte, närmast i bäring "
+    f"{fmt_course(d['bearing'])}, cirka {nm(d['range'])} sjömil.",
     "off.periscope.aircraft": lambda d: f"Periskop: flygplan i bäring {fmt_course(d['bearing'])}, "
     f"cirka {nm(d['range'])} sjömil, " + ("lågt över vattnet" if d["low"] else "på höjd")
     + ". Tvåmotorigt patrullplan.",
@@ -163,6 +169,7 @@ RU_PHRASES = {
     "off.periscope.contact": lambda d: f"Перископ: {R.contact(d['designation'])}, пеленг "
     f"{R.course(d['bearing'])}, дистанция {R.dec(d['range'], R.MILE)}.",
     "off.periscope.none": lambda d: "Перископ: горизонт чист. Перископ опущен.",
+    "off.periscope.land": lambda d: f"Перископ: вижу берег, пеленг {R.course(d['bearing'])}.",
     "off.periscope.again": lambda d: f"Перископ: {R.contact(d['designation'])} без изменений, "
     f"пеленг {R.course(d['bearing'])}.",
     "off.suggest.mast_down": lambda d: f"{R.CAPTAIN}, вахтенный офицер. Перископ поднят давно. "
@@ -220,6 +227,7 @@ class PeriscopeWatch(Station):
         self._sweep_from = 0.0
         self._judges = Judges(JUDGE_EVERY_S)
         self._last_call: dict[str, tuple[int, float, float]] = {}   # (t, kurs, fart) senast utropat
+        self._land_seen_t = -10**9          # senast land syntes i okularet
         self._new_raising()
 
 
@@ -271,6 +279,10 @@ class PeriscopeWatch(Station):
         self._ice: tuple[IceBearing, ...] = ()
         self._ice_t = -10**9
         self._land: tuple = ()
+        self._land_by: dict[float, LandBearing] = {}    # stranden i de riktningar okularet sett
+        self._shore: dict[float, float] = {}            # sann bäring -> avstånd (senaste mätning)
+        self._shore_t = -10**9
+        self._land_f: float | None = None               # avståndsbedömningens fel, en per hissning
 
     # --- order ------------------------------------------------------------------------
     def on_order(self, order: Order) -> None:
@@ -472,6 +484,36 @@ class PeriscopeWatch(Station):
             self._ice_t = now
             self._ice = tuple(IceBearing(b, None if e is None else e * self.rng.uniform(0.85, 1.15), rd)
                               for b, e, rd in ice_view(world))
+        self._observe_land(day, vis)
+
+    def _observe_land(self, day: bool, vis: float) -> None:
+        """Stranden i de riktningar okularet sett under hissningen (som bryggans, men bara där
+        periskopet tittat). Avståndet bedöms med ögat: en bedömning per hissning."""
+        now = self.now
+        if now - self._shore_t >= LAND_EVERY_S:
+            self._shore_t = now
+            o = self.own.state
+            self._shore = dict(shore_ranges(self.world.env.seabed, o.x, o.y,
+                                            vis if day else vis * NIGHT_LAND))
+            self._land_by = {b: lb for b, lb in self._land_by.items() if b in self._shore}
+        if not self._shore:
+            self._land = tuple(self._land_by.values())
+            return
+        if self._land_f is None:
+            self._land_f = 1 + self.rng.gauss(0, self.measure.range_rel)
+        seen = False
+        for b, r in self._shore.items():
+            if self._looked(b):
+                seen = True
+                self._land_by[b] = LandBearing(b, max(0.05, r * self._land_f))
+        self._land = tuple(self._land_by[b] for b in sorted(self._land_by))
+        if not seen:
+            return
+        if now - self._land_seen_t > LAND_RESIGHT_S:
+            near = min(self._land, key=lambda lb: lb.range_nm)
+            self.say("off.periscope.land", {"bearing": near.bearing, "range": near.range_nm},
+                     kind="contact", quality=Quality.GOD)
+        self._land_seen_t = now
 
     def _spots(self, kind: str, r: float, eye: float, bearing: float) -> bool:
         """Ser okularet fartyget? Titten letar i hög rakt mot bäringen och i låg runt omkring;

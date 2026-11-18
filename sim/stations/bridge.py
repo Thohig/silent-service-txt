@@ -14,9 +14,6 @@ och flyg i sikte eller en jagare nära ger förslag att dyka.
 """
 from __future__ import annotations
 
-
-import numpy as np
-
 from .. import phrases
 from .. import russian as R
 from ..arctic import STATION_LIGHT_NM
@@ -27,7 +24,8 @@ from ..fmt import fmt_course, kn, nm
 from ..geo import bearing_to, distance, norm360, velocity
 from ..ice import ice_view
 from ..ownship import BRIDGE_CLEAR_S
-from ..periscope import (sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, IceBearing, Judgement, Judges, LandBearing,
+from ..seabed import shore_ranges
+from ..periscope import (sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, NIGHT_LAND, IceBearing, Judgement, Judges, LandBearing,
                          PeriscopePicture, SightedObject, angle_on_bow, aob_quality, lights,
                          detectable, range_quality, visible_part)
 from ..reports import Quality
@@ -51,9 +49,6 @@ JUDGE_EVERY_S = 60           # ny bedömning (och observation till plottet) så 
 RESIGHT_S = 300              # ett föremål ur sikte så länge ropas ut igen när det syns
 CLOSE_NM = 3.0               # en jagare så nära: föreslå att dyka
 DIVE_DEPTH = 60
-LAND_STEP_DEG = 3            # land: en riktning var 3:e grad
-LAND_STEP_NM = 0.1
-NIGHT_LAND = 0.5             # på natten syns landets kontur bara på halva sikten
 WAKE_NM = 1.5                # torpedspår syns i dagsljus så här långt
 FLASH_NM = 12.0              # en explosion syns på natten så här långt
 EVENT_S = {"splash": 6, "column": 10, "hit": 60}   # så länge en händelse syns
@@ -252,27 +247,15 @@ class BridgeWatch(Station):
 
     def _land(self, reach: float) -> tuple[LandBearing, ...]:
         """Stranden i varje riktning ut till sikten (landet är högre än horisonten)."""
-        seabed = self.world.env.seabed
-        if seabed is None or not seabed.has_land:
-            return ()
         o = self.own.state
-        bearings = np.arange(0, 360, LAND_STEP_DEG, dtype=float)
-        dists = np.arange(LAND_STEP_NM, reach + LAND_STEP_NM / 2, LAND_STEP_NM)
-        if dists.size == 0:
+        shore = shore_ranges(self.world.env.seabed, o.x, o.y, reach)
+        if not shore:
             return ()
-        rad = np.radians(bearings)[:, None]
-        xs = o.x + dists[None, :] * np.sin(rad)
-        ys = o.y + dists[None, :] * np.cos(rad)
-        land = seabed.depths(xs, ys) <= 0
         t, f = self._land_f
         if self.now - t >= JUDGE_EVERY_S:
             f = 1 + self.rng.gauss(0, RANGE_REL_SIGMA)
             self._land_f = (self.now, f)
-        out = []
-        for i, b in enumerate(bearings):
-            hits = np.nonzero(land[i])[0]
-            if hits.size:
-                out.append(LandBearing(float(b), max(0.05, float(dists[hits[0]]) * f)))
+        out = [LandBearing(b, max(0.05, r * f)) for b, r in shore]
         if out:
             near = min(out, key=lambda lb: lb.range_nm)
             if self._call_out("land"):

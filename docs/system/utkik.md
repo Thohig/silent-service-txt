@@ -20,7 +20,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (siluett, lanternor, flyg, is), längre bort än 8 nm bara ett tecken. Bäringsskala, 360°-remsa
   (`render_strip(window=...)`) och datarad om föremålet närmast blickens mitt (±12°). Utan bild säger
   vyn varför ur `StatusSnapshot.bridge` och djupet.
-  Utkiken ser också land (`LandBearing` var 3:e grad: strålar mot `seabed.depths` ≤ 0 ut till sikten,
+  Utkiken ser också land (`LandBearing` var 3:e grad, `seabed.shore_ranges`: strålar mot `seabed.depths` ≤ 0 ut till sikten,
   på natten halva; avståndet ×(1 + σ 15 %) per minut), händelser bland `world.transients` varje tick
   (`EVENT_KINDS`: `splash` i dagsljus, `column` = sjunkbomb, `hit` = torpedens explosion, natt bara
   blixt/eld inom 12 nm; synliga 6/10/60 s) och spår efter ångtorpeder (inte SET-53) inom 1,5 nm i
@@ -47,6 +47,11 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `Knowledge.periscope` om den är nyare. Samma fartyg utan ändring (kurs < 15°, fart ≤ 3 kn) inom 5 min
   efter förra utropet: `off.periscope.again`. Hålläge > 60 s med ett hot i plottet: vakthavande föreslår
   `periskop ned` (var 3:e min).
+  Land (`_observe_land`): samma strålar som bryggan (`seabed.shore_ranges`, ut till sikten, på natten halva;
+  landet är högre än horisonten, så ögonhöjden spelar ingen roll), mätta när masten hissas och var 30:e s,
+  men bara i de riktningar okularet sett under hissningen. Avståndet ×(1 + σ) en gång per hissning, σ efter
+  förstoringen (`measure.range_rel`). `off.periscope.land` (närmaste bäring och avstånd) när land syns efter
+  10 min utan; landet töms vid varje ny hissning (`_new_raising`).
 - **Periskopbilden** (`sim/periscope.py`): `Knowledge.periscope` håller den senaste bilden.
   Upptäckt (`detectable`): ett fartyg under horisonten (masttoppen, `HEIGHTS`) syns aldrig; annars om dess
   skenbara höjd över horisonten × förstoringen är minst `DETECT_ARCMIN` (1,5′). Med sikten 10 nm (alla
@@ -57,7 +62,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   Vyn (`ui/periscope_render.py`, `ui/periscope.py`): 360°-remsa med fören i mitten, okular (32° i låg och 8° i
   hög förstoring, `POWER_FOV`; i hög stadimeterns strecksskala på siktlinjen och gradering varje grad, och den stora
   siluetten fyra gånger så långt bort, `_is_large`; rubriken säger förstoringen; + och − byter i hålläge; kanten,
-  vågkammarna och kikarens land i braille, `draw_land` delas med bryggan);
+  vågkammarna och landet i braille, `draw_land` delas med bryggan);
   masten uppe (`StatusSnapshot.periscope`/`periscope_train`/`periscope_up_s`): okularet står mot
   periskopets bäring, ← → vrider 5° (`vrid periskop`, `Order.INSTRUMENT`: inte i loggboken), mellanslag
   förut, ↓ ned; nere: mot valt föremål (← →), ↑ `periskop upp`; siluetter i `ART` (fören åt höger, speglas vid babord, trycks ihop efter

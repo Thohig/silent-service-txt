@@ -65,7 +65,7 @@ Byggt: låg/hög förstoring med σ efter förstoringen, svep i låg och titt i 
 vinkelstorlek och horisont, okularet efter förstoringen med stadimeterns streck, utkikens kikare 7×
 och kikaren i bryggvyn. Kvar som idé: siluetter i braille skalade steglöst efter vinkelstorleken.
 
-Periskopet ser ännu inte land eller händelser (bara bryggan gör det). Ingen däckskanon (627A hade
+Periskopet ser land sedan 2026-11-18 (`_observe_land`), men ännu inte händelser (plask, vattenpelare; bara bryggan). Ingen däckskanon (627A hade
 ingen; föreslå inte).
 
 ### Centralen, parkerade steg

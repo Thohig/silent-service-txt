@@ -643,3 +643,75 @@ def test_a_sweep_misses_a_far_destroyer_that_a_look_finds():
     for _ in range(12):
         g.tick()
     assert any(o.kind == "destroyer" for o in g.knowledge.periscope.ships())
+
+
+# --- land i periskopet --------------------------------------------------------------
+from sim.geo import bearing_to  # noqa: E402
+from sim.scenario import build_scenario  # noqa: E402
+from sim.seabed import shore_ranges  # noqa: E402
+
+
+def _strait_at_periscope_depth(seed=1, day=True):
+    """Sundet med ubåten på periskopdjup 1 nm söder om kusten, väster om farleden."""
+    g = Game(build_scenario("sundet", random.Random(seed)), seed=seed)
+    w = g.world
+    c = w.env.seabed.features[0]
+    st = w.own.state
+    st.x, st.y = c.channel_x - 1.5, float(c.shore(c.channel_x - 1.5)) - 1.0
+    st.depth = st.ordered_depth = 15.0
+    st.speed = st.ordered_speed = 2.0
+    st.course = st.ordered_course = 0.0
+    if day:
+        w.env.sunrise, w.env.lat, w.env.sunset = 0, None, 24 * 3600
+    return g
+
+
+def test_periscope_sweep_sees_the_coast_and_calls_it_out_once():
+    g = _strait_at_periscope_depth()
+    types = _report_types(g)
+    _look(g)
+    land = g.knowledge.periscope.land
+    assert land and g.knowledge.periscope.eye == "periskop"
+    st = g.world.own.state
+    truth = dict(shore_ranges(g.world.env.seabed, st.x, st.y, 30.0))
+    near = min(land, key=lambda lb: lb.range_nm)
+    assert abs(angle_diff(near.bearing, 0.0)) < 60             # kusten ligger i norr
+    assert near.range_nm == pytest.approx(min(truth.values()), rel=0.6)
+    assert all(lb.bearing in truth for lb in land)
+    assert types.count("off.periscope.land") == 1
+    _look(g)                                                   # strax igen: inget nytt utrop
+    assert types.count("off.periscope.land") == 1
+
+
+def test_short_look_away_from_the_coast_sees_no_land():
+    g = _strait_at_periscope_depth()
+    g.command("periskop 180")
+    for _ in range(SHORT_LOOK_S + 2):
+        g.tick()
+    assert g.knowledge.periscope.land == ()
+    g.command("periskop 000")
+    for _ in range(SHORT_LOOK_S + 2):
+        g.tick()
+    land = g.knowledge.periscope.land
+    assert land and all(abs(angle_diff(lb.bearing, 0.0)) <= 20 for lb in land)
+
+
+def test_no_land_in_the_periscope_on_open_sea():
+    g = _game_at_periscope_depth(day=True)
+    types = _report_types(g)
+    _look(g)
+    assert g.knowledge.periscope.land == ()
+    assert "off.periscope.land" not in types
+
+
+def test_periscope_land_range_is_rough_but_honest_over_seeds():
+    errs = []
+    for seed in range(6):
+        g = _strait_at_periscope_depth(seed)
+        _look(g)
+        st = g.world.own.state
+        truth = dict(shore_ranges(g.world.env.seabed, st.x, st.y, 30.0))
+        errs += [lb.range_nm / truth[lb.bearing] - 1 for lb in g.knowledge.periscope.land]
+    assert errs
+    mean_abs = sum(abs(e) for e in errs) / len(errs)
+    assert 0.0 < mean_abs < 0.3                                # ögonmått i låg förstoring, σ 15 %

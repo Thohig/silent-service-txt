@@ -427,6 +427,32 @@ def arctic_seabed(rng: random.Random, size: float = 20.0) -> Seabed:
                   features=(ridge,), rough=_rough(rng, 6, 0.03))
 
 
+SHORE_STEP_DEG = 3          # stranden: en riktning var 3:e grad
+SHORE_STEP_NM = 0.1
+
+
+def shore_ranges(seabed: Seabed | None, x: float, y: float,
+                 reach: float) -> list[tuple[float, float]]:
+    """Avståndet till närmaste land i varje riktning ut till reach (sanning; bryggan och
+    periskopet ser det med ögat). Landet är högre än horisonten, så ögonhöjden spelar ingen roll."""
+    if seabed is None or not seabed.has_land:
+        return []
+    bearings = np.arange(0, 360, SHORE_STEP_DEG, dtype=float)
+    dists = np.arange(SHORE_STEP_NM, reach + SHORE_STEP_NM / 2, SHORE_STEP_NM)
+    if dists.size == 0:
+        return []
+    rad = np.radians(bearings)[:, None]
+    xs = x + dists[None, :] * np.sin(rad)
+    ys = y + dists[None, :] * np.cos(rad)
+    land = seabed.depths(xs, ys) <= 0
+    out = []
+    for i, b in enumerate(bearings):
+        hits = np.nonzero(land[i])[0]
+        if hits.size:
+            out.append((float(b), float(dists[hits[0]])))
+    return out
+
+
 # --- djupkurvor ---------------------------------------------------------------------
 Segment = tuple[tuple[float, float], tuple[float, float]]
 

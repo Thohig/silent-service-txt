@@ -39,6 +39,7 @@ DEFAULT_HEIGHTS = (6.0, 14.0, 25.0)
 AOB_SIGMA = {"helt": 8.0, "överbyggnad": 15.0, "mastoppar": 30.0, "ljus": 25.0}
 TWILIGHT_AOB_F = 1.6           # en siluett i skymning eller månljus: kursen svårare att bedöma
 SECTOR_HALF_DEG = 16.0         # en kort titt (periskop 047) ser så här långt åt sidorna
+NIGHT_LAND = 0.5               # på natten syns landets kontur bara på halva sikten
 
 
 @dataclass(frozen=True)
@@ -195,7 +196,7 @@ class IceBearing:
 
 @dataclass(frozen=True)
 class LandBearing:
-    """Land i en riktning: avstånd till stranden, bedömt med ögat (bryggan)."""
+    """Land i en riktning: avstånd till stranden, bedömt med ögat (bryggan, periskopet)."""
     bearing: float
     range_nm: float
 
