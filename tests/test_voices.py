@@ -55,3 +55,46 @@ def test_render_ger_ljud():
         pytest.skip("rösten saknas")
     x = say.render("Kapten, sonar.", voice, 180, 22050)
     assert x is not None and len(x) > 22050 * 0.3
+
+
+def _aiff(path, x, rate=22050, aifc=True):
+    """Skriv mono 16 bitar som macOS talsyntes (AIFC 'twos'), eller vanlig AIFF."""
+    import struct
+    pcm = (np.asarray(x) * 32767).astype(">i2").tobytes()
+    exp, mant = 16383 + 63, int(rate)
+    while mant < (1 << 63):
+        mant <<= 1
+        exp -= 1
+    comm = struct.pack(">hIh", 1, len(x), 16) + struct.pack(">HQ", exp, mant)
+    if aifc:
+        comm += b"twos" + b"\x00"
+    ssnd = struct.pack(">II", 0, 0) + pcm
+    chunks = b"COMM" + struct.pack(">I", len(comm)) + comm + (b"\x00" if len(comm) & 1 else b"")
+    chunks += b"SSND" + struct.pack(">I", len(ssnd)) + ssnd
+    path.write_bytes(b"FORM" + struct.pack(">I", 4 + len(chunks)) + (b"AIFC" if aifc else b"AIFF")
+                     + chunks)
+
+
+@pytest.mark.parametrize("aifc", [True, False])
+def test_read_aiff(tmp_path, aifc):
+    x = np.sin(np.arange(2205) / 10) * 0.5
+    _aiff(tmp_path / "t.aiff", x, aifc=aifc)
+    y, rate = voices.read_aiff(tmp_path / "t.aiff")
+    assert rate == 22050
+    assert np.allclose(y, x, atol=1e-4)
+
+
+@pytest.mark.slow
+def test_macsynth_renderar_snabbt_med_laddad_rost():
+    if not voices.MacSynth.supported():
+        pytest.skip("pyobjc saknas")
+    import time
+    syn = voices.MacSynth()
+    voice = syn.voice("sv")
+    if voice is None:
+        pytest.skip("rösten saknas")
+    assert syn.render("Kapten.", voice, 180, 22050) is not None       # laddar rösten
+    t0 = time.perf_counter()
+    x = syn.render("Torped i vattnet!", voice, 180, 22050)
+    assert x is not None and len(x) > 22050 * 0.5
+    assert time.perf_counter() - t0 < 0.4
