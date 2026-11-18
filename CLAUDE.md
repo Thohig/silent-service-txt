@@ -67,6 +67,10 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 - **Rapporter** bär `type` + `data`, aldrig färdig text. Texten skapas av
   `phrases.render()` vid leverans, efter rapportfiltren. Varje station registrerar
   sina fraser med `phrases.register({...})` i sin egen modul.
+- **Radion** (`stations/radio.py`): rapporten byggs ur kunskapen i `dispatch.py` (`SentReport`,
+  `ReportTransmitted`); huvudstaben (`headquarters.py`) vet bara vad vi sänt och svarar vid nästa
+  sambandstillfälle. Båda är kunskap (importtestet). Radion antecknar sanningen bakom varje rapport
+  för slutrapporten (`goals.report_summary`).
 - **Uppdragsmål** (`sim/goals.py`, sanning): scenariot lägger `Goal`-objekt i `World.goals`
   (`StrikeGoal`, `PhotoGoal`, `ReportGoal`, `SurfaceNearGoal`, `EscapeGoal`, `TrainingGoal`,
   `GroundingFails`, `NoDiveInFjord`); `World._check_outcome` prövar dem i `RANK`-ordning, efter
@@ -122,7 +126,8 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
 - `docs/system/scenarier.md`: Civil trafik, Konvoj, Konvoj i plottet, Anfall, Övningen, Flyg
 - `docs/system/hav.md`: Land skymmer, Ljuset, Is, Havsbotten, Strömmen
 - `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden
-- `docs/system/besattning.md`: Radion och telegrammen, Starpom, Trim och flytkraft, Trimmaren
+- `docs/system/besattning.md`: Radion och telegrammen, Rapporten till staben, Huvudstaben,
+  Slutrapportens samband, Radiospaning, Villkorat tillstånd för T-5, Starpom, Trim och flytkraft, Trimmaren
 - `docs/system/vyer.md`: Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
 - `docs/system/granssnitt.md`: Huvudmenyn, Ljud
 
@@ -155,6 +160,8 @@ utreda, beslut som väntar): `docs/TODO.md`. Stryk det som blir gjort där.
   grova 18 % ⇒ 8 %). Avståndets σ har ett golv på 0,05 nm (`RANGE_SIGMA_FLOOR_NM`, ~båtens längd): utan det
   kollapsade lösningar på patrullbåten i sundet mot oss med σ ≈ 0 och kallades säkra (sundet säker grova
   18 % ⇒ 0); alla scenarier grova 4,8 % ⇒ 3,9 %, > 3σ 7,9 % ⇒ 6,0 %. Det som är kvar är mest girar de senaste minuterna som plottet inte hunnit se. Mätskriptet: `kalibrering/tma_kvalitet.py`.
+- Radion: rapporten 6 s + 4 s per femsiffergrupp (kort ~22 s); fiendens pejlnät pejlar aldrig under
+  10 s, alltid över 25 s, σ = 1,5 nm · √(30 s / längd), 0,7–3 nm (`DF_*` i `enemy.py`).
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m, torpedavfyring ≤ 100 m och ≤ 12 kn.
 - Fiendens torped Mk 37: 26 kn, 5 nm, 145 dB, söker passivt i 40° och aktivt inom 0,4 nm och ±50 m i höjd;
   skenmålet 135 dB och bubbelekot starkare än skrovet; en träff är förlusten. Vi går 28 kn på turbinen.
