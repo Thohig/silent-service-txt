@@ -1,7 +1,7 @@
 # K-114 – att göra
 
 Konkreta öppna uppgifter: sådant som behöver köras om, provas, utredas eller beslutas. Idéer som
-inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18. Stryk det som är gjort
+inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18 (kväll). Stryk det som är gjort
 (`~~…~~` med datum) och flytta det till rätt dokument (CLAUDE.md, `docs/system/`, `kalibrering/README.md`).
 
 ## Köra om

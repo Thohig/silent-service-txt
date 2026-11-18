@@ -92,7 +92,8 @@ botarna är inte omkörda. `baslinje.json` är efter bytet.
   45–75 min mellan. Radar: master 6 nm (6 %/svep), ytläge 25 nm. MAD 250 m snedavstånd
   från 60 m höjd (säkert under ~190 m). Passiva bojar DT 8; aktiv boj 205 dB var 20:e s.
   Med flyg: jagaren hittar ja-boten i 9 av 12 frön (7 utan), flyget självt i 8 av 12. Omkört
-  2026-11-15 (`kuba_jakt.py`): jagaren 12 av 12, flyget 11 av 12, 338 sjunkbomber, skrovet skadat i 2.
+  2026-11-15 (`kuba_jakt.py`): jagaren 12 av 12, flyget 11 av 12, 338 sjunkbomber, skrovet skadat i 2;
+  2026-11-18: upptäckt 11, flyget 9, 279 sjunkbomber, skadat i 3.
 - Botten (Kuba): djuphav 1 850–2 350 m, +15 m/nm norrut; bank 120–200 m med kanten 4,5–5,5 nm
   från väst- eller östsidan ⇒ ~15–18 % grundare än 300 m; berg med topp 250–400 m minst 4 nm
   från start; ränna 250–450 m djup. Kortets fel 0,5 nm (Arktis 0,8), berget saknas i 25 %.
@@ -122,7 +123,7 @@ botarna är inte omkörda. `baslinje.json` är efter bytet.
 - Jagade kort (`jagad-kort`, `hunted_scenario(short=True)`): kvadraten 7 nm, ubåten 2–2,5 nm från
   djupvattensidans kant, DD1 1,4–1,7 nm bort i anfall, DD2 3–3,8 nm bort på djupvattensidan, båda
   skarpa från start; tidsgräns 30 min. 8 frön: passiv 0, ja-boten 4 (24–26 min), djupt och fort
-  (navigatörens `exit_route` var 60:e s) 6 (19–27 min). Sonar hör jakten efter 6–8 s.
+  (navigatörens `exit_route` var 60:e s) 6 (19–27 min); omkört 2026-11-18: 0, 5, 7. Sonar hör jakten efter 6–8 s.
   Medan vi är jagade (`Knowledge.hunted`) föreslår plottet inga TMA-girar, och maskinens sprintförslag
   har alltid med `turbin` (förslaget levereras sent).
 - Kust (`seabed.Coast`, `strait_seabed`): land har negativt djup (`Seabed.min_depth` < 0),
@@ -147,8 +148,10 @@ botarna är inte omkörda. `baslinje.json` är efter bytet.
 - Sundet (`sundet`, `strait_scenario`), 7 h, ett fartyg in efter 45–75 min, sedan 0,6/h in och ut
   i lotsfart (6–8 kn). Grindtricket: vänta söder om grinden, `turbin, djup 40, följ S-x` när
   fartyget passerat 0,2–0,45 nm, foto innanför, följ ett utgående fartyg ut. 8 frön: bot med bara
-  besättningens verktyg klarar 3 (goda bilder i 6; omkört 2026-11-15: 5, bilder i 7), bot som läser
-  sanningen 5 (bilder i 8; inte omkört);
+  besättningens verktyg (`sundet_folj.py --följ`) klarar 3 (goda bilder i 6; omkört 2026-11-15 och
+  2026-11-18: 5, bilder i 7), samma bot som läser sanningen (`sundet_folj.py` utan `--följ`) 5 (bilder i 8;
+  inte omkört). `sundet.py --orakel`, som smyger genom skärmen utan fartyg, klarar 0 på 5 h (genom
+  grinden i 1–2, före och efter slumpbytet);
   ja-boten och den som försöker smyga genom skärmen utan fartyg klarar 0. Botarna i scratchpad
   (`follow_bot.py`, `strait_bot.py`).
   Väntläget (första steget, `_harbor_watch`/`_wait_point`): före fotot och utanför nätet föreslår
@@ -189,9 +192,10 @@ botarna är inte omkörda. `baslinje.json` är efter bytet.
   (samma bot i `konvoj`: 1, på 69 min). Uppvärmningen tar ~5–8 s. Efter plottets periskoprättelse:
   `konvoj` 2 av 8, `konvoj-kort` fortfarande 1 av 8 (omkört 2026-11-15 med `konvoj_salva.py`: `konvoj` 3
   av 8 på 57–60 min, `konvoj-kort` 2 av 8; `konvoj.py attack` 2 av 8); boten skjuter på gamla lösningar (titt var 4:e min,
-  ben på 5–10 min). Titt före skottet (vakthavande, ≤ 3,5 nm, var 90:e s) byggd 2026-11-18. 8 frön 2026-11-18:
-  `konvoj_salva.py` konvoj 2, konvoj-kort 0; med `titt` (skjuter bara efter en titt ≤ 60 s) 0 och 0.
-  Avståndsfelet vid skottet 1–4 nm även för god/säker (se `docs/TODO.md`, Utreda).
+  ben på 5–10 min). Titt före skottet (vakthavande, ≤ 3,5 nm, var 90:e s) byggd 2026-11-18. 8 frön 2026-11-18,
+  efter processbruset för sicksack: `konvoj_salva.py` konvoj 2, konvoj-kort 0; med `titt` (skjuter bara efter
+  en titt ≤ 60 s) 0 och 0 (eskortens radar håller oss oftast under periskopdjup); `konvoj.py attack` 1.
+  Salvaboten skjuter mest på osäkra lösningar, med 1–4 nm avståndsfel.
 - Konvojen motanfall (`konvoj-mot`, `convoy_counter_scenario`): ledpunkten 1–2 nm före tvärs, vi 1,8–2,4 nm
   vid sidan. Vakten (`_CounterattackWatch`): periskopdjup, titt var 60:e s, `salva` (två gånger) mot
   stort fartyg med lösning ≥ god, ≥ 60 s sedan senaste gir, titt ≤ 60 s gammal, fart ≤ 20 kn, ≤ 2,5 nm;

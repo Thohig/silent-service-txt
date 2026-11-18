@@ -17,7 +17,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   Besticket får `◦` var 10:e min på klockan (`dr_ticks`), klockslag varje halvtimme. Kontakter: `»` först
   hörd (bäringen, en gång per beteckning) och `∅` tappad (lösningen ≥ osäker, annars senaste bäringen;
   inte isljud/civila), alltid med beteckningen. Etiketter: högre lager vinner där de krockar, inom ett
-  lager den som kom först (stationerna lägger det nyaste först). Teckenförklaringen har en tredje rad. Linjer (spår, djupkurvor, kust, farled streckad, bäringar,
+  lager den som kom först (stationerna lägger det nyaste först); den som förlorar flyttas en rad upp
+  eller ned (`LABEL_SHIFTS`) och försvinner bara om det är fullt där också (blyertsmärkets symbol, t.ex.
+  `»`, är en del av etiketten). Teckenförklaringen har en tredje rad. Linjer (spår, djupkurvor, kust, farled streckad, bäringar,
   vektorer, osäkerhetsringar streckade) ritas i braille i prickskiktet `ui/canvas.DotLayer` (prickkoordinater
   2 per kolumn, 4 per rad); märken, etiketter, rutnät och gräns är hela tecken; högst lager vinner per ruta.
   Nytt system ritar sig självt.

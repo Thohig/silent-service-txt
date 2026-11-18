@@ -6,7 +6,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
 - **Civil trafik:** `traffic.py` (sanning). `World.spawners` skickar in nya fartyg,
   `MerchantAI` styr dem. Neutrala fartyg (`World.neutral_ships`) är inte fiender; sänks
   ett slutar spelet (`neutral_sunk`). Kunskap: `ContactTrack.civil`/`warship`; civila
-  räknas inte som hot men plottas tyst för kortet.
+  räknas inte som hot men plottas tyst för kortet. Torpedrummet (`torp.neutral`) varnar före ett skott
+  med rak torped och i `skjutlösning` när ett känt handelsfartyg ligger inom 0,5 nm från en bana hela
+  vägen ut (plottets lösning ≥ osäker), eller utan lösning med bäringen inom 10°; upprepad order inom
+  en minut skjuter (varning, inte vägran).
 - **Konvoj:** `convoy.py` (sanning). `Convoy` är en spawner med en ledpunkt som sicksackar efter
   `ZIGZAG_PLANS` (medelavdrift ~0) kring baskursen; `ConvoyShipAI` håller platsen (fast i baskursens
   riktning). Nödgir 50° bort från hotet, +3 kn i 15 min (sänkt fartyg, egen torped < 1,5 nm,
@@ -23,6 +26,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   tak efter antal ben (2 ben ⇒ högst osäker, 3 ⇒ god). Benlängd = median av gap per kontakt.
   Gruppering: ≥ 2 icke-jagare inom 3 nm, ±30°, ±4 kn; jagare inom 5 nm är eskort. `ConvoyAssessed`
   ⇒ `Knowledge.convoy`. Konvojens girar sägs som `plot.convoy.turn`, inte `plot.maneuver`.
+  Konvojfartyg och mål med två märkta girar (`Knowledge.zigzags`) räknas med processbrus q = 30
+  (`tma.ZIGZAG_MANEUVER_Q`) i stället för 1: annars blev lösningen god/säker med för litet σ och 1–3 nm
+  fel när målet girat inom fönstret.
   Med periskoptitt var 4:e min: baskurs inom 5° och säker efter ~10 ben; bara sonar: grov fart
   (TMA drar avståndet mot 6 nm), kvaliteten dålig/osäker.
 - **Anfall** (`anfall S-x`, navigatören, `firecontrol.approach`): kurs till en punkt 1,2 nm vid sidan
