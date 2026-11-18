@@ -23,7 +23,8 @@ Kvar:
   `NullPlayer`, testernas `RecordingPlayer`); bundet till macOS är `say`/`afplay`, röstnamnen och
   tre kopior av `say -v ?`. Steg:
   ~~T1 rösterna på ett ställe~~ (byggt 2026-11-18: `ui/voices.py`, `MacSay`, röstlistan läses en gång);
-  T2 talet och effektljuden genom sounddevice-mixern (förrenderat med `say -o`, som Radio Moskva):
+  ~~T2 talet och effektljuden genom mixern~~ (byggt 2026-11-18: `MixPlayer`, `MacSynth`, telefon och skott,
+  se `docs/system/granssnitt.md`). Underlaget:
   hytten dämpar centralen i stället för att tysta den, telefonfilter för stationerna utanför
   centralen, inga `afplay`-processer – det enda som märks på Mac, och det enda med risk (fördröjning);
   fördröjningen uppmätt 2026-11-18: `say -o` tar 0,55–0,75 s per replik oavsett längd (mest uppstart

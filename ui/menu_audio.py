@@ -362,41 +362,10 @@ def synth_oneshots() -> dict[str, np.ndarray]:
 
 # --------------------------------------------------------------------------- mixern
 class MenuMixer(Ambience):
-    """Slingorna och enstaka ljud ovanpå (klockan, radion)."""
+    """Slingorna och enstaka ljud ovanpå (klockan, radion); allt finns i Ambience."""
 
     def __init__(self, samples: dict[str, np.ndarray] | None = None, volume: float = 0.8):
         super().__init__(samples=samples or {}, volume=volume)
-        self._shots: list[list] = []                 # [ljud, läge, styrka]
-
-    def oneshot(self, samples: np.ndarray, gain: float = 1.0) -> None:
-        with self._lock:
-            self._shots.append([samples, 0, gain])
-
-    @property
-    def busy(self) -> bool:
-        """Spelas ett enstaka ljud just nu?"""
-        return bool(self._shots)
-
-    def extra(self, out: np.ndarray) -> None:
-        with self._lock:
-            shots = list(self._shots)
-        n = len(out)
-        done = []
-        for shot in shots:
-            snd, pos, gain = shot
-            part = snd[pos:pos + n]
-            if part.ndim == 1:
-                part = np.repeat(part[:, None], 2, axis=1)
-            out[:len(part)] += part * gain * (self._master if self.enabled else 0.0)
-            shot[1] = pos + n
-            if shot[1] >= len(snd):
-                done.append(shot)
-        if done:
-            # Jämför på identitet: `in` jämför listorna element för element, och två
-            # numpy-ljud av olika längd går inte att jämföra (ValueError i ljudtråden ⇒ tyst).
-            gone = {id(s) for s in done}
-            with self._lock:
-                self._shots = [s for s in self._shots if id(s) not in gone]
 
 
 class MenuSound:

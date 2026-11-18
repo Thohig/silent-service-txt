@@ -24,6 +24,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import threading
 import wave
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -101,6 +102,7 @@ SAME_SOUND_S = 0.3                 # samma ljud tätare än så spelas en gång 
 
 MAX_QUEUE = 4                      # fler väntande repliker än så: släpp de oviktiga
 STALE_S = 12.0                     # oviktiga repliker som väntat längre släpps
+MUFFLED_STALE_S = 4.0              # mumlet genom skottet är bara stämning: släpps fortare
 
 
 # --------------------------------------------------------------------------- uppspelning
@@ -110,7 +112,8 @@ class Player(Protocol):
         Returnerar längden i sekunder."""
 
     def speak(self, text: str, rate: int, voice: str | None = None) -> None:
-        """Börja läsa upp text utan att vänta. voice None: spelarens svenska röst."""
+        """Börja läsa upp text utan att vänta. voice None: spelarens svenska röst.
+        En spelare med `effects = True` tar också effect ("phone", "muffled")."""
 
     def speaking(self) -> bool: ...
 
@@ -187,6 +190,74 @@ class MacPlayer:
         self._sounds = []
 
 
+class MixPlayer:
+    """Allt ljud genom mixern (sounddevice), inga egna processer. Ljuden panoreras i mixern och
+    talet renderas av rösterna (`voices.backend().render`, i processen på macOS) i en egen
+    tråd och spelas som ett enstaka ljud. Därför kan repliker filtreras: `effect` "phone"
+    (stationer utanför centralen, starpom i telefonen) och "muffled" (centralen genom skottet
+    till hytten)."""
+
+    MAX_SOUNDS = 6                 # samtidiga ljud (repliken oräknad)
+    effects = True                 # SoundBoard: kan spela repliker med effekt
+
+    def __init__(self, mixer: Ambience, synth: voices.Voices | None = None, voice: str = VOICE,
+                 volume: float = 0.6, speech_gain: float = 1.0):
+        import queue
+        self.mixer = mixer
+        self.synth = synth or voices.backend()
+        self.voice = voice
+        # Mixerns huvudvolym gäller allt; ljud och tal hålls i samma styrka som med afplay/say.
+        self.volume = volume / max(0.05, mixer.volume)
+        self.speech_gain = speech_gain / max(0.05, mixer.volume)
+        self.samples = {**synth_cues(), **synth_transients()}
+        self._jobs: queue.Queue = queue.Queue()
+        self._want = 0                 # repliken som ska höras (0: ingen)
+        self._rendering = 0            # repliken som renderas just nu
+        self._lock = threading.Lock()
+        threading.Thread(target=self._work, daemon=True, name="repliker").start()
+
+    def play(self, cue: str, pan: float = 0.0, volume: float = 1.0) -> float:
+        if cue not in self.samples:
+            return 0.0
+        if self.mixer.shots() >= self.MAX_SOUNDS:
+            return 0.0
+        self.mixer.oneshot(stereo(self.samples[cue], pan), self.volume * volume, tag="cue")
+        return len(self.samples[cue]) / RATE
+
+    def speak(self, text: str, rate: int, voice: str | None = None,
+              effect: str | None = None) -> None:
+        with self._lock:
+            self._want += 1
+            n = self._want
+            self._rendering = n
+        self._jobs.put((n, text, voice or self.voice, rate, effect))
+
+    def speaking(self) -> bool:
+        with self._lock:
+            n, rendering = self._want, self._rendering
+        return n != 0 and (rendering == n or self.mixer.playing(("tal", n)))
+
+    def stop(self) -> None:
+        with self._lock:
+            self._want += 1            # repliker som renderas nu kastas
+            self._rendering = 0
+        self.mixer.stop_shots()
+
+    def _work(self) -> None:
+        while True:
+            n, text, voice, rate, effect = self._jobs.get()
+            with self._lock:
+                stale = n != self._want
+            x = None if stale else self.synth.render(text, voice, rate, RATE)
+            with self._lock:
+                if x is not None and n == self._want and len(x):
+                    x = apply_effect(x, effect, seed=n)
+                    gain = self.speech_gain * EFFECT_GAIN.get(effect, 1.0)
+                    self.mixer.oneshot(x, gain, tag=("tal", n))
+                if self._rendering == n:
+                    self._rendering = 0
+
+
 # --------------------------------------------------------------------------- styrning
 @dataclass
 class Line:
@@ -195,6 +266,7 @@ class Line:
     urgent: bool
     queued_at: float
     not_before: float = 0.0
+    effect: str | None = None             # "phone", "muffled" (bara MixPlayer)
 
     @property
     def text(self) -> str:
@@ -220,6 +292,7 @@ class SoundBoard:
     queue: list[Line] = field(default_factory=list)
     _parts: list[tuple[str | None, str]] = field(default_factory=list)   # resten av repliken
     _rate: int = DEFAULT_RATE
+    _effect: str | None = None          # repliken som läses: dess effekt
     _now: float = 0.0
     _cue_until: float = 0.0
     _last_played: dict[str, float] = field(default_factory=dict)
@@ -287,8 +360,10 @@ class SoundBoard:
         if not self.enabled:
             return
         r = e.report
-        if self._status is not None and from_central(r, self._status):
-            return                  # i hytten hör kaptenen inte centralens rapporter
+        effects = getattr(self.player, "effects", False)
+        effect = speech_effect(r, self._status) if effects else None
+        if self._status is not None and from_central(r, self._status) and not effects:
+            return                  # i hytten hörs centralen inte (utan mixern: inte alls)
         cue = cue_for(r)
         delay = 0.0
         if cue:
@@ -306,15 +381,16 @@ class SoundBoard:
                 text += " " + r.data["read_aloud"]
             parts = speech_parts(text, self.ru_voice)
         line = Line(parts, ROLE_RATE.get(r.role, DEFAULT_RATE),
-                    urgent=r.alarm or r.kind == "suggest", queued_at=self._now,
-                    not_before=self._now + delay)
+                    urgent=(r.alarm or r.kind == "suggest") and effect != "muffled",
+                    queued_at=self._now, not_before=self._now + delay, effect=effect)
         self.queue.append(line)
         self._trim()
 
     def _trim(self) -> None:
         """Håll kön kort: vid tidskomprimering hinner ingen säga allt."""
         self.queue = [ln for ln in self.queue
-                      if ln.urgent or self._now - ln.queued_at < STALE_S]
+                      if ln.urgent or self._now - ln.queued_at <
+                      (MUFFLED_STALE_S if ln.effect == "muffled" else STALE_S)]
         while len(self.queue) > MAX_QUEUE:
             routine = [ln for ln in self.queue if not ln.urgent]
             self.queue.remove(routine[0] if routine else self.queue[0])
@@ -328,7 +404,7 @@ class SoundBoard:
         if self._parts:                              # repliken fortsätter med nästa röst
             if not self.player.speaking():
                 voice, text = self._parts.pop(0)
-                self.player.speak(text, self._rate, voice)
+                self._speak(text, self._rate, voice)
             return
         if not self.queue:
             return
@@ -339,7 +415,14 @@ class SoundBoard:
         line = self.queue.pop(0)
         (voice, text), *self._parts = line.parts
         self._rate = line.rate
-        self.player.speak(text, line.rate, voice)
+        self._effect = line.effect
+        self._speak(text, line.rate, voice)
+
+    def _speak(self, text: str, rate: int, voice: str | None) -> None:
+        if self._effect is not None:
+            self.player.speak(text, rate, voice, effect=self._effect)
+        else:
+            self.player.speak(text, rate, voice)
 
     @property
     def speaks_russian(self) -> bool:
@@ -398,6 +481,58 @@ def stereo(mono: np.ndarray, pan: float) -> np.ndarray:
     """Panorering med konstant effekt: (n, 2)."""
     a = (pan + 1) * np.pi / 4
     return np.stack([mono * np.cos(a), mono * np.sin(a)], axis=1) * np.sqrt(2) / 2 * 1.4
+
+
+# --------------------------------------------------------------------------- effekter på talet
+# Stationer utanför centralen hörs genom högtalartelefonen ("Kashtan"); starpom ringer till
+# hytten. I hytten hörs centralen dämpad genom skottet: man hör att någon talar, inte vad.
+REMOTE_ROLES = ("sonar", "torpedo", "engineer", "radio")
+EFFECT_GAIN = {"phone": 0.9, "muffled": 0.35}
+
+
+def _filtered(x: np.ndarray, gain_of_f) -> np.ndarray:
+    pad = int(RATE * 0.05)
+    y = np.concatenate([x, np.zeros(pad)])         # plats för filtrets svans
+    f = np.fft.rfftfreq(len(y), 1 / RATE)
+    return np.fft.irfft(np.fft.rfft(y) * gain_of_f(f), len(y))
+
+
+def phone_voice(x: np.ndarray, seed: int = 0) -> np.ndarray:
+    """Högtalartelefon: smalt band 300–3000 Hz, lätt överstyrd, svagt sus."""
+    def band(f):
+        return np.clip((f - 200) / 150, 0, 1) * np.clip((3400 - f) / 500, 0, 1)
+    y = _filtered(x, band)
+    y = np.tanh(2.2 * _norm(y, 1.0)) / np.tanh(2.2)
+    hiss = 0.015 * np.random.default_rng(seed).standard_normal(len(y))
+    return _norm(y + hiss, 0.7)
+
+
+def muffled_voice(x: np.ndarray) -> np.ndarray:
+    """Genom skottet: bara det låga kommer igenom."""
+    y = _filtered(x, lambda f: 1 / (1 + (f / 320) ** 4))
+    return _norm(y, 0.6)
+
+
+def apply_effect(x: np.ndarray, effect: str | None, seed: int = 0) -> np.ndarray:
+    if effect == "phone":
+        return phone_voice(x, seed)
+    if effect == "muffled":
+        return muffled_voice(x)
+    return x
+
+
+def speech_effect(r: Report, status) -> str | None:
+    """Hur repliken låter där kaptenen är: i hytten centralen dämpad och starpom i telefonen,
+    i centralen stationerna utanför i högtalartelefonen."""
+    if status is None or r.alarm:
+        return None
+    cabin = getattr(status, "command", "captain") == "starpom" and \
+        getattr(status, "captain_at", "central") == "cabin"
+    if cabin:
+        if r.role == "starpom":
+            return "phone"
+        return "muffled" if from_central(r, status) else None
+    return "phone" if r.role in REMOTE_ROLES else None
 
 
 def cue_for(r: Report) -> str | None:
@@ -806,6 +941,13 @@ def make_soundboard(bus: EventBus, enabled: bool,
     if not speech:
         notes.append(f"Rösten {VOICE} saknas, besättningen hörs inte. Lägg till den under "
                      "Systeminställningar › Hjälpmedel › Talat innehåll › Systemröst.")
-    board = SoundBoard(bus, MacPlayer(), speech=speech, heading=heading, ru_voice=ru_voice,
+    synth = voices.backend()
+    if out.stream is not None and isinstance(synth, voices.MacSynth):
+        # Allt genom mixern; rösterna laddas nu så att första repliken inte dröjer.
+        synth.warm_up(*(v for v in (VOICE, ru_voice) if v and speech))
+        player: Player = MixPlayer(ambience, synth)
+    else:
+        player = MacPlayer()
+    board = SoundBoard(bus, player, speech=speech, heading=heading, ru_voice=ru_voice,
                        ambience=ambience, out=out)
     return board, " ".join(notes) or None

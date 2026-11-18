@@ -10,7 +10,8 @@ Allt styrs av det besättningen vet: statusraden (StatusSnapshot) och
 kunskapens kontaktspår. Inget läses ur världen.
 
     ambient_targets(status, tracks)   vad som ska höras, och hur starkt
-    Ambience                          mixern: slingor med mjuka volymändringar
+    Ambience                          mixern: slingor med mjuka volymändringar och enstaka
+                                      ljud ovanpå (oneshot: larm, hydrofonljud, repliker)
     AmbientOut                        ljudström till högtalarna (sounddevice)
 
 Slingorna syntetiseras i frekvensplanet och är därför sömlösa.
@@ -183,6 +184,7 @@ class Ambience:
         self._layers: dict[str, _Layer] = {}
         self._master = 1.0
         self._fading = 0                   # löpnummer för lager som tonar ut efter ett byte
+        self._shots: list[list] = []       # [ljud (n, 2), läge, styrka, märke]
         self._lock = threading.Lock()
 
     def set_targets(self, targets: dict[str, Target]) -> None:
@@ -230,11 +232,62 @@ class Ambience:
             out[:, 0] += mono * env * np.cos(a) * np.sqrt(2)
             out[:, 1] += mono * env * np.sin(a) * np.sqrt(2)
         out *= np.linspace(m0, self._master, n, endpoint=False)[:, None]
+        self._mix_shots(out)
         self.extra(out)
         return np.tanh(out)                            # mjuk begränsning, aldrig klipp
 
     def extra(self, out: np.ndarray) -> None:
         """Krok för underklasser: lägg till ljud utöver slingorna (stereo, på plats)."""
+
+    # -- enstaka ljud ------------------------------------------------------------
+    def oneshot(self, samples: np.ndarray, gain: float = 1.0, tag=None) -> None:
+        """Spela ett ljud en gång ovanpå slingorna: mono (mitt i) eller stereo (n, 2).
+        tag: märke att fråga efter med playing()."""
+        if samples.ndim == 1:
+            samples = np.repeat(samples[:, None], 2, axis=1)
+        with self._lock:
+            self._shots.append([samples, 0, gain, tag])
+
+    @property
+    def busy(self) -> bool:
+        """Spelas ett enstaka ljud just nu?"""
+        return bool(self._shots)
+
+    def playing(self, tag) -> bool:
+        """Spelas ljudet med det här märket fortfarande?"""
+        with self._lock:
+            return any(s[3] == tag for s in self._shots)
+
+    def shots(self) -> int:
+        """Antal enstaka ljud som spelas."""
+        return len(self._shots)
+
+    def stop_shots(self, tag=None) -> None:
+        """Tysta alla enstaka ljud, eller bara de med märket."""
+        with self._lock:
+            self._shots = [] if tag is None else [s for s in self._shots if s[3] != tag]
+
+    def _mix_shots(self, out: np.ndarray) -> None:
+        with self._lock:
+            shots = list(self._shots)
+        if not shots:
+            return
+        n = len(out)
+        master = self._master if self.enabled else 0.0
+        done = []
+        for shot in shots:
+            snd, pos, gain = shot[0], shot[1], shot[2]
+            part = snd[pos:pos + n]
+            out[:len(part)] += part * gain * master
+            shot[1] = pos + n
+            if shot[1] >= len(snd):
+                done.append(shot)
+        if done:
+            # Jämför på identitet: `in` jämför listorna element för element, och två
+            # numpy-ljud av olika längd går inte att jämföra (ValueError i ljudtråden ⇒ tyst).
+            gone = {id(s) for s in done}
+            with self._lock:
+                self._shots = [s for s in self._shots if id(s) not in gone]
 
     @property
     def layers(self) -> dict[str, _Layer]:
