@@ -55,9 +55,12 @@ class PositionFix(NavTask):
     done_t: int
     coast: bool                     # landmärken: snabbare och bättre
     quiet: bool = False             # navigatörens egen pejling från bryggan
+    bridge: bool = False            # pejlskivan på bryggan, inte periskopet
 
     def abort(self, nav: NavigationStation) -> Abort | None:
-        return ("nav.fix.aborted", {}) if nav.ship.depth > PERISCOPE_DEPTH + 1 else None
+        gone = nav.own.sys.bridge != "manned" if self.bridge \
+            else nav.ship.depth > PERISCOPE_DEPTH + 1
+        return ("nav.fix.aborted", {"bridge": self.bridge}) if gone else None
 
     def step(self, nav: NavigationStation) -> bool:
         if nav.now < self.done_t:

@@ -161,7 +161,8 @@ PHRASES = {
                                 d.get("day") else "Tar fix på fyrarna, under en minut."
                                 if d.get("coast") else "Tar fix i periskopet, cirka två minuter."),
     "nav.fix.refused": lambda d: f"Kapten, {d['reason']}.",
-    "nav.fix.aborted": lambda d: "Fixen avbröts, vi lämnade periskopdjup.",
+    "nav.fix.aborted": lambda d: "Fixen avbröts, " + (
+        "bryggan utryms." if d.get("bridge") else "vi lämnade periskopdjup."),
     "nav.starfix.start": lambda d: (
         "Sextanten upp på bryggan" if d.get("bridge") else "Periskopsextanten") + (
         ", tar höjder på stjärnorna mot horisonten, cirka fyra minuter."
@@ -327,7 +328,8 @@ RU_PHRASES = {
     "в район учений.",
     "nav.fix.start": lambda d: "Есть, определяемся по береговым ориентирам." if d.get("bridge")
     else "Есть, определяемся по перископу.",
-    "nav.fix.aborted": lambda d: "Определение прервано, мы ушли с перископной глубины.",
+    "nav.fix.aborted": lambda d: "Определение прервано, " + (
+        "мостик покинут." if d.get("bridge") else "мы ушли с перископной глубины."),
     "nav.starfix.start": lambda d: "Есть, определяемся по звёздам." if d["method"] == "stjärnor"
     else "Есть, определяемся по луне.",
     "nav.starfix.refused": lambda d: "Определиться по звёздам сейчас нельзя.",

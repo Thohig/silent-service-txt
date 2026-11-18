@@ -332,3 +332,20 @@ def test_short_variant_with_a_captain_who_fires():
         assert g.world.outcome["outcome"] == "training_done", seed
         fired += "train.torpedo.result" in said
     assert fired >= 3              # utan god lösning skjuter kaptenen inte, och steget hoppas över
+
+
+def test_bridge_bearing_fix_aborted_when_the_bridge_is_cleared():
+    """Pejlskivan på bryggan: utryms bryggan blir det ingen fix (som stjärnfixen)."""
+    g = _game(1)
+    said = []
+    g.bus.subscribe(ReportDelivered, lambda e: said.append(e.report))
+    nav = g.station(NavigationStation)
+    g.command("fix")
+    g.tick()
+    assert nav.tasks["fix"].bridge
+    g.world.own.sys.bridge = "clearing"
+    for _ in range(60):
+        g.tick()
+    aborted = [r for r in said if r.type == "nav.fix.aborted"]
+    assert aborted and "bryggan" in aborted[0].text
+    assert not any(r.type == "nav.fix.done" for r in said)

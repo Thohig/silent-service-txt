@@ -74,7 +74,7 @@ class FixMixin:
         day = self.game.world.env.daylight(self.now)
         if self._bridge_bearings():
             self.tasks["fix"] = PositionFix(self.now + (COAST_FIX_S if day else COAST_FIX_NIGHT_S),
-                                            coast=True, quiet=quiet)
+                                            coast=True, quiet=quiet, bridge=True)
             if not quiet:
                 self.say("nav.fix.start", {"coast": True, "day": day, "bridge": True}, kind="ack")
             return
