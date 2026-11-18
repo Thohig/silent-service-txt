@@ -13,17 +13,14 @@ de går runt utan skarv.
 """
 from __future__ import annotations
 
-import shutil
-import subprocess
-import tempfile
 import threading
 import time
-import wave
 from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
 
+from . import voices as speech
 from .ambience import RATE, Ambience, AmbientOut
 from .menutext import RADIO_TUNE_S
 
@@ -35,7 +32,6 @@ TELEPRINTER_S = 4.0
 
 GAIN = {"music": 0.55, "harbor": 0.4, "teleprinter": 0.14, "static": 0.12}
 MUSIC_UNDER_RADIO = 0.25    # musiken sänks medan radion talar
-RADIO_VOICE = "Milena"
 RADIO_RATE_WPM = 150
 
 
@@ -340,45 +336,19 @@ def radio_voice(x: np.ndarray, seed: int = 0) -> np.ndarray:
     return _norm(y * fading + hiss, 0.8)
 
 
-@lru_cache(maxsize=1)
 def russian_voice_available() -> bool:
-    if shutil.which("say") is None:
-        return False
-    try:
-        out = subprocess.run(["say", "-v", "?"], capture_output=True, text=True, timeout=5).stdout
-    except (OSError, subprocess.SubprocessError):
-        return False
-    return any(line.split()[:1] == [RADIO_VOICE] for line in out.splitlines())
+    return speech.backend().voice("ru") is not None
 
 
 def read_wav(path: Path) -> np.ndarray:
     """Mono flyttal i RATE. Annan takt räknas om linjärt."""
-    with wave.open(str(path), "rb") as w:
-        rate, ch, width = w.getframerate(), w.getnchannels(), w.getsampwidth()
-        raw = w.readframes(w.getnframes())
-    if width != 2:
-        raise ValueError("bara 16 bitar")
-    x = np.frombuffer(raw, dtype="<i2").astype(np.float64) / 32768.0
-    if ch > 1:
-        x = x.reshape(-1, ch).mean(axis=1)
-    if rate != RATE and len(x):
-        x = np.interp(np.arange(int(len(x) * RATE / rate)) * rate / RATE, np.arange(len(x)), x)
-    return x
+    return speech.read_wav(path, RATE)
 
 
 def speak_to_samples(text: str) -> np.ndarray | None:
-    """Läs texten med den ryska rösten (macOS `say`) till ljud. None utan röst."""
-    if not russian_voice_available():
-        return None
-    with tempfile.TemporaryDirectory() as d:
-        path = Path(d) / "radio.wav"
-        try:
-            subprocess.run(["say", "-v", RADIO_VOICE, "-r", str(RADIO_RATE_WPM),
-                            "--file-format=WAVE", f"--data-format=LEI16@{RATE}", "-o", str(path),
-                            text], capture_output=True, timeout=30, check=True)
-            return read_wav(path)
-        except (OSError, subprocess.SubprocessError, ValueError, wave.Error):
-            return None
+    """Läs texten med den ryska rösten till ljud. None utan röst."""
+    voice = speech.backend().voice("ru")
+    return None if voice is None else speech.backend().render(text, voice, RADIO_RATE_WPM, RATE)
 
 
 def synth_menu() -> dict[str, np.ndarray]:

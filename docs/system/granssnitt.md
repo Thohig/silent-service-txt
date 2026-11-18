@@ -23,7 +23,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   kaptenen tar befälet. `ctrl+t` och Inställningar slår av och på (`SubApp.menu_sound_sync`).
   Radio Moskva (`BULLETINS`, `radio_at(t)`): påhittade sändningar efter 25 s och sedan var 95:e s, allt
   mer olycksbådande (den sista upprepas); remsan visar översättningen. Ljud: ratten (`synth_tuning`),
-  kortvågsbrus, musiken sänks; rösten är Milena via `say -o` genom `radio_voice` (smalt band, fading).
+  kortvågsbrus, musiken sänks; rösten är Milena renderad (`voices.backend().render`) genom `radio_voice` (smalt band, fading).
   Utan Milena bara brus. Bilden (`ui/menu_scene.py`, `render_scene(cols, rows, t)`): К-114 vid kaj i
   braille under beskrivningen (10 rader, bara när fönstret är ≥ 34 rader): stjärnor, fjällen, kajen med kran
   och lampa, ubåten med röd stjärna och lanterna, glitter på vattnet, snö i vinden; ingen slump (`_hash`). Flödet: menyn → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
@@ -39,7 +39,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `avbryt uppdraget`/`avsluta` ⇒ vakthavande frågar (`off.confirm_quit`, förslag `avbryt uppdraget
   bekräftat`), `ja` ⇒ utfallet `quit`.
 - **Ljud** (`ui/audio.py`): `SoundBoard` lyssnar bara på bussen – `ReportDelivered` ger tal
-  (`say`, takt per roll) och larm (`CUE_BY_TYPE`); `SoundHeard` (med sensorns `se`) ger
+  (rösterna i `ui/voices.py`, takt per roll) och larm (`CUE_BY_TYPE`); `SoundHeard` (med sensorns `se`) ger
   hydrofonljud panorerade efter relativ bäring (`TRANSIENT_SOUND`); `OwnSoundMade` ger egna
   ljud (ping, avfyring, skenmål, nödblåsning). Syntetiserade wav. Av som standard i `SubApp`.
   Bakgrundsljud (`ui/ambience.py`): `ambient_targets(status, tracks)` ur `StatusSnapshot`

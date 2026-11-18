@@ -9,8 +9,8 @@ sönderbrytning. Styrkan sätter volymen och den relativa bäringen
 panorerar ljudet i stereo – babord till vänster. Egna ljud (aktiv ping,
 avfyring, skenmål, nödblåsning) kommer från OwnSoundMade.
 
-Uppspelningen sker med macOS egna verktyg (`say` för tal, `afplay` för
-ljud) i egna processer, så att spelet aldrig väntar på ljudet. Ljuden
+Uppspelningen sker i egna processer, så att spelet aldrig väntar på ljudet:
+talet genom rösterna (`voices.py`, på macOS `say`) och ljuden med `afplay`. Ljuden
 syntetiseras med numpy och sparas som wav i en cachekatalog, ett per
 panoreringsläge.
 
@@ -35,11 +35,12 @@ from sim.events import EventBus, OwnSoundMade, ReportDelivered, SoundHeard
 from sim.reports import Report
 from sim.russian import segments
 
+from . import voices
 from .ambience import Ambience, AmbientOut, ambient_targets
 
 RATE = 22050
-VOICE = "Alva"                     # svensk röst i macOS
-RU_VOICE = "Milena"                # rysk röst: läser bara de ryska fraserna (sim/russian.py)
+VOICE = voices.SV_VOICE            # svensk röst
+RU_VOICE = voices.RU_VOICE         # rysk röst: läser bara de ryska fraserna (sim/russian.py)
 
 # Talhastighet (ord/min) per roll – alla talar med samma röst men i olika takt.
 ROLE_RATE = {
@@ -133,8 +134,8 @@ class NullPlayer:
 
 
 class MacPlayer:
-    """Spelar med afplay och say. Ljuden syntetiseras vid start; stereofilerna
-    skrivs första gången ett panoreringsläge behövs."""
+    """Spelar ljuden med afplay och talet genom rösterna (`voices.backend()`). Ljuden
+    syntetiseras vid start; stereofilerna skrivs första gången ett panoreringsläge behövs."""
 
     MAX_SOUNDS = 6                 # samtidiga ljud
 
@@ -145,21 +146,12 @@ class MacPlayer:
         self.volume = volume
         self.samples = {**synth_cues(), **synth_transients()}
         self._files: dict[tuple[str, int], Path] = {}
-        self._speech: subprocess.Popen | None = None
+        self._speech: voices.Speaking | None = None
         self._sounds: list[subprocess.Popen] = []
 
     @staticmethod
     def available() -> bool:
-        return shutil.which("say") is not None and shutil.which("afplay") is not None
-
-    @staticmethod
-    def has_voice(voice: str = VOICE) -> bool:
-        try:
-            out = subprocess.run(["say", "-v", "?"], capture_output=True, text=True,
-                                 timeout=5).stdout
-        except (OSError, subprocess.SubprocessError):
-            return False
-        return any(line.split()[:1] == [voice] for line in out.splitlines())
+        return voices.backend().available() and shutil.which("afplay") is not None
 
     def _file(self, cue: str, step: int) -> Path:
         key = (cue, step)
@@ -182,9 +174,7 @@ class MacPlayer:
         return len(self.samples[cue]) / RATE
 
     def speak(self, text: str, rate: int, voice: str | None = None) -> None:
-        self._speech = subprocess.Popen(
-            ["say", "-v", voice or self.voice, "-r", str(rate), text],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self._speech = voices.backend().start(text, voice or self.voice, rate)
 
     def speaking(self) -> bool:
         return self._speech is not None and self._speech.poll() is None
@@ -811,8 +801,8 @@ def make_soundboard(bus: EventBus, enabled: bool,
     notes = []
     if out.error:
         notes.append("Bakgrundsljudet kunde inte startas.")
-    speech = MacPlayer.has_voice()
-    ru_voice = RU_VOICE if speech and MacPlayer.has_voice(RU_VOICE) else None
+    speech = voices.backend().voice("sv") is not None
+    ru_voice = voices.backend().voice("ru") if speech else None
     if not speech:
         notes.append(f"Rösten {VOICE} saknas, besättningen hörs inte. Lägg till den under "
                      "Systeminställningar › Hjälpmedel › Talat innehåll › Systemröst.")

@@ -176,7 +176,8 @@ sim/                 ren Python, ingen Textual
     plot.py          plottlaget
     torpedo_room.py  torpedrum och eldledning
 ui/                  Textual
-  audio.py           tal, larm och hydrofonljud (say/afplay)
+  audio.py           tal, larm och hydrofonljud (afplay; talet genom voices.py)
+  voices.py          rösterna: språk -> röst, uppläsning och rendering (macOS say)
   ambience.py        bakgrundsljud: mixer och slingor (sounddevice)
   chart.py           sjökortet i helskärm
   chart_render.py    rastrering av sjökortet till tecken

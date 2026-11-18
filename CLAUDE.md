@@ -104,6 +104,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   Hjälp i `russian.py`: `course` (siffra för siffra), `count`/`dec` med rätt böjning, `contact`
   (S-1 → цель 1), `CLASS_RU`. Inget latinskt i talet (testas). `SoundBoard.language` ("ru" som
   standard, `tal ryska`/`tal svenska`); utan Milena svenskt tal. Ny fras ⇒ lägg till rysk fras.
+  Talsyntesen bor bara i `ui/voices.py` (`backend()`, `MacSay`: röst per språk, `start`, `render`); `say`
+  utanför den filen fångas av `tests/test_voices.py`.
 - **Händelsebussen** (`events.py`) är synkron. `Knowledge` registreras före
   stationerna så att stationer alltid ser uppdaterad kunskap.
 - **Utbyggnadskrokar:** rapportfilter (`ReportQueue.filters`, ändrar `data`) för

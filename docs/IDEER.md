@@ -22,7 +22,7 @@ Kvar:
 - **Talet bakom ett gränssnitt** (resonerat 2026-11-18). Det finns redan en spelare (`MacPlayer`,
   `NullPlayer`, testernas `RecordingPlayer`); bundet till macOS är `say`/`afplay`, röstnamnen och
   tre kopior av `say -v ?`. Steg:
-  T1 rösterna på ett ställe (`ui/voices.py`, backend per språk, `MacSay`), ingen hörbar skillnad;
+  ~~T1 rösterna på ett ställe~~ (byggt 2026-11-18: `ui/voices.py`, `MacSay`, röstlistan läses en gång);
   T2 talet och effektljuden genom sounddevice-mixern (förrenderat med `say -o`, som Radio Moskva):
   hytten dämpar centralen i stället för att tysta den, telefonfilter för stationerna utanför
   centralen, inga `afplay`-processer – det enda som märks på Mac, och det enda med risk (fördröjning);

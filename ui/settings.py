@@ -10,6 +10,7 @@ from textual.screen import Screen
 from textual.widgets import Input, OptionList, Static
 from textual.widgets.option_list import Option
 
+from . import voices
 from .audio import RU_VOICE, MacPlayer
 
 SOUND, SPEECH, SEED, BACK = "ljud", "tal", "fro", "tillbaka"
@@ -45,7 +46,7 @@ class SettingsScreen(Screen):
     def __init__(self) -> None:
         super().__init__()
         self.sound_available = MacPlayer.available()
-        self.ru_voice = self.sound_available and MacPlayer.has_voice(RU_VOICE)
+        self.ru_voice = self.sound_available and voices.backend().voice("ru") is not None
 
     def compose(self) -> ComposeResult:
         yield Static(Text("Inställningar", style="bold"), id="settings-title")
