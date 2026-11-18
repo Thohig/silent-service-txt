@@ -14,6 +14,7 @@ oktober 1962. Python 3.12, Textual, numpy, uv. Användaren kör macOS (Apple Sil
 ```bash
 uv run main.py [--seed N] [--scenario kuba] [--tyst]   # spela (utan --scenario: huvudmenyn)
 uv run --extra fonster fonster.py [samma flaggor]       # i eget fönster (textual-serve + pywebview, Dockikon)
+sh ikon/bygg-app.sh [mål]                              # bygg K-114.app (fönstret, en Dockikon)
 uv run pytest -q              # snabba tester, parallellt (~18 s på 4 kärnor)
 uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 4 kärnor); före commit
 ```
