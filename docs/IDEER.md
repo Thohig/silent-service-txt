@@ -139,8 +139,41 @@ En patrull 1–28 okt där scenarierna blir uppdrag med transiter emellan; starp
   avdelning, jagare ovanför. Mål: hålla reservkylningen och nå bärgningsfartygets mötesplats
   oupptäckt. Kräver reaktorstation (temperatur, kylning, strålning som sänker `effective_skill()`
   som röken); systemtavlan blir huvudvy.
+- **Clyde** (`clyde`, skissat 2026-11-18): svår undervattensnavigering, se nedan.
 - **Räddningen:** havererad sovjetubåt.
 - **Spaningen:** spela in amerikanska ljud.
+
+### «Клайд» – in i Firth of Clyde (`clyde`, skissat 2026-11-18)
+
+20 okt 1962: in i Firth of Clyde i undervattensläge förbi Arran och Bute till inloppet av Holy Loch
+(amerikanernas Polarisbas), spela in en Polarisubåt som går ut och kom ut oupptäckta före gryningen
+(knyter an till Spaningen). Till skillnad från Sundet (foto, farleden) är navigeringen motståndet:
+~40 nm från Pladda till Holy Loch och samma väg ut, mest i sund på 1–3 nm med branta stränder.
+- **Varför det är svårt:** tidvattnet sätter 1–2 kn i sunden och vänder var 6:e timme; besticket räknar
+  inte med strömmen och glider fortare än σ säger (ärligt fel som besättningen ska upptäcka). Varje
+  periskopfix kostar (fiskebåtar, färjor, engelsk ubåtsjakt; landmärken bara i dagsljus eller fyrar).
+  Bottenfixen är bra (noggrant brittiskt kort, brant botten) men tar 3 min i ≥ 2 kn. 40–150 m djupt:
+  djupt gömmer men ger mindre marginal. Molnen i oktober stänger stjärnfixen.
+- **Steg:**
+  N1 navigatören räknar strömmen ur skillnaden mellan bestick och två fixar ("strömmen sätter 040,
+  1,2 knop, osäker", kvalitet ur fixarnas σ), lägger in den i besticket och föreslår kursrättelse;
+  tidvattentabellen i kunskapen (som almanackan), den verkliga strömmen avviker. Nyttig i alla scenarier.
+  N2 molntäcke i `Environment` (stänger stjärnfix, mörkare nätter; rör ljusets kalibrering lite).
+  N3 fyrar som landmärken (Pladda, Little Cumbrae, Toward Point): fix σ 0,1 på natten om fyren syns
+  och inte skyms av land.
+  N4 geografin: kust, öar och botten ur ett förenklat kort, sjökortets kopia med litet fel (0,1 nm);
+  största delen.
+  N5 motstånd och mål: engelska patrullbåtar, hydrofonlinje vid Cumbrae, fiskebåtar, färjan Wemyss
+  Bay–Rothesay; `RecordGoal` (Polarisubåten hörd länge nog med god kvalitet), sedan `EscapeGoal`
+  före gryningen och `GroundingFails`.
+  N6 kort variant `clyde-in`: söder om Little Cumbrae, bestick σ 0,8 nm, strömmen på väg att vända,
+  ~40 min; 8 frön enligt riktmärkena.
+- **Spelkänslan:** titt (fix och risk), bottenfix (tid och fart) eller lita på besticket (σ växer,
+  strömmen okänd). Besättningen säger hur säkert läget är ("läget osäkert, 0,6 nm, sundet är 1,4
+  brett"); navigatören föreslår vad som behövs, `_shoal_watch` varnar.
+- **Öppna frågor:** Holy Loch eller en påhittad bas (en påhittad norsk fjord vore mindre arbete i N4)?
+  N1 först och fristående (billigast, nytta i Sundet och Arktis)? Tidvattnet kraftigare än verkligheten
+  (Clyde mest 0,5–1,5 kn, starkast i Kilbrannan Sound)?
 
 ### Avhopp till västmakterna (`avhopp`, skissat 2026-11-16, "bra men avvakta")
 
