@@ -38,7 +38,7 @@ RADIO_MESSAGES = [
                  "FARTYG KAN ANVÄNDA SMÅ SIGNALSJUNKBOMBER FÖR ATT TVINGA UPP UBÅTAR. "
                  "FÖRBLI OUPPTÄCKT. SVARA EJ."),
     RadioMessage("FRÅN HUVUDSTABEN. RAPPORTERA OBSERVERADE FARTYGSRÖRELSER "
-                 "VID FÖRSTA MÖJLIGA SAMBANDSTILLFÄLLE."),
+                 "VID FÖRSTA MÖJLIGA SAMBANDSTILLFÄLLE.", {"report_requested": True}),
     RadioMessage("FRÅN HUVUDSTABEN. INGEN ÄNDRING. VAPENANVÄNDNING EJ AUKTORISERAD.",
                  {"nuclear_authorized": False}),
 ]

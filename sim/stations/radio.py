@@ -13,6 +13,7 @@ from ..crew import Role
 from ..entities import Emission
 from ..broadcasts import broadcasts_for, order_day
 from ..dispatch import SentReport, compose, report_text
+from ..headquarters import Headquarters
 from ..events import (Handover, OwnActionLogged, OwnTorpedoHeard, PhotoTaken, PositionReported,
                       ReportTransmitted, TelegramReceived)
 from ..fmt import fmt_course, nm
@@ -202,6 +203,8 @@ class RadioStation(Station):
         self._waiting: set[int] = set()       # fönster där vi väntar på djupet på grund av ett hot
         # ordern kräver en rapport under sambandstillfället (kuba-kort)
         self.report_required = bool(sc and sc.report_required)
+        self.hq = Headquarters(expects_report=self.report_required)   # vet bara vad vi sänt
+        self._closed: set[int] = set()
         self.broadcasts = broadcasts_for(order_day(sc.secret_order) if sc else None)
         self._broadcast_n = 0
         self._listen_until: int | None = None   # radiomannen letar upp Moskva
@@ -211,6 +214,7 @@ class RadioStation(Station):
     def attach(self, bus) -> None:
         super().attach(bus)
         bus.subscribe(Handover, self._on_handover)
+        self.hq.attach(bus)
         bus.subscribe(PhotoTaken, lambda e: setattr(self, "_photo_t", e.t))
         bus.subscribe(OwnTorpedoHeard,
                       lambda e: setattr(self, "_hit_t", e.t) if e.kind == "detonated" else None)
@@ -428,6 +432,9 @@ class RadioStation(Station):
         for i, w0 in enumerate(self.windows):
             if w0 <= self.now < w0 + self.window_len:
                 self._report_advice(w0)
+            if self.now >= w0 + self.window_len and i not in self._closed:
+                self._closed.add(i)
+                self.hq.window_closed(reported=self._reported_t >= w0)
             if i in self._handled:
                 continue
             if self.now >= w0 - PREWARN_S and i not in self._prewarned:
@@ -537,16 +544,24 @@ class RadioStation(Station):
         while self._next_msg <= upto and self._next_msg < len(self.messages):
             msg = self.messages[self._next_msg]
             self._next_msg += 1
-            self.delivered.append(msg.text)
-            self.received += 1
-            self.game.bus.publish(TelegramReceived(self.now, msg.text, "telegram", self.received))
+            self._telegram(msg.text)
             self.world.mission.update(msg.flags)
+            if msg.flags.get("report_requested"):
+                self.hq.request_report()
             if msg.waypoint is not None:
                 name, x, y, sigma, t_pos = msg.waypoint
                 self.game.bus.publish(PositionReported(self.now, name, x, y, sigma, t_pos))
-            self.say("radio.message", {"text": msg.text, "telegram": self.received,
-                                       "telegram_kind": "telegram", "read_aloud": msg.text},
-                     kind="info", alarm=True)
+            any_msg = True
+        for text in self.hq.outgoing():          # stabens svar på det vi sänt (eller inte sänt)
+            self._telegram(text)
             any_msg = True
         if not any_msg:
             self.say("radio.nothing")
+
+    def _telegram(self, text: str) -> None:
+        self.delivered.append(text)
+        self.received += 1
+        self.game.bus.publish(TelegramReceived(self.now, text, "telegram", self.received))
+        self.say("radio.message", {"text": text, "telegram": self.received,
+                                   "telegram_kind": "telegram", "read_aloud": text},
+                 kind="info", alarm=True)
