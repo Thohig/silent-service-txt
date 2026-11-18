@@ -124,13 +124,20 @@ def test_label_is_separated_from_its_mark():
 
 
 def test_label_of_a_higher_layer_wins_where_labels_collide():
-    """Kontaktens etikett vinner över ett blyertsmärke på samma ställe, oavsett ordning;
-    inom ett lager vinner den som kom först (stationen lägger det nyaste först)."""
+    """Kontaktens etikett får platsen före ett blyertsmärke, oavsett ordning; inom ett lager
+    vinner den som kom först (stationen lägger det nyaste först). Den som förlorar flyttas
+    en rad i stället för att försvinna."""
+    def row_of(rows, s):
+        return next(r for r, row in enumerate(rows) if s in row)
+
     pencil = Ray(10.0, 10.0, 90.0, 0.6, "pencil", "P 03:01", layer=0.5)
     contact = Mark(10.7, 10.0, "◆", "contact", "S-1 god")
-    rows = _grid(_view(pencil, contact))
-    text = "".join(rows)
-    assert "S-1 god" in text and "P 03:01" not in text
+    alone = row_of(_grid(_view(pencil)), "P 03:01")
+    for order in ((pencil, contact), (contact, pencil)):
+        rows = _grid(_view(*order))
+        (_c, r), = _find(rows, "◆")
+        assert row_of(rows, "S-1 god") == r
+        assert row_of(rows, "P 03:01") != alone          # flyttad, inte borta
     newer = Ray(10.0, 10.0, 90.0, 0.6, "pencil", "✕ 03:05", layer=0.5)
-    text = "".join(_grid(_view(newer, pencil)))
-    assert "✕ 03:05" in text and "P 03:01" not in text
+    rows = _grid(_view(newer, pencil))
+    assert row_of(rows, "✕ 03:05") == alone and row_of(rows, "P 03:01") != alone
