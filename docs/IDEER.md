@@ -31,7 +31,7 @@ Kvar:
   och röstladdning, samma som `say` i dag lär ha innan ljudet börjar); `NSSpeechSynthesizer` i processen
   med rösten laddad 20–60 ms (första gången 0,1–0,4 s). T2 bör alltså rendera i processen (pyobjc-Cocoa
   som beroende på macOS, en syntes per röst) och inte med `say -o`.
-  T3 piper/espeak-ng för Linux och ett webbfönster.
+  ~~T3 piper/espeak-ng för Linux~~ – struken 2026-11-18 (kaptenens beslut: macOS räcker). Föreslå inte igen.
 
 ## Gränssnitt och grafik
 
