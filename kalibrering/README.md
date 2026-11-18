@@ -44,7 +44,8 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 Flyttade ur CLAUDE.md (2026-11-18). Ändra medvetet och kör sedan botarna; uppdatera här.
 
-**Omkört 2026-11-18** (efter slumpen per station, processbrus för sicksack q = 30 och avfyring ≤ 100 m),
+**Omkört 2026-11-18** (efter slumpen per station, processbrus för sicksack q = 30 och avfyring ≤ 100 m;
+`tma_kvalitet.py` och `kontroll.py` även efter golvet för avståndets σ, 0,05 nm),
 8 frön om inget annat står. Siffrorna längre ned är de äldre; jämför med dessa.
 
 | Bot | Nu | Förut |
@@ -66,7 +67,8 @@ Flyttade ur CLAUDE.md (2026-11-18). Ändra medvetet och kör sedan botarna; uppd
 | `ovning_torped.py ovning` / `ovning-kort` | träff 2 / 3 | – |
 | `starpom.py kuba,konvoj` | utfall som ja-boten; kuba 2–13 ringningar, 0–2 fara; konvoj 1–17, 1–4 | kuba 3–12, 0–2; konvoj 6–20, 0–4 |
 | `starpom.py konvoj,konvoj-kort salva` | konvoj 1 sänkt (ja-boten 2); konvoj-kort 0, 1 neutral sänkt (frö 4) | – |
-| `tma_kvalitet.py` (god/säker) | grova 4,8 %, > 3σ 7,9 % | 6,9 %, 10,4 % (samma dag, före q för sicksack) |
+| `tma_kvalitet.py` (god/säker) | grova 3,9 %, > 3σ 6,0 % (sundet säker grova 0) | 6,9 %, 10,4 % före q för sicksack; 4,8 %, 7,9 % före golvet för σ |
+| `kontroll.py` | som baslinjen efter golvet för σ (konvoj-kort ja uppdaterad efter q för sicksack) | – |
 
 Det neutrala fartyget i konvoj-kort frö 4: starpoms kapten sköt mot rätt mål (tankern, plottet 2,0 nm,
 sanningen 4,0 nm); salvans raka torpeder gick vidare och träffade handelsfartyget S-3, som sonar hade och
