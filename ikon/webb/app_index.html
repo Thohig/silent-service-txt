@@ -52,8 +52,22 @@
     <script>
       // När spelet avslutas stänger textual.js förbindelsen och sätter -closed;
       // då stängs fönstret (fonster.py lägger in avsluta() som pywebview.api).
+      // textual.js ger aldrig terminalen fokus, så tangenterna (piltangenterna i
+      // menyn) gick ingenstans förrän man klickat i fönstret. När spelet ritat
+      // första bilden, och när fönstret blir aktivt igen, får xterm.js inmatningsfält fokus.
+      function fokusera() {
+        const fält = document.querySelector(".xterm-helper-textarea");
+        if (fält && document.activeElement !== fält) {
+          fält.focus({ preventScroll: true });
+        }
+      }
+      window.addEventListener("focus", fokusera);
       new MutationObserver(() => {
-        if (document.body.classList.contains("-closed") && window.pywebview) {
+        const klasser = document.body.classList;
+        if (klasser.contains("-first-byte")) {
+          fokusera();
+        }
+        if (klasser.contains("-closed") && window.pywebview) {
           window.pywebview.api.avsluta();
         }
       }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
