@@ -14,10 +14,9 @@ inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18. Stryk det so
 - **Starpom** (`kalibrering/starpom.py`): sömnen håller nu för larm som bara tänder lampan
   (`Station.keeps_time_scale`, 2026-11-18). Ringningar och farlarm per körning bör ha ändrats;
   även utfallen med salva i konvoj och konvoj-kort.
-- **Titten före skottet** (2026-11-18): `konvoj_salva.py` gav samma utfall som före (konvoj 2 av 8,
-  frö för frö lika; konvoj-kort 0 mot 1 av 8), eftersom boten skjuter så snart ett mål är ≤ 3 nm
-  och inte väntar på titten. Behövs: en bot som svarar ja på titten och skjuter först efter den
-  (`konvoj.py attack` med den regeln), 8 frön på konvoj och konvoj-kort.
+- **Titten före skottet** (2026-11-18) är provkörd, se Utreda. `konvoj_salva.py … titt` (väntar på
+  en titt ≤ 60 s, går själv upp på periskopdjup nära målet): konvoj 0 av 8, konvoj-kort 0 av 8, mot
+  2 och 0 av 8 för salvaboten. Den kommer sällan till skott (eskortens radar håller oss nere).
 - **Inte omkört sedan 2026-11-15:** sundet med sanningsboten (`sundet.py --orakel`), väntläget.
 
 ## Prova för hand (riktig terminal, macOS)
@@ -28,6 +27,13 @@ inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18. Stryk det so
 - Sömnen med starpom: att `sov` håller över en ny kontakt och att telefonen ringer för frågor.
 
 ## Utreda
+
+- **Plottets avstånd vid skottet i konvojen** (2026-11-18, `konvoj_salva.py`, felet skrivs vid varje
+  skott): lösningar som är god/säker och ≤ 3 nm har avståndsfel på 1–4 nm i nästan alla skott,
+  även med en titt ≤ 60 s gammal (konvoj frö 7: säker, fel 2,7 nm). Konvoj-kort frö 1, minut 8:
+  S-7 2,9 nm (god, σ 0,65) och 16,8 kn, sanningen 4,7 nm och ~10 kn; senaste titten 9 min gammal.
+  Farten överskattas och målet dras in för fort. Det förklarar varför salvorna missar och
+  varför titten före skottet inte hjälper. Troligen viktigare än titten.
 
 - **Konvojen med starpom:** ett neutralt fartyg sänkt i en körning med salvaboten (troligen botens
   fel).
