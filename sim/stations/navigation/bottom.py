@@ -121,7 +121,10 @@ class BottomMixin:
             return recent[-1].depth, kind, True
         if chart is None:
             return None
-        return chart.depth_at(self.est_x, self.est_y), kind, False
+        depth = chart.depth_at(self.est_x, self.est_y)
+        if depth <= self.ship.depth + 5:
+            return None         # kortet visar land eller grundare än vi går: kortet eller besticket har fel
+        return depth, kind, False
 
     def _settle(self) -> None:
         s, sys = self.ship, self.own.sys

@@ -87,7 +87,7 @@ class World:
         self.emissions, self._pending_e = self._pending_e, []
 
         o = self.own.state
-        prev = (o.x, o.y, o.depth)
+        prev = (o.x, o.y, o.depth, o.course)
         env = self.env
         ice = env.ice
         for v in [self.own, *self.contacts]:

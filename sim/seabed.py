@@ -542,13 +542,22 @@ def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
         if gap > CLEAR_M:
             sys.bottom_contact = False
         return
-    px, py, pdepth = prev
+    px, py, pdepth = prev[:3]
     where = min(keel_points(st.x, st.y, st.course),
                 key=lambda p: seabed.depth_at(p[1], p[2]))[0]
     speed = st.speed
     # tillbaka till förra läget, men aldrig under botten
     st.x, st.y = px, py
-    floor = min(seabed.depth_at(p[1], p[2]) for p in keel_points(px, py, st.course))
+
+    def floor_at(course: float) -> float:
+        return min(seabed.depth_at(p[1], p[2]) for p in keel_points(px, py, course))
+
+    floor = floor_at(st.course)
+    if len(prev) > 3 and floor < pdepth + 0.5 and floor_at(prev[3]) > floor:
+        # det var giren som förde in fören i land: tillbaka till förra kursen också, annars
+        # lyfts båten upp till det grundaste under den nya kursen (vid en brant strand ytan)
+        st.course = prev[3]
+        floor = floor_at(st.course)
     st.depth = max(0.0, min(pdepth, floor - 0.5))
     st.ordered_depth = min(st.ordered_depth, max(0.0, round(floor - BACKOFF_M)))
     if sys.settle and speed <= TOUCH_MAX_KN:

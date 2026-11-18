@@ -176,6 +176,9 @@ class IceMixin:
                               "depth": SAFE_ICE_DEPTH},
                              order=f"fart 4, djup {SAFE_ICE_DEPTH}", cooldown=0)
                 return
+            if near and isinstance(self.steer, StationSteer):
+                # framme: annars startar sökspiralen nästa sekund och kör oss ur öppningen
+                self.steer = None
             self.suggest("vak_up", "nav.suggest.up",
                          {"kind": "öppet vatten", "open": True, "station": near},
                          order="ytläge" if near else "periskopdjup", cooldown=0)

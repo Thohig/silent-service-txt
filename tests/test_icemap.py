@@ -187,3 +187,25 @@ def test_vak_steers_back_and_stops_under_opening():
             ok += 1
     assert trials >= 7
     assert ok >= 0.7 * trials
+
+
+def test_vak_at_the_station_ends_the_station_search_so_we_stay_under_the_opening():
+    """Framme under en öppning vid Nord-7: sökspiralen får inte starta och köra oss ur den
+    medan navigatören föreslår ytläge (arktis-kort, frö 4, 02:40)."""
+    from sim.stations.navigation.tasks import Station as StationSteer
+    g, reports = _arctic(1)
+    nav = g.station(NavigationStation)
+    _feed(nav.icemap, [3.0] * 5 + [0.0] * 20, t0=g.now - 120)
+    o = nav.icemap.openings[-1] if nav.icemap.openings else None
+    nav.icemap.on_sounding(IceSoundingObs(g.now, nav.est_x, nav.est_y, 0.0, 0.0))
+    nav.steer = StationSteer(source="sonar")
+    nav.vak, nav._vak_stopping = o or nav.icemap.current, True
+    nav.near_station = lambda: True
+    nav._station_overhead = lambda: (nav.est_x, nav.est_y)
+    s = g.world.own.state
+    s.speed = 0.0
+    s.order_speed(0)
+    nav._steer_to_opening()
+    nav._steer_step(StationSteer)
+    assert nav.steer is None
+    assert s.ordered_speed == 0

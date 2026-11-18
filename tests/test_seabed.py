@@ -364,3 +364,34 @@ def test_bottom_fix_honest_over_seeds():
         actual.append(math.dist((nav.est_x, nav.est_y), (s.x, s.y)))
     rms = math.sqrt(sum(e * e for e in actual) / len(actual))
     assert rms < 1.5 * sum(claimed) / len(claimed)
+
+
+@pytest.mark.slow
+def test_turning_into_a_steep_shore_does_not_lift_us_to_the_surface():
+    """sundet-ut, frö 1: ja-boten girar med fören mot den branta stranden på 20 m. Förut
+    flyttades båten tillbaka med den nya kursen, fören stod kvar i land och djupet blev 0
+    på en sekund (ytläge utan rapport, uppdraget slut som 'forced')."""
+    g = _game("sundet-ut", 1)
+    depths = []
+    for _ in range(20 * 60):
+        g.tick()
+        s = g.active_suggestion()
+        if s and g.now - s[2] == 15:
+            g.command("ja")
+        depths.append(g.world.own.state.depth)
+        if g.over:
+            break
+    assert (g.world.outcome or {}).get("outcome") != "forced"
+    assert all(b - a < 3.0 for a, b in zip(depths[1:], depths)), "ett hopp uppåt på en sekund"
+
+
+def test_navigator_does_not_take_charted_land_for_the_bottom():
+    """sundet-ut, frö 1: kortet visar land (-10 m) där besticket säger att vi går på 20 m. Det är
+    kortet eller besticket som har fel, inte en botten att lägga sig på."""
+    from sim.stations import NavigationStation
+    g = _game("sundet-ut", 1)
+    nav = g.station(NavigationStation)
+    nav.bottom_soundings.clear()
+    assert nav.chart_depth_at(nav.est_x, nav.est_y) < 0 < g.world.own.state.depth
+    assert nav.bottom_here() is None
+    assert nav._settle_proposal() is None

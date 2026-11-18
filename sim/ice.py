@@ -240,7 +240,7 @@ def ice_contact(world: World, prev: tuple[float, float, float], dt: int = 1) -> 
     if ice is None or own.sunk:
         return
     st, sys = own.state, own.sys
-    px, py, pdepth = prev
+    px, py, pdepth = prev[:3]
     if clearance(ice, st.x, st.y, st.course, st.depth) >= 0:
         sys.ice_press = 0
         sys.ice_contact = False
