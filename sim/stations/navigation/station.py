@@ -205,7 +205,10 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         if self.under_ice():
             g("Is", "is ovanför" + (", på väg mot öppning" if self.vak is not None else ""), INFO)
         if self.own.masts_up(self.now):
-            g("Master", "uppe", WARN)
+            now = self.now
+            up = [name for name, t in (("periskop", sys.periscope_until), ("radar", sys.radar_until),
+                                       ("antenn", sys.transmit_until)) if t > now]
+            g("Master", ", ".join(up) + " uppe", WARN)
         elif s.depth <= PERISCOPE_DEPTH:
             g("Master", "periskopdjup, nere", INFO)
         return items

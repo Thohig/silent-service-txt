@@ -5,7 +5,7 @@ from dataclasses import replace
 import pytest
 
 from sim.game import StatusSnapshot
-from ui.central_render import (DIAL_ROW, eyepiece, H, W, Geometry, plane_angle, render_central,
+from ui.central_render import (DIAL_ROW, AMBER, GREEN, RED, JULGRAN, eyepiece, openings, H, W, Geometry, plane_angle, render_central,
                                rudder_angle)
 
 G = Geometry(W, H)
@@ -118,9 +118,30 @@ def test_big_room_shows_the_periscope_bearing_and_power():
                  periscope_train=47, periscope_power="hög")
     g = Geometry(130, 36)
     rows = plain(up, width=130, height=36)
-    assert "PERISKOP 047 · titt · hög" in rows[g.head]
+    assert "PERISKOP 047 · titt · hög" in rows[g.floor]
     assert "PERISKOP" not in "".join(plain(replace(up, periscope=None), width=130, height=36))
     assert "PERISKOP" not in "".join(plain(up))           # den lilla bilden: bara okularet
+
+
+def test_julgran_shows_every_opening():
+    assert [lamp for _, lamp in openings(BASE)] == [GREEN] * len(JULGRAN)
+    busy = replace(BASE, depth=0, bridge="manned", radar_up=True, transmitting=True,
+                   ventilating=True, blowing=True, periscope="hold")
+    lamps = dict(openings(busy))
+    assert lamps["Lucka"] == lamps["Radar"] == lamps["Antenn"] == lamps["Ventil"] == RED
+    assert lamps["Periskop"] == RED and lamps["Blåsning"] == AMBER
+    assert dict(openings(replace(busy, periscope_optic="kikare")))["Periskop"] == GREEN
+
+
+def test_big_julgran_has_names_and_small_has_lamps():
+    g = Geometry(130, 36)
+    rows = plain(replace(BASE, radar_up=True), width=130, height=36)
+    assert all(any(name in rows[r] for r in (g.head, g.body)) for name in JULGRAN)
+    col = rows[g.head].index("Radar") - 2
+    assert styles_at(replace(BASE, radar_up=True), g.head, col, width=130, height=36) == RED
+    small = plain(BASE)
+    assert small[G.lamps].count("●") == len(JULGRAN)
+    assert styles_at(replace(BASE, radar_up=True), G.lamps, G.julgran + 4) == RED
 
 
 def test_periscope_column_stays_clear_of_dials():

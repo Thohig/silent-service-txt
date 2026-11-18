@@ -71,6 +71,9 @@ class StatusSnapshot:
     flooding: float = 0.0
     periscope_depth: bool = False
     masts_up: bool = False
+    radar_up: bool = False          # radarmasten uppe (julgranen)
+    transmitting: bool = False      # antennen uppe och sänder
+    blowing: bool = False           # nödblåsning pågår
     cavitating: bool = False
     suggestion: str | None = None
     over: bool = False
@@ -519,6 +522,8 @@ class Game:
             reactor=sy.reactor, propulsion=sy.propulsion, battery=sy.battery,
             hull=sy.hull, flooding=sy.flooding,
             periscope_depth=s.depth <= PERISCOPE_DEPTH, masts_up=own.masts_up(self.now),
+            radar_up=sy.radar_until > self.now, transmitting=sy.transmit_until > self.now,
+            blowing=sy.blowing,
             cavitating=s.speed > cavitation_speed(s.depth),
             suggestion=sug[0] if sug else None, over=self.over,
             sea_noise=sea_noise, under_ice=under_ice,

@@ -72,7 +72,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   verkligt), periskopet hissas med `periscope_up_s` och okularet vrids efter bäringen relativt fören
   (`eyepiece`: handtagen rakt förut, pil åt sidorna, linserna akterut; stor bild: `PERISKOP 047 · titt · hög`
   under pulpeten), stegen och luckan (himlen syns), maskintelegrafen,
-  julgranen (lucka, periskop, master), rött ljus på natten eller jagade (`night`, `hunted`), larmlampor,
+  julgranen (`openings`: lucka, periskop, radar, antenn, ventil rött när öppna, blåsning gult; liten bild
+  lampor i rad, stor bild en tavla med namn under högra pulpeten), rött ljus på natten eller jagade (`night`, `hunted`), larmlampor,
   rök och vatten.
 - **Systemtavlan**: `Station.system_items()` ger element (`sim/systems.py`):
   `Gauge` (panel, etikett, text, tillstånd ok/info/av/varning/fara, ev. stapel), `Compartment`

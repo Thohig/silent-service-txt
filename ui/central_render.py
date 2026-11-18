@@ -195,7 +195,10 @@ class Geometry:
 
     @property
     def julgran(self) -> int:
-        return self.right[1] - 6
+        """Julgranens vänsterkant: i lilla bilden lamporna i rad, i stora tre per rad med namn."""
+        if self.big:
+            return self.right[1] - 3 * JULGRAN_CELL + 2
+        return self.right[1] - 2 * len(JULGRAN) + 2
 
 
 def _signed_diff(a: float, b: float) -> float:
@@ -232,6 +235,20 @@ def eyepiece(rel: float) -> str:
         case 6: e[0] = "◀"
         case 7: e[0] = "◤"
     return "".join(e)
+
+
+JULGRAN = ("Lucka", "Periskop", "Radar", "Antenn", "Ventil", "Blåsning")
+JULGRAN_CELL = 11               # "● Periskop" och mellanrum
+
+
+def openings(s: StatusSnapshot) -> list[tuple[str, str | None]]:
+    """Julgranen (skrovets öppningar och ventiler): namn och lampans färg (rött öppet, gult
+    blåser, grönt stängt). Bara egna instrument."""
+    up = s.periscope is not None and s.periscope_optic == "periskop"
+    state = (s.bridge != "shut", up, s.radar_up, s.transmitting, s.ventilating)
+    out = [(name, RED if is_open else GREEN) for name, is_open in zip(JULGRAN, state)]
+    out.append((JULGRAN[-1], AMBER if s.blowing else GREEN))
+    return out
 
 
 PERI_MODE = {"sweep": "svep", "look": "titt", "hold": "håller"}
@@ -416,10 +433,14 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
         for i, ch in enumerate("▂▄▆█"):
             c.put(g.lamps, g.telegraph + i, ch, tele if i < steps else p["lamp_off"])
     # julgranen: skrovets öppningar, grönt stängt, rött öppet
-    openings = (s.bridge != "shut", s.periscope is not None and s.periscope_optic == "periskop",
-                s.masts_up)
-    for i, is_open in enumerate(openings):
-        c.put(g.lamps, g.julgran + 2 * i, "●", RED if is_open else GREEN)
+    if g.big:                                       # tavlan under högra pulpeten, med namn
+        for i, (name, lamp) in enumerate(openings(s)):
+            r, col = g.head + i // 3, g.julgran + JULGRAN_CELL * (i % 3)
+            c.put(r, col, "●", lamp)
+            c.text(r, col + 2, name, p["label"])
+    else:
+        for i, (_, lamp) in enumerate(openings(s)):
+            c.put(g.lamps, g.julgran + 2 * i, "●", lamp)
 
     # periskopet
     up = s.periscope is not None and s.periscope_optic == "periskop"
@@ -432,7 +453,7 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
         if g.big:                                   # gradringen under okularet, vid pulpeten
             label = (f"PERISKOP {ins.fmt_course(s.periscope_train)} · "
                      f"{PERI_MODE.get(s.periscope, s.periscope)} · {s.periscope_power}")
-            c.text(g.head, g.peri + 3, label, p["eye"])
+            c.text(g.floor, g.peri + 4, label, p["eye"])
     c.text(g.floor, g.peri - 1, "▁▁▁▁", p["tube"])
 
     # besättningen
