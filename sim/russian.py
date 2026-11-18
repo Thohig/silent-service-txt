@@ -159,15 +159,20 @@ def contact(designation: str, genitive: bool = False) -> str:
     return f"{word} {m[1]}" if m else word
 
 
+def ice_kind(s: str) -> str:
+    """Isekolodets ord (icemap.thickness_words) för rösten: öppet vatten eller nyis."""
+    return "чистая вода" if s.startswith("öppet") else "молодой лёд"
+
+
 def classification(s: str) -> str:
     return CLASS_RU.get(s, "классификация уточняется")
 
 
 def weapon(name: str) -> str:
-    """Torpedtyp för rösten: SET-53 -> 'СЭТ 53', 53-61 -> '53 61' (inte 'minus')."""
+    """Torpedtyp för rösten: SET-53 -> 'СЭТ 53', T-5 -> 'Т 5', 53-61 -> '53 61' (inte 'minus')."""
     if name == "övning":
         return "практическая"
-    return name.replace("SET", "СЭТ").replace("-", " ")
+    return name.replace("SET", "СЭТ").replace("T-", "Т-").replace("-", " ")
 
 
 def fallback(role: str, kind: str) -> str:

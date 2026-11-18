@@ -300,7 +300,108 @@ def _ru_ahead(d: dict) -> str:
     return "здесь" if d["dist"] < 0.15 else f"в {R.dec(d['dist'], R.MILE)} впереди"
 
 
+_NAV = f"{R.CAPTAIN}, штурман."
+
+
+def _ru_opening(d: dict) -> str:
+    return (f"Полынья {d['no']}, пеленг {R.course(d['bearing'])}, около "
+            f"{R.count(d['range'], R.METER)}, длина {R.count(d['length'], R.METER)}, "
+            f"{R.ice_kind(d['kind'])}.")
+
+
+def _ru_ice_report(d: dict) -> str:
+    if not d.get("sounded"):
+        return "Эхоледомер: льда над нами нет."
+    if d["thickness"] < OPEN_M:
+        txt = "Эхоледомер: над нами чистая вода."
+    elif d["thickness"] <= 1.0:
+        txt = f"Эхоледомер: над нами молодой лёд, около {R.dec(d['thickness'], R.METER)}."
+    else:
+        txt = (f"Эхоледомер: над нами толстый лёд, около {R.dec(d['thickness'], R.METER)}, "
+               f"нижняя кромка около {R.dec(d['draft'], R.METER)}.")
+    if d.get("keel"):
+        txt += f" Самый глубокий киль за десять минут около {R.count(d['keel'], R.METER)}."
+    txt += " " + _ru_opening(d["opening"]) if d.get("opening") else " Годных полыней не отмечено."
+    return txt
+
+
+def _ru_ns(v: float, pos: str, neg: str) -> str:
+    return f"{R.dec(abs(v), R.MILE)} {pos if v >= 0 else neg}"
+
+
 RU_PHRASES = {
+    "nav.settle.refused": lambda d: f"{_NAV} Выполнить не могу.",
+    "nav.bfix.refused": lambda d: f"{_NAV} Определиться по глубинам сейчас не могу.",
+    "nav.fix.refused": lambda d: f"{_NAV} Определиться сейчас не могу.",
+    "nav.settle.not_reached": lambda d: f"{R.CAPTAIN}, мы на {R.count(d['depth'], R.METER)}, а грунта "
+    "нет. Карта здесь врёт. Предлагаю эхолот.",
+    "nav.bfix.aborted": lambda d: "Определение по глубинам прервано, мы почти остановились.",
+    "nav.bfix.done": lambda d: f"Место по глубинам определено. Поправка {R.dec(d['error'], R.MILE)} "
+    f"по пеленгу {R.course(d['bearing'])}, ошибка {R.dec(d['sigma'], R.MILE)}.",
+    "nav.bfix.line": lambda d: f"По глубинам получили линию положения, пеленг "
+    f"{R.course(d['bearing'])}. Поправка {R.dec(d['error'], R.MILE)} по пеленгу "
+    f"{R.course(d['bearing_corr'])}, ошибка {R.dec(d['sigma'], R.MILE)}. Вдоль изобат место "
+    "не определено.",
+    "nav.bfix.mismatch": lambda d: "Промеры не сходятся с картой, здесь "
+    + ("мельче" if d["how"] == "grundare" else "глубже") + ", чем на карте. Счисление не меняем.",
+    "nav.bfix.flat": lambda d: "Грунт здесь слишком ровный, промеры ничего не дают. "
+    "Счисление не меняем.",
+    "nav.bfix.chart": lambda d: f"Промеры сходятся с картой, но карта точна только до "
+    f"{R.dec(d['accuracy'], R.MILE)}. Счисление не меняем.",
+    "nav.suggest.bfix": lambda d: f"{_NAV} Ошибка счисления {R.dec(d['sigma'], R.MILE)}, а в перископ "
+    "определиться нельзя. Здесь крутой рельеф дна. Предлагаю определиться по глубинам, "
+    "девять промеров.",
+    "nav.position": lambda d: f"Счислимое место: {_ru_ns(d['x'], 'к востоку', 'к западу')} и "
+    f"{_ru_ns(d['y'], 'к северу', 'к югу')} в квадрате, ошибка {R.dec(d['sigma'], R.MILE)}. "
+    f"Последнее определение в {d['last_fix']}.",
+    "nav.echo": lambda d: f"Эхолот: под килём {R.count(d['under_keel'], R.METER)}.",
+    "nav.follow.none": lambda d: f"{R.CAPTAIN}, пеленга на {R.contact(d['designation'])} нет.",
+    "nav.steer": lambda d: f"Курс {R.course(d['course'])}, дистанция {R.dec(d['range'], R.MILE)}, "
+    f"ошибка {R.dec(d['sigma'], R.MILE)}.",
+    "nav.steer.none": lambda d: f"{R.CAPTAIN}, места этой точки у нас нет.",
+    "nav.ice.report": _ru_ice_report,
+    "nav.suggest.keel": lambda d: f"{_NAV} Идём мелко подо льдом, ход {R.dec(d['speed'], R.KNOT)}. "
+    f"Кили бывают до сорока пяти метров. Предлагаю глубину {R.count(d['depth'], R.METER)}.",
+    "nav.suggest.fix_vak": lambda d: f"{_NAV} Ошибка счисления {R.dec(d['sigma'], R.MILE)}, над нами "
+    f"лёд. {_ru_opening(d)} Предлагаю идти туда и определиться.",
+    "nav.vak.none": lambda d: f"{R.CAPTAIN}, полыней, которые можно найти снова, не отмечено. "
+    "Будем искать, эхоледомер доложит.",
+    "nav.vak.missed": lambda d: f"{R.CAPTAIN}, эхоледомер показывает толстый лёд. Полынью "
+    "отнесло, или мы её проскочили.",
+    "nav.vak.next": lambda d: f"{_NAV} {_ru_opening(d)} Предлагаю идти туда.",
+    "nav.vak.too_narrow": lambda d: f"{R.CAPTAIN}, мы под молодым льдом, но разводье всего около "
+    f"{R.count(d['length'], R.METER)}. Корпусом не проломить. Предлагаю искать дальше, ход пять "
+    f"узлов на {R.count(d['depth'], R.METER)}.",
+    "nav.suggest.resume": lambda d: f"{_NAV} Стоим под толстым льдом. Предлагаю искать чистую "
+    f"воду дальше, ход пять узлов на {R.count(d['depth'], R.METER)}.",
+    "nav.vak.narrow_station": lambda d: f"{R.CAPTAIN}, над нами чистая вода, но разводье всего около "
+    f"{R.count(d['length'], R.METER)}, для всплытия узко. Предлагаю искать дальше вокруг станции, "
+    f"ход четыре узла на {R.count(d['depth'], R.METER)}.",
+    "nav.vak.overshot": lambda d: "При остановке проскочили полынью. Возвращаемся.",
+    "nav.vak.search": lambda d: f"{_NAV} Других полыней не отмечено. Предлагаю продолжать поиск, "
+    f"ход пять узлов на {R.count(d['depth'], R.METER)}.",
+    "nav.vak.timeout": lambda d: f"{R.CAPTAIN}, полынью найти не можем. Прекращаем.",
+    "nav.suggest.stop_here": lambda d: f"{_NAV} Над нами {R.ice_kind(d['kind'])}. Ошибка "
+    f"счисления {R.dec(d['sigma'], R.MILE)}. Предлагаю остановиться здесь и определиться.",
+    "nav.suggest.bumped": lambda d: f"{R.CAPTAIN}, на ходу задеваем лёд! Предлагаю глубину "
+    f"{R.count(d['depth'], R.METER)}, немедленно.",
+    "nav.station.wp": lambda d: f"Курс {R.course(d['course'])} на станцию, около "
+    f"{R.dec(d['range'], R.MILE)} по данным штаба, ошибка {R.dec(d['sigma'], R.MILE)}.",
+    "nav.station.sonar": lambda d: f"Идём на станцию по пеленгу акустика, курс "
+    f"{R.course(d['course'])}.",
+    "nav.station.none": lambda d: f"{R.CAPTAIN}, места дрейфующей станции у нас нет. Штаб может "
+    "дать его в сеанс связи.",
+    "nav.station.arrived": lambda d: f"{R.CAPTAIN}, мы в точке станции по данным штаба. Её могло "
+    f"отнести, ошибка {R.dec(d['sigma'], R.MILE)}. Предлагаю ход три узла на электромоторе, "
+    "чтобы акустик послушал генератор.",
+    "nav.station.circle": lambda d: f"{R.CAPTAIN}, генератор станции слышно очень громко, мы почти "
+    f"под ней. Идём расходящейся спиралью, от {R.count(d['radius'], R.METER)}, ищем чистую воду.",
+    "nav.suggest.station_stop": lambda d: f"{_NAV} Над нами {R.ice_kind(d['kind'])}, станция должна "
+    "быть рядом. Предлагаю остановиться здесь.",
+    "nav.suggest.station_go": lambda d: f"{_NAV} Место станции известно, курс "
+    f"{R.course(d['course'])}, около {R.dec(d['range'], R.MILE)}. Предлагаю идти туда.",
+    "nav.suggest.station_continue": lambda d: f"{_NAV} Счисление исправлено. Предлагаю продолжать к "
+    f"станции, ход пять узлов на {R.count(d['depth'], R.METER)}.",
     "nav.course.ack": lambda d: f"Есть, курс {R.course(d['course'])}."
     + (" Уже на курсе." if d.get("already") else ""),
     "nav.speed.ack": lambda d: "Есть, стоп машина." if d["speed"] == 0

@@ -108,12 +108,21 @@ def test_report_without_russian_phrase_says_who_reports():
     assert R.fallback("plot", "suggest").endswith("Есть предложение.")
 
 
+def test_every_phrase_has_russian_or_is_never_spoken():
+    """Varje fras som kan läsas upp har en rysk fras; de som aldrig läses upp står i NO_SPEECH."""
+    from sim.phrases import NO_SPEECH, PHRASES
+    import sim.game  # noqa: F401  (registrerar alla stationers fraser)
+    missing = sorted(k for k in PHRASES if k not in RU_PHRASES and k not in NO_SPEECH)
+    assert not missing, missing
+    assert not NO_SPEECH & set(RU_PHRASES), "fras i NO_SPEECH har ändå rysk fras"
+
+
 @pytest.mark.slow
 def test_russian_speech_is_pure_cyrillic_over_a_patrol():
-    """Över en patrull med ja-bot: allt tal har rysk text, och inget latinskt läcker in."""
+    """Över en patrull med ja-bot: allt tal har rysk fras, och inget latinskt läcker in."""
     import re
     from sim.scenario import build_scenario
-    for key, seed in (("kuba", 2), ("jagad", 3)):
+    for key, seed in (("kuba", 2), ("jagad", 3), ("arktis-kort", 4), ("sundet-in", 1)):
         g = Game(build_scenario(key, random.Random(seed)), seed=seed)
         reports = []
         g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
@@ -121,9 +130,12 @@ def test_russian_speech_is_pure_cyrillic_over_a_patrol():
             g.tick()
             if any(r.kind == "suggest" and r.data.get("order") for r in reports[-3:]):
                 g.command("ja")
-        spoken = [r for r in reports if r.role and r.kind != "system"]
+            if g.now % 300 == 0:        # statusfrågorna läses också upp
+                g.command("status; position; ekolod; tuber; radio")
+        spoken = [r for r in reports if r.role and r.kind != "system" and r.table is None]
         assert len(spoken) > 20
-        assert sum(r.type in RU_PHRASES for r in spoken) > 0.8 * len(spoken), key
+        assert all(r.type in RU_PHRASES for r in spoken), \
+            (key, sorted({r.type for r in spoken} - set(RU_PHRASES)))
         for r in spoken:
             assert r.speech and not re.search(r"[A-Za-zÅÄÖåäö]", r.speech), (r.type, r.speech)
 

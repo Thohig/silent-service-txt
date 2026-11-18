@@ -164,7 +164,18 @@ RU_PLOT: dict[str, Phrase] = {
     "order.no_suggestion": lambda d: "Предложений нет, товарищ командир.",
     "order.declined": lambda d: "Есть, ждём.",
     "off.confirm_quit": lambda d: "Товарищ командир, прервать задание?",
+    "order.unknown": lambda d: "Товарищ командир, не понял." if d.get("reason")
+    else "Товарищ командир?",
+    "plot.which": lambda d: "Какая цель, товарищ командир? "
+    + ", ".join(russian.contact(o) for o in d["options"]) + ".",
+    "plot.unknown_contact": lambda d: "Такой цели нет, товарищ командир.",
+    "plot.no_bearings": lambda d: f"Пеленгов на {russian.contact(d['designation'])} нет.",
 }
+
+# Rapporter som aldrig läses upp (systemrader och tabeller, se ui/audio.py): de behöver ingen
+# rysk fras. Allt annat ska ha en (tests/test_russian.py).
+NO_SPEECH = frozenset({"system.help", "system.text", "order.executing", "order.suggestion_repeat",
+                       "plot.table"})
 
 
 def register(phrases: dict[str, Phrase]) -> None:

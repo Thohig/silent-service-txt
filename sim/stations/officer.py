@@ -220,7 +220,64 @@ def _briefing_ru(d: dict) -> str:
     return out
 
 
+STRENGTH_RU = {"svag": "слабый", "medel": "средний", "stark": "сильный",
+               "mycket stark": "очень сильный"}
+LABEL_RU = {q.label: R.QUALITY_RU[int(q)] for q in Quality}
+_OFF = f"{R.CAPTAIN}, вахтенный офицер."
+
+
+def _down_reason_ru(d: dict) -> str:
+    why = d.get("why")
+    if why == "air":
+        return "Авиационный радар близко, могут увидеть наши выдвижные. "
+    if why == "esm":
+        return "Сигнал радара очень сильный. "
+    if why == "aircraft":
+        return "Вижу самолёт. "
+    if why == "close":
+        return f"{R.contact(d.get('designation', '')).capitalize()} близко. "
+    return ""
+
+
+def _none_ru(d: dict) -> str:
+    if d.get("station"):
+        return f"{_OFF} Других предложений нет."
+    if d.get("other"):
+        return f"{_OFF} Больше предложений нет."
+    return f"{_OFF} Предложений нет, обстановка спокойная."
+
+
 RU_PHRASES = {
+    "off.refused": lambda d: f"{_OFF} Выполнить не могу.",
+    "off.esm": lambda d: f"Станция предупреждения: радар, пеленг {R.course(d['bearing'])}, "
+    f"сигнал {STRENGTH_RU[d['strength']]}."
+    + (" Они могут видеть наши выдвижные!" if d["strength"] == "mycket stark" else ""),
+    "off.esm.air": lambda d: f"Станция предупреждения: авиационный радар, пеленг "
+    f"{R.course(d['bearing'])}, сигнал {STRENGTH_RU[d['strength']]}. Пеленг быстро меняется, "
+    "это самолёт." + (f" Он близко, {R.CAPTAIN.lower()}!" if d["strength"] == "mycket stark" else ""),
+    "off.suggest.down": lambda d: f"{_OFF} {_down_reason_ru(d)}Предлагаю погрузиться на "
+    f"{R.count(d['depth'], R.METER)}.",
+    "off.radar.start": lambda d: "Есть, радар излучает. Один оборот.",
+    "off.radar.contact": lambda d: f"Радар: {R.contact(d['designation'])}, пеленг "
+    f"{R.course(d['bearing'])}, дистанция {R.dec(d['range'], R.MILE)}.",
+    "off.radar.none": lambda d: "Радар: целей в пределах двенадцати миль нет.",
+    "off.periscope.net": lambda d: f"Перископ: ряд малых буёв поперёк фарватера, ближайший пеленг "
+    f"{R.course(d['bearing'])}, около {R.dec(d['range'], R.MILE)}. Это сеть! Ворота, пеленг "
+    f"{R.course(d['gate_bearing'])}, " + ("открыты." if d["gate_open"] else "закрыты."),
+    "off.photo.start": lambda d: "Есть, перископ поднят, фотоаппарат готов. Снимаем.",
+    "off.photo.aborted": lambda d: f"{_OFF} Ушли с перископной глубины. Снимков нет.",
+    "off.photo.nothing": lambda d: f"{_OFF} На снимках ничего нет. "
+    + ("Якорная стоянка слишком далеко." if d.get("far") else "Судов не видно.")
+    + ("" if d["day"] else " Слишком темно."),
+    "off.photo.done": lambda d: f"Снимки сделаны, {R.CAPTAIN.lower()}. "
+    f"{R.count(d['count'], ('судно', 'судна', 'судов'))} на якоре, около "
+    f"{R.dec(d['range'], R.MILE)}. Качество снимков {LABEL_RU[d['quality']]}"
+    + ("." if d["day"] else ", в темноте.") + " Перископ опустить.",
+    "off.suggest.photo": lambda d: f"{_OFF} До якорной стоянки около {R.dec(d['range'], R.MILE)}, "
+    f"можно снять, качество будет {LABEL_RU[d['quality']]}. Предлагаю фотографировать.",
+    "off.suggest.look": lambda d: f"{_OFF} Мы на перископной глубине и давно не смотрели. "
+    "Предлагаю осмотреться в перископ.",
+    "off.suggest.none": _none_ru,
     "off.briefing": _briefing_ru,
     "off.battle_stations": lambda d: "Боевая тревога! Боевая тревога! Противник, видимо, "
     "обнаружил нас.",
@@ -552,7 +609,7 @@ class OfficerStation(Station):
                          alarm=close)
                 if close:
                     self.suggest("down_air", "off.suggest.down",
-                                 {"reason": "Flygradar, nära. De kan se våra master.", "depth": 60},
+                                 {"reason": "Flygradar, nära. De kan se våra master.", "why": "air", "depth": 60},
                                  order="djup 60", cooldown=300, alarm=True)
 
     def _surface_ships(self):
@@ -599,5 +656,5 @@ class OfficerStation(Station):
                              alarm=strength == "mycket stark")
                     if strength == "mycket stark":
                         self.suggest("down_esm", "off.suggest.down",
-                                     {"reason": "Radarn är mycket stark.", "depth": 60},
+                                     {"reason": "Radarn är mycket stark.", "why": "esm", "depth": 60},
                                      order="djup 60", cooldown=300, alarm=True)

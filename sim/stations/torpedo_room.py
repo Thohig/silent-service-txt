@@ -250,8 +250,62 @@ def _ru_tube(d: dict) -> str:
     return f"Аппарат {d['tube']}"
 
 
+def _ru_in_water(d: dict) -> str:
+    if not d["running"]:
+        return "Торпед в воде нет."
+    rows = []
+    for r in d["running"]:
+        s = f"аппарат {r['tube']}, " + (f"по {R.contact(r['designation'], True)}" if r["designation"]
+                                        else f"курс {R.course(r['course'])}")
+        s += f", в воде {R.mmss(r['elapsed'])}"
+        if r.get("to_hit") is not None:
+            s += (f", до попадания {R.mmss(r['to_hit'])}" if r["to_hit"] > 0
+                  else ", расчётное время попадания прошло")
+        if r["bearing"] is None:
+            s += ", акустик её не слышит"
+        elif r["lost"]:
+            s += ", акустик её потерял"
+        else:
+            s += f", пеленг {R.course(r['bearing'])}"
+        if r["turned"]:
+            s += ", повернула, видимо наводится"
+        rows.append(s)
+    return "Торпеды в воде: " + "; ".join(rows) + "."
+
+
+def _ru_solution(d: dict) -> str:
+    rows = []
+    for r in d["rows"]:
+        if r.get("blocked"):
+            rows.append(f"{R.weapon(r['type'])}: нельзя")
+        elif r.get("course") is None:
+            rows.append(f"{R.weapon(r['type'])}: не достаёт")
+        else:
+            rows.append(f"{R.weapon(r['type'])}: курс {R.course(r['course'])}, время хода "
+                        f"{R.mmss(r['run_s'])}")
+    return (f"Решение по {R.contact(d['designation'], True)}, "
+            f"{R.QUALITY_RU[int(d['quality'])]}: " + "; ".join(rows) + ".")
+
+
+def _ru_tubes(d: dict) -> str:
+    parts = [f"{t['n']} — заряжается" if t["loading"] else
+             f"{t['n']} — {R.weapon(t['load'])}" if t["load"] else f"{t['n']} — пуст"
+             for t in d["tubes"]]
+    inv = ", ".join(f"{R.weapon(k)} — {v}" for k, v in d["inventory"].items())
+    return f"Аппараты: {', '.join(parts)}. В запасе: {inv}. Имитаторов: {d['decoys']}."
+
+
 RU_PHRASES = {
-    "torp.fired": lambda d: f"Торпеда вышла! {_ru_tube(d)}, {R.weapon(d['type'])}, курс "
+    "torp.refused": lambda d: f"{R.CAPTAIN}, минёр. Выполнить не могу.",
+    "torp.confirm": lambda d: f"{R.CAPTAIN}, минёр. "
+    + (f"{R.contact(d['designation']).capitalize()}: {R.classification(d['classification'])}. "
+       if d["civil"] else
+       f"{R.contact(d['designation']).capitalize()} не опознана как военный корабль. ")
+    + "Повторите приказ, если стреляем.",
+    "torp.in_water": _ru_in_water,
+    "torp.solution": _ru_solution,
+    "torp.status": _ru_tubes,
+    "torp.fired":lambda d: f"Торпеда вышла! {_ru_tube(d)}, {R.weapon(d['type'])}, курс "
     f"{R.course(d['course'])}"
     + (f", расчётное время хода {R.mmss(d['run_s'])}" if d.get("run_s") else "")
     + (". Решение было плохое, возможен промах." if d.get("quality") == Quality.DALIG else "."),

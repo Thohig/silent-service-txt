@@ -575,7 +575,8 @@ class PeriscopeWatch(Station):
                 self.game.station(OfficerStation)._suggest_photo()
         if v.kind == "destroyer" and r_meas < CLOSE_NM:
             self.suggest("down_close", "off.suggest.down",
-                         {"reason": f"{desig_} är nära.", "depth": 100}, order="djup 100",
+                         {"reason": f"{desig_} är nära.", "why": "close",
+                          "designation": desig_, "depth": 100}, order="djup 100",
                          cooldown=300)
         return SightedObject(v.kind, short, bearing, r_meas, range_quality(r_meas, r_sig),
                              designation=desig_, visible=part, aob=aob,
@@ -609,7 +610,8 @@ class PeriscopeWatch(Station):
             self._called.add(v.id)
             self.say("off.periscope.aircraft", {"bearing": bearing, "range": r_meas, "low": low},
                      kind="contact", alarm=True)
-        self.suggest("down_air", "off.suggest.down", {"reason": "Flygplan i sikte.", "depth": 60},
+        self.suggest("down_air", "off.suggest.down", {"reason": "Flygplan i sikte.", "why": "aircraft",
+                                                       "depth": 60},
                      order="djup 60", cooldown=300, alarm=True)
         return SightedObject("aircraft", "flygplan", bearing, r_meas, Quality.OSAKER,
                              detail="lågt" if low else "", seen_t=self.now)

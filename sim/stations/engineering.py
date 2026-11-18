@@ -253,7 +253,60 @@ def _ru_inspected(d: dict) -> str:
     return txt
 
 
+REACTOR_RU = {"online": "в работе", "scram": "сработала аварийная защита", "off": "выведен",
+              "starting": "вводится"}
+
+
+def _ru_pct(x: float) -> str:
+    n = round(x * 100)
+    return f"{n} {R.plural(n, ('процент', 'процента', 'процентов'))}"
+
+
+def _ru_status(d: dict) -> str:
+    parts = [f"реактор {REACTOR_RU[d['reactor']]}",
+             "турбина" if d["propulsion"] == "turbine" else "электромотор",
+             f"максимальный ход {R.count(d['max_speed'], R.KNOT)}",
+             f"батарея {_ru_pct(d['battery'])}"]
+    if d["steam_leak"]:
+        parts.append("течь парогенератора")
+    parts.append(f"корпус {_ru_pct(d['hull'])}")
+    if d["flooding"] > 0.5:
+        parts.append(f"внутри {R.count(d['flooding'], R.TON)} воды")
+    if d.get("fire"):
+        parts.append("пожар в турбинном отсеке")
+    if d.get("smoke", 0) > 0.05:
+        parts.append(f"задымление {SMOKE_RU[_smoke_word(d['smoke'])]}")
+    if d["co2"] > 0.8:
+        parts.append(f"углекислый газ {R.dec(d['co2'], ('процент', 'процента', 'процентов'))}")
+    damaged = [f"{COMPONENT_RU[c]} {_ru_pct(h)}" for c, h in d["health"].items() if h < 1.0]
+    if damaged:
+        parts.append("повреждены: " + ", ".join(damaged))
+    return "Доклад пульта: " + ", ".join(parts) + "."
+
+
+def _ru_bump(d: dict) -> str:
+    txt = f"{R.CAPTAIN}, упираемся в лёд над нами. "
+    if d.get("thin") and d.get("too_fast"):
+        txt += "Лёд тонкий, но ход слишком большой, чтобы проломить. "
+    elif not d.get("thin"):
+        txt += "Лёд слишком толстый, не проломить. "
+    return txt + f"Погружаемся на {R.count(d['back_to'], R.METER)}."
+
+
 RU_PHRASES = {
+    "eng.refused": lambda d: f"{R.CAPTAIN}, пульт. Выполнить не могу.",
+    "eng.status": _ru_status,
+    "air": lambda d: f"Содержание углекислого газа "
+    f"{R.dec(d['co2'], ('процент', 'процента', 'процентов'))} и растёт.",
+    "eng.suggest.vent_vak": lambda d: f"{R.CAPTAIN}, пульт. Задымление "
+    f"{SMOKE_RU[_smoke_word(d['smoke'])]}, нужно вентилироваться. У штурмана полынья {d['no']}, "
+    f"пеленг {R.course(d['bearing'])}, около {R.count(d['range'], R.METER)}. Предлагаю идти туда.",
+    "ice.bump": _ru_bump,
+    "ice.pressing": lambda d: "Рубка упёрлась в тонкий лёд. Давим, около сорока секунд.",
+    "ice.broke_through": lambda d: "Проломили лёд!"
+    + (" Перископ получил удар." if d.get("damaged") else " Повреждений нет."),
+    "net.caught": lambda d: f"{R.CAPTAIN}! Мы вошли в сеть! Сеть тянет корпус, винт намотал, "
+    "машина остановлена. Буи на поверхности двигаются, они знают, где мы!",
     "eng.propulsion": lambda d: "Есть, турбина." if d["mode"] == "turbine"
     else "Есть, электромотор. Максимальный ход пять узлов.",
     "eng.reactor.stopping": lambda d: "Есть, глушим реактор. Идём на аккумуляторной батарее, "

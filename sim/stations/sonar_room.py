@@ -146,6 +146,7 @@ def _ru_cap(s: str) -> str:
 
 
 RU_PHRASES = {
+    "sonar.active.refused": lambda d: f"{R.CAPTAIN}, акустик. Выполнить не могу.",
     "sonar.new_contact": lambda d: f"{R.CAPTAIN}, акустик! Новый контакт, пеленг "
     f"{R.course(d['bearing'])}, {R.contact(d['designation'])}. "
     f"{_ru_cap(R.classification(d['classification']))}.",

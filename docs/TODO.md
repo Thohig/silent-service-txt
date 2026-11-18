@@ -42,8 +42,6 @@ Från provspelet 2026-11-18 (huvudlösa botar med blandade order och ja-boten):
   rutinförslag (`sonar.suggest.depth_change!` → `torp.suggest.decoy`/`eng.suggest.sprint`,
   `off.suggest.down!` "flygradar, nära" → `radio.suggest.report`). Ska ett larmförslag stå kvar en stund
   mot ett vanligt? Ändrar ja-botens siffror.
-- **Ryska fraser saknas för 81 typer** (av 340), bland dem larm som hörs ofta: `off.esm`, `off.esm.air`,
-  `off.suggest.down`, `ice.bump`, `net.caught`, `torp.in_water`. Testet kräver bara 80 % av det som sägs.
 
 ## Små brister i bilden
 

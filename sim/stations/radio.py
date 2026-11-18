@@ -88,6 +88,18 @@ PHRASES = {
 phrases.register(PHRASES)
 
 RU_PHRASES = {
+    "radio.refused": lambda d: f"{R.CAPTAIN}, радист. Выполнить не могу.",
+    "radio.prewarn_ice": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}. Над нами лёд. "
+    + (f"У штурмана полынья {d['no']}, пеленг {R.course(d['bearing'])}, около "
+       f"{R.count(d['range'], R.METER)}. Предлагаю идти туда." if d.get("no")
+       else "Полыней не отмечено, нужно искать чистую воду."),
+    "radio.opening_now": lambda d: f"{R.CAPTAIN}, радист. Над нами {R.ice_kind(d['kind'])}, а сеанс связи в "
+    f"{d['clock']} ещё не прошёл. Предлагаю остановиться здесь.",
+    "radio.ice": lambda d: f"{R.CAPTAIN}, радист. Антенна подо льдом, приёма нет. "
+    "Нужна чистая вода над нами.",
+    "radio.status": lambda d: (f"Следующий сеанс связи в {d['next']}. " if d.get("next")
+                               else "Сеансов связи больше не запланировано. ")
+    + f"Принято радиограмм: {d['received']}.",
     "radio.prewarn": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}. Нужна глубина "
     f"под антенну, {R.count(ANTENNA_DEPTH, R.METER)} или меньше.",
     "radio.window_open": lambda d: "Сеанс связи начался. Слушаем.",
