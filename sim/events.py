@@ -208,6 +208,14 @@ class TelegramReceived(Event):
 
 
 @dataclass(frozen=True)
+class ReportTransmitted(Event):
+    """Radion har sänt en rapport till staben (`dispatch.SentReport`). complete = falskt om
+    sändningen avbröts: staben fick den inte, men den kan ha pejlats."""
+    report: Any
+    complete: bool = True
+
+
+@dataclass(frozen=True)
 class PositionReported(Event):
     """En position på något vi söker (t.ex. drivstationen), i beräknade koordinater."""
     name: str

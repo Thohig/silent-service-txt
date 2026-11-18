@@ -12,10 +12,12 @@ from .. import russian as R
 from ..crew import Role
 from ..entities import Emission
 from ..broadcasts import broadcasts_for, order_day
-from ..events import OwnActionLogged, Handover, PositionReported, TelegramReceived
+from ..dispatch import SentReport, compose, report_text
+from ..events import (Handover, OwnActionLogged, OwnTorpedoHeard, PhotoTaken, PositionReported,
+                      ReportTransmitted, TelegramReceived)
 from ..fmt import fmt_course, nm
 from ..icemap import thickness_words
-from ..orders import CommandSpec, Order
+from ..orders import DESIG, CommandSpec, Order, desig
 from ..reports import Quality
 from ..ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH
 from ..systems import INFO, OK, WARN, Gauge
@@ -23,7 +25,10 @@ from .base import Proposal, Station
 from .navigation import NavigationStation
 
 RECEIVE_S = 60
-TRANSMIT_S = 30
+RISK_LONG_S = 45             # så lång sändning: pejlas med god noggrannhet
+RISK_MID_S = 25
+RISK_NEAR_NM = 8.0           # en hotkontakt så nära i plottet: hör sändningen
+RISK_MID_NM = 15.0
 PREWARN_S = 600
 RADIO_SAFE_NM = 5.0          # en hotkontakt närmare än så enligt plottet: vänta med att gå upp
 REPORT_SUGGEST_S = 180       # förslaget att sända upprepas högst så här ofta
@@ -35,7 +40,8 @@ RADIO_VAK_MAX_M = 2500        # öppningar längre bort hinner vi inte till
 
 @dataclass(frozen=True)
 class SendReport(Order):
-    pass
+    kind: str = "full"              # full, short (läge och det som hänt), contact (en kontakt)
+    target: str | None = None
 
 
 @dataclass(frozen=True)
@@ -48,6 +54,19 @@ class ListenBroadcast(Order):
     pass
 
 
+KIND_SV = {"full": "rapporten", "short": "kort rapport", "contact": "rapport om kontakten"}
+KIND_RU = {"full": "донесение", "short": "короткое донесение", "contact": "донесение о цели"}
+RISK_RU = {"liten": "малый", "måttlig": "умеренный", "stor": "большой"}
+
+
+def _groups(n: int) -> str:
+    return f"{n} grupp" if n == 1 else f"{n} grupper"
+
+
+def _contacts_sv(n: int) -> str:
+    return "en kontakt" if n == 1 else f"{n} kontakter"
+
+
 PHRASES = {
     "radio.prewarn": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}. "
     f"Vi behöver antenndjup, {ANTENNA_DEPTH:.0f} meter eller grundare.",
@@ -57,8 +76,10 @@ PHRASES = {
     "radio.missed": lambda d: "Kapten, vi missade sambandstillfället. Meddelanden kan ha gått förlorade "
     "till nästa.",
     "radio.refused": lambda d: f"Kapten, {d['reason']}.",
-    "radio.sending": lambda d: "Sänder rapport på kortvåg. Trettio sekunder.",
-    "radio.sent": lambda d: f"Rapport sänd och kvitterad. {d['contacts']} kontakter rapporterade.",
+    "radio.sending": lambda d: f"Sänder {KIND_SV[d['kind']]} på kortvåg, {_groups(d['groups'])}, "
+    f"cirka {d['seconds']} sekunder. Risken att de pejlar oss är {d['risk']}.",
+    "radio.sent": lambda d: "Rapport sänd och kvitterad"
+    + (f", {_contacts_sv(d['contacts'])} rapporterade." if d["contacts"] else "."),
     "radio.aborted": lambda d: "Sändningen avbröts, antennen kom under ytan.",
     "radio.prewarn_ice": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}. Det är is "
     "ovanför oss. " + (f"Navigatören har öppning {d['no']} i bäring {fmt_course(d['bearing'])}, cirka "
@@ -72,9 +93,13 @@ PHRASES = {
     "radio.ice": lambda d: "Kapten, radio. Antennen är under isen, vi får ingen mottagning. "
     "Vi behöver öppet vatten ovanför.",
     "radio.suggest.report": lambda d: "Kapten, radio. Sambandstillfället är öppet och huvudstaben "
-    "väntar på vår rapport. " + ("Föreslår att vi sänder nu. Det tar trettio sekunder, och sändningen "
-                                "kan pejlas." if d["now"] else
-                                "Vi måste upp på periskopdjup för att sända. Föreslår periskopdjup."),
+    "väntar på vår rapport. " + (
+        (f"Hela rapporten tar cirka {d['seconds']} sekunder och risken att de pejlar oss är "
+         f"{d['risk']}. Föreslår en kort rapport, cirka {d['short_s']} sekunder."
+         if d.get("short") else
+         f"Föreslår att vi sänder nu. Det tar cirka {d['seconds']} sekunder, och risken att de "
+         f"pejlar oss är {d['risk']}.") if d["now"] else
+        "Vi måste upp på periskopdjup för att sända. Föreslår periskopdjup."),
     "radio.wait": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}, men plottet har "
     f"{d['designation']} på {nm(d['range'])} sjömil. På antenndjup ligger vi över skiktet och hörs. "
     "Föreslår att vi väntar på djupet tills den gått längre bort.",
@@ -119,7 +144,9 @@ RU_PHRASES = {
     "radio.listen.lost": lambda d: "Москву потеряли, антенна ушла под воду.",
     "radio.moscow": lambda d: d["ru"],
     "radio.moscow.silent": lambda d: f"{R.CAPTAIN}, радист. Только несущая. Москва молчит.",
-    "radio.sending": lambda d: "Есть, передаём донесение на коротких волнах. Тридцать секунд.",
+    "radio.sending": lambda d: f"Есть, передаём {KIND_RU[d['kind']]} на коротких волнах, "
+    f"{R.count(d['groups'], ('группа', 'группы', 'групп'))}, около {R.count(d['seconds'], R.SECOND)}. "
+    f"Риск пеленгации {RISK_RU[d['risk']]}.",
     "radio.sent": lambda d: "Донесение передано, квитанция получена.",
     "radio.aborted": lambda d: "Передача прервана, антенна ушла под воду.",
     "radio.wait": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}, но "
@@ -127,7 +154,11 @@ RU_PHRASES = {
     "radio.clear": lambda d: f"{R.CAPTAIN}, радист. {R.contact(d['designation']).capitalize()} теперь в "
     f"{R.dec(d['range'], R.MILE)}. Предлагаю всплыть под антенну.",
     "radio.suggest.report": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи идёт, штаб ждёт донесения. "
-    + ("Предлагаю передать сейчас. Тридцать секунд, нас могут запеленговать." if d["now"] else
+    + ((f"Полное донесение около {R.count(d['seconds'], R.SECOND)}, риск пеленгации "
+        f"{RISK_RU[d['risk']]}. Предлагаю короткое донесение, около "
+        f"{R.count(d['short_s'], R.SECOND)}." if d.get("short") else
+        f"Предлагаю передать сейчас, около {R.count(d['seconds'], R.SECOND)}. Риск пеленгации "
+        f"{RISK_RU[d['risk']]}.") if d["now"] else
        "Для передачи нужна перископная глубина. Предлагаю всплыть под перископ."),
 }
 phrases.register_ru(RU_PHRASES)
@@ -138,6 +169,10 @@ class RadioStation(Station):
     role = Role.RADIO
     MAST_ORDERS = (SendReport,)
     COMMANDS = [
+        CommandSpec(r"(?:sänd |sand )?kort rapport|rapportera kort",
+                    lambda m: SendReport("short"), "sänd kort rapport"),
+        CommandSpec(rf"(?:sänd|sand) rapport (?:om )?{DESIG}|rapportera {DESIG}",
+                    lambda m: SendReport("contact", desig(m[1] or m[2])), "sänd rapport S-3"),
         CommandSpec(r"sänd rapport|sand rapport|rapportera|sänd", lambda m: SendReport(), "sänd rapport"),
         CommandSpec(r"radio|meddelanden", lambda m: RadioStatus(), "radio"),
         CommandSpec(r"lyssna(?: på)? (?:radio|moskva|radio moskva)|radio moskva|moskva",
@@ -158,6 +193,11 @@ class RadioStation(Station):
         self._opened: set[int] = set()
         self._ice_warned: set[int] = set()
         self.tx_done_t: int | None = None
+        self._tx: SentReport | None = None       # rapporten som sänds
+        self._tx_start = 0
+        self.sent: list[SentReport] = []          # det vi sänt till staben
+        self._photo_t: int | None = None          # det som hänt sedan förra rapporten
+        self._hit_t: int | None = None
         self._reported_t = -10**9
         self._waiting: set[int] = set()       # fönster där vi väntar på djupet på grund av ett hot
         # ordern kräver en rapport under sambandstillfället (kuba-kort)
@@ -171,6 +211,46 @@ class RadioStation(Station):
     def attach(self, bus) -> None:
         super().attach(bus)
         bus.subscribe(Handover, self._on_handover)
+        bus.subscribe(PhotoTaken, lambda e: setattr(self, "_photo_t", e.t))
+        bus.subscribe(OwnTorpedoHeard,
+                      lambda e: setattr(self, "_hit_t", e.t) if e.kind == "detonated" else None)
+
+    # --- rapporten ------------------------------------------------------------------
+    def _events(self) -> tuple[str, ...]:
+        """Det som hänt sedan förra rapporten (ur kunskapen)."""
+        since = self.sent[-1].t if self.sent else -10**9
+        out = []
+        if self._photo_t is not None and self._photo_t > since:
+            out.append("photo")
+        if self._hit_t is not None and self._hit_t > since:
+            out.append("hit")
+        if self.game.knowledge.hunt_t > since:
+            out.append("hunted")
+        return tuple(out)
+
+    def draft(self, kind: str = "full", target: str | None = None) -> SentReport:
+        """Rapporten som den skulle se ut nu (för sändningen och för förslagen)."""
+        nav = self._nav()
+        x, y = self.game.own_position_estimate()
+        sigma = nav.uncertainty() if nav is not None else 0.0
+        return compose(self.game.knowledge, self.now, (x, y, sigma), kind, target,
+                       self._events(), number=len(self.sent) + 1)
+
+    def risk(self, seconds: float) -> tuple[str, Quality]:
+        """Radiomannens bedömning av pejlrisken: sändningens längd och hotet i plottet."""
+        near = self._far_threat()
+        r_nm = near[1] if near else None
+        q = Quality.GOD
+        if near is not None:
+            tr = next((t for t in self.game.knowledge.tracks.values()
+                       if t.designation == near[0]), None)
+            if tr is not None and tr.solution is not None:
+                q = tr.solution.quality
+        if seconds >= RISK_LONG_S or (r_nm is not None and r_nm <= RISK_NEAR_NM):
+            return "stor", q
+        if seconds >= RISK_MID_S or (r_nm is not None and r_nm <= RISK_MID_NM):
+            return "måttlig", q
+        return "liten", q
 
     def _on_handover(self, e: Handover) -> None:
         """Förvarningar under vakten hörde kaptenen inte: ge dem igen."""
@@ -189,10 +269,19 @@ class RadioStation(Station):
                 elif self.tx_done_t is not None:
                     self.say("radio.refused", {"reason": "vi sänder redan"})
                 else:
-                    sys.transmit_until = self.now + TRANSMIT_S
-                    self.tx_done_t = self.now + TRANSMIT_S
-                    self.world.emit_em(Emission("hf", st.x, st.y, self.own.id, self.now))
-                    self.say("radio.sending", kind="ack")
+                    r = self.draft(order.kind, order.target)
+                    if r.kind == "contact" and not r.contacts:
+                        self.say("radio.refused", {"reason": f"plottet har ingen lösning på "
+                                                             f"{order.target} att rapportera"})
+                        return
+                    secs = r.duration_s
+                    sys.transmit_until = self.now + secs
+                    self.tx_done_t = self.now + secs
+                    self._tx, self._tx_start = r, self.now
+                    risk, q = self.risk(secs)
+                    self.say("radio.sending", {"kind": r.kind, "groups": r.groups, "seconds": secs,
+                                               "contacts": len(r.contacts), "risk": risk},
+                             kind="ack", quality=q)
             case ListenBroadcast():
                 st, sys = self.own.state, self.own.sys
                 if st.depth > ANTENNA_DEPTH:
@@ -317,14 +406,23 @@ class RadioStation(Station):
         if self.tx_done_t is not None:
             if st.depth > PERISCOPE_DEPTH + 1:
                 self.tx_done_t = None
+                self._emit_hf(self.now - self._tx_start)
+                self.game.bus.publish(ReportTransmitted(self.now, self._tx, complete=False))
+                self._tx = None
                 self.say("radio.aborted")
             elif self.now >= self.tx_done_t:
                 self.tx_done_t = None
+                r, self._tx = self._tx, None
+                self._emit_hf(self.now - self._tx_start)
                 w = self.world
                 w.mission["reports_sent"] = w.mission.get("reports_sent", 0) + 1
                 w.mission["last_report_t"] = self.now
+                w.mission.setdefault("reports", []).append(r)
                 self._reported_t = self.now
-                self.say("radio.sent", {"contacts": len(self.game.knowledge.tracks)})
+                self.sent.append(r)
+                self.say("radio.sent", {"contacts": len(r.contacts), "telegram": r.number,
+                                        "telegram_kind": "outgoing", "text": report_text(r)})
+                self.game.bus.publish(ReportTransmitted(self.now, r))
                 self.game.bus.publish(OwnActionLogged(self.now, "report"))
 
         for i, w0 in enumerate(self.windows):
@@ -369,6 +467,11 @@ class RadioStation(Station):
                 if self._next_msg <= i and self._next_msg < len(self.messages):
                     self.say("radio.missed", alarm=False)
 
+    def _emit_hf(self, seconds: float) -> None:
+        """Sändningen hörs i etern så länge den pågick: fiendens pejlnät (enemy.py)."""
+        st = self.own.state
+        self.world.emit_em(Emission("hf", st.x, st.y, self.own.id, self.now, duration=seconds))
+
     def _threat_near(self) -> tuple[str, float] | None:
         """Närmaste hotkontakt som plottet har inom RADIO_SAFE_NM (beteckning, sjömil)."""
         best = None
@@ -408,8 +511,14 @@ class RadioStation(Station):
         air_recent = k.air_close_t is not None and self.now - k.air_close_t < AIR_QUIET_S
         if st.depth <= PERISCOPE_DEPTH + 0.5:
             if not k.air_close_now():           # flyget nära: vakthavande föreslår djup 60
-                self.suggest("report_send", "radio.suggest.report", {"now": True},
-                             order="sänd rapport", cooldown=REPORT_SUGGEST_S)
+                full, short = self.draft("full"), self.draft("short")
+                risk, q = self.risk(full.duration_s)
+                use_short = risk == "stor" and self.risk(short.duration_s)[0] != "stor"
+                self.suggest("report_send", "radio.suggest.report",
+                             {"now": True, "seconds": full.duration_s, "risk": risk,
+                              "short": use_short, "short_s": short.duration_s},
+                             order="sänd kort rapport" if use_short else "sänd rapport",
+                             cooldown=REPORT_SUGGEST_S, quality=q)
         elif st.depth > ANTENNA_DEPTH + 0.5 and k.air_close_t is not None and k.air_close_t >= w0 \
                 and not air_recent \
                 and w0 + self.window_len - self.now >= AIR_LEFT_S:

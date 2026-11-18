@@ -58,3 +58,4 @@ class Emission:
     y: float
     source_id: str
     t: int
+    duration: float = 0.0   # sekunder (kortvåg: sändningens längd, avgör pejlingen)

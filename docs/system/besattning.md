@@ -13,6 +13,19 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (masten fri, radion hel) ⇒ efter `LISTEN_S` (20 s) säger radiomannen en sändning för orderns datum
   (`order_day` ur `DATUM:`-raden, `broadcasts_for`); bara stämning, aldrig information. Den 28 okt bara
   bärvåg. Ljudet `shortwave` (menyns ratt och brus) före rösten.
+- **Rapporten till staben** (`sim/dispatch.py`, kunskap; R1–R2 2026-11-19): `sänd rapport` (allt),
+  `sänd kort rapport` (eget läge och det som hänt), `sänd rapport S-3` (en kontakt). Radiomannen sätter
+  ihop `SentReport` ur kunskapen: bestick med σ, kontakter med lösning ≥ osäker (hot först, högst 5;
+  isljud och drivstation utelämnas), konvojens baskurs, händelser sedan förra rapporten (foto, hörd
+  torpedträff, jagade). Längden i femsiffergrupper (anrop 2, läge 2, kontakt 3, konvoj 2, händelse 1)
+  ger sändningstiden i morse: 6 s + 4 s per grupp (kort rapport ~22 s, två kontakter ~46 s).
+  `radio.sending` säger grupper, sekunder och pejlrisken (`RadioStation.risk`: stor vid ≥ 45 s eller
+  hot i plottet ≤ 8 nm, måttlig vid ≥ 25 s eller ≤ 15 nm, kvalitet ur hotets lösning). Förslaget
+  `radio.suggest.report` gäller kort rapport när hela vore stor risk men den korta inte. Sänd rapport ⇒
+  `ReportTransmitted` (också avbruten, `complete=False`), `mission["reports"]`, och remsan ДОНЕСЕНИЕ i
+  loggen (`telegram_kind` "outgoing"). Pejlnätet (`enemy.py`, `DF_*`): kortvågen sänds ut med sin längd
+  (`Emission.duration`) när sändningen slutar eller avbryts; under 10 s pejlas den aldrig, över 25 s
+  alltid, däremellan linjärt; datumets σ = 1,5 nm · √(30 s / längd), 0,7–3 nm.
 - **Starpom** (`stations/starpom.py`, `FirstOfficer`, `Role.XO`, Sokolov, kapten 3:e rang): `starpom har befälet`
   ⇒ kaptenen i hytten; starpom svarar på förslag via `Station.on_suggestion` (Game frågar stationerna efter
   leverans; sant = beslutat) och ger ordern med `game.command(order, by="starpom")` (`OrderIssued.by`, räknas

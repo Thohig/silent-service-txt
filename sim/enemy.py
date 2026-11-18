@@ -48,6 +48,13 @@ DT_PASSIVE = 6.0
 DT_ACTIVE = 10.0
 PING_INTERVAL = {"patrol": 30, "prosecute": 15, "attack": 8, "evade": 30}
 DATUM_TIMEOUT = 900
+# Pejlnätet mot vår kortvåg (radio.py): under DF_MIN_S hinner de inte, över DF_SURE_S alltid;
+# felet krymper med längden (1,5 nm för 30 s, som förut).
+DF_MIN_S = 10.0
+DF_SURE_S = 25.0
+DF_SIGMA_30S_NM = 1.5
+DF_SIGMA_MIN_NM = 0.7
+DF_SIGMA_MAX_NM = 3.0
 ATTACK_COOLDOWN = 240
 UWT_INTERVAL = 180
 WAKE_NM = 0.3               # ubåt så nära ett handelsfartyg gömmer sig i dess kölvatten
@@ -269,8 +276,14 @@ class DestroyerAI:
             if em.kind == "radar" and r < 25:
                 self._datum_from_bearing(world, em.x, em.y, 0.3, depth_guess=15.0)
             elif em.kind == "hf" and r < 200:
-                self._set_datum(world, em.x + self.rng.gauss(0, 1.5),
-                                em.y + self.rng.gauss(0, 1.5), 15.0, 2.0)
+                # pejlnätet: en kort sändning hinner de inte pejla, en lång pejlas skarpare
+                p_fix = min(1.0, max(0.0, (em.duration - DF_MIN_S) / (DF_SURE_S - DF_MIN_S)))
+                if self.rng.random() >= p_fix:
+                    continue
+                sigma = min(DF_SIGMA_MAX_NM, max(DF_SIGMA_MIN_NM,
+                                                 DF_SIGMA_30S_NM * math.sqrt(30.0 / em.duration)))
+                self._set_datum(world, em.x + self.rng.gauss(0, sigma),
+                                em.y + self.rng.gauss(0, sigma), 15.0, sigma + 0.5)
 
     def _threats(self, world: World, noise: float) -> None:
         s = self.vessel.state

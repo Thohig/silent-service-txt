@@ -7,7 +7,7 @@ SIM = Path(__file__).resolve().parents[1] / "sim"
 
 # Kunskapen: byggs bara av händelser på bussen.
 KNOWLEDGE = ("knowledge", "tma", "zigzag", "icemap", "periscope", "chart", "profile", "sonar_view",
-             "systems", "reports", "events")
+             "systems", "reports", "events", "dispatch")
 
 # Sanningen och det som håller den (bara sensorer och stationer får läsa dem).
 TRUTH = {"world", "entities", "ownship", "enemy", "weapons", "ice", "acoustics", "traffic",

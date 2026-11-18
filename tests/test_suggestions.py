@@ -148,7 +148,7 @@ def _put(g, type, order, data=None, *, alarm=False, role="officer", at=None):
 
 
 _DOWN = {"reason": "Flygradar, nära. De kan se våra master.", "why": "air", "depth": 60}
-_REPORT = {"now": True}
+_REPORT = {"now": True, "seconds": 22, "risk": "liten", "short_s": 22}
 
 
 def test_alarm_suggestion_stands_against_routine():
