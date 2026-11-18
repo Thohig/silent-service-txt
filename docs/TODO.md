@@ -14,8 +14,10 @@ inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18. Stryk det so
 - **Starpom** (`kalibrering/starpom.py`): sömnen håller nu för larm som bara tänder lampan
   (`Station.keeps_time_scale`, 2026-11-18). Ringningar och farlarm per körning bör ha ändrats;
   även utfallen med salva i konvoj och konvoj-kort.
-- **Titten före skottet** (2026-11-18): `konvoj_salva.py` och `konvoj.py attack` på konvoj och
-  konvoj-kort, 8 frön. Väntat: fler sänkta, inte fler neutrala sänkta eller fler gånger upptäckta.
+- **Titten före skottet** (2026-11-18): `konvoj_salva.py` gav samma utfall som före (konvoj 2 av 8,
+  frö för frö lika; konvoj-kort 0 mot 1 av 8), eftersom boten skjuter så snart ett mål är ≤ 3 nm
+  och inte väntar på titten. Behövs: en bot som svarar ja på titten och skjuter först efter den
+  (`konvoj.py attack` med den regeln), 8 frön på konvoj och konvoj-kort.
 - **Inte omkört sedan 2026-11-15:** sundet med sanningsboten (`sundet.py --orakel`), väntläget.
 
 ## Prova för hand (riktig terminal, macOS)
