@@ -6,18 +6,9 @@ inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18. Stryk det so
 
 ## Köra om
 
-- **De särskilda botarna efter slumpen per station** (`Game.rng_for`, 2026-11-18): salva
-  (`konvoj_salva.py`, `konvoj.py attack`), grindboten (`sundet_folj.py --följ`, `sundet_in.py`,
-  `sundet_ut.py`), sprint och djupt (`jagad_djupt.py`, `jagad_kort.py`), `kuba_jakt.py`, `kuba_flyg.py`,
-  `tma_kvalitet.py`, övningens botar (`ovning.py`, `ovning_lyssna.py`, `ovning_torped.py`). Siffrorna i
-  `kalibrering/README.md` är från före bytet; passiv och ja-bot är omkörda (`kontroll.py`, inom bruset).
-- **Starpom** (`kalibrering/starpom.py`): sömnen håller nu för larm som bara tänder lampan
-  (`Station.keeps_time_scale`, 2026-11-18). Ringningar och farlarm per körning bör ha ändrats;
-  även utfallen med salva i konvoj och konvoj-kort.
-- **Titten före skottet** (2026-11-18) är provkörd, se Utreda. `konvoj_salva.py … titt` (väntar på
-  en titt ≤ 60 s, går själv upp på periskopdjup nära målet): konvoj 0 av 8, konvoj-kort 0 av 8, mot
-  2 och 0 av 8 för salvaboten. Den kommer sällan till skott (eskortens radar håller oss nere).
-- **Inte omkört sedan 2026-11-15:** sundet med sanningsboten (`sundet.py --orakel`), väntläget.
+- ~~De särskilda botarna, starpom och sundet med sanningsboten~~ – omkörda 2026-11-18, se tabellen under
+  Siffrorna i `kalibrering/README.md`. Inget har blivit märkbart sämre; `kontroll.py` (passiv och ja-bot
+  mot baslinjen) är inte omkörd efter processbruset för sicksack.
 
 ## Prova för hand (riktig terminal, macOS)
 
@@ -31,14 +22,18 @@ inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18. Stryk det so
 - ~~Plottets avstånd vid skottet i konvojen~~ – 2026-11-18: sicksackande mål fick för litet
   processbrus (q = 1) och lösningen blev för säker; nu q = 30 för konvojfartyg och mål med två girar
   (`Knowledge.zigzags`). Grova fel bland goda/säkra i konvoj-kort 6,5 % ⇒ 3,1 %, > 3σ 12 % ⇒ 4 %.
-- **Konvojen med starpom:** ett neutralt fartyg sänkt i en körning med salvaboten (troligen botens
-  fel).
+- ~~Konvojen med starpom: ett neutralt fartyg sänkt~~ – 2026-11-18, konvoj-kort frö 4: rätt mål, men
+  plottet sa 2,0 nm i stället för 4,0; salvans raka torpeder gick vidare och träffade handelsfartyget S-3,
+  som sonar hade. Både botens och spelets fel: se beslutet nedan.
 - ~~Sjökortet: bara den ena jagaren fick "först hörd"~~ – 2026-11-18: båda fick märket, men en etikett
   som krockade (t.ex. med ett nyare pingmärke) ritades inte alls; nu flyttas den en rad.
 - **Plottet:** grova fel bland goda/säkra 6,9 % ⇒ 4,8 % (2026-11-18, `tma_kvalitet.py`). Kvar:
   sundet (få lösningar, säker grovt 18 %) och girar de senaste minuterna.
 
 ## Beslut som väntar på kaptenen
+
+- **Torpedrummet:** varna (eller vägra utan `ändå`) när en känd neutral kontakt ligger nära
+  skjutriktningen inom torpedens räckvidd? Ur kunskapen: bäring och lösning på neutrala.
 
 - ~~Konvojen: periskoptitt strax före skjutläget~~ – byggd 2026-11-18 (`off.suggest.fire_look`).
 - ~~Sonarvyn: lösningskurvan på som standard~~ – ja, 2026-11-18.

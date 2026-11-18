@@ -44,6 +44,34 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 Flyttade ur CLAUDE.md (2026-11-18). Ändra medvetet och kör sedan botarna; uppdatera här.
 
+**Omkört 2026-11-18** (efter slumpen per station, processbrus för sicksack q = 30 och avfyring ≤ 100 m),
+8 frön om inget annat står. Siffrorna längre ned är de äldre; jämför med dessa.
+
+| Bot | Nu | Förut |
+|---|---|---|
+| `konvoj_salva.py konvoj` / `konvoj-kort` | 2 / 0 sänkt | 2–3 / 1–2 |
+| `konvoj_salva.py … titt` (skjuter efter titt ≤ 60 s) | 0 / 0 | – |
+| `konvoj.py attack` | 1 (convoy_attacked) | 2 |
+| `sundet_folj.py --följ` (grindtricket, besättningens verktyg) | 5 klara, bilder i 7 | 5, bilder i 7 |
+| `sundet_in.py` passiv / ja / grind | 0 / 0 / 6 (17–32 min) | 0 / 0 / 6 |
+| `sundet_ut.py` passiv / ja / ut | 0 / 0 / 5 (19–21 min) | 0 / 0 / 5 |
+| `sundet.py --orakel` (smyger genom skärmen, läser sanningen) | 0 klara på 5 h, 1 genom grinden | samma skript före slumpbytet: 0, 2 genom grinden |
+| `sundet.py` (samma utan sanningen) | 0 klara, 1 genom grinden | – |
+| `jagad_djupt.py` | 8 (29–49 min) | 8 |
+| `jagad_kort.py` passiv / ja / fast | 0 / 5 / 7 | 0 / 4 / 6 |
+| `kuba_jakt.py` (12 frön) | upptäckt 11, flyget 9, 279 sjunkbomber, skrov skadat 3 | 12, 11, 338, 2 |
+| `kuba_flyg.py` | 8 patrol_end, jagarkontakter 0–27, flygkontakter 0–2 | – |
+| `ovning.py` | 8 training_done (103–120 min), ingen grundstötning, bestickfel 0,04–0,26 nm | – |
+| `ovning_lyssna.py` | lyssning 7–25 min; plottets lösning stämmer i 5, fel i 2 | – |
+| `ovning_torped.py ovning` / `ovning-kort` | träff 2 / 3 | – |
+| `starpom.py kuba,konvoj` | utfall som ja-boten; kuba 2–13 ringningar, 0–2 fara; konvoj 1–17, 1–4 | kuba 3–12, 0–2; konvoj 6–20, 0–4 |
+| `starpom.py konvoj,konvoj-kort salva` | konvoj 1 sänkt (ja-boten 2); konvoj-kort 0, 1 neutral sänkt (frö 4) | – |
+| `tma_kvalitet.py` (god/säker) | grova 4,8 %, > 3σ 7,9 % | 6,9 %, 10,4 % (samma dag, före q för sicksack) |
+
+Det neutrala fartyget i konvoj-kort frö 4: starpoms kapten sköt mot rätt mål (tankern, plottet 2,0 nm,
+sanningen 4,0 nm); salvans raka torpeder gick vidare och träffade handelsfartyget S-3, som sonar hade och
+klassat säkert. Ingen varnade för att det låg i skjutriktningen.
+
 Siffrorna nedan är tagna före slumpen per station (`Game.rng_for`, 2026-11-18). Bytet ger varje frö
 andra dragningar. `kontroll.py` före och efter (passiv och ja, 8 frön, 14 scenarier): kuba, kuba-kort,
 jagad-kort, sundet-in, sundet-ut, konvoj, konvoj-kort, ovning och ovning-kort lika eller ±1; arktis ja
