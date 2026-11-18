@@ -68,9 +68,7 @@ ingen; föreslå inte).
 
 ### Centralen, parkerade steg
 
-- **C3 besättningen:** större figurer med namn, pratbubblor, förslag i gult, snabbtelefonen
-  med Volkov/Belov/Ivanov; rorsmän Sidorov och Gusev (ej bekräftade). Obs: figurerna togs bort ur
-  stora bilden efter C2 – stäm av på nytt innan.
+- ~~**C3 besättningen**~~ (figurer, pratbubblor) – struken 2026-11-18 (kaptenens beslut). Föreslå inte igen.
 - **C4:** reaktorpanel, julgranen som rutnät, bäringsrepeater ur kunskapen, periskopokular som vrids.
 
 ### Huvudmenyn
