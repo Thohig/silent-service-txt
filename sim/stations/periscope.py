@@ -38,7 +38,7 @@ from ..ice import ice_view
 from ..orders import DESIG, CommandSpec, Order, desig
 from ..ownship import PERISCOPE_DEPTH
 from ..periscope import (sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
-                         HIGH, LOW, OPTICS, Optic,
+                         HIGH, LOW, OPTICS, Optic, detectable,
                          Judges, PeriscopePicture, SightedObject, angle_on_bow, aob_quality,
                          carried, lights, range_quality, visible_part)
 from ..reports import Quality
@@ -450,6 +450,8 @@ class PeriscopeWatch(Station):
                 continue
             r = world.true_range(v)
             if v.is_ship and v.depth < 10 and r <= vis and world.in_sight(v.state.x, v.state.y):
+                if not self._spots(v.kind, r, eye, world.true_bearing(v)):
+                    continue
                 self._seen[v.id] = self._ship(v, r, light, eye)
             elif v.kind == "aircraft" and day and r <= vis:
                 self._seen[v.id] = self._aircraft(v, r)
@@ -471,6 +473,14 @@ class PeriscopeWatch(Station):
             self._ice = tuple(IceBearing(b, None if e is None else e * self.rng.uniform(0.85, 1.15), rd)
                               for b, e, rd in ice_view(world))
 
+    def _spots(self, kind: str, r: float, eye: float, bearing: float) -> bool:
+        """Ser okularet fartyget? Titten letar i hög rakt mot bäringen och i låg runt omkring;
+        svepet i låg; hålläget i den valda förstoringen (`periscope.detectable`)."""
+        if self.mode == "look" and abs(angle_diff(bearing, self.train)) <= HIGH.half_fov and \
+                detectable(kind, r, eye, HIGH.power):
+            return True
+        return detectable(kind, r, eye, self.search.power)
+
     def _judgement(self, key: str):
         return self._judges.get(key, self.now, self.rng, since=self._up_t)
 
@@ -487,9 +497,9 @@ class PeriscopeWatch(Station):
                                                            AOB_SIGMA[part] * TWILIGHT_AOB_F)
         c_sig = min(c_sig * opt.aob_f, 60.0)
         known = sil and light.daylight                    # klassning god ur siluetten
-        r_sig = opt.range_rel * r + opt.range_abs
         bearing = norm360(world.true_bearing(v) + j.bearing * opt.bearing_sigma)
-        r_meas = max(0.05, r + j.range_rel * r_sig)
+        r_meas = max(0.05, r + j.range_rel * (opt.range_rel * r + opt.range_abs))
+        r_sig = opt.range_rel * r_meas + opt.range_abs     # vakthavande vet bara sitt mätta avstånd
         course = norm360(v.state.course + j.course * c_sig)
         speed = max(0, round(v.state.speed + j.speed * SPEED_SIGMA))
         aob = angle_on_bow(bearing, course)

@@ -617,3 +617,29 @@ def test_eyepiece_follows_the_power_large_silhouette_and_stadimeter_in_high():
         shapes[p] = sum(r.count("_") + r.count("|") for r in rows)
         assert ("╪" in "".join(rows)) == (p == "hög")              # stadimeterns streck
     assert shapes["hög"] > 2 * shapes["låg"]                         # större i 6×
+
+
+def test_detection_by_apparent_size_and_horizon():
+    from sim.periscope import HIGH, LOW, detectable
+    eye = EYE_PERISCOPE_M
+    # under horisonten syns inget, oavsett förstoring
+    assert not detectable("destroyer", 16.0, eye, HIGH.power)
+    # stora fartyg nära: båda; en patrullbåt på 8 nm bara i hög; jagaren på 13 nm bara i hög
+    assert detectable("merchant", 5.0, eye, LOW.power) and detectable("merchant", 5.0, eye, HIGH.power)
+    assert detectable("patrol", 8.0, eye, HIGH.power) and not detectable("patrol", 8.0, eye, LOW.power)
+    assert detectable("destroyer", 13.0, eye, HIGH.power) and \
+        not detectable("destroyer", 13.0, eye, LOW.power)
+    # från bryggan (8 m) längre
+    assert detectable("destroyer", 15.0, EYE_BRIDGE_M, HIGH.power)
+
+
+def test_a_sweep_misses_a_far_destroyer_that_a_look_finds():
+    g = _game_at_periscope_depth(day=True, dd_range=12.8)
+    g.world.env.day_visibility_nm = 20.0
+    _look(g)
+    assert not any(o.kind == "destroyer" for o in g.knowledge.periscope.ships())
+    dd = next(v for v in g.world.contacts if v.kind == "destroyer")
+    g.command(f"periskop {round(g.world.true_bearing(dd)):03d}")
+    for _ in range(12):
+        g.tick()
+    assert any(o.kind == "destroyer" for o in g.knowledge.periscope.ships())

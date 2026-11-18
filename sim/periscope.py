@@ -82,6 +82,28 @@ def visible_part(kind: str, range_nm: float, eye_m: float) -> str:
     return "mastoppar"
 
 
+DETECT_ARCMIN = 1.5            # skenbar höjd × förstoring som behövs för att se ett fartyg
+
+
+def exposed_height_m(kind: str, range_nm: float, eye_m: float) -> float:
+    """Så mycket av fartyget (till masttoppen) som syns över horisonten."""
+    return HEIGHTS.get(kind, DEFAULT_HEIGHTS)[2] - hidden_height_m(range_nm, eye_m)
+
+
+def apparent_arcmin(height_m: float, range_nm: float) -> float:
+    """Skenbar höjd i bågminuter."""
+    return math.degrees(height_m / max(range_nm * 1852.0, 1.0)) * 60.0
+
+
+def detectable(kind: str, range_nm: float, eye_m: float, power: float) -> bool:
+    """Syns fartyget i en optik med denna förstoring? Det som ligger under horisonten aldrig;
+    annars om dess skenbara höjd över horisonten gånger förstoringen är minst DETECT_ARCMIN.
+    Med hög förstoring (6×) är det ungefär allt över horisonten, med låg (1,5×) tappas små
+    och avlägsna fartyg (en patrullbåt bortom ~7 nm, mastoppar vid horisonten)."""
+    h = exposed_height_m(kind, range_nm, eye_m)
+    return h > 0 and apparent_arcmin(h, range_nm) * power >= DETECT_ARCMIN
+
+
 def aob_quality(sigma_deg: float) -> Quality:
     if sigma_deg <= 10:
         return Quality.GOD
