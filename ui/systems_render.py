@@ -216,7 +216,7 @@ def render_panels(view: SystemsView, width: int) -> list[Text]:
 # --- kompakt: en kolumn i allvarsordning (vyn Ubåten) ---------------------------------
 CALM_TEXT = "allt i ordning"
 # lugna paneler fälls i den här ordningen (okända först, torpedrören sist)
-FOLD_ORDER = ("SKADOR", "SAMBAND", "SONAR", "MASKIN", "NAVIGATION", "VAPEN")
+FOLD_ORDER = ("SKADOR", "TRIM", "SAMBAND", "SONAR", "MASKIN", "NAVIGATION", "VAPEN")
 
 
 def panel_state(view: SystemsView, name: str) -> str:

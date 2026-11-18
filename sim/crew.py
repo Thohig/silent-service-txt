@@ -20,6 +20,7 @@ class Role(StrEnum):
     OFFICER = "officer"
     RADIO = "radio"
     XO = "starpom"           # förste officer (старпом), tvåa i befälsordningen
+    TRIM = "trim"            # trimmaren (трюмный) vid trimposten i centralen
 
 
 ROLE_LABEL = {
@@ -31,6 +32,7 @@ ROLE_LABEL = {
     Role.OFFICER: "Vakthavande",
     Role.RADIO: "Radio",
     Role.XO: "Starpom",
+    Role.TRIM: "Trim",
 }
 
 

@@ -98,6 +98,7 @@ def _crew() -> dict[Role, CrewMember]:
         Role.OFFICER: CrewMember("Petrov", Role.OFFICER, 0.8, rank="Kaptenlöjtnant"),
         Role.RADIO: CrewMember("Belov", Role.RADIO, 0.7, rank="Starsjina"),
         Role.XO: CrewMember("Sokolov", Role.XO, 0.85, rank="Kapten 3:e rang"),
+        Role.TRIM: CrewMember("Zajtsev", Role.TRIM, 0.75, rank="Mitjman"),
     }
 
 

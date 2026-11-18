@@ -12,12 +12,13 @@ from .sonar_room import SonarRoom
 from .starpom import FirstOfficer
 from .torpedo_room import TorpedoRoom
 from .training import TrainingOfficer
+from .trim import TrimStation
 
 # Ordningen är uppdateringsordningen varje tick:
 # egen rörelse och teknik först, sedan sensorer, sedan analys och vapen.
 DEFAULT_STATIONS: list[type[Station]] = [
     NavigationStation, EngineeringStation, SonarRoom, OfficerStation, PeriscopeWatch, BridgeWatch,
-    RadioStation, PlotTeam, TorpedoRoom, TrainingOfficer, FirstOfficer, LightWatch,
+    RadioStation, PlotTeam, TorpedoRoom, TrainingOfficer, FirstOfficer, LightWatch, TrimStation,
 ]
 
 __all__ = [
@@ -25,5 +26,5 @@ __all__ = [
     "NavigationStation", "SetCourse", "SetSpeed", "SetDepth",
     "EngineeringStation", "SonarRoom", "OfficerStation", "PeriscopeWatch", "BridgeWatch", "RadioStation",
     "PlotTeam", "QuerySolution", "ShowPlot", "TorpedoRoom", "TrainingOfficer", "FirstOfficer",
-    "LightWatch",
+    "LightWatch", "TrimStation",
 ]

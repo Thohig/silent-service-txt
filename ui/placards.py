@@ -24,6 +24,7 @@ VIEW_RU = {
 # systemtavlans paneler ⇒ stridsavdelning eller tjänst
 PANEL_RU = {
     "MASKIN": "БЧ-5 · ЭНЕРГЕТИКА",
+    "TRIM": "БЧ-5 · ТРЮМНАЯ",
     "SKADOR": "БЧ-5 · ЖИВУЧЕСТЬ",
     "NAVIGATION": "БЧ-1 · ШТУРМАНСКАЯ",
     "VAPEN": "БЧ-3 · ТОРПЕДЫ",

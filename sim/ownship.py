@@ -10,8 +10,9 @@ import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from . import acoustics
+from . import acoustics, trim
 from .entities import Vessel
+from .trim import TrimState
 
 if TYPE_CHECKING:
     from .world import World
@@ -25,7 +26,7 @@ SMOLDER_PER_H = 0.2           # glödbränder efter släckning, tills vi ventile
 VENT_PD_PER_MIN = 0.02        # ventilation genom masten på periskopdjup
 VENT_SURFACE_PER_MIN = 0.05   # med luckorna öppna i ytläge
 SMOKE_LEVELS = (0.3, 0.5, 0.7, 0.85)
-TRIM_RESERVE_T = 25.0         # ton vatten trimsystemet kan kompensera
+TRIM_RESERVE_T = -trim.BALLAST_MIN_T   # ton vatten utjämningstanken kan kompensera
 FLOOD_LOSS_T = 120.0          # ton vatten ombord = förlorad
 SCRAM_RATE_PER_H = 0.01       # spontana snabbstopp
 STEAM_LEAK_RATE_PER_H = 0.005
@@ -72,6 +73,7 @@ class OwnSystems:
     periscope_until: int = -1
     radar_until: int = -1
     transmit_until: int = -1
+    trim: TrimState = field(default_factory=TrimState)
     alerts: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
     _battery_warned: set = field(default_factory=set)
     _last_creak: int = -10**9
@@ -152,6 +154,8 @@ class OwnShip(Vessel):
             lvl += 2.0                        # skrammel från skador
         if s.blowing:
             lvl = acoustics.power_sum(lvl, acoustics.BLOW_LEVEL)
+        if s.trim.pumping and (self.power or s.battery > 0.02):
+            lvl = acoustics.power_sum(lvl, trim.PUMP_LEVEL)
         return lvl
 
     def self_noise(self) -> float:
@@ -231,6 +235,39 @@ class OwnShip(Vessel):
                 self.scram("tryckvåg")
         elif dist_m < 600:
             self.alert("shock", strength="lätt", practice=False)
+
+    # ------------------------------------------------------------------ trim
+    def _trim_step(self, world: World, dt: int, power: bool) -> None:
+        """Vikten mot djuprodrens förmåga: det rodren inte bär driver båten (se trim.py)."""
+        s, st, t = self.sys, self.state, self.sys.trim
+        if not t.started:
+            t.start(st.depth, world.env)
+        t.step_pumps(dt, power)
+        t.follow_order(st.depth, st.ordered_depth)
+        t.weigh(st.depth, world.env, s.flooding)
+        cap = trim.plane_capacity(st.speed, s.health["planes"])
+        w = t.weight_t
+        t.plane_load = max(-1.0, min(1.0, w / cap)) if cap > 0 else (0.0 if w == 0 else
+                                                                     (1.0 if w > 0 else -1.0))
+        surfacing = trim.ballast_carries(st.depth, st.ordered_depth, st.speed, t.changing)
+        if self.surfaced or s.blowing or s.on_bottom or self.bridge_open or surfacing:
+            # flytkraften i ytläge, botten bär; på väg upp blåses huvudbarlasten
+            t.free_t = 0.0
+            return
+        t.free_t = w - cap if w > cap else w + cap if w < -cap else 0.0
+        if t.free_t == 0.0:
+            return
+        drift = max(-trim.DRIFT_MAX_M_PER_S, min(trim.DRIFT_MAX_M_PER_S,
+                                                 t.free_t * trim.DRIFT_M_PER_S_PER_T))
+        control = max(0.0, 1.0 - abs(t.free_t) / trim.CONTROL_LOST_T)
+        hold = st.depth_rate * control         # vad djupstyrningen orkar per sekund
+        if abs(drift) <= hold:
+            st.depth_rate = hold - abs(drift)  # håller djupet; resten räcker till att byta
+            return
+        st.depth_rate = 0.0
+        st.depth = max(0.0, st.depth + (drift - math.copysign(hold, drift)) * dt)
+        if control == 0.0 and drift > 0:
+            st.ordered_depth = max(st.ordered_depth, st.depth)
 
     # ------------------------------------------------------------------ fysik
     def update(self, world: World, dt: int = 1) -> None:
@@ -331,10 +368,7 @@ class OwnShip(Vessel):
             s.leak_rate = max(0.0, s.leak_rate - s.leak_rate * 0.002 * dt - 0.0005 * dt)
             if before > 0 and s.leak_rate == 0:
                 self.alert("leak_stopped")
-        excess = s.flooding - TRIM_RESERVE_T
-        if excess > 0 and not s.blowing:
-            st.depth += excess * 0.03 * dt
-            st.ordered_depth = max(st.ordered_depth, st.depth)
+        self._trim_step(world, dt, regen)
 
         # skrov
         if st.depth > TEST_DEPTH:

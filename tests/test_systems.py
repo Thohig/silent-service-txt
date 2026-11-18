@@ -28,7 +28,7 @@ def test_calm_board_has_all_panels_and_compartments():
     g = _game()
     _run(g, 60)
     v = g.systems()
-    assert v.panels() == ["MASKIN", "SKADOR", "NAVIGATION", "VAPEN", "SONAR", "SAMBAND"]
+    assert v.panels() == ["MASKIN", "TRIM", "SKADOR", "NAVIGATION", "VAPEN", "SONAR", "SAMBAND"]
     assert [c.no for c in v.compartments()] == list(range(1, 10))
     assert v.worst() == OK
     rack = v.first(TubeRack)

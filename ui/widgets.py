@@ -31,6 +31,7 @@ ROLE_STYLE = {
     "officer": "bold #8fb3ff",
     "radio": "bold #c6a0ff",
     "starpom": "bold #e0e0a0",
+    "trim": "bold #6fb7a8",
     "captain": "bold white",
 }
 

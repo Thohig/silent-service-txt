@@ -126,6 +126,7 @@ def launch_torpedo(world: World, spec: TorpedoSpec, course: float,
                    detonate_at_nm: float | None = None) -> Torpedo:
     o = world.own.state
     world.mission["torpedoes_fired"] = world.mission.get("torpedoes_fired", 0) + 1
+    world.own.sys.trim.torpedo_fired()           # fören lättare: trimmarens sak
     tid = f"T{world.mission['torpedoes_fired']}"
     t = Torpedo(tid, spec, o.x, o.y, course, world.time, detonate_at_nm)
     world.contacts.append(t)
@@ -137,6 +138,7 @@ def launch_decoy(world: World) -> Decoy:
     o = world.own.state
     n = world.mission.get("decoys", 0) + 1
     world.mission["decoys"] = n
+    world.own.sys.trim.decoy_launched()
     d = Decoy(f"D{n}", o.x, o.y, o.depth, world.time + 600)
     world.contacts.append(d)
     return d

@@ -49,7 +49,7 @@ PALETTES = {
 ROLE_LIGHT = {
     "sonar": "bold #5fd7ff", "navigator": "bold #87ff87", "plot": "bold #ff87ff",
     "engineer": "bold #ffaf5f", "torpedo": "bold #ff5f5f", "officer": "bold #a0c0ff",
-    "radio": "bold #d0a8ff", "starpom": "bold #f0f0b0",
+    "radio": "bold #d0a8ff", "starpom": "bold #f0f0b0", "trim": "bold #8fd7c6",
 }
 GREEN, RED, AMBER = "bold #5fd75f", "bold #ff5f5f", "bold #ffaf00"
 SKY_DAY, SKY_NIGHT = "#a8c8e8", "#283850"

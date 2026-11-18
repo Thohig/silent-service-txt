@@ -15,7 +15,7 @@ OK, INFO, OFF, WARN, DANGER = "ok", "info", "av", "varning", "fara"
 SEVERITY = {OK: 0, INFO: 0, OFF: 1, WARN: 2, DANGER: 3}
 
 # Panelernas ordning på tavlan.
-PANELS = ("MASKIN", "SKADOR", "NAVIGATION", "VAPEN", "SONAR", "SAMBAND")
+PANELS = ("MASKIN", "TRIM", "SKADOR", "NAVIGATION", "VAPEN", "SONAR", "SAMBAND")
 
 
 @dataclass(frozen=True)
