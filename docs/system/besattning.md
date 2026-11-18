@@ -34,6 +34,12 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   Väntas en rapport (`Scenario.report_required`, eller ett telegram med flaggan `report_requested`,
   som kubas andra) och sambandstillfället stänger utan rapport: `SILENCE`, först "RAPPORT SAKNAS",
   sedan "BEKRÄFTA ATT NI ÄR OSKADDA". `received` sparar det vi rapporterat för en kampanj.
+- **Slutrapportens samband** (R4): radion antecknar vid varje sänd rapport hur väl den stämde
+  (`mission["report_truth"]`: eget läge mot sanningen, kontakternas läge framräknat till sändningen
+  med rapporterad kurs och fart, kurs- och fartfel; sonarens beteckningar mot fartygen).
+  `goals.report_summary` ⇒ `summary["radio"]` i `Game._end`; slutrapporten
+  (`ui/widgets.radio_rows`) visar sambandstillfällen med rapport, största felet i rapporterat eget
+  läge och kontakternas medianfel. Bara i slutrapporten: staben vet inget om felen.
 - **Starpom** (`stations/starpom.py`, `FirstOfficer`, `Role.XO`, Sokolov, kapten 3:e rang): `starpom har befälet`
   ⇒ kaptenen i hytten; starpom svarar på förslag via `Station.on_suggestion` (Game frågar stationerna efter
   leverans; sant = beslutat) och ger ordern med `game.command(order, by="starpom")` (`OrderIssued.by`, räknas

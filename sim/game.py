@@ -43,6 +43,7 @@ from .ownship import PERISCOPE_DEPTH
 from .reports import Quality, Report, ReportQueue
 from .scenario import Scenario
 from .stations import DEFAULT_STATIONS, NavigationStation, SonarRoom, Station
+from .goals import report_summary
 from .truthlog import TruthLog
 
 S = TypeVar("S", bound=Station)
@@ -460,6 +461,8 @@ class Game:
             "nuclear": bool(m.get("nuclear_used")),
             "hull": self.world.own.sys.hull,
             "session": self.logbook.report(self.now, self.knowledge),
+            "radio": report_summary(self.world, list(self.scenario.radio_windows),
+                                    self.scenario.radio_window_len),
         }
         self.log(f"SLUT {summary}")
         self.bus.publish(GameEnded(self.now, o["outcome"], summary))

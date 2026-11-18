@@ -90,6 +90,8 @@ håller ≥ 5 m vatten (testat 4 frön i sundet och fjorden, minst ~10 m).
 | `starpom.py konvoj,konvoj-kort salva` | konvoj 1 sänkt (ja-boten 2); konvoj-kort 0, 1 neutral sänkt (frö 4) | – |
 | `tma_kvalitet.py` (god/säker) | grova 3,9 %, > 3σ 6,0 % (sundet säker grova 0) | 6,9 %, 10,4 % före q för sicksack; 4,8 %, 7,9 % före golvet för σ |
 | `kontroll.py` | som baslinjen efter golvet för σ (konvoj-kort ja uppdaterad efter q för sicksack) | – |
+| Efter felrättningarna från provspelet (2026-11-18: pingare, bottenkontakt, isekolod för/akter, kortets land) | `kontroll.py` som baslinjen utom jagad ja: escaped 4 ⇒ 6, lost 4 ⇒ 2; arktis-kort ja station 5 ⇒ 4 (±1) | se raderna ovan |
+| Efter radion R1–R2 (rapportens innehåll, pejlning efter längd, 2026-11-19) | som raden ovan, utom kuba-kort ja: reported 2 ⇒ 3, patrol_end 2 ⇒ 1 (kort rapport ~22 s pejlas mer sällan) | se raderna ovan |
 | Efter larmförslagens 30 s (`ALARM_HOLD_S`, `MAST_ORDERS`, 2026-11-18) | `kontroll.py` som baslinjen utom kuba-kort ja: reported 3 ⇒ 2, report_missed 2 ⇒ 4, patrol_end 3 ⇒ 2 (ja-boten tar nu "djup 60" vid flygradar nära i stället för att "sänd rapport" skriver över larmet; baslinjen uppdaterad). Inom ±1: arktis ja station 6 ⇒ 5, jagad ja escaped 5 ⇒ 4, jagad-kort ja 6 ⇒ 5. 45 korta spel med ja-boten: larmförslag ersatta av rutinförslag 7 ⇒ 0 | se raderna ovan |
 | Efter periskopets förstoring (Z1–Z4) | `kontroll.py` som baslinjen utom konvoj-mot (vakten tittar i hög: passiv anfallen 3 ⇒ 4, patrol_end 4 ⇒ 1; baslinjen uppdaterad); `tma_kvalitet.py` god/säker grova 3,9 %, > 3σ 6,0 % (oförändrat); `konvoj_salva.py` konvoj 2, konvoj-kort 2; `sundet_folj.py --följ` 5; `sundet_in.py` grind 6; `sundet_ut.py` ut 5; `ovning_torped.py` träff 2 | se raderna ovan |
 

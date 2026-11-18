@@ -5,6 +5,7 @@ periskopdjup och kan pejlas av fienden.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from .. import phrases
@@ -17,6 +18,7 @@ from ..headquarters import Headquarters
 from ..events import (Handover, OwnActionLogged, OwnTorpedoHeard, PhotoTaken, PositionReported,
                       ReportTransmitted, TelegramReceived)
 from ..fmt import fmt_course, nm
+from ..geo import angle_diff, distance
 from ..icemap import thickness_words
 from ..orders import DESIG, CommandSpec, Order, desig
 from ..reports import Quality
@@ -422,6 +424,7 @@ class RadioStation(Station):
                 w.mission["reports_sent"] = w.mission.get("reports_sent", 0) + 1
                 w.mission["last_report_t"] = self.now
                 w.mission.setdefault("reports", []).append(r)
+                w.mission.setdefault("report_truth", []).append(self._truth_of(r))
                 self._reported_t = self.now
                 self.sent.append(r)
                 self.say("radio.sent", {"contacts": len(r.contacts), "telegram": r.number,
@@ -473,6 +476,29 @@ class RadioStation(Station):
                 self._handled.add(i)
                 if self._next_msg <= i and self._next_msg < len(self.messages):
                     self.say("radio.missed", alarm=False)
+
+    def _truth_of(self, r: SentReport) -> dict:
+        """Hur väl rapporten stämde (sanningen, bara för slutrapporten; staben vet det inte).
+        Kontakternas läge räknas fram till nu med rapporterad kurs och fart."""
+        from .sonar_room import SonarRoom
+        w, own = self.world, self.own.state
+        x, y, _ = r.position
+        out = {"t": self.now, "own_err_nm": distance(x, y, own.x, own.y), "contacts": []}
+        sensor = next((st.sensor for st in self.game.stations if isinstance(st, SonarRoom)), None)
+        for c in r.contacts:
+            v = next((v for v in w.contacts if sensor is not None
+                      and sensor.designation_of(v.id) == c.designation), None)
+            if v is None:
+                continue
+            dt_h = (self.now - c.t) / 3600.0
+            px = c.x + c.speed * dt_h * math.sin(math.radians(c.course))
+            py = c.y + c.speed * dt_h * math.cos(math.radians(c.course))
+            out["contacts"].append({
+                "designation": c.designation,
+                "pos_err_nm": distance(px, py, v.state.x, v.state.y),
+                "course_err": abs(angle_diff(c.course, v.state.course)),
+                "speed_err": abs(c.speed - v.state.speed)})
+        return out
 
     def _emit_hf(self, seconds: float) -> None:
         """Sändningen hörs i etern så länge den pågick: fiendens pejlnät (enemy.py)."""

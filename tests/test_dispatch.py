@@ -112,3 +112,30 @@ def test_short_transmission_is_seldom_fixed_and_long_one_is_sharp():
     assert all(d.sigma < 2.0 for d in long)
     mid = [_df(30, s) for s in range(12)]
     assert all(d is not None and d.sigma == pytest.approx(2.0) for d in mid)
+
+
+def test_end_summary_scores_what_we_reported_against_the_truth():
+    """R4: slutrapporten jämför det rapporterade med sanningen (radion antecknar den)."""
+    from sim.goals import report_summary
+    from sim.stations.sonar_room import SonarRoom
+    g, reports, sent = _radio_game()
+    v = next(v for v in g.world.contacts if v.id != g.world.own.id and v.is_ship)
+    des = g.station(SonarRoom).sensor.designate(v.id)
+    tr = ContactTrack(des, first_t=0, classification="jagare, ångturbiner, två axlar",
+                      class_quality=Quality.GOD)
+    tr.solution = Solution(t=g.now, t_ref=g.now, state=(v.state.x, v.state.y, 0.0, 0.0),
+                           x=v.state.x, y=v.state.y, course=v.state.course, speed=v.state.speed,
+                           range_nm=20.0, bearing=0.0, range_sigma=0.3, course_sigma=5.0,
+                           speed_sigma=1.0, quality=Quality.GOD, n_obs=20, span_s=900,
+                           own_maneuvered=True, rms_residual=1.0)
+    g.knowledge.tracks[des] = tr
+    w0 = g.now
+    g.command("sänd rapport")
+    for _ in range(120):
+        g.tick()
+    s = report_summary(g.world, [w0], 600)
+    assert s["windows"] == 1 and s["windows_reported"] == 1 and s["reports"] == 1
+    assert s["contacts_reported"] == 1 and s["contact_pos_err_nm"] < 0.3
+    assert s["contact_course_err"] < 5 and s["own_err_nm"] < 1.0
+    from ui.widgets import radio_rows
+    assert radio_rows(s)[0] == ("Sambandstillfällen med rapport", "1 av 1")

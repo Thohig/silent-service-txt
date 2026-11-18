@@ -180,3 +180,26 @@ class EscapeGoal(Goal):
             world.end(self.outcome)
             return True
         return False
+
+
+def report_summary(world: World, windows: list[int], window_len: int) -> dict:
+    """Radions del i slutrapporten (sanning): sambandstillfällen med rapport och hur väl det vi
+    rapporterade stämde (`mission["report_truth"]`, antecknat av radion när den sände)."""
+    reports = world.mission.get("reports", [])
+    times = [r.t for r in reports]
+    passed = [w0 for w0 in windows if w0 <= world.time]
+    with_report = sum(1 for w0 in passed if any(w0 <= t <= w0 + window_len for t in times))
+    truth = world.mission.get("report_truth", [])
+    own = [t["own_err_nm"] for t in truth]
+    contacts = [c for t in truth for c in t["contacts"]]
+    return {
+        "windows": len(passed),
+        "windows_reported": with_report,
+        "reports": len(reports),
+        "own_err_nm": max(own) if own else None,
+        "contact_pos_err_nm": (sorted(c["pos_err_nm"] for c in contacts)[len(contacts) // 2]
+                               if contacts else None),
+        "contact_course_err": (sorted(c["course_err"] for c in contacts)[len(contacts) // 2]
+                               if contacts else None),
+        "contacts_reported": len({c["designation"] for c in contacts}),
+    }

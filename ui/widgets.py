@@ -215,6 +215,7 @@ class ReportLog(RichLog):
         ]
         if summary.get("nuclear"):
             rows.append(("Kärnladdning", "använd"))
+        rows += radio_rows(summary.get("radio"))
         for k, v in rows:
             line = Text("  ")
             line.append(f"{k}: ", style="dim")
@@ -239,6 +240,21 @@ class ReportLog(RichLog):
                     self.emit(line)
         self.emit(Text("═" * 60, style="dim"))
         self.emit(Text("  Avsluta med ctrl+q.", style="dim italic"))
+
+
+def radio_rows(r: dict | None) -> list[tuple[str, str]]:
+    """Slutrapportens rader om sambandet (`goals.report_summary`)."""
+    if not r or not r["windows"]:
+        return []
+    rows = [("Sambandstillfällen med rapport", f"{r['windows_reported']} av {r['windows']}")]
+    if r["own_err_nm"] is not None:
+        rows.append(("Rapporterat eget läge, största fel",
+                     f"{r['own_err_nm']:.1f} sjömil".replace(".", ",")))
+    if r["contact_pos_err_nm"] is not None:
+        rows.append(("Rapporterade kontakter", f"{r['contacts_reported']}, läget fel "
+                     f"{r['contact_pos_err_nm']:.1f} sjömil, kursen fel "
+                     f"{r['contact_course_err']:.0f}° (median)".replace(".", ",")))
+    return rows
 
 
 class DepthGauge(Static):
