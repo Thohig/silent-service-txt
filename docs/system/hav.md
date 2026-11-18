@@ -66,3 +66,13 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `fix_sigma` i stället för 0,1. Lägeslinje om minsta axeln < halva största. Föreslås bara
   om bestickets σ ≥ 2 × kortets noggrannhet, brant botten och ingen brand, rök eller läcka. Över banken
   med 0,8 nm fel: medel 0,75 nm efter (angivet ~0,93); över berget 0,53 nm.
+- **Strömmen** (`navigation/current.py`, `CurrentMixin`; sanningen är `Environment.current_set`/`current_kn`
+  och tidvattnet): vid varje fix (`_apply_fix`) är restfelet i besticket sedan förra fixen, delat med tiden,
+  en mätning av strömmen besticket missat; osäkerheten är två fixars σ och 2 % av den gångna vägen (logg och
+  gyro). Bara med minst 20 min mellan fixarna och ingen tid på botten. Kalman per axel (start σ 0,5 kn,
+  strömmen får ändra sig 0,01 kn²/h); kvalitet ur σ (0,05/0,1/0,25 kn). Från osäker räknar besticket med
+  strömmen; från god växer bestickets osäkerhet hälften så fort (`CURRENT_GROWTH_FACTOR`). Navigatören säger
+  `nav.current` första gången och när den ändrat sig ≥ 0,15 kn eller 30°; `ström` ger läget; panelen
+  NAVIGATION har raden Ström. Mot sanningen (`tests/test_current.py`, kuba, 0,4 kn, fix var 25:e min i 3 h,
+  8 frön): medianfel < 0,15 kn, besticket en timme efter sista fixen ~0,66 av felet utan strömmen. Arktis med
+  ja-boten: drivstationen 4 ⇒ 6 av 8 (`kontroll.py`, ny baslinje).

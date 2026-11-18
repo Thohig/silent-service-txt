@@ -48,6 +48,7 @@ from .officer import is_big_ship, situation
 from .periscope import PeriscopeDown, PeriscopeHold, PeriscopeLook, PeriscopeTrain
 from .plot import QuerySolution, ShowPlot
 from .trim import Hover, TrimHold, TrimNow, TrimReport
+from .navigation.current import CurrentReport
 from .radio import RadioStation, RadioStatus
 from .torpedo_room import FiringSolution, LaunchDecoy, LoadTube, TorpedoStatus, TubeStatus
 
@@ -70,7 +71,7 @@ MANDATE: tuple[type[Order], ...] = (
     TakeFix, ReportPosition, EchoSounder, IceReport, BottomFix, SettleOnBottom,
     FollowFairway, SteerTo, GoToWait, GoToStation, GoToOpening,
     QuerySolution, ShowPlot, EngineReport, TubeStatus, TorpedoStatus, FiringSolution,
-    RadioStatus, LaunchDecoy, LoadTube, TrimNow, TrimHold, TrimReport, Hover,
+    RadioStatus, LaunchDecoy, LoadTube, TrimNow, TrimHold, TrimReport, Hover, CurrentReport,
 )
 
 # Det ordern lägger till: i ett anfallsuppdrag får starpom gå mot skjutläget (`anfall S-x`).

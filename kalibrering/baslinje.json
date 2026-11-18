@@ -51,13 +51,13 @@
   "ja": {
    "utfall": {
     "lost": 1,
-    "patrol_end": 3,
-    "station_reached": 4
+    "patrol_end": 1,
+    "station_reached": 6
    },
    "minuter": {
     "lost": 206,
     "patrol_end": 360,
-    "station_reached": 208
+    "station_reached": 260
    }
   }
  },
@@ -87,7 +87,7 @@
     "lost": 8
    },
    "minuter": {
-    "lost": 52
+    "lost": 50
    }
   },
   "ja": {
@@ -104,8 +104,8 @@
  "jagad-kort": {
   "passiv": {
    "utfall": {
-    "lost": 3,
-    "patrol_end": 5
+    "lost": 4,
+    "patrol_end": 4
    },
    "minuter": {
     "lost": 24,
@@ -130,17 +130,15 @@
     "patrol_end": 4
    },
    "minuter": {
-    "forced": 219,
+    "forced": 218,
     "patrol_end": 420
    }
   },
   "ja": {
    "utfall": {
-    "forced": 1,
-    "patrol_end": 7
+    "patrol_end": 8
    },
    "minuter": {
-    "forced": 277,
     "patrol_end": 420
    }
   }
@@ -195,7 +193,7 @@
     "convoy_missed": 8
    },
    "minuter": {
-    "convoy_missed": 142
+    "convoy_missed": 128
    }
   }
  },
@@ -212,11 +210,11 @@
   },
   "ja": {
    "utfall": {
-    "convoy_missed": 3,
-    "patrol_end": 5
+    "convoy_missed": 2,
+    "patrol_end": 6
    },
    "minuter": {
-    "convoy_missed": 70,
+    "convoy_missed": 73,
     "patrol_end": 80
    }
   }
@@ -232,7 +230,7 @@
    "minuter": {
     "convoy_attacked": 20,
     "convoy_missed": 32,
-    "lost": 26,
+    "lost": 24,
     "patrol_end": 34
    }
   },
@@ -263,7 +261,7 @@
     "training_done": 8
    },
    "minuter": {
-    "training_done": 113
+    "training_done": 116
    }
   }
  },
@@ -281,7 +279,7 @@
     "training_done": 8
    },
    "minuter": {
-    "training_done": 46
+    "training_done": 48
    }
   }
  }

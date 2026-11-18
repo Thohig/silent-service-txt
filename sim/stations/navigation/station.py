@@ -23,6 +23,7 @@ from ...sonar_view import OwnHeading, own_turns
 from ...systems import DANGER, INFO, OK, WARN, Gauge
 from ..base import Proposal, Station
 from .bottom import BottomMixin
+from .current import CurrentMixin, CurrentReport
 from .common import (
     ATTACK_STEP_S,
     BRIDGE_FIX_EVERY_S,
@@ -76,7 +77,7 @@ def _course(m: re.Match) -> Order:
 
 
 
-class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixin, Station):
+class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixin, Station):
     REACHES_WORLD = True        # ekolodet, isekolodet och dagsljuset för landmärken
     role = Role.NAVIGATOR
     COMMANDS = [
@@ -92,6 +93,7 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         CommandSpec(r"stjärnfix|stjarnfix|ta stjärnfix|astrofix|sextant", lambda m: StarFix(),
                     "stjärnfix"),
         CommandSpec(r"position|var är vi\??|pos", lambda m: ReportPosition(), "position"),
+        CommandSpec(r"ström|strom|strömmen|strommen", lambda m: CurrentReport(), "ström"),
         CommandSpec(r"ekolod|loda", lambda m: EchoSounder(), "ekolod"),
         CommandSpec(r"isekolod|isläge|islage", lambda m: IceReport(), "isekolod"),
         CommandSpec(r"vak|gå till vaken|ga till vaken|öppning|oppning|till öppningen",
@@ -129,6 +131,7 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         self.last_fix_t = 0
         self.fix_sigma = PERISCOPE_FIX_SIGMA
         self._tide_fix_t, self._tide_sigma = 0, 0.0
+        self._current_init()
         self.course_set_t = 0
         self.tasks: dict[str, NavTask] = {}   # pågående fixar (tasks.py), per namn
         self._next_sound = 0
@@ -164,7 +167,8 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         return self.est_x, self.est_y
 
     def uncertainty(self) -> float:
-        return self.fix_sigma + DR_GROWTH_NM_PER_H * (self.now - self.last_fix_t) / 3600.0 \
+        return self.fix_sigma + DR_GROWTH_NM_PER_H * self.dr_growth_factor() * \
+            (self.now - self.last_fix_t) / 3600.0 \
             + (self._tide_sigma if self._tide_fix_t == self.last_fix_t else 0.0)
 
     # --- systemtavlan ------------------------------------------------------------
@@ -190,6 +194,8 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         sigma = self.uncertainty()
         g("Bestick", f"± {nm(sigma)} nm, fix {clock(self.game.start_clock + self.last_fix_t)[:5]}",
           WARN if sigma >= 1.0 else OK)
+        if (cur := self.current_gauge_text()) is not None:
+            g("Ström", cur, INFO)
         bh = self.bottom_here()
         if sys.on_bottom:
             g("Botten", f"vi ligger på botten, {s.depth:.0f} m", INFO)
@@ -312,6 +318,9 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
                 tx, ty = velocity(tide.flood_set, sp)
                 vx, vy = vx + tx, vy + ty
                 self._tide_sigma += TIDE_TABLE_ERR * abs(sp) / 3600.0
+        if not self.own.sys.on_bottom:
+            cx, cy = self.current_velocity()            # strömmen navigatören räknat ut
+            vx, vy = vx + cx, vy + cy
         self.est_x += vx
         self.est_y += vy
 
@@ -369,6 +378,8 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
                 self._start_fix()
             case StarFix():
                 self._start_star_fix()
+            case CurrentReport():
+                self._current_report()
             case ReportPosition():
                 self.say("nav.position", {"x": self.est_x, "y": self.est_y,
                                           "sigma": self.uncertainty(),
@@ -514,7 +525,9 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
             self.tasks.setdefault(name, task)
 
     def _apply_fix(self, x: float, y: float, sigma: float) -> None:
-        """Besticket flyttas till fixen: nytt spår på kortet, fixen noteras, ny σ."""
+        """Besticket flyttas till fixen: nytt spår på kortet, fixen noteras, ny σ. Restfelet
+        är en mätning av strömmen (current.py)."""
+        self._current_measure(x, y, sigma)
         self.dr_track[-1].append((self.est_x, self.est_y))
         self.dr_track.append([(x, y)])
         self.fixes.append((x, y, self.now))
@@ -523,6 +536,7 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         self.fix_sigma = sigma
 
     def update(self) -> None:
+        self._current_age()
         self._dead_reckon()
         if (self.game.start_clock + self.now) % DR_TICK_S == 0:
             self.dr_ticks.append((self.now, self.est_x, self.est_y))

@@ -149,7 +149,7 @@ En patrull 1–28 okt där scenarierna blir uppdrag med transiter emellan; starp
   Bottenfixen är bra (noggrant brittiskt kort, brant botten) men tar 3 min i ≥ 2 kn. 40–150 m djupt:
   djupt gömmer men ger mindre marginal. Molnen i oktober stänger stjärnfixen.
 - **Steg:**
-  N1 navigatören räknar strömmen ur skillnaden mellan bestick och två fixar ("strömmen sätter 040,
+  ~~N1~~ (byggt 2026-11-18, `navigation/current.py`, se `docs/system/hav.md`): navigatören räknar strömmen ur skillnaden mellan bestick och två fixar ("strömmen sätter 040,
   1,2 knop, osäker", kvalitet ur fixarnas σ), lägger in den i besticket och föreslår kursrättelse;
   tidvattentabellen i kunskapen (som almanackan), den verkliga strömmen avviker. Nyttig i alla scenarier.
   N2 molntäcke i `Environment` (stänger stjärnfix, mörkare nätter; rör ljusets kalibrering lite).

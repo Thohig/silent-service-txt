@@ -53,7 +53,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   inte får ges), `keeps_time_scale` (ett larm som inte ska sänka tidskomprimeringen), `status_fields`.
 - **Navigatören** är paketet `sim/stations/navigation/`: `station.py` (stationen, bestick, order,
   `update`), `common.py` (konstanter och order), `phrases.py`, och delarna som `NavigationStation` ärver:
-  `fixes.py`, `bottom.py`, `ice.py`, `steering.py`, `exit_route.py`. Pågående fixar är uppdrag
+  `fixes.py`, `bottom.py`, `ice.py`, `steering.py`, `exit_route.py`, `current.py` (strömmen ur fixarna).
+  Pågående fixar är uppdrag
   (`tasks.py`, `NavTask` med `abort` och `step`) i `NavigationStation.tasks` per namn ("fix", "starfix",
   "bfix"), körda med `_run_task` på sina platser i `update`; avbrottet skrivs i uppdraget. Styruppdraget
   är ett i taget, `NavigationStation.steer` (`tasks.Steering`: `Follow`, `Attack`, `Wait`, `Fairway`,
@@ -114,7 +115,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 
 Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där):
 - `docs/system/scenarier.md`: Civil trafik, Konvoj, Konvoj i plottet, Anfall, Övningen, Flyg
-- `docs/system/hav.md`: Land skymmer, Ljuset, Is, Havsbotten
+- `docs/system/hav.md`: Land skymmer, Ljuset, Is, Havsbotten, Strömmen
 - `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden
 - `docs/system/besattning.md`: Radion och telegrammen, Starpom, Trim och flytkraft, Trimmaren
 - `docs/system/vyer.md`: Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
