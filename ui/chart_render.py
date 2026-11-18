@@ -40,6 +40,7 @@ STYLE = {
     "contact": "bold cyan",
     "contact_vector": "cyan",
     "bearing": "cyan",
+    "fan": "#4f9f9f",              # plottets bäringar till det markerade målet
     "merchant": "#c8b070",
     "merchant_vector": "#a08c58",
     "torpedo": "bold red",

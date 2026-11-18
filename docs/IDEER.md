@@ -211,10 +211,8 @@ scenarier, torpedomladdning, ljuskulor. (~~Astronavigering~~ byggd som stjärnfi
 
 Vyer: ~~sonarvattenfall~~ (byggt), eldledning, ~~trimtavla~~ (i ubåtsvyn: panelen TRIM och tankarna i
 genomskärningen, 2026-11-18), besättningslista, hydrologi.
-~~Plottbord~~ som egen vy strukits 2026-11-18: sjökortet är redan plottbordet (bestick, blyertsmärken,
-lösningar). Kvar som utbyggnad av sjökortet: **bäringslinjerna för ett markerat mål**, plottlagets solfjäder
-från våra beräknade lägen längs benet (ur `ContactTrack.observations` sedan `tma_from_t`), så att det syns
-varför avståndet är osäkert (nästan parallella linjer före en gir). Bara kunskap, inga verktyg (princip 1).
+~~Plottbord~~ som egen vy strukits 2026-11-18: sjökortet är redan plottbordet. ~~Bäringslinjerna för ett
+markerat mål~~ byggda 2026-11-18 (solfjädern, `plot S-1`).
 
 ## Realismluckor mot Projekt 627A
 

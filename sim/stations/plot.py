@@ -62,6 +62,9 @@ OWN_PENCIL = {"ping": ("!", "aktiv ping", 300), "decoy": ("≋", "skenmål", 60)
               "periscope": ("⊙", "periskop", 300)}
 LAYER_PENCIL = LAYER_TRACK + 0.5                 # strecken under bäringar och lösningar
 LAYER_PENCIL_MARK = LAYER_MARK - 0.5             # märken på en lösning: under kontaktens märke
+LAYER_FAN = LAYER_TRACK + 0.75                   # solfjädern: över blyertsen, under lösningen
+FAN_LINES = 10                  # så många av benets bäringar ritas för det markerade målet
+FAN_LINE_NM = 12.0
 
 
 @dataclass(frozen=True)
@@ -117,6 +120,7 @@ class PlotTeam(Station):
         self.pencil: list[PencilMark] = []
         self._pencil_last: dict[str, int] = {}
         self._first_heard: set[str] = set()
+        self.marked: str | None = None      # kontakten kaptenen senast frågade om (sjökortets solfjäder)
 
     def attach(self, bus) -> None:
         super().attach(bus)
@@ -223,6 +227,12 @@ class PlotTeam(Station):
                 self._answer_plot(d)
 
     def _pick_track(self, designation: str | None) -> ContactTrack | None:
+        tr = self._find_track(designation)
+        if tr is not None:
+            self.marked = tr.designation
+        return tr
+
+    def _find_track(self, designation: str | None) -> ContactTrack | None:
         k = self.game.knowledge
         if designation:
             tr = k.track(designation)
@@ -315,7 +325,7 @@ class PlotTeam(Station):
     def chart_items(self) -> list:
         """Lösningar som läge, fartvektor och avståndsosäkerhet; annars senaste bäringen.
         Därtill blyertsmärkena för det sonar hört."""
-        items: list = self._pencil_items()
+        items: list = self._pencil_items() + self._fan_items()
         for tr in self.game.knowledge.tracks.values():
             if tr.benign and "drivstation" not in tr.classification and not tr.civil:
                 continue
@@ -349,6 +359,37 @@ class PlotTeam(Station):
                                  quality=sol.quality if sol else Quality.DALIG,
                                  faded=not tr.held or age > FADE_S))
         return items
+
+    def _fan_items(self) -> list:
+        """Solfjädern för det markerade målet: plottlagets bäringar på nuvarande ben, dragna från
+        där vi trodde att vi var när de togs. Nästan parallella linjer ⇒ avståndet är osäkert;
+        efter en gir korsar de varandra där målet är."""
+        tr = self.game.knowledge.track(self.marked) if self.marked else None
+        if tr is None or (not tr.held and tr.observations and
+                          self.now - tr.observations[-1].t > FORGET_S):
+            return []
+        obs = [o for o in tr.observations if o.t >= tr.tma_from_t]
+        if len(obs) < 2:
+            return []
+        step = max(1, math.ceil(len(obs) / FAN_LINES))
+        picked = obs[::-1][::step][::-1]                # det nyaste alltid med
+        sol = tr.solution
+        out = []
+        for i, o in enumerate(picked):
+            length = FAN_LINE_NM
+            if sol is not None and sol.quality >= Quality.OSAKER:
+                dt = (o.t - sol.t) / 3600.0
+                tx, ty = sol.x + sol.state[2] * dt, sol.y + sol.state[3] * dt
+                length = min(FAN_LINE_NM, max(0.5, 1.4 * math.hypot(tx - o.own_x, ty - o.own_y)))
+            newest = i == len(picked) - 1
+            label = (f"{tr.designation}: {len(obs)} bäringar sedan {self._hhmm(obs[0].t)}"
+                     if newest else "")
+            out.append(Ray(o.own_x, o.own_y, o.bearing, length, "fan", label,
+                           faded=not newest and self.now - o.t > FADE_S, layer=LAYER_FAN))
+        return out
+
+    def _hhmm(self, t: int) -> str:
+        return self.game.clock_str(t)[:5]
 
     # --- löpande arbete -------------------------------------------------------
     def update(self) -> None:

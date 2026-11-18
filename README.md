@@ -57,7 +57,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Tid | `tid 1` `tid 2` `tid 5` `tid 10` (faller till 1× vid larm); `tid 30` `tid 60` bara när starpom har befälet |
 | Starpom | `starpom har befälet` (kaptenen går till hytten) · `jag har befälet` (till centralen, 40 s utan order) · `lägesrapport` (ring centralen) · `svara` (eller Enter i hytten när det ringer) · `sov` (60× tills starpom väcker) · `väck mig 04:30`. Order per telefon verkställs och starpom behåller befälet |
 | Sonar | `aktiv sonar` (ger avstånd men avslöjar oss) |
-| Plott | `läge S-1` · `plot S-1` |
+| Plott | `läge S-1` · `plot S-1` (sjökortet visar sedan plottets bäringar till S-1 på nuvarande ben) |
 | Navigation | `position` · `fix` (periskopdjup) · `kurs mot <plats>` · `följ S-1` (i kontaktens kölvatten) · `anfall S-1` (till skjutläge 1,2 nm från målets väg, efter konvojens baskurs om plottet har den) · `ekolod` · `isekolod` · `vak` (gå till och stoppa under en loggad öppning i isen) · `drivstationen` (styr mot Nord-7) · `botten` (lägg oss stilla på botten; `djup` eller `fart` lättar) · `bottenfix` (nio lodningar på tre minuter jämförs med sjökortets djup) |
 | Trim | `trimma` · `trim stopp` (inga pumpar utom i fara) · `trim` (hur tung båten är, med kvalitet) · `ligg still` (fart 0, djupet hålls bara med trimmen) |
 | Maskin | `smygmotor` · `turbin` · `stäng reaktorn` · `starta reaktorn` · `nödblåsning` · `maskin` · `ventilera` (periskopdjup i öppen luft) |
