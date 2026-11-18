@@ -263,6 +263,10 @@ def test_game_orders_held_contacts_by_kind():
     s = g.status()
     assert len(s.contact_kinds) == len(s.contacts_held)
     assert set(s.contact_kinds) <= {"threat", "contact", "civil", "benign", "friendly"}
+    # bäringsrepeatern: plottets senaste bäring per kontakt, ur kunskapen
+    assert len(s.contact_bearings) == len(s.contacts_held)
+    for d, b in zip(s.contacts_held, s.contact_bearings):
+        assert b == g.knowledge.track(d).last_bearing
 
 
 def test_render_never_taller_than_asked_with_many_contacts():

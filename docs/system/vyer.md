@@ -63,11 +63,13 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   mätarna växer med höjden). Från 100 × 22 (`BIG`, `Geometry.slots`) är väggarna instrument i braille
   (`ui/canvas.py`: `Braille` 2 × 4 prickar per ruta, stil efter prioritet; `ui/instruments.py`: `Dial`,
   `draw_dial`): gyro, sidroder (±35°), telegraf (handtag = beordrad fart, gul visare = maskinens svar),
-  djup 0–500 m med prov- och krosszon, fart 0–30 kn med kavitationszonen (6 + djup/25), klocka, djuproder
+  djup 0–500 m med prov- och krosszon, bäringsrepeatern på gyrots ring (`repeater`: plottets hållna kontakter
+  med `StatusSnapshot.contact_bearings` ur kunskapen, numret i beteckningen i slagets färg `CONTACT_STYLE`, hot
+  överst; bara i stora bilden), fart 0–30 kn med kavitationszonen (6 + djup/25), klocka, djuproder
   med libell. Avläsningen är exakt; visarna följer med tröghet (`Needles`, τ 0,5 s, kursen den korta vägen)
   och ritas tio gånger i sekunden (`CENTRAL_EVERY_S`, bara när huvudvyn syns). Under `BIG` de små
   lådmätarna. Ren funktion `render_central(status, speaking, t, width, height, shown)`
-  ur `StatusSnapshot` (bara egna instrument) och vem som rapporterat senaste 3 s (`SubApp._spoke`, roll ⇒
+  ur `StatusSnapshot` (egna instrument, och plottets kontakter på gyrot) och vem som rapporterat senaste 3 s (`SubApp._spoke`, roll ⇒
   plats eller snabbtelefonens lampa). Mätare kurs/sidroder/djup/djuproder (rodren härledda ur beordrat mot
   verkligt), periskopet hissas med `periscope_up_s` och okularet vrids efter bäringen relativt fören
   (`eyepiece`: handtagen rakt förut, pil åt sidorna, linserna akterut; stor bild: `PERISKOP 047 · titt · hög`

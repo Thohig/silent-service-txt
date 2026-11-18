@@ -92,6 +92,7 @@ class StatusSnapshot:
     night: bool = False             # mörkt ute (centralen går på rött ljus)
     hunted: bool = False            # sonar hör att fienden har oss
     contact_kinds: tuple[str, ...] = ()   # slaget per hållen kontakt (sonar_view.KINDS)
+    contact_bearings: tuple[float | None, ...] = ()   # plottets senaste bäring per hållen kontakt
     command: str = "captain"        # vem som har befälet: captain eller starpom
     captain_at: str = "central"     # var kaptenen är: central, cabin (hytten) eller walking
     walk_s: int = 0                 # sekunder kvar till centralen
@@ -495,6 +496,10 @@ class Game:
         pairs.sort(key=lambda p: (order[p[1]], _desig_no(p[0])))
         return tuple(d for d, _ in pairs), tuple(k for _, k in pairs)
 
+    def _last_bearing(self, designation: str) -> float | None:
+        tr = self.knowledge.track(designation)
+        return tr.last_bearing if tr is not None else None
+
     def status(self) -> StatusSnapshot:
         own = self.world.own
         s, sy = own.state, own.sys
@@ -519,6 +524,7 @@ class Game:
             depth=s.depth, ordered_depth=s.ordered_depth,
             changing=frozenset(s.changing()), time_scale=self.time_scale,
             contacts_held=held, contact_kinds=kinds,
+            contact_bearings=tuple(self._last_bearing(d) for d in held),
             reactor=sy.reactor, propulsion=sy.propulsion, battery=sy.battery,
             hull=sy.hull, flooding=sy.flooding,
             periscope_depth=s.depth <= PERISCOPE_DEPTH, masts_up=own.masts_up(self.now),

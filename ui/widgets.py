@@ -11,7 +11,7 @@ from sim.geo import fmt_course
 from sim.profile import ProfileView
 from sim.reports import Quality, Report
 
-from .central_render import Needles, render_central
+from .central_render import CONTACT_STYLE, Needles, render_central
 from .profile_render import render_gauge
 from .strips import TelegramStrip
 
@@ -42,9 +42,6 @@ def _clock(seconds: int) -> str:
     return f"{seconds // 3600:02d}:{seconds % 3600 // 60:02d}:{seconds % 60:02d}"
 
 
-# huvudradens färg per kontaktslag (som sonarvyns spår)
-CONTACT_STYLE = {"threat": "bold #ff7f5f", "contact": "bold #e8c860", "civil": "#a8b890",
-                 "benign": "#5f7a68", "friendly": "bold #5fd7ff"}
 
 
 def contacts_text(s: StatusSnapshot, room: int) -> Text:

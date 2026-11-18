@@ -5,7 +5,8 @@ from dataclasses import replace
 import pytest
 
 from sim.game import StatusSnapshot
-from ui.central_render import (DIAL_ROW, AMBER, GREEN, RED, JULGRAN, eyepiece, openings, H, W, Geometry, plane_angle, render_central,
+from ui.central_render import (DIAL_ROW, AMBER, CONTACT_STYLE, GREEN, RED, JULGRAN, eyepiece, openings,
+                               repeater, H, W, Geometry, plane_angle, render_central,
                                rudder_angle)
 
 G = Geometry(W, H)
@@ -142,6 +143,21 @@ def test_big_julgran_has_names_and_small_has_lamps():
     small = plain(BASE)
     assert small[G.lamps].count("●") == len(JULGRAN)
     assert styles_at(replace(BASE, radar_up=True), G.lamps, G.julgran + 4) == RED
+
+
+def test_repeater_marks_plot_contacts_on_the_gyro_threats_on_top():
+    s = replace(BASE, contacts_held=("S-3", "S-12", "S-1"), contact_kinds=("threat", "contact", "civil"),
+                contact_bearings=(45.0, None, 300.0))
+    tags = repeater(s)
+    assert [t for t, _, _ in tags] == ["3", "1"]                # utan bäring: inget märke
+    assert tags[0] == ("3", 45.0, CONTACT_STYLE["threat"])
+    big = "".join(plain(s, width=130, height=36))
+    assert "S-3" not in big                                      # bara numret
+    rows = render_central(s, width=130, height=36)
+    assert any(sp.style == CONTACT_STYLE["threat"] and r.plain[sp.start:sp.end] == "3"
+               for r in rows for sp in r.spans)
+    small = render_central(s)                                    # den lilla bilden: ingen repeater
+    assert not any(sp.style == CONTACT_STYLE["threat"] for r in small for sp in r.spans)
 
 
 def test_periscope_column_stays_clear_of_dials():

@@ -3,7 +3,7 @@
 Varje instrument är en `Dial`: skalans form (hel cirkel, övre halva eller högra halva),
 skalstreck, siffror, färgade zoner, markeringar (beordrat värde, kavitationsgräns) och
 visare. `draw_dial` skalar den till den ruta den får och skriver namn och avläsning på
-nedersta raden. Bara egna instrument; inget om fienden.
+nedersta raden. Egna instrument, och på gyrot plottets kontakter (bäringsrepeatern, ur kunskapen).
 """
 from __future__ import annotations
 
@@ -32,6 +32,7 @@ class Dial:
     labels: list[tuple[float, str]] = field(default_factory=list)
     zones: list[tuple[float, float, str]] = field(default_factory=list)
     markers: list[tuple[float, str, str]] = field(default_factory=list)  # (vinkel, tecken, stil)
+    tags: list[tuple[float, str, str]] = field(default_factory=list)     # (vinkel, text, stil) på ringen
     needles: list[tuple[float, float, str, float]] = field(default_factory=list)  # (vinkel, längd, stil, svans)
     title: str = ""
     readout: list[tuple[str, str]] = field(default_factory=list)       # (text, stil)
@@ -81,6 +82,9 @@ def draw_dial(c: Canvas, top: int, left: int, rows: int, cols: int, d: Dial, p: 
     for angle, ch, style in d.markers:
         row, col = cell(r - 1.5, angle)
         c.put(row, col, ch, style)
+    for angle, text, style in d.tags:
+        row, col = cell(r, angle)
+        c.centered(row, col, text, style)
     hub_row, hub_col = top + int(cy // 4), left + int(cx // 2)
     c.put(hub_row, hub_col, "●", p["hub"])
 
@@ -125,8 +129,12 @@ def cavitation_kn(depth: float) -> float:
 
 
 # --- instrumenten ----------------------------------------------------------------
-def gyro(course: float, ordered: float | None, p: dict) -> Dial:
+def gyro(course: float, ordered: float | None, p: dict,
+         contacts: list[tuple[str, float, str]] = ()) -> Dial:
+    """Gyrot med bäringsrepeatern: contacts är plottets kontakter (märke, bäring, stil), hot
+    först; de ritas sist så att hoten hamnar överst."""
     d = Dial("full", title="GYRO")
+    d.tags = [(b, tag, style) for tag, b, style in reversed(list(contacts))]
     d.ticks = [(a, a % 30 == 0) for a in range(0, 360, 10)]
     d.labels = [(a, f"{a:03d}") for a in (0, 90, 180, 270)] + \
         [(a, f"{a // 10}") for a in (30, 60, 120, 150, 210, 240, 300, 330)]

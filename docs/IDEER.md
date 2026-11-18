@@ -69,7 +69,9 @@ ingen; föreslå inte).
 ### Centralen, parkerade steg
 
 - ~~**C3 besättningen**~~ (figurer, pratbubblor) – struken 2026-11-18 (kaptenens beslut). Föreslå inte igen.
-- **C4:** reaktorpanel, julgranen som rutnät, bäringsrepeater ur kunskapen, periskopokular som vrids.
+- ~~**C4**~~ – byggd 2026-11-18: periskopokularet vrids (C4a), julgranen med alla öppningar (C4b),
+  bäringsrepeatern på gyrot (C4d). Reaktorpanelen (C4c) struken: systemtavlan visar redan samma; hör
+  till Haveri om primärkretsen modelleras.
 
 ### Huvudmenyn
 

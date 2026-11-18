@@ -2,7 +2,8 @@
 
 Kaptenens blick förut genom centralen: mätare på väggarna (kurs, sidroder, djup, djuproder),
 periskopet mitt i rummet, stegen upp i tornet, besättningen vid pulpeterna. Allt ur egna
-instrument (`StatusSnapshot`) och vem som just rapporterat; aldrig något om fienden.
+instrument (`StatusSnapshot`) och vem som just rapporterat; om andra fartyg bara plottets
+kontakter på gyrot (bäringsrepeatern, ur kunskapen), aldrig sanningen.
 
 Ren funktion: `render_central(status, speaking, t, width, height)` ger en rad `Text` per rad.
 Bilden ritas i den storlek den får (minst `W` × `H`): stor som huvudvy, liten bredvid loggen.
@@ -53,6 +54,9 @@ ROLE_LIGHT = {
 GREEN, RED, AMBER = "bold #5fd75f", "bold #ff5f5f", "bold #ffaf00"
 SKY_DAY, SKY_NIGHT = "#a8c8e8", "#283850"
 MARKER = "bold #f0c674"
+# färg per kontaktslag (huvudraden och bäringsrepeatern, som sonarvyns spår)
+CONTACT_STYLE = {"threat": "bold #ff7f5f", "contact": "bold #e8c860", "civil": "#a8b890",
+                 "benign": "#5f7a68", "friendly": "bold #5fd7ff"}
 
 # nålens riktning i åtta steg (0 = upp, medurs): (rad, kolumn, tecken)
 NEEDLE = [(-1, 0, "│"), (-1, 1, "╱"), (0, 1, "─"), (1, 1, "╲"),
@@ -316,13 +320,25 @@ class Needles:
         return dict(self.values)
 
 
+def repeater(s: StatusSnapshot) -> list[tuple[str, float, str]]:
+    """Bäringsrepeaterns märken: plottets hållna kontakter med bäring (numret i beteckningen,
+    färgen efter slaget som i huvudraden), hot först."""
+    out = []
+    for d, kind, b in zip(s.contacts_held, s.contact_kinds, s.contact_bearings):
+        if b is None:
+            continue
+        out.append((d.rsplit("-", 1)[-1], b, CONTACT_STYLE.get(kind, CONTACT_STYLE["contact"])))
+    return out
+
+
 def _big_instruments(c: _Canvas, g: Geometry, s: StatusSnapshot, shown: dict[str, float],
                      p: dict, ring: str | None) -> None:
     slots = g.slots()
     turning = "course" in s.changing
     diving = "depth" in s.changing
     dials = {
-        "gyro": ins.gyro(shown["course"], s.ordered_course if turning else None, p),
+        "gyro": ins.gyro(shown["course"], s.ordered_course if turning else None, p,
+                         repeater(s)),
         "djup": ins.depth_gauge(shown["depth"], s.ordered_depth if diving else None, p),
         "fart": ins.speed_gauge(shown["speed"], s.ordered_speed, s.depth, s.cavitating, p),
         "klocka": ins.clock_face(s.clock, p),
