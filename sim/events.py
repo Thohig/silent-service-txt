@@ -216,6 +216,7 @@ Handler = Callable[[Any], None]
 class EventBus:
     def __init__(self) -> None:
         self._handlers: dict[type, list[Handler]] = defaultdict(list)
+        self.published = 0              # händelser hittills (Game: vyerna byggs om när det ändras)
 
     def subscribe(self, event_type: type[E], handler: Callable[[E], None]) -> None:
         self._handlers[event_type].append(handler)
@@ -225,6 +226,7 @@ class EventBus:
             self._handlers[event_type].remove(handler)
 
     def publish(self, event: Event) -> None:
+        self.published += 1
         for cls in type(event).__mro__:
             for h in list(self._handlers.get(cls, ())):
                 h(event)

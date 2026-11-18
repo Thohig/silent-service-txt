@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import Any, TypeVar
+from typing import Any, Callable, TypeVar
 
 from . import phrases, russian
 from .chart import ChartView
@@ -46,6 +46,7 @@ from .stations import DEFAULT_STATIONS, NavigationStation, SonarRoom, Station
 from .truthlog import TruthLog
 
 S = TypeVar("S", bound=Station)
+V = TypeVar("V")
 SUGGESTION_TTL = 300
 QUIT_CONFIRMED = "avbryt uppdraget bekräftat"   # ordern som ja verkställer efter frågan
 
@@ -139,6 +140,10 @@ class Game:
         self.secret_order = scenario.secret_order
         self.truth_log = truth_log
         self.time_scale = 1
+        # vyerna (sjökort, profil, sonar, systemtavla) byggs en gång per läge: läget ändras
+        # av tick, order och tidsskalan (_version) och av händelser på bussen
+        self._version = 0
+        self._views: dict[str, tuple[tuple[int, int], Any]] = {}
         self.over = False
         self.suggestion: tuple[str, str, int] | None = None   # (order, text, t)
         # senaste order av varje typ: typ -> (order, tid). Används för att inte
@@ -288,6 +293,7 @@ class Game:
 
     def set_time_scale(self, scale: int, reason: str = "") -> None:
         if scale != self.time_scale:
+            self._version += 1
             self.time_scale = scale
             self.bus.publish(TimeScaleChanged(self.now, scale, reason))
 
@@ -309,6 +315,7 @@ class Game:
             self._command_one(part, many=True, by=by)
 
     def _command_one(self, text: str, many: bool = False, by: str = "captain") -> None:
+        self._version += 1
         if self.over:
             return
         self.last_command_t = self.now
@@ -361,6 +368,7 @@ class Game:
     def tick(self) -> list[Report]:
         if self.over:
             return []
+        self._version += 1
         self.world.tick(1)
         if self.truth_log:
             self.truth_log.tick(self.world)
@@ -399,8 +407,33 @@ class Game:
         self.log(f"SLUT {summary}")
         self.bus.publish(GameEnded(self.now, o["outcome"], summary))
 
-    # ------------------------------------------------------------------ sjökort
+    # ------------------------------------------------------------------ vyerna
+    def _view(self, name: str, build: Callable[[], V]) -> V:
+        """Samma vy tills läget ändrats (tick, order, tidsskala). Vyn är bara till läsning."""
+        key = (self._version, self.bus.published)
+        hit = self._views.get(name)
+        if hit is None or hit[0] != key:
+            hit = self._views[name] = (key, build())
+        return hit[1]
+
+    def invalidate_views(self) -> None:
+        """Bygg vyerna på nytt nästa gång (efter att någon ändrat läget utan tick eller order)."""
+        self._version += 1
+
     def chart(self) -> ChartView:
+        return self._view("chart", self._build_chart)
+
+    def profile(self) -> ProfileView:
+        return self._view("profile", self._build_profile)
+
+    def sonar(self) -> SonarView:
+        return self._view("sonar", self._build_sonar)
+
+    def systems(self) -> SystemsView:
+        return self._view("systems", self._build_systems)
+
+    # ------------------------------------------------------------------ sjökort
+    def _build_chart(self) -> ChartView:
         """Sjökortet: stationernas element ur kunskapen, i beräknade koordinater."""
         view = ChartView(self.clock_str(), self.area_name, self.world.size_nm,
                          self.own_position_estimate())
@@ -409,7 +442,7 @@ class Game:
         return view
 
     # ------------------------------------------------------------------ djupprofil
-    def profile(self) -> ProfileView:
+    def _build_profile(self) -> ProfileView:
         """Djupprofilen: stationernas element ur kunskapen, längs tidsaxeln."""
         s = self.world.own.state
         view = ProfileView(self.clock_str(), self.now, self.start_clock, s.depth,
@@ -419,7 +452,7 @@ class Game:
         return view
 
     # ------------------------------------------------------------------ sonarvyn
-    def sonar(self) -> SonarView:
+    def _build_sonar(self) -> SonarView:
         """Sonarvyns vattenfall: stationernas element ur kunskapen, bäring mot tid."""
         view = SonarView(self.clock_str(), self.now, self.start_clock,
                          self.world.own.state.course)
@@ -428,7 +461,7 @@ class Game:
         return view
 
     # ------------------------------------------------------------------ systemtavla
-    def systems(self) -> SystemsView:
+    def _build_systems(self) -> SystemsView:
         """Systemtavlan: stationernas element ur egna instrument."""
         view = SystemsView(self.clock_str())
         for st in self.stations:

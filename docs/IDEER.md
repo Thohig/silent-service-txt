@@ -67,7 +67,8 @@ I föreslagen ordning; inget ändrar spelet, alla ska ge samma utfall för samma
    in i CLAUDE.md, där de glidit (Kvadrat 7: 9 ⇒ 12 av 12). Förslag: varje bot skriver sitt utfall
    till `kalibrering/baslinje.json`; `uv run kalibrering/kontroll.py` jämför mot baslinjen med
    tolerans och säger vad som flyttat sig. Körs före större ändringar, inte i CI (minuter).
-6. **Vyernas data en gång per tick.** `Game.chart()`, `sonar()`, `profile()` och `systems()` bygger
+6. ~~**Vyernas data en gång per tick.**~~ – gjort 2026-11-18 (`Game._view`, nyckel tick/order/tidsskala
+   och `EventBus.published`; efter sonarrättningen kostade vyerna bara 0–4 ms). `Game.chart()`, `sonar()`, `profile()` och `systems()` bygger
    om allt från stationerna vid varje omritning (sonarvyn 2–4 gånger i sekunden, centralen 10).
    Cache per `now` (och tidsskala) i `Game`; dagens prestandafel i sonarvyn hade då kostat en gång
    per tick i stället för per bild.

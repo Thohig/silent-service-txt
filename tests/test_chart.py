@@ -166,6 +166,7 @@ def test_pencil_mark_on_bearing_from_estimate_fresh_then_faded_then_gone():
     assert _pencil(g.chart())[0].faded
     g.station(PlotTeam).pencil[0] = dataclasses_replace(g.station(PlotTeam).pencil[0],
                                                         t=g.now - PENCIL_KEEP_S)
+    g.invalidate_views()
     assert _pencil(g.chart()) == []
 
 
@@ -304,6 +305,7 @@ def test_own_torpedo_drawn_along_the_set_course_from_the_launch_point():
              and i.symbol == "+"]
     assert len(ticks) == 2                                # två hela minuter
     room._finish(r, "silent")
+    g.invalidate_views()
     head = next(i for i in g.chart().drawables if isinstance(i, Mark) and i.label == "tub 1")
     assert head.symbol == "?"
 
@@ -351,3 +353,18 @@ def test_navigators_periscope_fix_is_pencilled_too():
     for _ in range(5):
         g.tick()
     assert [m.symbol for m in plot.pencil if m.kind == "periscope"] == ["⊙"]
+
+
+def test_views_are_built_once_per_state():
+    """Samma läge ⇒ samma vy; tick, order och händelser bygger om den."""
+    g = _game()
+    v = g.chart()
+    assert g.chart() is v and g.sonar() is g.sonar()
+    g.tick()
+    v2 = g.chart()
+    assert v2 is not v
+    g.command("kurs 090")
+    assert g.chart() is not v2
+    v3 = g.chart()
+    g.bus.publish(OwnActionLogged(g.now, "report"))
+    assert g.chart() is not v3

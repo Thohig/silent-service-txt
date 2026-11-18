@@ -652,6 +652,9 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   och datum – använd den för felsökning.
 
 ## Fallgropar
+- `Game.chart()`, `profile()`, `sonar()` och `systems()` byggs en gång per läge (tick, order,
+  tidsskala, händelse på bussen) och är bara till läsning. Ändrar ett test en stations tillstånd
+  direkt: `g.invalidate_views()` före nästa vy.
 - Döp aldrig en metod i en Textual-widget till `_render` (krockar med Textual).
 - Timer-callbacks i `ui/app.py` kan köras under nedstängning – skydda mot `NoMatches`.
 - Förslag spärras per nyckel med `cooldown`; glöm inte det, annars spammar
