@@ -77,17 +77,8 @@ ingen; föreslå inte).
 
 - **M4 tjänsteblad:** spelade uppdrag med utfall, datum och frö sparade i fil mellan körningar.
 
-### Dockikonen (2026-11-17, "avvakta")
-
-K-114.app (nu i `~/projekt/`) är ett AppleScript som startar spelet i Terminal, så Docken visar
-Terminals ikon. Vägar:
-1. **Eget fönster (rekommenderat):** `textual-serve` på `localhost` och ett `pywebview`-fönster,
-   ikonen satt med `NSApplication.setApplicationIconImage_`; valfria beroenden, ett kort
-   startskript (`fonster.py`), appen byggs om. Ljudet fungerar (Python spelar det lokalt). Prova:
-   braille och radavstånd i xterm.js, att Tab/Esc/ctrl+t når spelet, centralen i 10 Hz, ⌘Q.
-2. Appen står kvar medan spelet körs: ubåtsikonen bredvid Terminals, inte i stället.
-3. Reserv: en egen omdöpt kopia av Alacritty/WezTerm med K-114-ikonen (påverkar inte den vanliga
-   terminalen; måste laddas ner och signeras om). Ghostty med egen ikon avråds (ändrar ikonen globalt).
+~~**Dockikonen**~~ – byggd 2026-11-18 som eget fönster (`fonster.py`, textual-serve + pywebview). Kvar om spelet
+ska delas: paketera till en fristående app (PyInstaller/Briefcase) och signera.
 
 ## Spelidéer
 

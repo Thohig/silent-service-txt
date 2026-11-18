@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="sv">
+  <!-- Sidan som fonster.py visar i sitt fönster (mall för textual-serve, som
+       letar efter just namnet app_index.html). Bygger på textual-serves egen mall
+       men utan typsnitt från nätet: xterm.js frågar efter 'Roboto Mono', och här
+       pekar det namnet på Menlo, som Terminal använder. Braille ritas med Apple
+       Braille som reserv. -->
+  <head>
+    <meta charset="utf-8" />
+    <title>{{ application.name }}</title>
+    <link rel="stylesheet" href="{{ config.static.url }}css/xterm.css" />
+    <script src="{{ config.static.url }}js/textual.js"></script>
+    <style>
+      @font-face {
+        font-family: "Roboto Mono";
+        src: local("Menlo-Regular"), local("Menlo");
+        font-weight: normal;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: "Roboto Mono";
+        src: local("Menlo-Bold");
+        font-weight: bold;
+        font-style: normal;
+      }
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+      }
+      #terminal {
+        position: absolute;
+        inset: 0;
+      }
+      body .textual-terminal {
+        opacity: 0;
+        transition: opacity 0.2s ease-out;
+      }
+      body.-first-byte .textual-terminal {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="terminal"
+      class="textual-terminal"
+      data-session-websocket-url="{{ app_websocket_url }}"
+      data-font-size="{{ font_size }}"
+    ></div>
+    <script>
+      // När spelet avslutas stänger textual.js förbindelsen och sätter -closed;
+      // då stängs fönstret (fonster.py lägger in avsluta() som pywebview.api).
+      new MutationObserver(() => {
+        if (document.body.classList.contains("-closed") && window.pywebview) {
+          window.pywebview.api.avsluta();
+        }
+      }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    </script>
+  </body>
+</html>

@@ -11,11 +11,12 @@ uv run main.py                     # huvudmenyn, slumpat frö
 uv run main.py --scenario kuba     # hoppa över huvudmenyn (kuba, kuba-kort, jagad, jagad-kort, sundet, sundet-in, sundet-ut, konvoj, konvoj-kort, konvoj-mot, arktis, arktis-kort)
 uv run main.py --seed 4            # reproducerbart scenario
 uv run main.py --tyst              # utan ljud
+uv run --extra fonster fonster.py  # i eget fönster med ubåtsikonen i Docken (macOS)
 uv run pytest             # snabba tester
 uv run pytest --slow      # alla tester
 ```
 
-När ett uppdrag är slut tar Enter dig tillbaka till huvudmenyn. Där finns också inställningar (ljud, tal, slumpfrö) och en lista över alla order och ryska ord. Med ljudet på (`ctrl+t` eller Inställningar) spelar menyn egen musik, hamnen i Poljarnyj och ibland Radio Moskva; fjärrskrivaren längst ned skriver flottans meddelanden fram mot den 28 oktober. Stäng programmet med `ctrl+q`. Sanningen (exakta positioner och TMA-lösningar) loggas
+När ett uppdrag är slut tar Enter dig tillbaka till huvudmenyn. Där finns också inställningar (ljud, tal, slumpfrö) och en lista över alla order och ryska ord. Med ljudet på (`ctrl+t` eller Inställningar) spelar menyn egen musik, hamnen i Poljarnyj och ibland Radio Moskva; fjärrskrivaren längst ned skriver flottans meddelanden fram mot den 28 oktober. Stäng programmet med `ctrl+q`. I eget fönster (`fonster.py`, samma flaggor som `main.py`) körs spelet i en webbterminal (textual-serve) i ett pywebview-fönster; `⌘Q` eller spelets eget slut stänger fönstret, och appen `K-114.app` (byggd ur `ikon/K-114.applescript`) startar det. Sanningen (exakta positioner och TMA-lösningar) loggas
 till `logs/truth-*.log`.
 
 ## Order
