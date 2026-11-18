@@ -146,7 +146,8 @@ COUNTER_HANDOVER_S = 45               # kaptenen tar över så här långt före
 
 
 class _CounterattackWatch:
-    """Vakten före kaptenen i Motanfallet: periskopdjup, korta svep, och salvan mot det
+    """Vakten före kaptenen i Motanfallet: periskopdjup, korta tittar (svep tills plottet har
+    ett stort fartyg), och salvan mot det
     första stora fartyget inom COUNTER_FIRE_NM med en lösning minst osäker. Kaptenen tar
     befälet när torpedrummets gångtid säger att torpederna är framme om ~45 s.
     Allt går via order och besättningens kunskap; ingen torped läggs in i världen."""
@@ -170,9 +171,13 @@ class _CounterattackWatch:
             game.world.patrol_end = game.now + COUNTER_LIMIT_S
             return True
         own = game.world.own.state
-        if t % COUNTER_LOOK_S == 0 and own.depth <= 18:
-            game.command("periskop")
         torp = game.station(TorpedoRoom)
+        if t % COUNTER_LOOK_S == 0 and own.depth <= 18:
+            # en kort titt mot närmaste stora fartyg (mäts i hög förstoring), annars ett svep
+            big = [(sol.range_nm, tr.designation) for tr in game.knowledge.tracks.values()
+                   if tr.held and is_big_ship(tr)
+                   and (sol := torp._solution_for(tr.designation)[1]) is not None]
+            game.command(f"periskop {min(big)[1]}" if big else "periskop")
         best = None
         for tr in game.knowledge.tracks.values():
             if not tr.held or not is_big_ship(tr):
