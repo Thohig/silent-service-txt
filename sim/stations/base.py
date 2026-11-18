@@ -64,6 +64,9 @@ class Station:
     role: ClassVar[Role]
     COMMANDS: ClassVar[list[CommandSpec]] = []
     REACHES_WORLD: ClassVar[bool] = False     # sensor eller vapen: får använda self.world
+    # order som kräver masterna uppe: föreslås inte när kaptenen beordrat djupare än periskopdjup
+    # (t.ex. ett "sänd rapport" som väntat bakom ett larm om att dyka, Game.held)
+    MAST_ORDERS: ClassVar[tuple[type[Order], ...]] = ()
 
     def __init__(self, game: Game):
         self.game = game
@@ -106,8 +109,11 @@ class Station:
         return {}
 
     def vetoes(self, order: str) -> bool:
-        """Får inte ett förslag med denna order ges (t.ex. dykning där ordern förbjuder det)?"""
-        return False
+        """Får inte ett förslag med denna order ges (t.ex. dykning där ordern förbjuder det)?
+        Grunden: en mastorder (MAST_ORDERS) när det beordrade djupet är under periskopdjup."""
+        from ..ownship import PERISCOPE_DEPTH
+        return bool(self.MAST_ORDERS) and self.own.state.ordered_depth > PERISCOPE_DEPTH and \
+            isinstance(self.game.registry.parse(order), self.MAST_ORDERS)
 
     def chart_items(self) -> list:
         """Sjökortselement (sim.chart) ur stationens kunskap. Aldrig ur World."""

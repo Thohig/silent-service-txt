@@ -198,6 +198,7 @@ class PeriscopeWatch(Station):
     """Periskopet. Vakthavande sköter det, därför samma roll."""
     REACHES_WORLD = True        # periskopet (sensor)
     role = Role.OFFICER
+    MAST_ORDERS = (PeriscopeLook,)
     COMMANDS = [
         CommandSpec(r"periskop|titta", lambda m: PeriscopeLook(), "periskop"),
         CommandSpec(rf"(?:periskop|titta)\s+(?:mot\s+)?{DESIG}",

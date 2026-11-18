@@ -37,11 +37,7 @@ Från provspelet 2026-11-18 (huvudlösa botar med blandade order och ja-boten):
 
 ## Beslut som väntar på kaptenen
 
-- **Förslag skriver över varandra.** Det senaste förslaget ersätter det väntande, oavsett larm. Över 40
-  korta spel med ja-boten: 75 förslag ersatta inom 10 s, ungefär hälften larmförslag som ersatts av
-  rutinförslag (`sonar.suggest.depth_change!` → `torp.suggest.decoy`/`eng.suggest.sprint`,
-  `off.suggest.down!` "flygradar, nära" → `radio.suggest.report`). Ska ett larmförslag stå kvar en stund
-  mot ett vanligt? Ändrar ja-botens siffror.
+Inget just nu.
 
 ## Små brister i bilden
 

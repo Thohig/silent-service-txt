@@ -134,3 +134,121 @@ def test_alarm_suggestion_does_not_back_off():
     times = _repeat(g, "b", "nödblåsning", alarm=True, until=1300)
     gaps = [b - a for a, b in zip(times, times[1:])]
     assert gaps and all(gap == 300 for gap in gaps)
+
+
+# --- larmförslag står mot vanliga förslag (Game.held, ALARM_HOLD_S) ------------------------
+from sim.game import ALARM_HOLD_S, HELD_MAX_S  # noqa: E402
+from sim.reports import Report  # noqa: E402
+
+
+def _put(g, type, order, data=None, *, alarm=False, role="officer", at=None):
+    t = g.now + 1 if at is None else at
+    g.queue.submit(Report(t, "Vakthavande", type, dict(data or {}, order=order, made_t=t - 1),
+                          role=role, kind="suggest", alarm=alarm))
+
+
+_DOWN = {"reason": "Flygradar, nära. De kan se våra master.", "why": "air", "depth": 60}
+_REPORT = {"now": True}
+
+
+def test_alarm_suggestion_stands_against_routine():
+    g, reports = _game()
+    _put(g, "off.suggest.down", "djup 60", _DOWN, alarm=True)
+    _put(g, "radio.suggest.report", "sänd rapport", _REPORT, role="radio", at=g.now + 5)
+    _run(g, 10)
+    assert g.active_suggestion()[0] == "djup 60"
+    assert [r.type for r in _suggestions(reports)] == ["off.suggest.down"]   # rutinen tiger
+    assert g.held is not None
+
+
+def test_routine_comes_after_the_alarm_is_answered():
+    g, reports = _game()
+    _put(g, "off.suggest.down", "djup 60", _DOWN, alarm=True)
+    _put(g, "eng.suggest.cavitation", "fart 7", {"speed": 7}, role="engineer", at=g.now + 5)
+    _run(g, 10)
+    g.command("ja")
+    _run(g, 2)
+    assert g.active_suggestion()[0] == "fart 7"
+    assert [r.type for r in _suggestions(reports)] == ["off.suggest.down", "eng.suggest.cavitation"]
+
+
+def test_routine_comes_when_the_alarm_has_stood_long_enough():
+    g, reports = _game()
+    _put(g, "off.suggest.down", "djup 60", _DOWN, alarm=True)
+    _put(g, "eng.suggest.cavitation", "fart 7", {"speed": 7}, role="engineer", at=g.now + 5)
+    _run(g, ALARM_HOLD_S - 2)
+    assert g.active_suggestion()[0] == "djup 60"
+    _run(g, 4)
+    assert g.active_suggestion()[0] == "fart 7"
+
+
+def test_newer_alarm_replaces_alarm():
+    g, reports = _game()
+    _put(g, "off.suggest.down", "djup 60", _DOWN, alarm=True)
+    _put(g, "eng.suggest.blow", "nödblåsning", {"flooding": 12}, alarm=True, role="engineer",
+         at=g.now + 5)
+    _run(g, 10)
+    assert g.active_suggestion()[0] == "nödblåsning" and g.held is None
+
+
+def test_alarm_replaces_routine_and_routine_replaces_routine():
+    g, reports = _game()
+    _put(g, "radio.suggest.report", "sänd rapport", _REPORT, role="radio")
+    _put(g, "eng.suggest.cavitation", "fart 7", {"speed": 7}, role="engineer", at=g.now + 3)
+    _run(g, 5)
+    assert g.active_suggestion()[0] == "fart 7"
+    _put(g, "off.suggest.down", "djup 60", _DOWN, alarm=True)
+    _run(g, 2)
+    assert g.active_suggestion()[0] == "djup 60"
+
+
+def test_newest_held_routine_wins():
+    g, reports = _game()
+    _put(g, "off.suggest.down", "djup 60", _DOWN, alarm=True)
+    _put(g, "radio.suggest.report", "sänd rapport", _REPORT, role="radio", at=g.now + 3)
+    _put(g, "eng.suggest.cavitation", "fart 7", {"speed": 7}, role="engineer", at=g.now + 6)
+    _run(g, 8)
+    g.command("nej")
+    _run(g, 2)
+    assert g.active_suggestion()[0] == "fart 7"
+    assert "radio.suggest.report" not in [r.type for r in _suggestions(reports)]
+
+
+def test_held_routine_is_dropped_when_stale_or_decided():
+    g, reports = _game()
+    _put(g, "off.suggest.down", "djup 60", _DOWN, alarm=True)
+    _put(g, "eng.suggest.cavitation", "fart 7", {"speed": 7}, role="engineer", at=g.now + 3)
+    _run(g, 5)
+    g.command("fart 5")                 # kaptenen har själv beslutat om farten
+    _run(g, ALARM_HOLD_S + 2)
+    assert "eng.suggest.cavitation" not in [r.type for r in _suggestions(reports)]
+
+    g, reports = _game()
+    _put(g, "off.suggest.down", "djup 60", _DOWN, alarm=True)
+    _put(g, "eng.suggest.cavitation", "fart 7", {"speed": 7}, role="engineer", at=g.now + 3)
+    _run(g, 5)
+    g.suggestion = (g.suggestion[0], g.suggestion[1], g.now + HELD_MAX_S)   # larmet står länge
+    _run(g, HELD_MAX_S + 5)
+    g.suggestion = None
+    _run(g, 2)
+    assert "eng.suggest.cavitation" not in [r.type for r in _suggestions(reports)]
+
+
+def test_mast_order_is_not_suggested_when_ordered_deep():
+    """Ett "sänd rapport" som väntat bakom ett larm om att dyka släpps när vi går ned."""
+    g, reports = _game()
+    g.command("periskopdjup")
+    _run(g, 3)
+    _put(g, "off.suggest.down", "djup 60", _DOWN, alarm=True)
+    _put(g, "radio.suggest.report", "sänd rapport", _REPORT, role="radio", at=g.now + 3)
+    _run(g, 5)
+    g.command("ja")                     # djup 60
+    _run(g, 3)
+    assert "radio.suggest.report" not in [r.type for r in _suggestions(reports)]
+    from sim.stations import OfficerStation
+    from sim.stations.radio import RadioStation
+    assert g.station(RadioStation).vetoes("sänd rapport")
+    assert g.station(OfficerStation).vetoes("radar") and g.station(OfficerStation).vetoes("foto")
+    assert not g.station(RadioStation).vetoes("periskopdjup")
+    g.command("periskopdjup")
+    assert not g.station(RadioStation).vetoes("sänd rapport")

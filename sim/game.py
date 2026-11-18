@@ -48,6 +48,8 @@ from .truthlog import TruthLog
 S = TypeVar("S", bound=Station)
 V = TypeVar("V")
 SUGGESTION_TTL = 300
+ALARM_HOLD_S = 30           # ett larmförslag står så länge mot vanliga förslag
+HELD_MAX_S = 60             # ett förslag som väntat bakom ett larm släpps när det är så här gammalt
 QUIT_CONFIRMED = "avbryt uppdraget bekräftat"   # ordern som ja verkställer efter frågan
 
 
@@ -157,6 +159,10 @@ class Game:
         self._views: dict[str, tuple[tuple[int, int], Any]] = {}
         self.over = False
         self.suggestion: tuple[str, str, int] | None = None   # (order, text, t)
+        self.suggestion_alarm = False            # det väntande förslaget är ett larm
+        # ett vanligt förslag som kom medan ett larmförslag stod (ALARM_HOLD_S); det nyaste
+        # vinner och levereras när larmet är besvarat eller tiden gått (_release_held)
+        self.held: Report | None = None
         # senaste order av varje typ: typ -> (order, tid). Används för att inte
         # föreslå eller hålla kvar förslag om sådant kaptenen redan beslutat.
         self._ordered: dict[type[Order], tuple[Order, int]] = {}
@@ -206,6 +212,7 @@ class Game:
             if self.over:
                 break
         self.suggestion = None
+        self.held = None
         self.last_command_t = self.last_suggestion_t = self.now
         self.logbook.start_t = self.now
         self.logbook.attach(self.bus)
@@ -285,6 +292,7 @@ class Game:
         phrases.render(r, self.clock_str)
         if r.kind == "suggest" and r.data.get("order"):
             self.suggestion = (r.data["order"], r.text, self.now)
+            self.suggestion_alarm = r.alarm
             self.last_suggestion_t = self.now
             self.suggested_at[r.data["order"]] = self.now
         self.bus.publish(ReportDelivered(self.now, r))
@@ -314,6 +322,32 @@ class Game:
             self._version += 1
             self.time_scale = scale
             self.bus.publish(TimeScaleChanged(self.now, scale, reason))
+
+    def _alarm_holds(self) -> bool:
+        """Ett larmförslag väntar på svar och får inte ersättas av ett vanligt förslag."""
+        return self.suggestion is not None and self.suggestion_alarm and \
+            self.now - self.suggestion[2] < ALARM_HOLD_S
+
+    def _hold(self, r: Report) -> bool:
+        """Ett vanligt förslag medan ett larmförslag står: vänta (det nyaste vinner)."""
+        if r.kind != "suggest" or not r.data.get("order") or r.alarm or not self._alarm_holds():
+            return False
+        self.held = r
+        return True
+
+    def _release_held(self) -> Report | None:
+        """Det väntande förslaget, när larmet är besvarat eller har stått ALARM_HOLD_S. Släpps om
+        det blivit för gammalt eller någon station nu säger nej; redan beslutat släpper _deliver."""
+        r = self.held
+        if r is None or self._alarm_holds():
+            return None
+        self.held = None
+        order = r.data["order"]
+        if self.now - r.data.get("made_t", r.t_due) > HELD_MAX_S or \
+                any(st.vetoes(order) for st in self.stations):
+            return None
+        self._deliver(r)
+        return r
 
     def active_suggestion(self) -> tuple[str, str, int] | None:
         if self.suggestion and self.now - self.suggestion[2] <= SUGGESTION_TTL:
@@ -394,9 +428,13 @@ class Game:
         for st in self.stations:
             st.update()
 
-        delivered = self.queue.due(self.now)
-        for r in delivered:
+        released = self._release_held()
+        delivered = [released] if released else []
+        for r in self.queue.due(self.now):
+            if self._hold(r):                   # i tur och ordning: ett larm i samma tick räknas
+                continue
             self._deliver(r)
+            delivered.append(r)
             if r.alarm and self.time_scale > 1 and \
                     not any(st.keeps_time_scale(r) for st in self.stations):
                 self.set_time_scale(1, "larm")

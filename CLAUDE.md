@@ -35,7 +35,10 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 5. **Besättningen föreslår åtgärder** via `Station.suggest(..., order="…")`;
    kaptenen svarar `ja`/`nej`. **Vapenavfyring föreslås aldrig som ja-order.**
    Förslag om sådant kaptenen redan beordrat släpps (`Game.suggestion_redundant`,
-   `Order.STANDING`). Vid tystnad (10 min) tar vakthavande initiativ ur
+   `Order.STANDING`). Ett larmförslag står 30 s mot vanliga förslag (`ALARM_HOLD_S`): ett vanligt
+   förslag väntar då i `Game.held` (det nyaste vinner) och kommer när larmet är besvarat, om det inte
+   är äldre än 60 s eller någon station säger nej (`vetoes`; `MAST_ORDERS` – sända, periskop, radar,
+   foto – föreslås inte när det beordrade djupet är under periskopdjup). Vid tystnad (10 min) tar vakthavande initiativ ur
    stationernas `idle_proposals()`.
 6. Fast tidssteg 1 s. All slump via seedade `random.Random` – inga globala `random.*`. Stationerna
    drar ur sin egen ström `game.rng_for("namn")` (aldrig `game.rng`), så att en ny dragning i en

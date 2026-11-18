@@ -296,6 +296,7 @@ phrases.register_ru(RU_PHRASES)
 class OfficerStation(Station):
     REACHES_WORLD = True        # radarn, radarvarnaren och kameran (sensorer)
     role = Role.OFFICER
+    MAST_ORDERS = (RadarSweep, Photograph)
     COMMANDS = [
         CommandSpec(r"radar|radarsvep", lambda m: RadarSweep(), "radar"),
         CommandSpec(r"foto|fotografera|ta bilder|ta foto|kamera", lambda m: Photograph(), "foto"),

@@ -128,6 +128,7 @@ phrases.register_ru(RU_PHRASES)
 class RadioStation(Station):
     REACHES_WORLD = True        # sändningar (pejlbara emissioner) och huvudstabens meddelanden
     role = Role.RADIO
+    MAST_ORDERS = (SendReport,)
     COMMANDS = [
         CommandSpec(r"sänd rapport|sand rapport|rapportera|sänd", lambda m: SendReport(), "sänd rapport"),
         CommandSpec(r"radio|meddelanden", lambda m: RadioStatus(), "radio"),
