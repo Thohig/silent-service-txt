@@ -163,18 +163,18 @@ def test_station_spiral_does_not_pull_us_down_while_surfacing():
     from sim.stations.navigation import NavigationStation
     g = Game(build_scenario("arktis", random.Random(1)), seed=1)
     nav = g.station(NavigationStation)
-    nav.goal = "station"
+    from sim.stations.navigation.tasks import Station as StationSteer
+    nav.steer = StationSteer()
     nav._station_overhead = lambda: (1.0, 1.0)          # generatorn rakt ovanför
     g.world.own.state.order_depth(0)
-    nav._steer_to_station()
+    nav._steer_to_station(nav.steer)
     assert nav.goal == "station" and g.world.own.state.ordered_depth == 0
 
 
 @pytest.mark.slow
 def test_arctic_short_hands_over_near_the_station_with_the_fire_ahead():
     from sim.game import Game
-    from sim.scenario import (ARCTIC_SHORT_LIMIT_S, ARCTIC_SHORT_WARM_S, SCENARIOS,
-                              build_scenario)
+    from sim.scenario import ARCTIC_SHORT_LIMIT_S, ARCTIC_SHORT_WARM_S, SCENARIOS, build_scenario
     assert SCENARIOS["arktis-kort"].minutes
     for seed in range(3):
         g = Game(build_scenario("arktis-kort", random.Random(seed)), seed=seed)

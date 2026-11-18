@@ -50,8 +50,11 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   `update`), `common.py` (konstanter och order), `phrases.py`, och delarna som `NavigationStation` ärver:
   `fixes.py`, `bottom.py`, `ice.py`, `steering.py`, `exit_route.py`. Pågående fixar är uppdrag
   (`tasks.py`, `NavTask` med `abort` och `step`) i `NavigationStation.tasks` per namn ("fix", "starfix",
-  "bfix"), körda med `_run_task` på sina platser i `update`; avbrottet skrivs i uppdraget. Styruppdragen
-  (följ, anfall, väntläget, farleden, stationen) är ännu `goal`-strängar.
+  "bfix"), körda med `_run_task` på sina platser i `update`; avbrottet skrivs i uppdraget. Styruppdraget
+  är ett i taget, `NavigationStation.steer` (`tasks.Steering`: `Follow`, `Attack`, `Wait`, `Fairway`,
+  `Station`), med sitt eget tillstånd och `STEP_S`; `nav.goal` är dess namn (follow, attack, wait,
+  fairway, station, circle). Ett steg som slutar sätter `steer = None` där det säger varför; `kurs`
+  avbryter (`on_order`).
 - **Rapporter** bär `type` + `data`, aldrig färdig text. Texten skapas av
   `phrases.render()` vid leverans, efter rapportfiltren. Varje station registrerar
   sina fraser med `phrases.register({...})` i sin egen modul.

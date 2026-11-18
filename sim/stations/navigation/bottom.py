@@ -138,7 +138,7 @@ class BottomMixin:
                      {"reason": f"botten ligger på cirka {round(depth, -1):.0f} meter, under provdjup"})
             return
         self.vak = None
-        self.goal = None
+        self.steer = None
         sys.settle = True
         self._settle_aim = min(s.max_depth, depth + SETTLE_EXTRA_M)
         s.order_speed(min(s.ordered_speed, SETTLE_SPEED) if s.ordered_speed > 0 else SETTLE_SPEED)

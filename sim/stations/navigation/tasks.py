@@ -1,5 +1,6 @@
 """Navigatörens pågående uppdrag: fix i periskopet eller med bäringar från bryggan,
-stjärnfix och fix mot botten.
+stjärnfix och fix mot botten, och styruppdragen (följ, anfall, väntläget, farleden,
+drivstationen).
 
 Varje uppdrag är ett `NavTask` med två frågor: `abort` (ska det avbrytas nu, och vad säger
 navigatören då) och `step` (ett steg; sant när det är klart). NavigationStation håller dem
@@ -9,6 +10,11 @@ uppdraget före steget, så att det som sägs under steget ser att det är över
 Nytt uppdrag: en klass här med `name`, starta det med `nav.tasks[name] = …`. Avbrotten
 skrivs i uppdraget, inte i update, så att ett nytt sätt att börja (bryggan, periskopet)
 inte glömmer hur det slutar.
+
+Styruppdragen (`Steering`) är ett i taget: `nav.steer`, och `nav.goal` är dess namn. Varje
+uppdrag bär sitt eget tillstånd (kontakten, beräknad ankomst, farledens nästa punkt, sökcirkeln)
+och sitt steg (`step`, metoderna i steering.py och ice.py). Kaptenens `kurs` avbryter vilket det
+än är (station.py, on_order); ett steg som slutar sätter `nav.steer = None` där det säger varför.
 """
 from __future__ import annotations
 
@@ -21,12 +27,16 @@ from ...ownship import PERISCOPE_DEPTH
 from ...reports import Quality
 from ...seabed import match_soundings
 from .common import (
+    ATTACK_STEP_S,
     BFIX_FLAT,
     BFIX_INTERVAL_S,
     BFIX_N,
     BRIDGE_FIX_QUIET_NM,
     COAST_FIX_SIGMA,
+    FAIRWAY_STEP_S,
+    FOLLOW_STEP_S,
     PERISCOPE_FIX_SIGMA,
+    WAIT_STEP_S,
 )
 
 if TYPE_CHECKING:
@@ -172,3 +182,77 @@ def periscope_refusal(nav: NavigationStation, too_deep: str) -> str | None:
     if not nav.masts_free:
         return "det är is ovanför, periskopet kommer inte upp"
     return None
+
+
+# --- styruppdragen ------------------------------------------------------------------
+class Steering:
+    """Ett styruppdrag: navigatören styr (och ibland håller farten) tills det är klart."""
+    goal: ClassVar[str] = ""
+    STEP_S: ClassVar[int] = 1           # steg så här ofta (simtid delbar med STEP_S)
+
+    def step(self, nav: NavigationStation) -> None:
+        raise NotImplementedError
+
+
+@dataclass
+class Follow(Steering):
+    """`följ S-x`: styr på kontaktens bäring, håll plottets fart tills kaptenen sätter farten."""
+    goal: ClassVar[str] = "follow"
+    STEP_S: ClassVar[int] = FOLLOW_STEP_S
+    designation: str
+    hold_speed: bool = True
+
+    def step(self, nav: NavigationStation) -> None:
+        nav._follow_step(self)
+
+
+@dataclass
+class Attack(Steering):
+    """`anfall S-x`: till skjutläget vid sidan av målets väg (firecontrol.approach)."""
+    goal: ClassVar[str] = "attack"
+    STEP_S: ClassVar[int] = ATTACK_STEP_S
+    designation: str
+    eta_t: int | None = None            # beräknad ankomst till skjutläget (simtid)
+    behind: int = 0                     # så många steg i rad bakom målet
+
+    def step(self, nav: NavigationStation) -> None:
+        nav._attack_step(self)
+
+
+@dataclass
+class Wait(Steering):
+    """`väntläget`: dit utanför grinden och håll läget mot tidvattnet."""
+    goal: ClassVar[str] = "wait"
+    STEP_S: ClassVar[int] = WAIT_STEP_S
+    arrived: bool = False
+
+    def step(self, nav: NavigationStation) -> None:
+        nav._wait_step(self)
+
+
+@dataclass
+class Fairway(Steering):
+    """`farleden`: längs sjökortets farled, till styrbord om mitten."""
+    goal: ClassVar[str] = "fairway"
+    STEP_S: ClassVar[int] = FAIRWAY_STEP_S
+    index: int = 0                      # nästa punkt
+
+    def step(self, nav: NavigationStation) -> None:
+        nav._fairway_step(self)
+
+
+@dataclass
+class Station(Steering):
+    """`drivstationen`: mot Nord-7 på sonar eller huvudstabens läge; nära: sökspiral runt den."""
+    STEP_S: ClassVar[int] = 1
+    source: str = ""                    # "sonar" eller "wp"
+    circle: tuple[float, float] | None = None    # sökspiralens mitt (beräknad), när vi söker
+    circle_t: int = 0
+
+    @property
+    def goal(self) -> str:              # type: ignore[override]
+        return "circle" if self.circle is not None else "station"
+
+    def step(self, nav: NavigationStation) -> None:
+        nav._steer_to_station(self)
+

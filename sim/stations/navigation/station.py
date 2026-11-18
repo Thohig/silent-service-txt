@@ -32,9 +32,7 @@ from .common import (
     DR_LABEL_S,
     DR_TICK_S,
     DR_TRACK_INTERVAL_S,
-    FAIRWAY_STEP_S,
     FIX_VAK_MAX_M,
-    FOLLOW_STEP_S,
     ICE_FIX_SIGMA_NM,
     IDLE_FIX_SIGMA_NM,
     OWN_VECTOR_S,
@@ -44,7 +42,6 @@ from .common import (
     SHOAL_CHECK_S,
     SHOAL_MARGIN_M,
     TIDE_TABLE_ERR,
-    WAIT_STEP_S,
     AttackApproach,
     BottomFix,
     EchoSounder,
@@ -67,7 +64,8 @@ from .exit_route import ExitMixin
 from .fixes import FixMixin
 from .ice import IceMixin
 from .steering import SteeringMixin
-from .tasks import NavTask
+from .tasks import Attack, Fairway, Follow, NavTask, Steering, Wait
+from .tasks import Station as StationSteer
 
 
 def _course(m: re.Match) -> Order:
@@ -141,23 +139,13 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         self._prev_usable = False
         self._told_out = False                # har sagt att vi lämnat området
         self.exit_via: str | None = None      # vägen ut går först runt land
-        self.follow: str | None = None        # kontakten vi följer (goal "follow")
-        self.follow_speed = True
-        self.attack: str | None = None        # kontakten vi går till skjutläge mot (goal "attack")
-        self._attack_arrived_t = -10**9
-        self.attack_eta_t: int | None = None  # beräknad ankomst till skjutläget (simtid)
-        self._wait_arrived = False
-        self._fw_i = 0                        # farleden: nästa punkt
+        self.steer: Steering | None = None    # styruppdraget (tasks.py): följ, anfall, väntläget …
+        self._attack_arrived_t = -10**9       # senaste skjutläge (inget nytt anfallsförslag strax)
         self._fw_done = False                 # farleden är gången
-        self._attack_behind = 0
         self._water = None                    # sjökortets vattenrutnät för vägsökning
         self._exit_cache: tuple[int, tuple | None, str | None] | None = None
-        self.goal: str | None = None         # "station" mot drivstationen, "circle" söker runt den
-        self._circle_c: tuple[float, float] | None = None
-        self._circle_t = 0
         self._touching = False
         self._settle_aim = 0.0
-        self._goal_src = ""
         # djupprofilen: djupmätaren (t, djup) och ekolodets bottenlodningar
         self.depth_log: list[tuple[int, float]] = [(0, s.depth)]
         self.course_log: list[tuple[int, float]] = [(0, round(s.course, 1))]   # sonarvyn: gyrot
@@ -338,15 +326,16 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         match order:
             case SetCourse(course=c):
                 self.vak = None
-                self.goal = None
+                self.steer = None
                 self.course_set_t = self.now
                 s.order_course(c)
                 self._ack("course", {"course": c}, s.course == s.ordered_course)
             case SetSpeed(speed=v):
                 self.vak = None
-                if self.goal == "wait":
-                    self.goal = None            # kaptenen tar över farten: vi håller inte läget
-                self.follow_speed = False       # kaptenen sätter farten själv
+                if isinstance(self.steer, Wait):
+                    self.steer = None           # kaptenen tar över farten: vi håller inte läget
+                if isinstance(self.steer, Follow):
+                    self.steer.hold_speed = False   # kaptenen sätter farten själv
                 if v > 0:
                     self._lift()
                 limit = self.own.max_speed()
@@ -485,6 +474,25 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
     # --- löpande -----------------------------------------------------------------
     # --- pågående uppdrag (tasks.py) --------------------------------------------------
     @property
+    def goal(self) -> str | None:
+        """Styruppdragets namn: follow, attack, wait, fairway, station eller circle."""
+        return self.steer.goal if self.steer is not None else None
+
+    @property
+    def attack_eta_t(self) -> int | None:
+        """Beräknad ankomst till skjutläget, medan vi anfaller."""
+        return self.steer.eta_t if isinstance(self.steer, Attack) else None
+
+    def _steer_step(self, kind: type[Steering]) -> bool:
+        """Ett steg i styruppdraget om det är av slaget `kind` och det är dags.
+        Sant om det var dags (då görs inte det som annars görs på samma takt)."""
+        task = self.steer
+        if not isinstance(task, kind) or self.now % task.STEP_S:
+            return False
+        task.step(self)
+        return True
+
+    @property
     def fix_done_t(self) -> int | None:
         """När fixen i periskopet eller från bryggan är klar, om en pågår."""
         t = self.tasks.get("fix")
@@ -514,18 +522,12 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         self._dead_reckon()
         if (self.game.start_clock + self.now) % DR_TICK_S == 0:
             self.dr_ticks.append((self.now, self.est_x, self.est_y))
-        if self.goal == "follow" and self.now % FOLLOW_STEP_S == 0:
-            self._follow_step()
-        if self.goal == "attack" and self.now % ATTACK_STEP_S == 0:
-            self._attack_step()
-        elif self.now % ATTACK_STEP_S == 0:
+        self._steer_step(Follow)
+        if not self._steer_step(Attack) and self.now % ATTACK_STEP_S == 0:
             self._convoy_watch()
             self._harbor_watch()
-        if self.goal == "wait" and self.now % WAIT_STEP_S == 0:
-            self._wait_step()
-        if self.goal == "fairway" and self.now % FAIRWAY_STEP_S == 0:
-            self._fairway_step()
-        elif self.now % SHOAL_CHECK_S == 0:
+        self._steer_step(Wait)
+        if not self._steer_step(Fairway) and self.now % SHOAL_CHECK_S == 0:
             self._fairway_watch()
         self._log_depth()
         if self.now % DR_TRACK_INTERVAL_S == 0:
@@ -535,7 +537,7 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         self._settle_watch()
         self._shoal_watch()
         self._steer_to_opening()
-        self._steer_to_station()
+        self._steer_step(StationSteer)
         self._ice_advice()
         s = self.ship
         changing = s.changing()

@@ -36,6 +36,7 @@ from .common import (
     VAK_SPEED,
     VAK_TIMEOUT_S,
 )
+from .tasks import Station as StationSteer
 
 
 class IceMixin:
@@ -253,7 +254,7 @@ class IceMixin:
             self.say("nav.station.none")
             return
         self.vak = None
-        self.goal, self._goal_src = "station", aim[0]
+        self.steer = StationSteer(source=aim[0])
         src, course, rng, d = aim
         self.ship.order_course(course)
         if src == "sonar":
@@ -274,47 +275,47 @@ class IceMixin:
         d = STATION_SEARCH_R_NM * 0.6
         return self.est_x + d * math.sin(b), self.est_y + d * math.cos(b)
 
-    def _steer_circle(self) -> None:
-        cx, cy = self._circle_c
+    def _steer_circle(self, task: StationSteer) -> None:
+        cx, cy = task.circle
         s = self.ship
         r = distance(cx, cy, self.est_x, self.est_y)
         out = bearing_to(cx, cy, self.est_x, self.est_y)
         # medurs runt mitten i en växande spiral; styr in eller ut mot banan
         want = min(STATION_SEARCH_MAX_NM, STATION_SEARCH_R_NM
-                   + STATION_SEARCH_GROW_NM_PER_H * (self.now - self._circle_t) / 3600)
+                   + STATION_SEARCH_GROW_NM_PER_H * (self.now - task.circle_t) / 3600)
         corr = max(-45.0, min(45.0, (r - want) / want * 60.0))
         s.order_course(norm360(out + 90 + corr))
 
-    def _steer_to_station(self) -> None:
-        if self.goal not in ("station", "circle") or self.vak is not None:
+    def _steer_to_station(self, task: StationSteer) -> None:
+        if self.vak is not None:
             return
         if self.ship.ordered_depth <= PERISCOPE_DEPTH:
             return          # på väg upp (ytläge, periskopdjup): ingen spiral som drar ned oss
-        if self.goal == "circle":
-            self._steer_circle()
+        if task.circle is not None:
+            self._steer_circle(task)
             return
         c = self._station_overhead()
         if c is not None:
-            self.goal, self._circle_c, self._circle_t = "circle", c, self.now
+            task.circle, task.circle_t = c, self.now
             s = self.ship
             s.order_speed(min(STATION_SEARCH_SPEED, self.own.max_speed()))
             if s.ordered_depth < SAFE_ICE_DEPTH:
                 s.order_depth(SAFE_ICE_DEPTH)
             self.say("nav.station.circle", {"name": STATION_NAME,
                                              "radius": round_m(STATION_SEARCH_R_NM * 1852)})
-            self._steer_circle()
+            self._steer_circle(task)
             return
         aim = self.station_aim()
         if aim is None:
-            self.goal = None
+            self.steer = None
             return
         src, course, rng, d = aim
-        if src != self._goal_src and src == "sonar":
-            self._goal_src = src
+        if src != task.source and src == "sonar":
+            task.source = src
             self.say("nav.station.sonar", {"name": STATION_NAME, "course": course, **d})
         self.ship.order_course(course)
         if src == "wp" and rng < STATION_ARRIVE_NM:
-            self.goal = None
+            self.steer = None
             self.suggest("station_arrived", "nav.station.arrived",
                          {"name": STATION_NAME, "sigma": d["sigma"]},
                          order="fart 3, smygmotor", cooldown=0)
@@ -338,7 +339,7 @@ class IceMixin:
                          {"kind": thickness_words(latest.thickness), "sigma": sigma},
                          order="vak", cooldown=600)
         wp = self.game.knowledge.waypoints.get(STATION_NAME)
-        if wp is not None and self.goal is None and self.vak is None and \
+        if wp is not None and self.steer is None and self.vak is None and \
                 self.ship.depth > PERISCOPE_DEPTH + 1:
             aim = self.station_aim()
             if aim is not None and aim[0] == "wp" and aim[2] > 2 * STATION_ARRIVE_NM:

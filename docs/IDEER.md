@@ -40,9 +40,9 @@ till macOS `say`.
 
 I föreslagen ordning; inget ändrar spelet, alla ska ge samma utfall för samma frö (utom 4).
 
-1. ~~**Navigatörens uppdrag som objekt.**~~ – delvis gjort 2026-11-18: `navigation/` delad i delar,
-   fixarna (fix, stjärnfix, bottenfix) är `NavTask` i `tasks.py`. Kvar: styruppdragen (`goal`) som
-   uppdrag. Ursprungligt förslag: `navigation.py` (2 395 rader, ~95 metoder) håller ett tiotal
+1. ~~**Navigatörens uppdrag som objekt.**~~ – gjort 2026-11-18: `navigation/` delad i delar, fixarna
+   (fix, stjärnfix, bottenfix) är `NavTask` och styruppdragen `Steering` (`nav.steer`) i `tasks.py`.
+   Ursprungligt förslag: `navigation.py` (2 395 rader, ~95 metoder) håller ett tiotal
    pågående uppdrag som lösa fält och `_x_step`-metoder: `fix_done_t`, `_star`, bottenfixen, `goal`
    ("station", "circle", "fairway", "wait" …), följ, anfall, väg ut. Ett litet protokoll
    `NavTask` (`start`, `step`, `abort(skäl)`, `chart_items`) gör varje uppdrag till en egen modul och

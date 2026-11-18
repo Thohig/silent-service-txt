@@ -467,9 +467,7 @@ class FirstOfficer(Station):
         # stationer (t.ex. plottets TMA-gir) skulle avbryta det
         if nav is not None and nav.goal in ("attack", "follow") and \
                 report.role != Role.NAVIGATOR.value and any(isinstance(o, STEERING) for o in parts):
-            if nav.goal == "attack":
-                return {"why": "attack", "designation": nav.attack}
-            return {"why": "follow", "designation": nav.follow}
+            return {"why": nav.goal, "designation": nav.steer.designation}
         # ordern kräver en rapport och radion behöver masten: inte djupare än antenndjup
         radio = self._radio()
         if "rapport" in self.game.knowledge.order_tasks and radio is not None and \
@@ -594,9 +592,9 @@ class FirstOfficer(Station):
         nav = self._nav()
         if nav is not None and nav.goal == "attack" and nav.attack_eta_t is not None and \
                 nav.attack_eta_t - now <= SUMMON_S + WALK_S and \
-                self._asked.get(f"attack:{nav.attack}", -10**9) < now - REPEAT_S:
-            self._asked[f"attack:{nav.attack}"] = now
-            self._wake("danger", {"kind": "attack", "designation": nav.attack,
+                self._asked.get(f"attack:{nav.steer.designation}", -10**9) < now - REPEAT_S:
+            self._asked[f"attack:{nav.steer.designation}"] = now
+            self._wake("danger", {"kind": "attack", "designation": nav.steer.designation,
                                   "minutes": max(1, round((nav.attack_eta_t - now) / 60))})
         if "anfall" in k.order_tasks and not hunted:
             self._target_watch()

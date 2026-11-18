@@ -13,6 +13,7 @@ from sim.scenario import build_scenario, default_scenario
 from sim.stations import FirstOfficer
 from sim.stations.starpom import (ORDERLY_S, WALK_S, alarm_level, in_mandate,
                                   mandate_for)
+from sim.stations.navigation.tasks import Attack
 from sim.stations.torpedo_room import FireTube, FireSalvo
 
 
@@ -288,7 +289,7 @@ def test_starpom_declines_course_suggestion_that_breaks_the_attack():
     g.command("starpom har befälet")
     _run(g, 3)
     nav = g.station(NavigationStation)
-    nav.goal, nav.attack = "attack", "S-2"       # navigatören styr mot skjutläget
+    nav.steer = Attack("S-2")                     # navigatören styr mot skjutläget
     course = g.world.own.state.ordered_course
     g.say(Role.PLOT, "order.declined", {"order": "kurs 123", "made_t": g.now}, kind="suggest")
     _run(g, 12)
@@ -336,11 +337,10 @@ def test_captain_is_called_to_central_before_firing_position():
     g.command("sov")
     _run(g, 3)
     nav = g.station(NavigationStation)
-    nav.goal, nav.attack = "attack", "S-2"
-    nav.attack_eta_t = g.now + 600                # långt kvar: han får sova
+    nav.steer = Attack("S-2", eta_t=g.now + 600)  # långt kvar: han får sova
     _run(g, 10)
     assert g.status().captain_at == "cabin"
-    nav.attack_eta_t = g.now + 150                # strax: högtalaren, han hinner fram
+    nav.steer.eta_t = g.now + 150                 # strax: högtalaren, han hinner fram
     _run(g, 10)
     assert g.status().captain_at == "walking"
     assert any(r.type == "xo.danger" and "skjutläge" in r.text for r in reports)

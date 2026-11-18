@@ -27,6 +27,7 @@ from .common import (
     WAIT_SUGGEST_S,
     WAIT_TRANSIT_KN,
 )
+from .tasks import Attack, Fairway, Follow, Wait
 
 
 class SteeringMixin:
@@ -38,46 +39,42 @@ class SteeringMixin:
             self.say("nav.follow.none", {"designation": designation.upper()})
             return
         self.vak = None
-        self.goal = "follow"
-        self.follow = tr.designation
-        self.follow_speed = True
-        self._follow_step(announce=True)
+        self.steer = task = Follow(tr.designation)
+        self._follow_step(task, announce=True)
 
-    def _follow_step(self, announce: bool = False) -> None:
+    def _follow_step(self, task: Follow, announce: bool = False) -> None:
         """Gå i kontaktens kölvatten: styr på bäringen, håll plottets fart."""
-        tr = self.game.knowledge.tracks.get(self.follow)
+        tr = self.game.knowledge.tracks.get(task.designation)
         s = self.ship
         if tr is None or not tr.held:
-            self.goal = None
-            self.say("nav.follow.lost", {"designation": self.follow}, alarm=True)
+            self.steer = None
+            self.say("nav.follow.lost", {"designation": task.designation}, alarm=True)
             return
         c = round(tr.last_bearing) % 360
         s.order_course(c)
         sol = tr.solution
         speed = None
-        if self.follow_speed and sol is not None and sol.quality >= Quality.OSAKER \
+        if task.hold_speed and sol is not None and sol.quality >= Quality.OSAKER \
                 and self.now - sol.t < 600:
             speed = max(2, min(round(sol.speed), int(self.own.max_speed())))
             s.order_speed(speed)
         if announce:
-            self.say("nav.follow", {"designation": self.follow, "course": c, "speed": speed},
+            self.say("nav.follow", {"designation": task.designation, "course": c, "speed": speed},
                      kind="ack")
 
     # --- anfall: till skjutläge vid sidan av målets väg -----------------------------
     def _start_attack(self, designation: str) -> None:
         self.vak = None
-        self.attack_eta_t = None
-        self.goal = "attack"
-        self._attack_behind = 0
-        self.attack = (designation or "").upper().replace(" ", "")
-        if not self.attack.startswith("S-"):
-            self.attack = "S-" + self.attack.lstrip("S")
-        self._attack_step(announce=True)
+        d = (designation or "").upper().replace(" ", "")
+        if not d.startswith("S-"):
+            d = "S-" + d.lstrip("S")
+        self.steer = task = Attack(d)
+        self._attack_step(task, announce=True)
 
-    def _attack_target(self, designation: str | None = None):
+    def _attack_target(self, designation: str):
         """Målets mitt nu och fart (knop) enligt plottet: konvojens baskurs om vi har den."""
         k = self.game.knowledge
-        tr = k.track(designation or self.attack)
+        tr = k.track(designation)
         if tr is None:
             return None
         c = k.convoy
@@ -93,20 +90,20 @@ class SteeringMixin:
         vx, vy = sol.state[2], sol.state[3]
         return sol.x + vx * dt, sol.y + vy * dt, vx, vy, tr.designation, "solution", sol.quality
 
-    def _attack_step(self, announce: bool = False) -> None:
+    def _attack_step(self, task: Attack, announce: bool = False) -> None:
         from ...firecontrol import approach
-        tgt = self._attack_target()
+        tgt = self._attack_target(task.designation)
         if tgt is None:
-            self.goal = None
+            self.steer = None
             self.say("nav.attack.none" if announce else "nav.attack.lost",
-                     {"designation": self.attack}, alarm=not announce)
+                     {"designation": task.designation}, alarm=not announce)
             return
         x, y, vx, vy, what, basis, q = tgt
         s = self.ship
         ex, ey = self.game.own_position_estimate()
         speed = max(3.0, s.ordered_speed if s.ordered_speed is not None else s.speed)
         res = approach(ex, ey, x, y, vx, vy, speed, ATTACK_OFFSET_NM, ATTACK_LEAD_H)
-        data = {"designation": self.attack, "what": what, "basis": basis, "quality": q,
+        data = {"designation": task.designation, "what": what, "basis": basis, "quality": q,
                 "offset": ATTACK_OFFSET_NM, "speed": speed,
                 "target_course": norm360(math.degrees(math.atan2(vx, vy))),
                 "target_speed": math.hypot(vx, vy)}
@@ -117,13 +114,13 @@ class SteeringMixin:
             across = abs((ex - x) * vy - (ey - y) * vx) / v
             # bakom målet: säkert bara med baskursen eller nära; två gånger i rad
             behind = along < -ATTACK_PASSED_NM and (basis != "leg" or math.hypot(ex - x, ey - y) < 3.0)
-            self._attack_behind = self._attack_behind + 1 if behind else 0
-            if self._attack_behind >= 2:
-                self.goal = None
+            task.behind = task.behind + 1 if behind else 0
+            if task.behind >= 2:
+                self.steer = None
                 self.say("nav.attack.passed", data, quality=q, alarm=not announce)
                 return
             if 0 <= along / v <= ATTACK_IN_POSITION_H and across <= ATTACK_IN_POSITION_NM:
-                self.goal = None
+                self.steer = None
                 data.update(passage_min=along / v * 60, dist=across,
                             side=1 if (ex - x) * vy - (ey - y) * vx > 0 else -1)
                 self.say("nav.attack.arrived", data, quality=q, alarm=True)
@@ -140,11 +137,11 @@ class SteeringMixin:
                     need, res = v, r2
                     break
             if need is None:
-                self.goal = None
+                self.steer = None
                 self.say("nav.attack.cannot", data, quality=q)
                 return
             s.order_course(round(res[0]) % 360)
-            self.attack_eta_t = self.now + round(res[1] * 3600)
+            task.eta_t = self.now + round(res[1] * 3600)
             if announce:
                 limit = self.own.max_speed()
                 data.update(course=res[0], minutes=res[1] * 60, need=need, side=res[4],
@@ -156,7 +153,7 @@ class SteeringMixin:
             return
         course, t_h, _px, _py, side = res
         s.order_course(round(course) % 360)
-        self.attack_eta_t = self.now + round(t_h * 3600)
+        task.eta_t = self.now + round(t_h * 3600)
         if announce:
             data.update(course=course, minutes=t_h * 60, side=side)
             self.say("nav.attack", data, kind="ack", quality=q)
@@ -197,7 +194,7 @@ class SteeringMixin:
     def _harbor_watch(self) -> None:
         """Före bilderna, utanför nätet: föreslå väntläget (resten upptäcker kaptenen själv)."""
         k = self.game.knowledge
-        if k.best_photo is not None or self.goal is not None or k.hunted(self.now):
+        if k.best_photo is not None or self.steer is not None or k.hunted(self.now):
             return
         net = next((w for n, w in k.waypoints.items() if n.lower() == "nätet"), None)
         if net is None or distance(self.est_x, self.est_y, net.x, net.y) < WAIT_OUT_NM - 0.3:
@@ -215,27 +212,26 @@ class SteeringMixin:
             self.say("nav.wait.none")
             return
         self.vak = None
-        self.goal = "wait"
-        self._wait_arrived = False
+        self.steer = task = Wait()
         c = round(bearing_to(self.est_x, self.est_y, *p)) % 360
         self.ship.order_course(c)
-        self._wait_step()
+        self._wait_step(task)
         self.say("nav.wait", {"course": c, "range": distance(self.est_x, self.est_y, *p)},
                  kind="ack")
 
-    def _wait_step(self) -> None:
+    def _wait_step(self, task: Wait) -> None:
         """Styr mot väntläget och håll det mot tidvattnet: 3 kn dit, 1–2 kn när vi är framme."""
         wp = self.game.knowledge.waypoints.get(WAIT_NAME)
         if wp is None:
-            self.goal = None
+            self.steer = None
             return
         s = self.ship
         d = distance(self.est_x, self.est_y, wp.x, wp.y)
         s.order_course(round(bearing_to(self.est_x, self.est_y, wp.x, wp.y)) % 360)
-        if d <= WAIT_ARRIVED_NM and not self._wait_arrived:
-            self._wait_arrived = True
+        if d <= WAIT_ARRIVED_NM and not task.arrived:
+            task.arrived = True
             self.say("nav.wait.arrived", {"sigma": self.uncertainty()}, alarm=True)
-        if self._wait_arrived:
+        if task.arrived:
             s.order_speed(1.0 if d <= WAIT_ARRIVED_NM else 2.0)
         else:
             # fortare långt ute; tyst genom patrullbåtens skärm (1,5–2,5 nm ut) och sista biten
@@ -253,8 +249,12 @@ class SteeringMixin:
         return offset_starboard(fw, FAIRWAY_RIGHT_NM)
 
     def _fairway_point(self) -> tuple[float, float] | None:
+        """Nästa punkt på farleden medan vi går den, annars None."""
+        task = self.steer
+        if not isinstance(task, Fairway):
+            return None
         pts = self._fairway_points()
-        return pts[self._fw_i] if self._fw_i < len(pts) else None
+        return pts[task.index] if task.index < len(pts) else None
 
     def _fairway_passed(self, pts: list[tuple[float, float]], i: int) -> bool:
         """Är vi framme vid, eller förbi, punkt i (längs benet som leder dit)?"""
@@ -292,32 +292,31 @@ class SteeringMixin:
             self.say("nav.fairway.none", {"done": self._fw_done})
             return
         self.vak = None
-        self.goal = "fairway"
+        self.steer = task = Fairway(self._fairway_index())
         self.course_set_t = self.now
-        self._fw_i = self._fairway_index()
         pts = self._fairway_points()
-        c = round(bearing_to(self.est_x, self.est_y, *pts[self._fw_i])) % 360
+        c = round(bearing_to(self.est_x, self.est_y, *pts[task.index])) % 360
         self.ship.order_course(c)
-        self.say("nav.fairway", {"course": c, "legs": len(pts) - self._fw_i,
-                                 "dist": self._fairway_dist(pts)}, kind="ack")
+        self.say("nav.fairway", {"course": c, "legs": len(pts) - task.index,
+                                 "dist": self._fairway_dist(pts, task.index)}, kind="ack")
 
-    def _fairway_dist(self, pts: list[tuple[float, float]]) -> float:
+    def _fairway_dist(self, pts: list[tuple[float, float]], i: int) -> float:
         d, x, y = 0.0, self.est_x, self.est_y
-        for p in pts[self._fw_i:]:
+        for p in pts[i:]:
             d += distance(x, y, *p)
             x, y = p
         return d
 
-    def _fairway_step(self) -> None:
+    def _fairway_step(self, task: Fairway) -> None:
         """Styr längs farleden; gir mot nästa ben strax före brytpunkten."""
         pts = self._fairway_points()
-        if self._fw_i >= len(pts):
-            self.goal = None
+        if task.index >= len(pts):
+            self.steer = None
             return
-        if self._fairway_passed(pts, self._fw_i):
-            self._fw_i += 1
-            if self._fw_i >= len(pts):
-                self.goal = None
+        if self._fairway_passed(pts, task.index):
+            task.index += 1
+            if task.index >= len(pts):
+                self.steer = None
                 self._fw_done = True
                 k = self.game.knowledge
                 depth = self.chart_depth_at(self.est_x, self.est_y)
@@ -331,15 +330,15 @@ class SteeringMixin:
                                   "range": distance(self.est_x, self.est_y, wp.x, wp.y)},
                                  order=f"kurs mot {wp.name.lower()}", cooldown=600)
                 return
-            c = round(bearing_to(self.est_x, self.est_y, *pts[self._fw_i])) % 360
+            c = round(bearing_to(self.est_x, self.est_y, *pts[task.index])) % 360
             self.ship.order_course(c)
-            self.say("nav.fairway.leg", {"course": c, "legs": len(pts) - self._fw_i})
+            self.say("nav.fairway.leg", {"course": c, "legs": len(pts) - task.index})
             return
-        self.ship.order_course(round(bearing_to(self.est_x, self.est_y, *pts[self._fw_i])) % 360)
+        self.ship.order_course(round(bearing_to(self.est_x, self.est_y, *pts[task.index])) % 360)
 
     def _fairway_watch(self) -> None:
         """I fjorden utan lots: föreslå att följa farleden ut."""
-        if self.goal is not None or not self.game.knowledge.fairway or \
+        if self.steer is not None or not self.game.knowledge.fairway or \
                 self.now - self.course_set_t < 120 and self.course_set_t > 0:
             return
         if not self._fairway_left():
@@ -391,7 +390,7 @@ class SteeringMixin:
             return
         c = round(bearing_to(self.est_x, self.est_y, wp.x, wp.y)) % 360
         self.vak = None
-        self.goal = None
+        self.steer = None
         self.course_set_t = self.now
         self.ship.order_course(c)
         self.say("nav.steer", {"name": wp.name, "course": c,
