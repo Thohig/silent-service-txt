@@ -349,3 +349,18 @@ def test_bridge_bearing_fix_aborted_when_the_bridge_is_cleared():
     aborted = [r for r in said if r.type == "nav.fix.aborted"]
     assert aborted and "bryggan" in aborted[0].text
     assert not any(r.type == "nav.fix.done" for r in said)
+
+
+def test_navigators_own_quiet_bridge_fix_is_dropped_quietly_when_we_dive():
+    """Pejlingen navigatören tog själv (aldrig sagd) avbryts utan rapport när bryggan utryms."""
+    g = _game(1)
+    said = []
+    g.bus.subscribe(ReportDelivered, lambda e: said.append(e.report))
+    nav = g.station(NavigationStation)
+    nav._start_fix(quiet=True)
+    assert nav.tasks["fix"].quiet
+    g.world.own.sys.bridge = "clearing"
+    for _ in range(60):
+        g.tick()
+    assert "fix" not in nav.tasks
+    assert not any(r.type in ("nav.fix.aborted", "nav.fix.done") for r in said)

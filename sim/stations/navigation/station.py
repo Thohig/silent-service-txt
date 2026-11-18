@@ -504,7 +504,8 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         if task is None:
             return
         if (why := task.abort(self)) is not None:
-            self.say(why[0], why[1] or None)
+            if why[0]:
+                self.say(why[0], why[1] or None)
             return
         if not task.step(self):
             self.tasks.setdefault(name, task)

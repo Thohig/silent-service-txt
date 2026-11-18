@@ -42,7 +42,7 @@ from .common import (
 if TYPE_CHECKING:
     from .station import NavigationStation
 
-Abort = tuple[str, dict]            # (rapporttyp, data) när uppdraget avbryts
+Abort = tuple[str, dict]            # (rapporttyp, data) när uppdraget avbryts; tom typ: tyst
 
 
 class NavTask:
@@ -69,7 +69,10 @@ class PositionFix(NavTask):
     def abort(self, nav: NavigationStation) -> Abort | None:
         gone = nav.own.sys.bridge != "manned" if self.bridge \
             else nav.ship.depth > PERISCOPE_DEPTH + 1
-        return ("nav.fix.aborted", {"bridge": self.bridge}) if gone else None
+        if not gone:
+            return None
+        # navigatörens egen pejling, som aldrig sagts: avbryts lika tyst
+        return ("", {}) if self.quiet else ("nav.fix.aborted", {"bridge": self.bridge})
 
     def step(self, nav: NavigationStation) -> bool:
         if nav.now < self.done_t:
