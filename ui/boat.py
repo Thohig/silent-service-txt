@@ -8,7 +8,7 @@ from textual.css.query import NoMatches
 from textual.widgets import Static
 
 from .boat_render import header, lamps, legend, render_boat
-from .profile_render import DEFAULT_TIME_ZOOM, DEPTH_ZOOM, TIME_ZOOM, auto_depth_zoom
+from .profile_render import DEPTH_ZOOM, TIME_ZOOM, auto_depth_zoom, auto_time_zoom
 from .viewbase import ViewScreen
 
 REDRAW_S = 0.25
@@ -30,7 +30,7 @@ class BoatScreen(ViewScreen):
     def __init__(self) -> None:
         super().__init__()
         self.depth_zoom: int | None = None          # None: automatisk efter vårt djup
-        self.time_zoom = DEFAULT_TIME_ZOOM
+        self.time_zoom: int | None = None           # None: automatisk efter historiken
         self.profile_w = 80                         # profilens bredd vid senaste ritningen
 
     def compose(self) -> ComposeResult:
@@ -47,16 +47,20 @@ class BoatScreen(ViewScreen):
         self.draw()
 
     def action_time(self, step: int) -> None:
-        self.time_zoom = min(max(self.time_zoom + step, 0), len(TIME_ZOOM) - 1)
+        cur = self.time_zoom if self.time_zoom is not None else \
+            auto_time_zoom(self.app.game.profile(), self.profile_w)
+        self.time_zoom = min(max(cur + step, 0), len(TIME_ZOOM) - 1)
         self.draw()
 
     def action_auto(self) -> None:
         self.depth_zoom = None
+        self.time_zoom = None
         self.draw()
 
     def _auto(self) -> int:
         view = self.app.game.profile()
-        span = max(10, self.profile_w) * TIME_ZOOM[self.time_zoom]
+        tz = self.time_zoom if self.time_zoom is not None else auto_time_zoom(view, self.profile_w)
+        span = max(10, self.profile_w) * TIME_ZOOM[tz]
         return auto_depth_zoom(view, view.now - span)
 
     # --- ritning --------------------------------------------------------------------
@@ -73,15 +77,17 @@ class BoatScreen(ViewScreen):
         if w < 30 or h < 8:
             return
         pv, sv = game.profile(), game.systems()
-        spc = TIME_ZOOM[self.time_zoom]
+        spc = TIME_ZOOM[self.time_zoom] if self.time_zoom is not None else None
         max_depth = DEPTH_ZOOM[self.depth_zoom] if self.depth_zoom is not None else None
         rows, lay = render_boat(pv, sv, w, h, spc, max_depth)
+        spc = lay.sec_per_col
         self.profile_w = lay.profile_w
         body.update(Text("\n").join(rows))
         t = header(pv, sv)
         t.append("\n")
         t.append(lamps(sv, lay))
-        t.append(f" 1 tecken = {spc} s · djup "
+        t.append(f" 1 tecken = {spc} s" + (" (automatiskt)" if self.time_zoom is None else "")
+                 + " · djup "
                  + ("automatiskt" if self.depth_zoom is None
                     else f"till {DEPTH_ZOOM[self.depth_zoom]} m"), style="dim")
         t.append("   +/− djup · ←/→ tid · mellanslag automatiskt · Tab vidare · Esc tillbaka",

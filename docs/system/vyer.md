@@ -43,7 +43,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   på andra rubrikraden), profilen till vänster (60 %) och panelerna till höger; under `SIDE_MIN_W` (110)
   profilen över panelerna (högst halva höjden). Panelerna kompakta (`render_compact_panels`): fara och
   varning först och fullt, lugna paneler fälls efter `FOLD_ORDER` (torpedrören sist) till en gemensam rad
-  sist, och räcker inte det visar de oroliga bara sina larm.
+  sist, och räcker inte det visar de oroliga bara sina larm. Ryms panelerna inte i en spalt och det
+  finns plats för två på minst `PANEL_COL_MIN_W` (48) tecken får profilen 45 % och panelerna två spalter,
+  delade vid en panelrubrik. Tidsskalan är automatisk (`auto_time_zoom`): minsta skalan vars fönster rymmer
+  hela historiken, så att spåret fyller profilen även i början; ←/→ väljer själv, mellanslag tillbaka.
 - **Djupprofilen**: `Station.profile_items()` ger element (`sim/profile.py`):
   fasta djup (`Level`), navigatörens djuplogg (var 10:e s), ekolodets bottenlodningar
   (bara efter `ekolod`), isekolodets lodningar och sonarrummets hörda ljud. `Game.profile()`

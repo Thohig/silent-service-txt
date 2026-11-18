@@ -81,6 +81,17 @@ def known_bottom(view: ProfileView, t0: int) -> list[float]:
             + [b.depth for b in view.bottom if b.t + BOTTOM_VALID_S >= t0])
 
 
+def auto_time_zoom(view: ProfileView, width: int) -> int:
+    """Minsta tidsskala vars fönster rymmer hela historiken, så att spåret fyller profilen
+    redan i början av ett spel (största skalan när historiken är längre än så)."""
+    trace = view.trace
+    history = view.now - trace[0][0] if trace else 0
+    for i, spc in enumerate(TIME_ZOOM):
+        if max(10, width) * spc >= history:
+            return i
+    return len(TIME_ZOOM) - 1
+
+
 def auto_depth_zoom(view: ProfileView, t0: int) -> int:
     """Minsta skala som rymmer vårt djup, beordrat djup, isens kölar och grund botten."""
     shallow = [d for d in known_bottom(view, t0) if d * 1.15 + 5 <= DEPTH_ZOOM[-1]]

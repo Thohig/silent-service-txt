@@ -45,3 +45,29 @@ def test_lamps_only_without_the_hull():
     assert lamps(sv, tall).plain == ""
     assert "avd I II III" in lamps(sv, low).plain
     assert "fara" in legend().plain and "språngskikt" in legend().plain
+
+
+def test_time_scale_follows_the_history():
+    g = _game()                                              # två minuter spelat
+    _, short = render_boat(g.profile(), g.systems(), 148, 36)
+    for _ in range(3600):
+        g.tick()
+    _, long = render_boat(g.profile(), g.systems(), 148, 36)
+    assert short.sec_per_col < long.sec_per_col
+    _, fixed = render_boat(g.profile(), g.systems(), 148, 36, sec_per_col=30)
+    assert fixed.sec_per_col == 30
+
+
+def test_panels_in_two_columns_only_when_they_do_not_fit_and_it_is_wide():
+    assert layout(150, 40, 6, 30).panel_cols == 1            # ryms
+    two = layout(200, 30, 6, 40)
+    assert two.panel_cols == 2 and two.profile_w < layout(200, 30, 6, 20).profile_w
+    assert layout(150, 30, 6, 40).panel_cols == 1            # för smalt för två spalter
+    g = _game()
+    rows, lay = render_boat(g.profile(), g.systems(), 210, 24)
+    txt = "\n".join(r.plain for r in rows)
+    assert lay.panel_cols == 2
+    right = [r.plain[lay.profile_w + 2 + (lay.panels_w - 2) // 2 + 2:] for r in rows[-lay.panels_h:]]
+    first = next(r for r in right if r.strip())
+    assert first.startswith("─")                             # högra spalten börjar med en panel
+    assert "MASKIN" in txt and all(len(r.plain) <= 210 for r in rows)
