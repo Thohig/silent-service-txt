@@ -48,6 +48,12 @@ Flyttade ur CLAUDE.md (2026-11-18). Ändra medvetet och kör sedan botarna; uppd
 `tma_kvalitet.py` och `kontroll.py` även efter golvet för avståndets σ, 0,05 nm),
 8 frön om inget annat står. Siffrorna längre ned är de äldre; jämför med dessa.
 
+**Lotsen och periskopets land (2026-11-18):** `fingeravtryck.py` (30 min, frön 0–1) ändrades bara i
+`sundet-in/1` (lotsen: patrullbåten i farleden girar 20° från stranden) och `ovning-kort/0–1` (periskopet
+ropar ut land). `kontroll.py` för sundet, sundet-in, sundet-ut, ovning och ovning-kort: som baslinjen
+(ja-boten i ovning-kort median 48 min mot 54, inom gränsen). Lotsen: fartyg som jagar en punkt på land
+håller ≥ 5 m vatten (testat 4 frön i sundet och fjorden, minst ~10 m).
+
 | Bot | Nu | Förut |
 |---|---|---|
 | `konvoj_salva.py konvoj` / `konvoj-kort` | 2 / 0 sänkt | 2–3 / 1–2 |
