@@ -186,3 +186,16 @@ def test_game_ends_when_patrol_is_over():
     _run(g, 60)
     assert ended and ended[0].outcome == "patrol_end"
     assert g.over
+
+
+def test_torpedoes_cannot_be_fired_deeper_than_100_m():
+    g, reports = _game()
+    g.world.own.state.depth = 110
+    g.command("eld tub 1 kurs 090")
+    _run(g, 10)
+    assert any(r.type == "torp.refused" and "högst 100 meter" in r.text for r in reports)
+    assert not any(isinstance(w, Torpedo) for w in g.world.contacts)
+    g.world.own.state.depth = 95
+    g.command("eld tub 1 kurs 090")
+    _run(g, 10)
+    assert any(isinstance(w, Torpedo) for w in g.world.contacts)
