@@ -28,19 +28,15 @@ inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18. Stryk det so
 
 ## Utreda
 
-- **Plottets avstånd vid skottet i konvojen** (2026-11-18, `konvoj_salva.py`, felet skrivs vid varje
-  skott): lösningar som är god/säker och ≤ 3 nm har avståndsfel på 1–4 nm i nästan alla skott,
-  även med en titt ≤ 60 s gammal (konvoj frö 7: säker, fel 2,7 nm). Konvoj-kort frö 1, minut 8:
-  S-7 2,9 nm (god, σ 0,65) och 16,8 kn, sanningen 4,7 nm och ~10 kn; senaste titten 9 min gammal.
-  Farten överskattas och målet dras in för fort. Det förklarar varför salvorna missar och
-  varför titten före skottet inte hjälper. Troligen viktigare än titten.
-
+- ~~Plottets avstånd vid skottet i konvojen~~ – 2026-11-18: sicksackande mål fick för litet
+  processbrus (q = 1) och lösningen blev för säker; nu q = 30 för konvojfartyg och mål med två girar
+  (`Knowledge.zigzags`). Grova fel bland goda/säkra i konvoj-kort 6,5 % ⇒ 3,1 %, > 3σ 12 % ⇒ 4 %.
 - **Konvojen med starpom:** ett neutralt fartyg sänkt i en körning med salvaboten (troligen botens
   fel).
-- **Sjökortet:** i `jagad-kort`, frö 2 (före slumpbytet), fick bara den ena jagaren märket "först hörd";
-  den andra fick troligen sin beteckning på annat sätt än genom sonarens upptäckt.
-- **Plottet:** ~9 % grova fel bland goda/säkra lösningar, mest girar de senaste minuterna som
-  plottet inte hunnit se (`kalibrering/tma_kvalitet.py`).
+- ~~Sjökortet: bara den ena jagaren fick "först hörd"~~ – 2026-11-18: båda fick märket, men en etikett
+  som krockade (t.ex. med ett nyare pingmärke) ritades inte alls; nu flyttas den en rad.
+- **Plottet:** grova fel bland goda/säkra 6,9 % ⇒ 4,8 % (2026-11-18, `tma_kvalitet.py`). Kvar:
+  sundet (få lösningar, säker grovt 18 %) och girar de senaste minuterna.
 
 ## Beslut som väntar på kaptenen
 

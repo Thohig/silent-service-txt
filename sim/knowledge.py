@@ -17,6 +17,7 @@ from .periscope import PeriscopePicture
 from .seabed import Seabed
 from .environment import Almanac, TidalStream
 from .reports import Quality
+from . import tma
 from .tma import HUNTER_MANEUVER_Q, BearingObs, Solution, solve
 from .zigzag import ConvoyEstimate, LegFix
 
@@ -201,6 +202,11 @@ class Knowledge:
     def threat_held(self) -> bool:
         return any(t.threat for t in self.tracks.values())
 
+    def zigzags(self, tr: ContactTrack) -> bool:
+        """Plottet vet att målet sicksackar: konvojfartyg, eller två märkta girar."""
+        c = self.convoy
+        return (c is not None and tr.designation in c.members) or len(tr.turns) >= 2
+
     def track(self, designation: str) -> ContactTrack | None:
         return self.tracks.get(_normalize(designation))
 
@@ -214,8 +220,9 @@ class Knowledge:
         # en jagare som pingar i lugn patrull går sina ben
         hunting = self.hunted(t_now) and \
             any(o.source == "ping" and o.t >= t_now - HUNTER_PING_S for o in obs)
-        tr.solution = solve(obs, t_now=t_now, own_now=own_now,
-                            maneuver_q=HUNTER_MANEUVER_Q if hunting else None)
+        q = HUNTER_MANEUVER_Q if hunting else \
+            tma.ZIGZAG_MANEUVER_Q if self.zigzags(tr) else None
+        tr.solution = solve(obs, t_now=t_now, own_now=own_now, maneuver_q=q)
         return tr.solution
 
 

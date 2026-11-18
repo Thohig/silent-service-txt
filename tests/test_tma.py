@@ -296,3 +296,16 @@ def test_straight_target_error_matches_stated_uncertainty():
         sol = solve(obs, t_now=t, own_now=(own.x, own.y))
         inside += distance(sol.x, sol.y, tgt.x, tgt.y) < 3 * sol.range_sigma
     assert inside >= n - 1
+
+
+def test_knowledge_gives_a_zigzagging_contact_more_maneuver_noise():
+    from sim.knowledge import ContactTrack, Knowledge
+    obs, t, own, tgt = _two_legs(4)
+    k = Knowledge()
+    k.tracks["S-1"] = tr = ContactTrack("S-1", 0)
+    for o in obs:
+        k.on_bearing(dataclasses.replace(o, designation="S-1"))
+    straight = k.resolve("S-1", t, (own.x, own.y))
+    tr.turns = [t - 1500, t - 900]                  # plottet har sett två girar
+    assert k.zigzags(tr)
+    assert k.resolve("S-1", t, (own.x, own.y)).range_sigma > 1.5 * straight.range_sigma

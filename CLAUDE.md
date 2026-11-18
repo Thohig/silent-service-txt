@@ -134,11 +134,14 @@ utreda, beslut som väntar): `docs/TODO.md`. Stryk det som blir gjort där.
   Ärlig kvalitet (`tma.py`): processbrus för målets manöver q = 1 kn²/h (3 gav ofta bara osäker på
   två ben); utan nya bäringar sannolikheten τ/(τ + 10 min) att målet girat, σ 90° (en 10 min gammal
   lösning blir osäker); jagare som pingar medan vi är jagade q = 400 (inte i lugn patrull: då
-  tappade plottet patrulljagaren och radion gick upp för tidigt); kursens σ ≥ 15/30/60° ⇒ högst
+  tappade plottet patrulljagaren och radion gick upp för tidigt); mål som plottet vet sicksackar
+  (konvojfartyg eller två märkta girar, `Knowledge.zigzags`) q = 30 (med q = 1 var konvojlösningar
+  god/säker med σ 0,02–0,1 nm men 1–3 nm fel, för låg fart); kursens σ ≥ 15/30/60° ⇒ högst
   god/osäker/dålig när målet går ≥ 3 kn. Brytpunktstestet räknar utan brus. Mot sanningen (ja-boten,
   övning/kuba/konvoj-kort/sundet, 8 frön): grova fel (avstånd > 50 % eller kurs > 90°) bland god/säker
-  11 % ⇒ 9 %, fel > 3σ 18 % ⇒ 11 %; säkra lösningar med kurs > 90° fel 6 % ⇒ ~1 %. Det som är kvar är
-  mest girar de senaste minuterna som plottet inte hunnit se. Mätskriptet: `kalibrering/tma_kvalitet.py`.
+  11 % ⇒ 9 %, fel > 3σ 18 % ⇒ 11 %; säkra lösningar med kurs > 90° fel 6 % ⇒ ~1 %. Efter slumpen per
+  station och q för sicksack (2026-11-18): grova 6,9 % ⇒ 4,8 %, > 3σ 10,4 % ⇒ 7,9 % (konvoj-kort god
+  grova 18 % ⇒ 8 %). Det som är kvar är mest girar de senaste minuterna som plottet inte hunnit se. Mätskriptet: `kalibrering/tma_kvalitet.py`.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m.
 - Scenariernas och systemens siffror (botar, frön, utfall) står i `kalibrering/README.md` under
   Siffrorna. `uv run python kalibrering/kontroll.py` jämför passiva boten och ja-boten med

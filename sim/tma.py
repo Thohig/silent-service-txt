@@ -69,6 +69,9 @@ UNSEEN_TURN_LEG_H = 10 / 60
 UNSEEN_TURN_DEG = 90.0
 # Processbrus för ett mål som jagar (pingar): girar hela tiden.
 HUNTER_MANEUVER_Q = 400.0
+# Processbrus för ett mål som plottet vet sicksackar (konvojfartyg, eller girat minst två gånger):
+# en gir på 30–60° i 10 kn är en hastighetsändring på 5–10 kn några gånger i timmen.
+ZIGZAG_MANEUVER_Q = 30.0
 # Kursens σ (grader) som tak för kvaliteten: ≥ 15 högst god, ≥ 30 högst osäker,
 # ≥ 60 dålig. Gäller mål som går minst COURSE_MATTERS_KN.
 COURSE_SIGMA_LIMITS = (15.0, 30.0, 60.0)
