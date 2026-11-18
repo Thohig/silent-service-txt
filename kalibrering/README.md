@@ -16,6 +16,7 @@ scratchpad (2026-11-14–15). En del läser sanningen (`sundet.py --orakel`, `su
 | `kontroll.py` | alla | passiv och ja-boten, 8 frön, mot `baslinje.json` (`--spara` skriver den) |
 | `fingeravtryck.py` | alla | ja-boten, hash av rapporter, läge och vyer: samma frö ⇒ samma spel (omstruktureringar) |
 | `ja_bot.py` | alla (kommaseparerade) | ja-boten, parallellt |
+| `duell.py` | duell, duell-kort | passiv, ja, verktyg (ja + målsökande torpeder) |
 | `ovning.py` | ovning | ja-boten: tid, grund, bestickfel |
 | `ovning_lyssna.py` | ovning | lyssningens längd, partnerns svar |
 | `ovning_torped.py` | ovning, ovning-kort | ja + skjuter övningstorped |
@@ -41,6 +42,13 @@ Provkörda 2026-11-15 med ett frö var. Alla gick utan fel. `konvoj.py` och `kub
 kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 ## Siffrorna
+
+**Duellen (2026-11-18, `duell.py`, 8 frön; utfall, i parentes andra utfall):**
+- `duell`: passiv förlorad 6 (undan 2); ja-boten undan 3 (tiden ute 5, aldrig förlorad); verktygsboten
+  sänkt 2, undan 2 (tiden ute 4). Första rapport ≤ 61 s.
+- `duell-kort`: passiv förlorad 6 (tiden ute 2); ja-boten överlever 3 (tiden ute), förlorad 5, varken sänker
+  (avfyring är kaptenens) eller kommer undan; verktygsboten sänkt 1, överlever 2. Första rapport 8–93 s.
+  Medvetet svår: ubåten har redan pejlat oss. Med tre torpeder och 8 min mellan skotten.
 
 **Trim (2026-11-18, TR4):** efter trimmen (`sim/trim.py`, trimmaren) ger `kontroll.py` samma utfall som
 baslinjen i alla scenarier (passiv och ja-boten, 8 frön; inget flyttat ≥ 2 av 8 eller ≥ 25 % i tid).
