@@ -4,6 +4,8 @@ Du är kapten på en sovjetisk atomubåt. Du ger skrivna order och besättningen
 rapporterar. Fienden syns aldrig direkt, bara genom sonaroperatörens bäringar
 och plottlagets målrörelseanalys.
 
+Vad som ändrats och när: `docs/ANDRINGAR.md`.
+
 ## Köra
 
 ```bash
@@ -36,11 +38,15 @@ har en ordlista. Siffror och bedömningar är alltid på svenska. `jest` fungera
 Efter ett haverilarm rapporterar avdelningarna inom en minut vad de har inspekterat.
 
 Med ljudet på talar besättningen ryska (macOS-rösten Milena), medan loggen alltid är
-på svenska. `tal svenska` byter till svenskt tal, `tal ryska` tillbaka. Saknas Milena
+på svenska. Alla repliker som läses upp har ryskt tal; det som bara står i loggen (hjälpen,
+plottabellen) läses inte. `tal svenska` byter till svenskt tal, `tal ryska` tillbaka. Saknas Milena
 talar besättningen svenska.
 Ger du själv en order om samma sak (till exempel `fart 6` när besättningen
 föreslagit `fart 4`) släpps förslaget, och besättningen föreslår aldrig en
-kurs, fart, framdrivning eller ett djup som redan är beordrat.
+kurs, fart, framdrivning eller ett djup som redan är beordrat. Ett larmförslag (till exempel
+"flygradar nära, djup 60") står kvar i 30 sekunder mot vanliga förslag; ett vanligt förslag som
+kommer under tiden väntar och kommer när larmet är besvarat, om det fortfarande gäller. Sändning,
+periskop, radar och foto föreslås inte när du beordrat djupare än periskopdjup.
 
 Är kaptenen tyst i tio minuter (simtid) och ingen annan har föreslagit något,
 tar vakthavande initiativ och låter den station som har det viktigaste

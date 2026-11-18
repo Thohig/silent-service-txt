@@ -132,7 +132,9 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
 - `docs/system/granssnitt.md`: Huvudmenyn, Ljud
 
 Idéer som inte är beställda: `docs/IDEER.md`. Konkreta öppna uppgifter (köra om, prova för hand,
-utreda, beslut som väntar): `docs/TODO.md`. Stryk det som blir gjort där.
+utreda, beslut som väntar): `docs/TODO.md`. Stryk det som blir gjort där. Det som gjorts står i
+`docs/ANDRINGAR.md` (nyast först: vad det betyder i spel, var det bor, vad kalibreringen visade);
+för in varje färdigt steg där.
 
 ## Kalibrering (ändra medvetet, kör sedan provspel)
 - Språngskikt 60 m, 7 dB (`Thermocline` i `environment.py`). Arktis (`ArcticProfile`):
