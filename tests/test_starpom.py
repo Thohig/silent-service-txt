@@ -481,3 +481,44 @@ def test_cabin_door_orderly_and_departure():
     # för litet fönster för rummet: gången direkt
     small = "\n".join(r.plain for r in render_cabin(replace(st, door="open"), 0.0, 60, 16))
     assert "På väg till centralen" in small
+
+
+def test_info_alarm_does_not_break_the_captains_sleep():
+    """Ny kontakt tänder bara lampan: tiden står kvar på sömnens takt."""
+    g, reports = _game()
+    g.command("starpom har befälet")
+    _run(g, 60)                                   # jagarens första ping: telefonen
+    g.command("svara")
+    g.command("sov")
+    _run(g, 5)
+    scale = g.time_scale
+    assert scale > 1
+    g.say(Role.SONAR, "sonar.new_contact", {"bearing": 120.0, "designation": "S-7",
+                                            "classification": "okänd kontakt"}, alarm=True)
+    _run(g, 10)
+    assert any(r.type == "sonar.new_contact" for r in reports)
+    assert g.time_scale == scale and g.status().sleeping and g.status().phone != "ring"
+
+
+def test_a_passed_wake_time_is_dropped_at_handover():
+    g, reports = _game()
+    g.command("väck mig " + g.clock_str(g.now + 60)[:5])
+    _run(g, 600)
+    g.command("starpom har befälet")
+    _run(g, 30)
+    assert g.status().phone != "ring"
+    assert not any(r.type in ("xo.ring", "xo.call") for r in reports)
+
+
+def test_phone_stops_ringing_when_the_captain_walks_and_a_second_take_back_is_answered():
+    g, reports = _game()
+    g.command("starpom har befälet")
+    _run(g, 3)
+    fo = g.station(FirstOfficer)
+    fo.ring_t = g.now                                   # telefonen ringer
+    g.command("jag har befälet")
+    _run(g, 3)
+    assert g.status().phone != "ring"
+    g.command("jag har befälet")
+    _run(g, 10)
+    assert any(r.type == "xo.walking" for r in reports)

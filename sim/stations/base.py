@@ -95,6 +95,12 @@ class Station:
         med befälet); förslaget väntar då inte längre på kaptenen."""
         return False
 
+    def keeps_time_scale(self, report) -> bool:
+        """Ett larm har levererats under tidskomprimering: sant om stationen tar hand om det
+        och tiden inte ska sänkas av sig själv (starpom med befälet, för det som bara tänder
+        lampan)."""
+        return False
+
     def status_fields(self) -> dict:
         """Fält till StatusSnapshot ur stationens eget läge (inte om fienden)."""
         return {}

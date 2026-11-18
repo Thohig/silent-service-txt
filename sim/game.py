@@ -390,7 +390,8 @@ class Game:
         delivered = self.queue.due(self.now)
         for r in delivered:
             self._deliver(r)
-            if r.alarm and self.time_scale > 1:
+            if r.alarm and self.time_scale > 1 and \
+                    not any(st.keeps_time_scale(r) for st in self.stations):
                 self.set_time_scale(1, "larm")
         self.bus.publish(Tick(self.now))
 

@@ -403,6 +403,8 @@ class FirstOfficer(Station):
                 self.decisions = []
                 self.pending = []
                 self.lamp = False
+                if self.wake_at is not None and self.wake_at <= self.now:
+                    self.wake_at = None         # en väckningstid som redan passerat gäller inte
                 self._mark_seen()
                 self.say("xo.took", self._situation(), kind="ack", extra_delay=-1)
             case TakeBack():
@@ -411,6 +413,8 @@ class FirstOfficer(Station):
                 elif self.captain_at == "cabin":
                     self._walk()
                     self.say("xo.coming", kind="ack")
+                elif self.captain_at == "walking":
+                    self.say("xo.walking", {"s": max(1, self.walk_until - self.now)}, kind="system")
             case CallCentral():
                 if not self.in_command:
                     self.say("xo.not_in_command")
@@ -444,6 +448,12 @@ class FirstOfficer(Station):
                 self.wake_at = t
                 self.say("xo.wake_at", {"clock": clock(c)[:5]}, kind="ack")
 
+    def keeps_time_scale(self, report) -> bool:
+        """Med befälet: larm som bara tänder lampan (eller som han själv bevakar) väcker inte
+        kaptenen och sänker inte tiden. Frågor och fara sänker han själv (_wake)."""
+        return self.in_command and self.captain_at == "cabin" and \
+            alarm_level(report.type) in ("info", None)
+
     def _clear_calls(self) -> None:
         self.pending = []
         self.ring_t = None
@@ -453,6 +463,7 @@ class FirstOfficer(Station):
         self.captain_at = "walking"
         self.walk_until = self.now + WALK_S
         self.sleeping = False
+        self.ring_t = None                  # han har svarat genom att gå
         self.game.set_time_scale(1, "kaptenen")
 
     # --- förslagen ---------------------------------------------------------------
