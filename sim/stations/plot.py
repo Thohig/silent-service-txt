@@ -436,6 +436,8 @@ class PlotTeam(Station):
                   and self.now - self._last_suggest.get(tr.designation, -10**9) >= SUGGEST_COOLDOWN):
                 self._last_suggest[tr.designation] = self.now
                 course = self._suggest_course(sol, tr)
+                if course is None:
+                    continue
                 self.suggest(f"turn{tr.designation}", "plot.suggest",
                              {"designation": tr.designation, "quality": sol.quality,
                               "course": course, "first": not sol.own_maneuvered},
@@ -565,6 +567,8 @@ class PlotTeam(Station):
             if self._maneuvered_recently(tr):
                 continue
             course = self._suggest_course(sol, tr)
+            if course is None:
+                continue
             out.append(Proposal(3, f"idle_turn{tr.designation}", "plot.suggest",
                                 f"kurs {round(course) % 360:03d}",
                                 {"designation": tr.designation, "quality": sol.quality,
@@ -606,17 +610,26 @@ class PlotTeam(Station):
         return (own_maneuvered(recent, threshold_deg=15.0)
                 or "course" in self.own.state.changing())
 
-    def _suggest_course(self, sol: Solution, tr: ContactTrack) -> float:
+    def _suggest_course(self, sol: Solution, tr: ContactTrack) -> float | None:
+        """Nästa ben. Navigatören säger om kortet har land åt det hållet; då giren åt andra
+        hållet, och går ingen av dem föreslår plottet inget."""
         own_course = self.own.state.course
         window = [o for o in tr.observations if o.t >= self.now - 1800]
+        turn = None
         if sol.own_maneuvered and window:
             # sicksack: spegla förra giren så att nästa ben korsar tillbaka
-            turn = angle_diff(own_course, window[0].own_course)
-            if abs(turn) >= 20:
-                return norm360(own_course - 2 * turn)
-        rel = angle_diff(sol.bearing, own_course)
-        # första giren: vänd bort från kontakten för att inte stänga avståndet
-        return norm360(own_course - 60 if rel > 0 else own_course + 60)
+            t = angle_diff(own_course, window[0].own_course)
+            if abs(t) >= 20:
+                turn = -2 * t
+        if turn is None:
+            # första giren: vänd bort från kontakten för att inte stänga avståndet
+            turn = -60 if angle_diff(sol.bearing, own_course) > 0 else 60
+        from .navigation import NavigationStation
+        nav = next((st for st in self.game.stations if isinstance(st, NavigationStation)), None)
+        for c in (norm360(own_course + turn), norm360(own_course - turn)):
+            if nav is None or nav.course_safe(c):
+                return c
+        return None
 
 
 def _base_data(c: ConvoyEstimate) -> dict | None:

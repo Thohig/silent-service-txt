@@ -55,6 +55,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   var 2:a min; `bottom.touch` högst en gång per minut. Navigatören (`_shoal_watch`, var 20:e s) ser på kortet 6 min
   framåt (minst 1 nm) ± bestickets σ åt sidorna, och en färsk lodning; föreslår djup
   30 m över botten. `NavigationStation.depth_limit()` begränsar sonarens djupförslag.
+  Står besticket på kortets land (kortets strand ligger fel, upp till `accuracy_nm`) föreslår
+  navigatören kursen med kortaste väg till kortets vatten (`water_dist`, `nav.suggest.chart_land`,
+  larm). Plottets ben prövas mot kortet (`course_safe`: inget land närmare än `LAND_SAFE_NM` 0,5 nm,
+  eller på kortets land mot närmaste vatten); annars giren åt andra hållet, annars inget förslag.
   Lotsen (`pilotage.py`, sanning, efter AI:erna i varje tick): andra fartyg än vårt prövar vägen
   mot den beordrade kursen (giren åt kortaste hållet med girhastigheten, sedan rakt) 3 min framåt
   (minst 0,25 nm); leder den grundare än 10 m (ytfartyg) eller 15 m under kölen (ubåt) väljs

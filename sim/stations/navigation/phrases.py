@@ -133,6 +133,9 @@ PHRASES = {
     + ("Land" if d["shoal"] <= 0 else f"Bara {d['shoal']:.0f} meter vatten")
     + (" här enligt kortet" if d["dist"] < 0.15 else f" inom {nm(d['dist'])} sjömil framåt")
     + f". Föreslår kurs {fmt_course(d['course'])}.",
+    "nav.suggest.chart_land": lambda d: "Kapten, navigatören! Kortet visar land där besticket står, "
+    "men vi flyter: kortet ligger fel här, och stranden är nära. Närmaste vatten på kortet i kurs "
+    f"{fmt_course(d['course'])}, {nm(d['dist'])} sjömil. Föreslår kurs {fmt_course(d['course'])}.",
     "nav.course.done": lambda d: f"Kapten, kurs {fmt_course(d['course'])} påkommen.",
     "nav.speed.done": lambda d: f"Fart {kn(d['speed'])} knop uppnådd.",
     "nav.depth.done": lambda d: "Vi är i ytläge, kapten." if d["depth"] < 1
@@ -411,6 +414,9 @@ RU_PHRASES = {
     "nav.speed.ack": lambda d: "Есть, стоп машина." if d["speed"] == 0
     else f"Есть, ход {R.dec(d['speed'], R.KNOT)}.",
     "nav.depth.ack": _ru_depth_ack,
+    "nav.suggest.chart_land": lambda d: f"{R.CAPTAIN}, штурман! По карте мы на берегу, но мы на плаву: "
+    "карта здесь врёт, берег рядом. Ближайшая вода по карте курсом "
+    f"{R.course(d['course'])}, {R.dec(d['dist'], R.MILE)}. Предлагаю курс {R.course(d['course'])}.",
     "nav.course.done": lambda d: f"{R.CAPTAIN}, легли на курс {R.course(d['course'])}.",
     "nav.speed.done": lambda d: f"Ход {R.dec(d['speed'], R.KNOT)}.",
     "nav.depth.done": lambda d: "Мы в надводном положении, товарищ командир." if d["depth"] < 1

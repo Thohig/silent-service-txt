@@ -433,3 +433,21 @@ def test_bow_pressed_against_the_shore_stops_the_log_and_says_so():
         g.tick()
     assert math.hypot(nav.est_x - x0, nav.est_y - y0) < 0.02
     assert any(r.type == "bottom.pressed" for r in reports)
+
+
+def test_navigator_on_chart_land_points_to_the_nearest_water_and_plot_avoids_land():
+    """Kortets strand ligger fel: besticket står på kortets land fast vi flyter (sundet-ut, frö 1,
+    07:08). Navigatören föreslår kursen mot närmaste vatten på kortet, och plottets ben mot
+    stranden underkänns."""
+    from sim.stations import NavigationStation
+    g, reports = _at_shore(course=180.0, ordered_course=180.0)
+    nav = g.station(NavigationStation)
+    nav.est_x, nav.est_y = 7.61, 10.10
+    assert nav.on_chart_land()
+    assert nav.water_dist(90) < 0.15 and nav.water_dist(270) == math.inf
+    assert nav.course_safe(90) and not nav.course_safe(240)
+    g.world.own.state.x, g.world.own.state.y = 7.58, 10.10
+    for _ in range(60):
+        g.tick()
+    sug = [r for r in reports if r.type == "nav.suggest.chart_land"]
+    assert sug and 30 <= sug[0].data["course"] <= 150

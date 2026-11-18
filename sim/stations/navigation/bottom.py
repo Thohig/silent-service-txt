@@ -10,7 +10,7 @@ from ... import acoustics
 from ...chart import LAYER_CONTOUR, Mark, Track
 from ...entities import Transient
 from ...fmt import fmt_course
-from ...geo import distance, norm360
+from ...geo import angle_diff, distance, norm360
 from ...ownship import PERISCOPE_DEPTH, TEST_DEPTH
 from ...profile import BottomSounding
 from ...reports import Quality
@@ -21,6 +21,7 @@ from .common import (
     CONTOUR_MARGIN_NM,
     LAND_CLEAR_M,
     LAND_MARK_STEP_NM,
+    LAND_SAFE_NM,
     LAND_TURNS,
     SETTLE_DESCEND_KN,
     SETTLE_EXTRA_M,
@@ -31,6 +32,7 @@ from .common import (
     SHOAL_LOOK_MIN_NM,
     SHOAL_MARGIN_M,
     SOUNDING_TRUST_S,
+    WATER_LOOK_NM,
 )
 
 
@@ -211,11 +213,49 @@ class BottomMixin:
                      quality=Quality.SAKER if sounded else self._shoal_quality(),
                      alarm=minutes < 3)
 
+    def water_dist(self, course: float) -> float:
+        """Avstånd (nm) längs kursen tills kortet visar vatten nog för periskopdjup; inf om inte
+        inom WATER_LOOK_NM. Används när kortet visar land där besticket står."""
+        chart = self.game.knowledge.bathymetry
+        if chart is None:
+            return math.inf
+        b = math.radians(course)
+        dist = np.arange(0.0, WATER_LOOK_NM + 0.01, 0.02)
+        z = chart.depths(self.est_x + dist * math.sin(b), self.est_y + dist * math.cos(b))
+        ok = np.nonzero(z >= LAND_CLEAR_M)[0]
+        return float(dist[ok[0]]) if len(ok) else math.inf
+
+    def on_chart_land(self) -> bool:
+        """Visar kortet land där besticket står? Vi flyter, så kortet (eller besticket) är fel."""
+        chart = self.game.knowledge.bathymetry
+        return chart is not None and chart.depth_at(self.est_x, self.est_y) <= 0
+
+    def course_safe(self, course: float) -> bool:
+        """Går kursen bort från kortets land? För andra stationers kursförslag (plottets ben)."""
+        if self.game.knowledge.bathymetry is None:
+            return True
+        if self.on_chart_land():
+            best = min(self.water_dist(c) for c in range(0, 360, 15))
+            return self.water_dist(course) <= best + 0.1
+        ahead = self.chart_ahead(course)
+        return ahead is None or ahead[0] >= LAND_CLEAR_M or ahead[1] >= LAND_SAFE_NM
+
     def _land_watch(self) -> bool:
         """Land eller vatten för grunt även på periskopdjup framåt: föreslå en gir."""
         s = self.ship
         if s.speed < 0.5:
             return False
+        if self.on_chart_land():
+            # kortet ligger fel här (strandlinjen är förskjuten): närmaste vatten på kortet
+            dists = [(self.water_dist(c), c) for c in range(0, 360, 15)]
+            d, c = min(dists)
+            if d == math.inf or abs(angle_diff(c, s.course)) < 20 and \
+                    self.water_dist(s.course) <= d + 0.1:
+                return True
+            self.suggest("chart_land", "nav.suggest.chart_land", {"course": c, "dist": d},
+                         order=f"kurs {fmt_course(c)}", cooldown=300,
+                         quality=self._shoal_quality(), alarm=True)
+            return True
         ahead = self.chart_ahead()
         if ahead is None or ahead[0] >= LAND_CLEAR_M:
             return False
