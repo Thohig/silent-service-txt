@@ -155,6 +155,7 @@ sim/                 ren Python, ingen Textual
   firecontrol.py     skjutlösning (ren matematik på kunskap)
   chart.py           sjökortets ritelement; stationerna bidrar via chart_items()
   seabed.py          SANNING: bottentopografi; chart_copy() ger sjökortets bild (kunskap)
+  pilotage.py        SANNING: lotsen; andra fartyg girar undan grunt vatten och land
   profile.py         djupprofilens element; stationerna bidrar via profile_items()
   systems.py         systemtavlans element; stationerna bidrar via system_items()
   periscope.py       periskopbilden: synlig del, vinkel på bogen, lanternor (kunskap)

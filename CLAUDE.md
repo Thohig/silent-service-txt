@@ -41,7 +41,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 
 ## Arkitektur i korthet
 - **Sanningslager:** `world.py` (tick-ordning dokumenterad där), `ownship.py`, `ice.py`,
-  `enemy.py`, `weapons.py`, `environment.py`, `acoustics.py`, `entities.py`.
+  `enemy.py`, `weapons.py`, `environment.py`, `acoustics.py`, `entities.py`, `pilotage.py`
+  (lotsen: andra fartyg girar undan land, efter AI:erna).
   Transienter/emissioner som skapas under ett tick blir hörbara nästa tick.
 - **Stationer** (`sim/stations/`): en per system, ärver `Station`. Har `COMMANDS`
   (`CommandSpec`), `on_order`, `update`, `say`, `suggest`. Nya system = ny station

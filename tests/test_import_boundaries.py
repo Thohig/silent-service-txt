@@ -11,7 +11,8 @@ KNOWLEDGE = ("knowledge", "tma", "zigzag", "icemap", "periscope", "chart", "prof
 
 # Sanningen och det som håller den (bara sensorer och stationer får läsa dem).
 TRUTH = {"world", "entities", "ownship", "enemy", "weapons", "ice", "acoustics", "traffic",
-         "convoy", "air", "harbor", "arctic", "exercise", "sonar", "ship", "game", "scenario"}
+         "convoy", "air", "harbor", "arctic", "exercise", "sonar", "ship", "game", "scenario",
+         "pilotage"}
 
 
 def _runtime_nodes(tree: ast.AST):

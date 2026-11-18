@@ -47,6 +47,12 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   trimmen tar oss 15 m upp. Navigatören (`_shoal_watch`, var 20:e s) ser på kortet 6 min
   framåt (minst 1 nm) ± bestickets σ åt sidorna, och en färsk lodning; föreslår djup
   30 m över botten. `NavigationStation.depth_limit()` begränsar sonarens djupförslag.
+  Lotsen (`pilotage.py`, sanning, efter AI:erna i varje tick): andra fartyg än vårt prövar vägen
+  mot den beordrade kursen (giren åt kortaste hållet med girhastigheten, sedan rakt) 3 min framåt
+  (minst 0,25 nm); leder den grundare än 10 m (ytfartyg) eller 15 m under kölen (ubåt) väljs
+  närmaste kurs i steg om 10° vars väg är fri, annars den djupaste. Bara där det finns land
+  (sundet, övningen); på vanlig väg girar den sällan (fingeravtrycket ändrades bara i sundet-in/1,
+  patrullbåten i farleden; kontrollen oförändrad).
   Ligga på botten (`botten`, `OwnSystems.settle`/`on_bottom`): saktar till 1 kn, går ned först
   under 1,5 kn, sätter sig vid kontakt; World flyttar oss inte. Ljud: maskin 100 + pumpar 112 dB
   (mot 112/128 + 120). Ekoavdrag (`bottom_clutter`): 25 dB stilla på botten, 10 dB inom 20 m.

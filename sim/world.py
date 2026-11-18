@@ -6,7 +6,8 @@ Ett tick:
   3. egen ubåts system (reaktor, batteri, läckor, skrov)
   4. vapen (torpeder, sjunkbomber, skenmål)
   5. civil trafik (nya fartyg) och fiendens och handelsfartygens beteende
-  6. kontroll av spelslut
+  6. lotsen: fartyg som är på väg upp på grunt vatten girar undan (`pilotage.py`)
+  7. kontroll av spelslut
 """
 from __future__ import annotations
 
@@ -24,6 +25,7 @@ from .goals import Goal
 from .ice import ice_contact, ice_sounds
 from .seabed import bottom_contact
 from .ownship import OwnShip
+from .pilotage import steer_clear
 from .weapons import Torpedo, step_weapons
 
 LAND_STEP_NM = 0.05         # land mellan två punkter: prov så här tätt längs linjen
@@ -127,6 +129,7 @@ class World:
             sp.step(self)
         for ai in self.ais:
             ai.step(self)
+        steer_clear(self)
         self.time += dt
         self._check_outcome()
 
