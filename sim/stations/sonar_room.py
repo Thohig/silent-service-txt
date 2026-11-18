@@ -38,6 +38,7 @@ SLOW_PING_S = 20            # så här långt mellan pingarna två gånger i rad
 PING_SAME_DEG = 8.0         # okända pingar inom så här många grader räknas som samma pingare
 PING_DRIFT_DEG_PER_S = 0.15 # ... plus så här mycket per sekund sedan förra pingen (pingaren rör sig)
 PING_SAME_MAX_DEG = 20.0
+PING_KNOWN_S = 900          # en känd pingare som tappats som kontakt känns igen på bäringen så länge
 PING_SMOOTH = 0.5           # ny ping väger så här mycket i pingarens bäring
 ICE_REPORT_S = 1800          # knakande is rapporteras inte oftare
 PROFILE_KEEP_S = 3 * 3600    # djupprofilen minns hörda ljud så här länge
@@ -469,9 +470,12 @@ class SonarRoom(IncomingMixin, Station):
         if ev.kind == "ping":
             # okända pingare hålls isär på bäringen: två jagare i skärm är inte en snabb pingare
             # bäringen brusar ett par grader per ping och pingaren rör sig: närmaste inom grinden
+            # en ping utan beteckning kan också vara en känd pingare som sonar just tappat som
+            # kontakt: den behåller sin nyckel (annars "Någon söker" igen mitt i jakten)
             unknown, best = None, None
             for k, q in self._pings.items():
-                if not k.startswith("okänd"):
+                if not k.startswith("okänd") and (
+                        ev.designation or q["last"] is None or self.now - q["last"] > PING_KNOWN_S):
                     continue
                 off = abs(angle_diff(q.get("bearing", ev.bearing), ev.bearing))
                 since = self.now - q["last"] if q["last"] is not None else 0
@@ -481,7 +485,9 @@ class SonarRoom(IncomingMixin, Station):
             if unknown is None and not ev.designation:
                 self._unknown_pingers += 1
             key = ev.designation or unknown or f"okänd{self._unknown_pingers}"
-            if key not in self._pings and unknown and ev.designation:
+            if not key.startswith("okänd"):
+                d["designation"] = key           # den kända pingaren, också när kontakten tappats
+            if key not in self._pings and unknown and ev.designation and unknown.startswith("okänd"):
                 self._pings[key] = self._pings.pop(unknown)      # samma pingare, nu identifierad
             p = self._pings.setdefault(key, {"last": None, "fast": False, "close_t": -10**9,
                                              "slow_n": 0})

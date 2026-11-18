@@ -143,3 +143,24 @@ def test_a_two_torpedo_salvo_still_warns_about_the_zigzag():
     room._salvo(FireSalvo("S-1", (1, 2)))
     assert len(fired) == 2 and all(o.offset != 0.0 for o in fired)
     assert warned == [("S-1", 300.0)]
+
+
+def test_known_pinger_lost_as_contact_is_not_a_new_pinger():
+    """Sonar tappar S-4 som kontakt men hör fortfarande pingarna i samma bäring: ingen ny 'Någon söker'."""
+    from sim.sonar import TransientHeard
+    g, reports = _game(1)
+    for ai in g.world.ais:
+        if hasattr(ai, "next_ping"):
+            ai.next_ping = 10**9
+    sonar = g.station(SonarRoom)
+    for k in range(6):
+        g.world.time = 100 + 20 * k
+        sonar._on_sound(TransientHeard("ping", 112.0 + 0.5 * k, 30.0, "S-4"))
+    g.world.time = 240
+    sonar._on_sound(TransientHeard("ping", 114.0, 30.0, None))      # kontakten tappad
+    g.world.time = 260
+    sonar._on_sound(TransientHeard("ping", 200.0, 30.0, None))      # en annan bäring: ny pingare
+    for _ in range(5):
+        g.tick()
+    firsts = [r for r in reports if r.type == "sonar.ping.first"]
+    assert [round(r.data["bearing"]) for r in firsts] == [112, 200]
