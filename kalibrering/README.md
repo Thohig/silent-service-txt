@@ -90,6 +90,7 @@ håller ≥ 5 m vatten (testat 4 frön i sundet och fjorden, minst ~10 m).
 | `starpom.py konvoj,konvoj-kort salva` | konvoj 1 sänkt (ja-boten 2); konvoj-kort 0, 1 neutral sänkt (frö 4) | – |
 | `tma_kvalitet.py` (god/säker) | grova 3,9 %, > 3σ 6,0 % (sundet säker grova 0) | 6,9 %, 10,4 % före q för sicksack; 4,8 %, 7,9 % före golvet för σ |
 | `kontroll.py` | som baslinjen efter golvet för σ (konvoj-kort ja uppdaterad efter q för sicksack) | – |
+| Efter larmförslagens 30 s (`ALARM_HOLD_S`, `MAST_ORDERS`, 2026-11-18) | `kontroll.py` som baslinjen utom kuba-kort ja: reported 3 ⇒ 2, report_missed 2 ⇒ 4, patrol_end 3 ⇒ 2 (ja-boten tar nu "djup 60" vid flygradar nära i stället för att "sänd rapport" skriver över larmet; baslinjen uppdaterad). Inom ±1: arktis ja station 6 ⇒ 5, jagad ja escaped 5 ⇒ 4, jagad-kort ja 6 ⇒ 5. 45 korta spel med ja-boten: larmförslag ersatta av rutinförslag 7 ⇒ 0 | se raderna ovan |
 | Efter periskopets förstoring (Z1–Z4) | `kontroll.py` som baslinjen utom konvoj-mot (vakten tittar i hög: passiv anfallen 3 ⇒ 4, patrol_end 4 ⇒ 1; baslinjen uppdaterad); `tma_kvalitet.py` god/säker grova 3,9 %, > 3σ 6,0 % (oförändrat); `konvoj_salva.py` konvoj 2, konvoj-kort 2; `sundet_folj.py --följ` 5; `sundet_in.py` grind 6; `sundet_ut.py` ut 5; `ovning_torped.py` träff 2 | se raderna ovan |
 
 Det neutrala fartyget i konvoj-kort frö 4: starpoms kapten sköt mot rätt mål (tankern, plottet 2,0 nm,
