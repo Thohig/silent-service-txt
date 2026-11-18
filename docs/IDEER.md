@@ -72,7 +72,8 @@ I föreslagen ordning; inget ändrar spelet, alla ska ge samma utfall för samma
    om allt från stationerna vid varje omritning (sonarvyn 2–4 gånger i sekunden, centralen 10).
    Cache per `now` (och tidsskala) i `Game`; dagens prestandafel i sonarvyn hade då kostat en gång
    per tick i stället för per bild.
-7. **CLAUDE.md delas.** Filen är 648 rader, mest systembeskrivningar och kalibreringssiffror per
+7. ~~**CLAUDE.md delas.**~~ – gjort 2026-11-18: 663 ⇒ 166 rader; systemen i `docs/system/`, siffrorna i
+   `kalibrering/README.md`. Filen är 648 rader, mest systembeskrivningar och kalibreringssiffror per
    scenario. Behåll regler, arkitektur och fallgropar (~150 rader); flytta systemen till
    `docs/system/<system>.md` och kalibreringen till `kalibrering/README.md` (siffrorna nära botarna
    som ger dem). Mindre att läsa i varje session och färre ställen där siffror blir gamla.
