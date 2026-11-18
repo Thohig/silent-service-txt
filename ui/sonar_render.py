@@ -107,10 +107,11 @@ def render_sonar(view: SonarView, width: int, height: int, window_s: int = 1800,
                  show_solution: bool = False) -> list[Text]:
     """Vattenfallet i `width` × `height` tecken, med en rad per kontakt under."""
     contact_lines = view.lines
-    n_lines = min(len(contact_lines), max(1, height // LINES_SHARE)) if contact_lines else 0
+    foot_room = max(0, height - HEAD_ROWS - MIN_BODY_ROWS)    # vattenfallet går före
+    n_lines = min(len(contact_lines), max(1, height // LINES_SHARE), foot_room)
     if n_lines and len(contact_lines) > n_lines:
         n_lines -= 1                 # sista raden säger hur många fler
-    more = len(contact_lines) - n_lines
+    more = len(contact_lines) - n_lines if foot_room else 0
     foot = n_lines + (1 if more else 0)
     cols = max(8, width - LEFT - RIGHT)
     rows = max(MIN_BODY_ROWS, height - HEAD_ROWS - foot)

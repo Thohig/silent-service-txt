@@ -262,3 +262,12 @@ def test_game_orders_held_contacts_by_kind():
     s = g.status()
     assert len(s.contact_kinds) == len(s.contacts_held)
     assert set(s.contact_kinds) <= {"threat", "contact", "civil", "benign", "friendly"}
+
+
+def test_render_never_taller_than_asked_with_many_contacts():
+    lines = [ContactLine(f"S-{i}", "okänd", Quality.DALIG, 10.0 * i, None, None)
+             for i in range(1, 6)]
+    v = _view(items=lines)
+    for h in range(6, 16):
+        assert len(render_sonar(v, 100, h)) == h, h
+    assert any("och" in r for r in _plain(render_sonar(v, 100, 9)))
