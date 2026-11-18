@@ -368,3 +368,13 @@ def test_views_are_built_once_per_state():
     v3 = g.chart()
     g.bus.publish(OwnActionLogged(g.now, "report"))
     assert g.chart() is not v3
+
+
+def test_a_label_that_collides_moves_a_row_instead_of_disappearing():
+    from sim.chart import ChartView
+    from ui.chart_render import render_chart
+    items = [Ray(5.0, 5.0, 90.0, 0.6, "pencil", "» S-1 00:40"),
+             Ray(5.0, 5.0, 90.0, 0.6, "pencil", "» S-2 00:40")]
+    view = ChartView("00:40", "test", 10.0, (5.0, 5.0), items)
+    txt = "\n".join(line.plain for line in render_chart(view, 5.0, 5.0, 0.1, 80, 30))
+    assert "» S-1" in txt and "» S-2" in txt

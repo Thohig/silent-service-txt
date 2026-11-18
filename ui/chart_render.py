@@ -92,6 +92,9 @@ def ray_char(bearing: float) -> str:
     return "╲"
 
 
+LABEL_SHIFTS = (0, -1, 1, -2, 2)     # etikett som krockar: raden ovanför, under, två rader bort
+
+
 @dataclass
 class Canvas:
     """Kortytan (utan marginaler) med prioritet per ruta."""
@@ -157,12 +160,18 @@ class Canvas:
         return True
 
     def text(self, c: int, r: int, s: str, style: str, prio: float) -> None:
-        """Skriv en etikett utan att skriva över märken; flytta åt vänster vid kanten."""
+        """Skriv en etikett utan att skriva över märken; flytta åt vänster vid kanten.
+        Ligger en annan etikett redan där prövas raden ovanför och under (LABEL_SHIFTS)."""
         if c + len(s) > self.cols:
             c = max(0, c - len(s) - 3)
         span = range(max(0, c - 1), min(self.cols, c + len(s) + 1))
-        if self.inside(c, r) and any(self.prio[r][i] >= LABEL_PRIO for i in span):
-            return                      # en annan etikett ligger redan här
+        for dr in LABEL_SHIFTS:
+            if self.inside(c, r + dr) and \
+                    not any(self.prio[r + dr][i] >= LABEL_PRIO for i in span):
+                r += dr
+                break
+        else:
+            return                      # andra etiketter ligger redan här och runt omkring
         for i, ch in enumerate(s):
             self.put(c + i, r, ch, style, prio)
         if c > 0 and self.prio[r][c - 1] < LAYER_MARK:
