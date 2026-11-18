@@ -38,6 +38,7 @@ from ..ice import ice_view
 from ..orders import DESIG, CommandSpec, Order, desig
 from ..ownship import PERISCOPE_DEPTH
 from ..periscope import (sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
+                         HIGH, LOW, OPTICS, Optic,
                          Judges, PeriscopePicture, SightedObject, angle_on_bow, aob_quality,
                          carried, lights, range_quality, visible_part)
 from ..reports import Quality
@@ -53,9 +54,8 @@ SWEEP_DEG_S = 360.0 / LOOK_S
 FRAME_S = 2                  # en bild så här ofta medan masten är uppe
 JUDGE_EVERY_S = 60           # i hålläge: ny bedömning (och observation) så här ofta
 ICE_EVERY_S = 60
-BEARING_SIGMA = 0.5          # periskopets bäring, grader
-RANGE_REL_SIGMA = 0.08       # avstånd ur stadimetern: σ = 8 % + 0,03 nm
-RANGE_ABS_SIGMA = 0.03
+# bäring och avstånd efter förstoringen (`periscope.OPTICS`): låg 1° och 15 % + 0,05 nm (ögonmått),
+# hög 0,5° och 8 % + 0,03 nm (stadimetern)
 SPEED_SIGMA = 2.0            # fart ur bogvåg och varvtal, knop
 CLOSE_NM = 3.0               # en jagare så nära: föreslå djupt
 HOLD_MAX_KN = 7              # fortare vibrerar masten och ger svall
@@ -83,6 +83,17 @@ class PeriscopeDown(Order):
 
 
 @dataclass(frozen=True)
+class PeriscopePower(Order):
+    """Förstoringen i hålläge. Kaptenens hand på periskopet, inte en order till besättningen."""
+    INSTRUMENT = True
+    power: str = "låg"
+
+
+def _power(word: str) -> str:
+    return "hög" if word.lower().startswith("h") else "låg"
+
+
+@dataclass(frozen=True)
 class PeriscopeTrain(Order):
     """Vrid okularet. Kaptenens hand på periskopet, inte en order till besättningen."""
     INSTRUMENT = True
@@ -91,7 +102,8 @@ class PeriscopeTrain(Order):
 
 
 def _contact(d: dict) -> str:
-    return (f"{d['designation']}: {d['label']} i bäring {fmt_course(d['bearing'])}, avstånd cirka "
+    how = "enligt stadimetern" if d.get("power") == "hög" else "cirka"
+    return (f"{d['designation']}: {d['label']} i bäring {fmt_course(d['bearing'])}, avstånd {how} "
             f"{nm(d['range'])} sjömil. Vinkel på bogen ger kurs ungefär {fmt_course(d['course'])}, "
             f"fart cirka {kn(d['speed'])} knop.")
 
@@ -108,8 +120,11 @@ PHRASES = {
     "off.periscope.down": lambda d: "Periskop ner.",
     "off.periscope.is_down": lambda d: "Kapten, periskopet är nere.",
     "off.periscope.lowered": lambda d: f"Periskop ner, {d['reason']}.",
-    "off.periscope.contact": lambda d: "Periskop: "
+    "off.periscope.contact": lambda d: ("Periskop, hög förstoring: " if d.get("power") == "hög"
+                                        else "Periskop: ")
     + (_lights_contact(d) if d.get("lights") else _contact(d)),
+    "off.periscope.power": lambda d: "Hög förstoring." if d["power"] == "hög" else "Låg förstoring.",
+    "off.binoculars.power": lambda d: "Kikaren har bara en förstoring, kapten.",
     "off.periscope.again": lambda d: f"Periskop: {d['designation']} som förut, i bäring "
     f"{fmt_course(d['bearing'])}, cirka {nm(d['range'])} sjömil.",
     "off.suggest.mast_down": lambda d: f"Kapten, vakthavande. Periskopet har varit uppe i "
@@ -138,6 +153,9 @@ phrases.register(PHRASES)
 
 RU_PHRASES = {
     "off.periscope.up": lambda d: "Есть, поднять перископ.",
+    "off.periscope.power": lambda d: "Есть, большое увеличение." if d["power"] == "hög"
+    else "Есть, малое увеличение.",
+    "off.binoculars.power": lambda d: "У бинокля одно увеличение.",
     "off.periscope.hold": lambda d: "Есть, перископ поднят.",
     "off.periscope.down": lambda d: "Есть, опустить перископ.",
     "off.periscope.is_down": lambda d: f"{R.CAPTAIN}, перископ опущен.",
@@ -177,6 +195,10 @@ class PeriscopeWatch(Station):
                     lambda m: PeriscopeHold(), "periskop upp"),
         CommandSpec(r"periskop (?:ned|ner|in)|periskopet (?:ned|ner)|fäll periskopet|fall periskopet",
                     lambda m: PeriscopeDown(), "periskop ned"),
+        CommandSpec(r"(?:förstoring|forstoring)\s+(hög|hog|låg|lag)",
+                    lambda m: PeriscopePower(_power(m[1])), "förstoring hög"),
+        CommandSpec(r"(hög|hog|låg|lag)\s+(?:förstoring|forstoring)",
+                    lambda m: PeriscopePower(_power(m[1]))),
         CommandSpec(rf"vrid periskop(?:et)?\s+(?:mot\s+)?{DESIG}",
                     lambda m: PeriscopeTrain(target=desig(m[1]))),
         CommandSpec(r"vrid periskop(?:et)?\s+(?:mot\s+|bäring\s+|baring\s+)?(\d{1,3})",
@@ -190,6 +212,7 @@ class PeriscopeWatch(Station):
         self.mode: str | None = None        # sweep, look, hold; None = nere
         self.optic = "periskop"             # periskop, eller kikare från bryggan
         self.train = 0.0                    # okularets bäring (sann)
+        self.power = "låg"                  # förstoringen i hålläge (svep alltid låg, titt hög)
         self.t_end: int | None = None
         self.last_look_t = -10**9
         self._start_t = 0                   # när svepet, titten eller hållet började
@@ -204,6 +227,24 @@ class PeriscopeWatch(Station):
     def up_s(self) -> int:
         """Så länge masten varit uppe i denna hissning (0 när den är nere)."""
         return 0 if self.mode is None else self.now - self._up_t
+
+    @property
+    def search(self) -> Optic:
+        """Förstoringen man letar med: svepet och titten söker i låg, hålläget i den valda."""
+        return OPTICS[self.power] if self.mode == "hold" else LOW
+
+    @property
+    def measure(self) -> Optic:
+        """Förstoringen man mäter med: titten mäter i hög (stadimetern), svepet i låg."""
+        return HIGH if self.mode == "look" else OPTICS[self.power] if self.mode == "hold" else LOW
+
+    @property
+    def shown_power(self) -> str:
+        """Förstoringen i okularet just nu (för vyn)."""
+        return self.measure.key if self.mode is not None else self.power
+
+    def status_fields(self) -> dict:
+        return {"periscope_power": self.shown_power}
 
     @property
     def busy(self) -> bool:
@@ -256,6 +297,9 @@ class PeriscopeWatch(Station):
                     return
                 self._lower(final=True)
                 self._say("off.periscope.down", kind="ack")
+            case PeriscopePower(power=power):
+                self.power = power
+                self._say("off.periscope.power", {"power": power}, kind="ack")
             case PeriscopeTrain(bearing=bearing, target=target):
                 if self.mode is None:
                     self.say("off.periscope.is_down", kind="ack")
@@ -374,8 +418,8 @@ class PeriscopeWatch(Station):
 
     def _cover(self) -> None:
         c = round(self.train)
-        self._covered.update(int(norm360(c + d)) for d in range(-int(FOV_HALF_DEG),
-                                                                 int(FOV_HALF_DEG) + 1))
+        half = self.search.half_fov if self.optic != "kikare" else FOV_HALF_DEG
+        self._covered.update(int(norm360(c + d)) for d in range(-int(half), int(half) + 1))
 
     def _observe_bridge(self) -> None:
         """Kikaren: det i bryggans bild (kunskap) som ligger inom synfältet."""
@@ -389,7 +433,8 @@ class PeriscopeWatch(Station):
         self._ice, self._land = pic.ice, pic.land
 
     def _looked(self, bearing: float) -> bool:
-        return abs(angle_diff(bearing, self.train)) <= FOV_HALF_DEG
+        half = self.search.half_fov if self.optic != "kikare" else FOV_HALF_DEG
+        return abs(angle_diff(bearing, self.train)) <= half
 
     def _observe(self) -> None:
         """Det som ligger i okularet just nu (World: periskopet är en sensor)."""
@@ -437,11 +482,13 @@ class PeriscopeWatch(Station):
         day = light.phase == "dag"
         sil = light.silhouette(world.true_bearing(v))     # siluett, eller bara lanternor
         part = visible_part(v.kind, r, eye) if sil else "ljus"
+        opt = self.measure
         c_sig = AOB_SIGMA[part] if day or not sil else min(AOB_SIGMA["mastoppar"],
                                                            AOB_SIGMA[part] * TWILIGHT_AOB_F)
+        c_sig = min(c_sig * opt.aob_f, 60.0)
         known = sil and light.daylight                    # klassning god ur siluetten
-        r_sig = RANGE_REL_SIGMA * r + RANGE_ABS_SIGMA
-        bearing = norm360(world.true_bearing(v) + j.bearing * BEARING_SIGMA)
+        r_sig = opt.range_rel * r + opt.range_abs
+        bearing = norm360(world.true_bearing(v) + j.bearing * opt.bearing_sigma)
         r_meas = max(0.05, r + j.range_rel * r_sig)
         course = norm360(v.state.course + j.course * c_sig)
         speed = max(0, round(v.state.speed + j.speed * SPEED_SIGMA))
@@ -449,7 +496,7 @@ class PeriscopeWatch(Station):
         ls = () if day else lights(aob)
         if fresh:
             self._plot(desig_, full if sil else "ytfartyg", known, bearing, r_meas, r_sig,
-                       course, c_sig, speed)
+                       course, c_sig, speed, opt.bearing_sigma)
         if v.id not in self._called:
             self._called.add(v.id)
             prev = self._last_call.get(v.id)
@@ -463,7 +510,8 @@ class PeriscopeWatch(Station):
                 self._last_call[v.id] = (self.now, course, speed)
                 self.say("off.periscope.contact",
                          {"designation": desig_, "label": short, "bearing": bearing,
-                          "range": r_meas, "course": course, "speed": speed, "lights": list(ls)},
+                          "range": r_meas, "course": course, "speed": speed, "lights": list(ls),
+                          "power": opt.key},
                          kind="contact", quality=Quality.GOD)
             if v.kind == PHOTO_TARGET_KIND:
                 self.game.station(OfficerStation)._suggest_photo()
@@ -477,7 +525,8 @@ class PeriscopeWatch(Station):
                              lights=ls, seen_t=self.now)
 
     def _plot(self, desig_: str, label: str, day: bool, bearing: float, r_meas: float,
-              r_sig: float, course: float, c_sig: float, speed: float) -> None:
+              r_sig: float, course: float, c_sig: float, speed: float,
+              b_sig: float = HIGH.bearing_sigma) -> None:
         """En observation till plottet: bäring, avstånd, kurs och fart med periskopets σ."""
         bus, now = self.game.bus, self.now
         tr = self.game.knowledge.tracks.get(desig_)
@@ -488,7 +537,7 @@ class PeriscopeWatch(Station):
             bus.publish(ClassificationChanged(now, desig_, label, Quality.GOD))
         ex, ey = self.game.own_position_estimate()
         bus.publish(BearingObserved(now, BearingObs(
-            now, bearing, BEARING_SIGMA, ex, ey, self.own.state.course, designation=desig_,
+            now, bearing, b_sig, ex, ey, self.own.state.course, designation=desig_,
             range_nm=r_meas, range_sigma=r_sig, source="periskop", course_obs=course,
             course_sigma=c_sig, speed_obs=speed, speed_sigma=SPEED_SIGMA + 0.3)))
 
@@ -546,4 +595,5 @@ class PeriscopeWatch(Station):
         self.game.bus.publish(PeriscopeSighted(now, PeriscopePicture(
             now, world.env.daylight(now), world.env.visibility_nm(now), self.own.state.course,
             "brygga" if self.own.surfaced else "periskop", tuple(objects), sector, self._ice,
-            self._land, **sky_of(world.env.light(now)), sea_state=world.env.sea_state), live=live))
+            self._land, **sky_of(world.env.light(now)), sea_state=world.env.sea_state,
+            power=self.measure.key if self.optic != "kikare" else "låg"), live=live))

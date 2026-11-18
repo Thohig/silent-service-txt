@@ -39,6 +39,24 @@ DEFAULT_HEIGHTS = (6.0, 14.0, 25.0)
 AOB_SIGMA = {"helt": 8.0, "överbyggnad": 15.0, "mastoppar": 30.0, "ljus": 25.0}
 TWILIGHT_AOB_F = 1.6           # en siluett i skymning eller månljus: kursen svårare att bedöma
 SECTOR_HALF_DEG = 16.0         # en kort titt (periskop 047) ser så här långt åt sidorna
+
+
+@dataclass(frozen=True)
+class Optic:
+    """En förstoring: synfält och hur väl man mäter med den. Låg för att söka, hög för att mäta
+    (stadimetern); attackperiskop från tiden hade ungefär 1,5× och 6×."""
+    key: str                    # "låg" eller "hög"
+    power: float                # förstoring
+    half_fov: float             # synfältets halva bredd, grader
+    bearing_sigma: float        # grader
+    range_rel: float            # avståndets σ = range_rel · r + range_abs
+    range_abs: float
+    aob_f: float                # kursbedömningens σ gånger detta
+
+
+LOW = Optic("låg", 1.5, SECTOR_HALF_DEG, 1.0, 0.15, 0.05, 1.5)
+HIGH = Optic("hög", 6.0, SECTOR_HALF_DEG / 4, 0.5, 0.08, 0.03, 1.0)
+OPTICS = {"låg": LOW, "hög": HIGH}
 CARRY_S = 600                  # föremål utanför en kort titt finns kvar i bilden så här länge
 SIDELIGHT_ARC = 112.5          # lanternorna syns från rakt förut till 22,5° akter om tvärs
 
@@ -182,6 +200,7 @@ class PeriscopePicture:
     sun: tuple[float, float] | None = None
     moon: tuple[float, float, float, bool] | None = None
     sea_state: int = 3              # sjögången utkiken ser (Beaufort)
+    power: str = "låg"              # periskopets förstoring när bilden togs (låg, hög)
 
     def ships(self) -> list[SightedObject]:
         return [o for o in self.objects if o.designation is not None]

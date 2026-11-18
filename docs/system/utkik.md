@@ -31,8 +31,13 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   Hålläge: `periskop upp` … `periskop ned`, `vrid periskop 047` (tar över ett svep); fälls med
   `off.periscope.lowered` vid djup, fart > 7, is eller skada (`officer.mast_refusal`). Bedömningsfelen
   (`periscope.Judges`, delad med bryggan) dras en gång per hissning och föremål, i hålläge om var 60:e s;
-  då får plottet en observation (bäring σ 0,5°, avstånd 8 % + 0,03, `AOB_SIGMA`, fart 2). Nytt i
+  då får plottet en observation (bäring och avstånd efter förstoringen, `AOB_SIGMA`, fart 2). Nytt i
   okularet ropas ut en gång per hissning. Egen slumpström (`game.rng_for("periscope")`). Övningsledaren räknar bara `live=False`.
+  Två förstoringar (`periscope.Optic`, `LOW`/`HIGH`): låg 1,5×, ±16°, bäring σ 1°, avstånd 15 % + 0,05 nm, kurs
+  σ × 1,5; hög 6×, ±4°, bäring σ 0,5°, avstånd 8 % + 0,03 nm (stadimetern). Svepet söker och mäter i låg;
+  titten söker i låg (±16°) och mäter i hög; hålläget i den valda (`förstoring hög`/`låg`, `PeriscopePower`,
+  `Order.INSTRUMENT`). `search`/`measure`/`shown_power`; vyn får `StatusSnapshot.periscope_power` och
+  bilden `PeriscopePicture.power`. Utropet i hög säger "hög förstoring" och "enligt stadimetern".
   Kikaren (`optic` "kikare", ytläge med bemannad brygga): samma order men ingen mast, ingen fartgräns,
   bilden är bryggans (`Knowledge.bridge`) inom synfältet, inga egna utrop eller plottobservationer
   (`off.binoculars.*`); fälls när bryggan utryms. I ytläge gäller ingen fartgräns för masten.
@@ -44,7 +49,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
 - **Periskopbilden** (`sim/periscope.py`): `Knowledge.periscope` håller den senaste bilden. Synlig del (helt/överbyggnad/mastoppar) ur ögonhöjd (periskop 1,5 m, brygga 8 m)
   och `HEIGHTS`; kursbedömningens σ (`AOB_SIGMA`) följer synlig del, natt = bara lanternor (σ 25°).
   Vinkel på bogen `aob` + styrbord. Fartyg bär plottets beteckning, aldrig sanningens id.
-  Vyn (`ui/periscope_render.py`, `ui/periscope.py`): 360°-remsa med fören i mitten, okular (32°; kanten,
+  Vyn (`ui/periscope_render.py`, `ui/periscope.py`): 360°-remsa med fören i mitten, okular (32° i låg och 8° i
+  hög förstoring, `POWER_FOV`; i hög stadimeterns strecksskala på siktlinjen och gradering varje grad, och den stora
+  siluetten fyra gånger så långt bort, `_is_large`; rubriken säger förstoringen; + och − byter i hålläge; kanten,
   vågkammarna och kikarens land i braille, `draw_land` delas med bryggan);
   masten uppe (`StatusSnapshot.periscope`/`periscope_train`/`periscope_up_s`): okularet står mot
   periskopets bäring, ← → vrider 5° (`vrid periskop`, `Order.INSTRUMENT`: inte i loggboken), mellanslag

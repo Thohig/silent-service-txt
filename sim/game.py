@@ -84,6 +84,7 @@ class StatusSnapshot:
     periscope: str | None = None    # periskopet: sweep, look, hold; None = nere
     periscope_train: float = 0.0    # okularets bäring (periskopets gradring)
     periscope_up_s: int = 0         # så länge masten varit uppe
+    periscope_power: str = "låg"    # förstoringen i okularet (låg, hög), från periskopet
     periscope_optic: str = "periskop"   # periskop, eller kikare från bryggan
     night: bool = False             # mörkt ute (centralen går på rött ljus)
     hunted: bool = False            # sonar hör att fienden har oss

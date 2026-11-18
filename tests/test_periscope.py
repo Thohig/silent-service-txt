@@ -3,7 +3,9 @@ import random
 
 import pytest
 
+from sim.events import ReportDelivered
 from sim.game import Game
+from sim.stations.periscope import PeriscopeWatch
 from sim.geo import angle_diff
 from sim.periscope import (EYE_BRIDGE_M, EYE_PERISCOPE_M, angle_on_bow, aob_quality,
                            hidden_height_m, horizon_nm, lights, range_quality, visible_part)
@@ -86,8 +88,9 @@ def test_picture_after_sweep_uses_plot_designations_not_truth():
     dd = next(o for o in ships if o.kind == "destroyer")
     assert dd.label == "jagare" and dd.visible == "helt"
     assert dd.aob is not None and dd.aob < 0          # babordssidan mot oss
-    assert dd.aob_quality == Quality.GOD
+    assert dd.aob_quality == Quality.OSAKER           # svepet i låg förstoring: grov kurs
     assert dd.lights == ()
+    assert pic.power == "låg"
 
 
 def test_night_picture_shows_only_lights():
@@ -552,3 +555,65 @@ def test_lookout_ranges_in_strip_and_eyepiece():
     assert "S-1 1,5" in rows[0] and "S-2 6,0" in rows[0]
     eye = "\n".join(rows[3:-1])
     assert "6,0 nm" in eye                     # det valda föremålets avstånd i okularet
+
+
+
+def _plot_obs(g, desig):
+    return [o for o in g.knowledge.tracks[desig].observations if o.source == "periskop"]
+
+
+def test_sweep_searches_in_low_and_a_look_measures_in_high():
+    g = _game_at_periscope_depth(day=True)
+    reports = []
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    _look(g)
+    dd = next(o for o in g.knowledge.periscope.ships() if o.kind == "destroyer")
+    low = _plot_obs(g, dd.designation)[-1]
+    assert low.range_sigma > 0.15 * dd.range_nm and low.sigma == 1.0
+    for _ in range(30):
+        g.tick()
+    g.command(f"periskop {dd.designation}")
+    for _ in range(12):
+        g.tick()
+    assert g.knowledge.periscope.power == "hög"
+    high = _plot_obs(g, dd.designation)[-1]
+    assert high.t > low.t and high.range_sigma < low.range_sigma and high.sigma == 0.5
+    assert any(r.type == "off.periscope.contact" and "hög förstoring" in r.text
+               and "stadimetern" in r.text for r in reports) or \
+        any(r.type == "off.periscope.again" for r in reports)
+
+
+def test_power_in_hold_mode_narrows_the_field_and_is_not_logged():
+    g = _game_at_periscope_depth(day=True)
+    g.command("periskop upp")
+    g.tick()
+    ps = g.station(PeriscopeWatch)
+    assert ps.search.half_fov == 16.0 and g.status().periscope_power == "låg"
+    g.command("förstoring hög")
+    g.tick()
+    assert ps.power == "hög" and ps.search.half_fov == 4.0
+    assert g.status().periscope_power == "hög"
+    g.command("låg förstoring")
+    assert ps.power == "låg"
+
+
+def test_eyepiece_follows_the_power_large_silhouette_and_stadimeter_in_high():
+    from ui.periscope_render import render_periscope
+    g = _game_at_periscope_depth(day=True, dd_range=5.0)
+    g.command("periskop upp")
+    for _ in range(3):
+        g.tick()
+    dd = next(v for v in g.world.contacts if v.kind == "destroyer")
+    g.command(f"vrid periskop {round(g.world.true_bearing(dd)):03d}")
+    shapes = {}
+    for p in ("låg", "hög"):
+        g.command(f"förstoring {p}")
+        for _ in range(4):
+            g.tick()
+        st = g.status()
+        rows = [r.plain for r in render_periscope(g.knowledge.periscope, 90, 22, None, 0,
+                                                   g.clock_str, st.periscope_train,
+                                                   st.periscope_power)]
+        shapes[p] = sum(r.count("_") + r.count("|") for r in rows)
+        assert ("╪" in "".join(rows)) == (p == "hög")              # stadimeterns streck
+    assert shapes["hög"] > 2 * shapes["låg"]                         # större i 6×
