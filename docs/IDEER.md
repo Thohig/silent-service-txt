@@ -26,6 +26,10 @@ Kvar:
   T2 talet och effektljuden genom sounddevice-mixern (förrenderat med `say -o`, som Radio Moskva):
   hytten dämpar centralen i stället för att tysta den, telefonfilter för stationerna utanför
   centralen, inga `afplay`-processer – det enda som märks på Mac, och det enda med risk (fördröjning);
+  fördröjningen uppmätt 2026-11-18: `say -o` tar 0,55–0,75 s per replik oavsett längd (mest uppstart
+  och röstladdning, samma som `say` i dag lär ha innan ljudet börjar); `NSSpeechSynthesizer` i processen
+  med rösten laddad 20–60 ms (första gången 0,1–0,4 s). T2 bör alltså rendera i processen (pyobjc-Cocoa
+  som beroende på macOS, en syntes per röst) och inte med `say -o`.
   T3 piper/espeak-ng för Linux och ett webbfönster.
 
 ## Gränssnitt och grafik
