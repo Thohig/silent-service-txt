@@ -1,286 +1,286 @@
 {
-  "kuba": {
-    "passiv": {
-      "utfall": {
-        "patrol_end": 8
-      },
-      "minuter": {
-        "patrol_end": 210
-      }
-    },
-    "ja": {
-      "utfall": {
-        "patrol_end": 8
-      },
-      "minuter": {
-        "patrol_end": 210
-      }
-    }
+ "kuba": {
+  "passiv": {
+   "utfall": {
+    "patrol_end": 8
+   },
+   "minuter": {
+    "patrol_end": 210
+   }
   },
-  "kuba-kort": {
-    "passiv": {
-      "utfall": {
-        "report_missed": 8
-      },
-      "minuter": {
-        "report_missed": 35
-      }
-    },
-    "ja": {
-      "utfall": {
-        "patrol_end": 3,
-        "report_missed": 2,
-        "reported": 3
-      },
-      "minuter": {
-        "patrol_end": 45,
-        "report_missed": 35,
-        "reported": 35
-      }
-    }
-  },
-  "arktis": {
-    "passiv": {
-      "utfall": {
-        "lost": 8
-      },
-      "minuter": {
-        "lost": 210
-      }
-    },
-    "ja": {
-      "utfall": {
-        "lost": 1,
-        "patrol_end": 3,
-        "station_reached": 4
-      },
-      "minuter": {
-        "lost": 206,
-        "patrol_end": 360,
-        "station_reached": 208
-      }
-    }
-  },
-  "arktis-kort": {
-    "passiv": {
-      "utfall": {
-        "patrol_end": 8
-      },
-      "minuter": {
-        "patrol_end": 55
-      }
-    },
-    "ja": {
-      "utfall": {
-        "patrol_end": 3,
-        "station_reached": 5
-      },
-      "minuter": {
-        "patrol_end": 55,
-        "station_reached": 48
-      }
-    }
-  },
-  "jagad": {
-    "passiv": {
-      "utfall": {
-        "lost": 8
-      },
-      "minuter": {
-        "lost": 52
-      }
-    },
-    "ja": {
-      "utfall": {
-        "escaped": 5,
-        "lost": 3
-      },
-      "minuter": {
-        "escaped": 47,
-        "lost": 85
-      }
-    }
-  },
-  "jagad-kort": {
-    "passiv": {
-      "utfall": {
-        "lost": 3,
-        "patrol_end": 5
-      },
-      "minuter": {
-        "lost": 24,
-        "patrol_end": 30
-      }
-    },
-    "ja": {
-      "utfall": {
-        "escaped": 6,
-        "patrol_end": 2
-      },
-      "minuter": {
-        "escaped": 26,
-        "patrol_end": 30
-      }
-    }
-  },
-  "sundet": {
-    "passiv": {
-      "utfall": {
-        "forced": 4,
-        "patrol_end": 4
-      },
-      "minuter": {
-        "forced": 219,
-        "patrol_end": 420
-      }
-    },
-    "ja": {
-      "utfall": {
-        "forced": 1,
-        "patrol_end": 7
-      },
-      "minuter": {
-        "forced": 277,
-        "patrol_end": 420
-      }
-    }
-  },
-  "sundet-in": {
-    "passiv": {
-      "utfall": {
-        "patrol_end": 8
-      },
-      "minuter": {
-        "patrol_end": 45
-      }
-    },
-    "ja": {
-      "utfall": {
-        "patrol_end": 8
-      },
-      "minuter": {
-        "patrol_end": 45
-      }
-    }
-  },
-  "sundet-ut": {
-    "passiv": {
-      "utfall": {
-        "patrol_end": 8
-      },
-      "minuter": {
-        "patrol_end": 34
-      }
-    },
-    "ja": {
-      "utfall": {
-        "patrol_end": 8
-      },
-      "minuter": {
-        "patrol_end": 34
-      }
-    }
-  },
-  "konvoj": {
-    "passiv": {
-      "utfall": {
-        "convoy_missed": 8
-      },
-      "minuter": {
-        "convoy_missed": 99
-      }
-    },
-    "ja": {
-      "utfall": {
-        "convoy_missed": 8
-      },
-      "minuter": {
-        "convoy_missed": 142
-      }
-    }
-  },
-  "konvoj-kort": {
-    "passiv": {
-      "utfall": {
-        "convoy_missed": 2,
-        "patrol_end": 6
-      },
-      "minuter": {
-        "convoy_missed": 78,
-        "patrol_end": 80
-      }
-    },
-    "ja": {
-      "utfall": {
-        "convoy_missed": 3,
-        "patrol_end": 5
-      },
-      "minuter": {
-        "convoy_missed": 70,
-        "patrol_end": 80
-      }
-    }
-  },
-  "konvoj-mot": {
-    "passiv": {
-      "utfall": {
-        "convoy_attacked": 3,
-        "lost": 1,
-        "patrol_end": 4
-      },
-      "minuter": {
-        "convoy_attacked": 17,
-        "lost": 23,
-        "patrol_end": 34
-      }
-    },
-    "ja": {
-      "utfall": {
-        "convoy_attacked": 4,
-        "convoy_missed": 2,
-        "patrol_end": 2
-      },
-      "minuter": {
-        "convoy_attacked": 23,
-        "convoy_missed": 28,
-        "patrol_end": 34
-      }
-    }
-  },
-  "ovning": {
-    "passiv": {
-      "utfall": {
-        "grounded": 8
-      },
-      "minuter": {
-        "grounded": 18
-      }
-    },
-    "ja": {
-      "utfall": {
-        "training_done": 8
-      },
-      "minuter": {
-        "training_done": 113
-      }
-    }
-  },
-  "ovning-kort": {
-    "passiv": {
-      "utfall": {
-        "patrol_end": 8
-      },
-      "minuter": {
-        "patrol_end": 64
-      }
-    },
-    "ja": {
-      "utfall": {
-        "training_done": 8
-      },
-      "minuter": {
-        "training_done": 46
-      }
-    }
+  "ja": {
+   "utfall": {
+    "patrol_end": 8
+   },
+   "minuter": {
+    "patrol_end": 210
+   }
   }
+ },
+ "kuba-kort": {
+  "passiv": {
+   "utfall": {
+    "report_missed": 8
+   },
+   "minuter": {
+    "report_missed": 35
+   }
+  },
+  "ja": {
+   "utfall": {
+    "patrol_end": 3,
+    "report_missed": 2,
+    "reported": 3
+   },
+   "minuter": {
+    "patrol_end": 45,
+    "report_missed": 35,
+    "reported": 35
+   }
+  }
+ },
+ "arktis": {
+  "passiv": {
+   "utfall": {
+    "lost": 8
+   },
+   "minuter": {
+    "lost": 210
+   }
+  },
+  "ja": {
+   "utfall": {
+    "lost": 1,
+    "patrol_end": 3,
+    "station_reached": 4
+   },
+   "minuter": {
+    "lost": 206,
+    "patrol_end": 360,
+    "station_reached": 208
+   }
+  }
+ },
+ "arktis-kort": {
+  "passiv": {
+   "utfall": {
+    "patrol_end": 8
+   },
+   "minuter": {
+    "patrol_end": 55
+   }
+  },
+  "ja": {
+   "utfall": {
+    "patrol_end": 3,
+    "station_reached": 5
+   },
+   "minuter": {
+    "patrol_end": 55,
+    "station_reached": 48
+   }
+  }
+ },
+ "jagad": {
+  "passiv": {
+   "utfall": {
+    "lost": 8
+   },
+   "minuter": {
+    "lost": 52
+   }
+  },
+  "ja": {
+   "utfall": {
+    "escaped": 5,
+    "lost": 3
+   },
+   "minuter": {
+    "escaped": 47,
+    "lost": 85
+   }
+  }
+ },
+ "jagad-kort": {
+  "passiv": {
+   "utfall": {
+    "lost": 3,
+    "patrol_end": 5
+   },
+   "minuter": {
+    "lost": 24,
+    "patrol_end": 30
+   }
+  },
+  "ja": {
+   "utfall": {
+    "escaped": 6,
+    "patrol_end": 2
+   },
+   "minuter": {
+    "escaped": 26,
+    "patrol_end": 30
+   }
+  }
+ },
+ "sundet": {
+  "passiv": {
+   "utfall": {
+    "forced": 4,
+    "patrol_end": 4
+   },
+   "minuter": {
+    "forced": 219,
+    "patrol_end": 420
+   }
+  },
+  "ja": {
+   "utfall": {
+    "forced": 1,
+    "patrol_end": 7
+   },
+   "minuter": {
+    "forced": 277,
+    "patrol_end": 420
+   }
+  }
+ },
+ "sundet-in": {
+  "passiv": {
+   "utfall": {
+    "patrol_end": 8
+   },
+   "minuter": {
+    "patrol_end": 45
+   }
+  },
+  "ja": {
+   "utfall": {
+    "patrol_end": 8
+   },
+   "minuter": {
+    "patrol_end": 45
+   }
+  }
+ },
+ "sundet-ut": {
+  "passiv": {
+   "utfall": {
+    "patrol_end": 8
+   },
+   "minuter": {
+    "patrol_end": 34
+   }
+  },
+  "ja": {
+   "utfall": {
+    "patrol_end": 8
+   },
+   "minuter": {
+    "patrol_end": 34
+   }
+  }
+ },
+ "konvoj": {
+  "passiv": {
+   "utfall": {
+    "convoy_missed": 8
+   },
+   "minuter": {
+    "convoy_missed": 99
+   }
+  },
+  "ja": {
+   "utfall": {
+    "convoy_missed": 8
+   },
+   "minuter": {
+    "convoy_missed": 142
+   }
+  }
+ },
+ "konvoj-kort": {
+  "passiv": {
+   "utfall": {
+    "convoy_missed": 2,
+    "patrol_end": 6
+   },
+   "minuter": {
+    "convoy_missed": 78,
+    "patrol_end": 80
+   }
+  },
+  "ja": {
+   "utfall": {
+    "convoy_missed": 3,
+    "patrol_end": 5
+   },
+   "minuter": {
+    "convoy_missed": 70,
+    "patrol_end": 80
+   }
+  }
+ },
+ "konvoj-mot": {
+  "passiv": {
+   "utfall": {
+    "convoy_attacked": 3,
+    "lost": 1,
+    "patrol_end": 4
+   },
+   "minuter": {
+    "convoy_attacked": 17,
+    "lost": 23,
+    "patrol_end": 34
+   }
+  },
+  "ja": {
+   "utfall": {
+    "convoy_attacked": 4,
+    "convoy_missed": 2,
+    "patrol_end": 2
+   },
+   "minuter": {
+    "convoy_attacked": 23,
+    "convoy_missed": 28,
+    "patrol_end": 34
+   }
+  }
+ },
+ "ovning": {
+  "passiv": {
+   "utfall": {
+    "grounded": 8
+   },
+   "minuter": {
+    "grounded": 18
+   }
+  },
+  "ja": {
+   "utfall": {
+    "training_done": 8
+   },
+   "minuter": {
+    "training_done": 113
+   }
+  }
+ },
+ "ovning-kort": {
+  "passiv": {
+   "utfall": {
+    "patrol_end": 8
+   },
+   "minuter": {
+    "patrol_end": 64
+   }
+  },
+  "ja": {
+   "utfall": {
+    "training_done": 8
+   },
+   "minuter": {
+    "training_done": 46
+   }
+  }
+ }
 }
