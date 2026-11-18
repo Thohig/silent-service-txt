@@ -17,7 +17,6 @@ from ..ship import ShipState
 from ..world import World
 from .common import ARCTIC_PLACE, RadioMessage, Scenario, Warmup, _compass, _crew, _place
 
-
 ARCTIC_ORDER = """\
 STRÄNGT HEMLIGT — ENDAST FÖR BEFÄLHAVAREN
 FRÅN: MARINENS HUVUDSTAB, MOSKVA

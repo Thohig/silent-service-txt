@@ -11,7 +11,7 @@ Samma klass beskriver sjökortets bild (`chart_copy`): formerna flyttade och
 utjämnade, utan ojämnhet, ibland utan ett berg. Sjökortet hör till
 kunskapen (`Knowledge.bathymetry`) och har ingen referens till sanningen.
 
-Bara ekolodet (navigation.py) och bottenkontakten (`bottom_contact`, anropas
+Bara ekolodet (navigation/bottom.py) och bottenkontakten (`bottom_contact`, anropas
 av World efter förflyttningen) läser sanningens botten:
   - i låg fart (≤ TOUCH_MAX_KN) sätter sig kölen lätt i botten; trimmen tar
     oss upp igen, inga skador,

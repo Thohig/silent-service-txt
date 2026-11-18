@@ -40,6 +40,12 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
 - **Stationer** (`sim/stations/`): en per system, ärver `Station`. Har `COMMANDS`
   (`CommandSpec`), `on_order`, `update`, `say`, `suggest`. Nya system = ny station
   i `DEFAULT_STATIONS`; `Game` ska inte behöva ändras.
+- **Navigatören** är paketet `sim/stations/navigation/`: `station.py` (stationen, bestick, order,
+  `update`), `common.py` (konstanter och order), `phrases.py`, och delarna som `NavigationStation` ärver:
+  `fixes.py`, `bottom.py`, `ice.py`, `steering.py`, `exit_route.py`. Pågående fixar är uppdrag
+  (`tasks.py`, `NavTask` med `abort` och `step`) i `NavigationStation.tasks` per namn ("fix", "starfix",
+  "bfix"), körda med `_run_task` på sina platser i `update`; avbrottet skrivs i uppdraget. Styruppdragen
+  (följ, anfall, väntläget, farleden, stationen) är ännu `goal`-strängar.
 - **Rapporter** bär `type` + `data`, aldrig färdig text. Texten skapas av
   `phrases.render()` vid leverans, efter rapportfiltren. Varje station registrerar
   sina fraser med `phrases.register({...})` i sin egen modul.
@@ -199,7 +205,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen
   märker flyget via radarvarnaren, periskopet och transienterna `buoy`/`buoy_ping`.
-- **Is:** `ice.py` är sanning (bara isekolodet i `navigation.py`, mastkontrollerna
+- **Is:** `ice.py` är sanning (bara isekolodet i `navigation/ice.py`, mastkontrollerna
   `masts_clear` och periskopets `ice_view` läser den); `icemap.py` är kunskap, byggd av `IceSounded` med
   beräknad position. Öppningars kvalitet = lägesosäkerhet (växer 8 m/min) mot
   halva längden.

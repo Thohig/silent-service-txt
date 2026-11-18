@@ -161,7 +161,7 @@ sim/                 ren Python, ingen Textual
   convoy.py          SANNING: konvojens ledpunkt, sicksack, formation och nödgir
   stations/          ett system ombord per modul
     base.py          Station: COMMANDS, on_order, update, say, suggest
-    navigation.py    kurs, fart, djup, bestick, fix, ekolod, isekolod, vak
+    navigation/      kurs, fart, djup, bestick, fixar (tasks.py), ekolod, is, styruppdrag, väg ut
     engineering.py   maskin och skadekontroll
     sonar_room.py    sonar, transienter, aktiv sonar
     officer.py       radar, radarvarnare, kamera

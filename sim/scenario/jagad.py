@@ -18,7 +18,6 @@ from ..world import World
 from .common import KUBA_PLACE, RadioMessage, Scenario, _crew, _place
 from .kuba import KUBA_TRAFFIC
 
-
 HUNTED_ORDER = """\
 STRÄNGT HEMLIGT — ENDAST FÖR BEFÄLHAVAREN
 FRÅN: MARINENS HUVUDSTAB, MOSKVA

@@ -15,7 +15,6 @@ from ..traffic import Lane, TrafficDef, TrafficGenerator
 from ..world import World
 from .common import KOLA_PLACE, Scenario, Warmup, _crew, _place
 
-
 TRAINING_ORDER = """\
 ORDER — ENDAST FÖR BEFÄLHAVAREN
 FRÅN: STABEN, NORRA FLOTTAN, SEVEROMORSK

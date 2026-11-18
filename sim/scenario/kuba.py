@@ -17,7 +17,6 @@ from ..traffic import Lane, TrafficDef, TrafficGenerator
 from ..world import World
 from .common import KUBA_PLACE, RadioMessage, Scenario, Warmup, _crew, _place
 
-
 SECRET_ORDER = """\
 STRÄNGT HEMLIGT — ENDAST FÖR BEFÄLHAVAREN
 FRÅN: MARINENS HUVUDSTAB, MOSKVA

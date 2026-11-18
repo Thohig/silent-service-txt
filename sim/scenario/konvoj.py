@@ -19,7 +19,6 @@ from ..world import World
 from .common import CONVOY_PLACE, RadioMessage, Scenario, Warmup, _compass, _crew, _place
 from .kuba import KUBA_AIR, KUBA_TRAFFIC
 
-
 CONVOY_ORDER = """\
 STRÄNGT HEMLIGT — ENDAST FÖR BEFÄLHAVAREN
 FRÅN: MARINENS HUVUDSTAB, MOSKVA
