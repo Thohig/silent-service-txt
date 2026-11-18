@@ -68,7 +68,7 @@ class CabinScreen(ViewScreen):
         if w < 20 or h < 6:
             return
         s = game.status()
-        body.update(Text("\n").join(render_cabin(s, time.monotonic(), w, h)))
+        body.update(Text("\n").join(render_cabin(s, time.monotonic(), w, h, game.chart())))
         head.update(view_title("KAPTENENS HYTT", "   lägesrapport · svara · sov · "
                                                  "jag har befälet · Esc centralen"))
         foot.update(footer(s))

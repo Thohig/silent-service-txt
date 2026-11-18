@@ -325,8 +325,10 @@ def _hang(c: Canvas, row: int, col: int, item: list[tuple[str, str]]) -> None:
 
 
 def _wall_items(c: Canvas, left: int, right: int, top: int, bottom: int,
-                s: StatusSnapshot) -> None:
-    """Hänger sakerna från vänster i prioritetsordning, lite olika höjd, tills platsen tar slut."""
+                s: StatusSnapshot) -> int:
+    """Hänger sakerna från vänster i prioritetsordning, lite olika höjd, tills platsen tar slut.
+    Ger den nedersta raden som används (top − 1 om inget hängdes)."""
+    lowest = top - 1
     items = []
     if s.order_day:
         day = s.order_day + s.clock // 86400
@@ -343,15 +345,84 @@ def _wall_items(c: Canvas, left: int, right: int, top: int, bottom: int,
         if row + ih - 1 > bottom:
             continue
         _hang(c, row, col, item)
+        lowest = max(lowest, row + ih - 1)
         if item[0][0].startswith("╔"):          # medaljerna under diplomet
             m = _medals()
             if row + ih + len(m) - 1 <= bottom:
                 for i, (line, style) in enumerate(m):
                     c.text(row + ih + i, col + 1, line, style)
+                lowest = max(lowest, row + ih + len(m) - 1)
         col += iw + 2
+    return lowest
 
 
-def _far_wall(c: Canvas, g: _Room, s: StatusSnapshot, sway: float = 0.0) -> dict:
+CHART_MIN_W, CHART_MIN_H = 16, 6       # mindre än så: inget kort på väggen (ram inräknad)
+CHART_SEA = "#4a5a6a on #15110c"
+CHART_LAND = "#7a6a4a on #15110c"
+CHART_INK = "#b8a888 on #15110c"
+CHART_RED = "bold #c04030 on #15110c"
+CHART_ITEMS = {                         # kunskapens kortelement -> tecken och färg på väggkortet
+    "own": ("@", CHART_RED), "contact": ("◆", CHART_RED), "merchant": ("◇", PHOTO),
+    "waypoint": ("⊕", CHART_INK), "station": ("⊕", CHART_INK),
+}
+
+
+def _wall_chart(c: Canvas, chart, top: int, left: int, bottom: int, right: int) -> None:
+    """Navigatörens kort över området, nålat på skottet: land, kust, besticket, vi och
+    kontakterna som tecken, utan text (kunskapen, `Game.chart()`). Norr uppåt."""
+    if chart is None:
+        return
+    cols = min(right - left - 1, 2 * (bottom - top - 1))       # en ruta är dubbelt så hög
+    rows = cols // 2
+    if cols < CHART_MIN_W or rows + 2 < CHART_MIN_H:
+        return
+    left += (right - left - 1 - cols) // 2
+    title = " КАРТА "
+    c.text(top, left, "┌" + title + "─" * (cols - len(title)) + "┐", FRAME)
+    for r in range(rows):
+        c.text(top + 1 + r, left, "│" + " " * cols + "│", FRAME)
+        for k in range(1, cols + 1, 6):
+            c.put(top + 1 + r, left + k, "˙" if r % 3 == 1 else " ", CHART_SEA)
+    c.text(top + 1 + rows, left, "└" + "─" * cols + "┘", FRAME)
+    size = max(chart.size_nm, 1e-6)
+
+    def cell(x: float, y: float):
+        col, row = int(x / size * cols), int((1 - y / size) * rows)
+        if 0 <= col < cols and 0 <= row < rows:
+            return top + 1 + row, left + 1 + col
+        return None
+
+    for it in chart.drawables:
+        style = getattr(it, "style", None)
+        if hasattr(it, "points") and style in ("coast", "track"):
+            for x, y in it.points:
+                if (p := cell(x, y)) is not None:
+                    c.put(*p, "·", CHART_INK if style == "track" else CHART_LAND)
+        elif hasattr(it, "symbol") and style == "land":
+            if (p := cell(it.x, it.y)) is not None:
+                c.put(*p, "░", CHART_LAND)
+    for it in chart.drawables:          # märkena ovanpå, vi sist
+        style = getattr(it, "style", None)
+        if hasattr(it, "symbol") and style in CHART_ITEMS and style != "own":
+            if (p := cell(it.x, it.y)) is not None:
+                c.put(*p, *CHART_ITEMS[style])
+    if (p := cell(*chart.own)) is not None:
+        c.put(*p, *CHART_ITEMS["own"])
+
+
+def _clinometer(c: Canvas, row: int, col: int, sway: float) -> None:
+    """Krängningsmätaren (кренометр): en pendel som visar krängningen, ur samma svängning
+    som mössan (`sway_of`), ungefär 6° per kolumns utslag."""
+    deg = round(6 * sway)
+    pos = 4 + max(-4, min(4, round(sway * 1.5)))
+    scale = list("╵ ╵ ┃ ╵ ╵")
+    c.text(row, col, "╭─ КРЕН ─╮", FRAME)
+    c.text(row + 1, col, "│" + "".join(scale) + "│", DIM)
+    c.put(row + 1, col + 1 + pos, "▼", LAMP)
+    c.text(row + 2, col, "╰" + f" {abs(deg):2d}° ".center(9, "─") + "╯", FRAME)
+
+
+def _far_wall(c: Canvas, g: _Room, s: StatusSnapshot, sway: float = 0.0, chart=None) -> dict:
     """Det bortre skottet: ram, skrivbordet, repeatrarna, kassaskåpet och hans saker.
     Ger platserna för det som lever (`desk_lamp`, `tea`, `cap`). Mössan svänger med `sway`."""
     spots: dict = {}
@@ -403,8 +474,13 @@ def _far_wall(c: Canvas, g: _Room, s: StatusSnapshot, sway: float = 0.0) -> dict
     clock_col = min(x0 - 2 - len(clock), safe - 9 - len(clock)) if inner > 30 else -1
     if clock_col > fl + 18:
         c.text(desk - 1, clock_col, clock, PAPER)
-    # de personliga sakerna mellan skottets kant och repeatrarna
-    _wall_items(c, fl + 2, x0 - 2, ft + 1, desk - 2, s)
+    # de personliga sakerna mellan skottets kant och repeatrarna, kortet under dem
+    lowest = _wall_items(c, fl + 2, x0 - 2, ft + 1, desk - 2, s)
+    _wall_chart(c, chart, lowest + 2, fl + 2, desk - 2, x0 - 2)
+    # krängningsmätaren under repeatrarna, om den ryms ovanför mössan
+    clino = ft + 1 + rows + 1
+    if clino + 2 < desk - 3 and x0 + 10 < fr:
+        _clinometer(c, clino, x0 + (2 * (cols + 1) - 11) // 2, sway)
     return spots
 
 
@@ -694,13 +770,13 @@ def _lids(c: Canvas, closed: float) -> None:
                 c.put(r, col, "▄", LID_EDGE)
 
 
-def _room(c: Canvas, s: StatusSnapshot, t: float) -> None:
+def _room(c: Canvas, s: StatusSnapshot, t: float, chart=None) -> None:
     g = _Room(c.w, c.h)
     sway = sway_of(s, t)
     _room_lines(c, g)
     door = getattr(s, "door", None)
     spans = _door(c, g, door, t)
-    spots = _far_wall(c, g, s, sway)
+    spots = _far_wall(c, g, s, sway, chart)
     if spans and door in ("ajar", "open"):
         col, r0, r1 = spans[-1] if door == "ajar" else spans[len(spans) // 2]
         spots["door"] = ((r0 + r1) // 2, col)
@@ -747,7 +823,9 @@ def _flat(c: Canvas, s: StatusSnapshot, t: float) -> None:
         _desk(c, h - 5, desk_left, w - desk_left - 2)
 
 
-def render_cabin(s: StatusSnapshot, t: float, width: int, height: int) -> list[Text]:
+def render_cabin(s: StatusSnapshot, t: float, width: int, height: int,
+                 chart=None) -> list[Text]:
+    """chart: navigatörens kort (`Game.chart()`, kunskap) för kortet på väggen; utan det inget kort."""
     w, h = max(MIN_W, width), max(MIN_H, height)
     c = Canvas(w, h, BG)
     if s.captain_at == "walking" and not (s.door == "open" and w >= ROOM_MIN_W and h >= ROOM_MIN_H):
@@ -755,7 +833,7 @@ def render_cabin(s: StatusSnapshot, t: float, width: int, height: int) -> list[T
         _walk(c, w, h, s, t)
         return c.lines()[:height]
     if w >= ROOM_MIN_W and h >= ROOM_MIN_H:
-        _room(c, s, t)
+        _room(c, s, t, chart)
     else:
         _flat(c, s, t)
     _plate(c, w)

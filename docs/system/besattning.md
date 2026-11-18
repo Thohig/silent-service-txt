@@ -35,7 +35,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `phone`, `sleeping` (via `Station.status_fields`). Vyn `hytt` (`ui/cabin.py`, `ui/cabin_render.py`: från 64 × 18 sedd från kudden i perspektiv,
   dörren längst bort till höger, `_Room`; på skottet rivkalendern för orderns dag
   (`StatusSnapshot.order_day` via starpom, nästa blad vid midnatt), fotot av hans första ubåt, diplomet,
-  medaljerna och familjen så långt platsen räcker; ljuset (`_shade` färgar om varje ruta: natt ⇒ bara
+  medaljerna och familjen så långt platsen räcker; under dem, när platsen räcker (minst 16 × 6), kortet på
+  väggen (`_wall_chart`, ur `Game.chart()`: land, kust, besticket, vi och kontakternas tecken, utan text) och
+  under repeatrarna krängningsmätaren (`_clinometer`, кренометр, ur `sway_of`); ljuset (`_shade` färgar om varje ruta: natt ⇒ bara
   nattlampan, telefonens sken gult/rött på skottet, rök dämpar), ögonlocken när han sover (`lids_of`, öppna när
   det ringer), andningen, taklampan och mössan svänger (`sway_of`: jagade, sjön nära ytan, krängning i gir),
   damm från rören när vi är jagade och dis av rök; dörren (`StatusSnapshot.door` ur starpom: `steps` fötter i

@@ -522,3 +522,23 @@ def test_phone_stops_ringing_when_the_captain_walks_and_a_second_take_back_is_an
     g.command("jag har befälet")
     _run(g, 10)
     assert any(r.type == "xo.walking" for r in reports)
+
+
+def test_cabin_wall_has_the_chart_and_the_clinometer_in_a_big_window():
+    """Stort fönster: kortet ur kunskapen på väggen under sakerna, krängningsmätaren under
+    repeatrarna; kortet bara när det ryms och när vyn ges."""
+    from dataclasses import replace
+    from ui.cabin_render import _clinometer, render_cabin
+    from ui.canvas import Canvas
+    g, _ = _game()
+    s = g.status()
+    big = "\n".join(r.plain for r in render_cabin(s, 0.0, 200, 55, g.chart()))
+    assert "КАРТА" in big and "@" in big and "КРЕН" in big
+    assert "КАРТА" not in "\n".join(r.plain for r in render_cabin(s, 0.0, 200, 55))
+    small = "\n".join(r.plain for r in render_cabin(s, 0.0, 120, 30, g.chart()))
+    assert "КАРТА" not in small                      # för lite plats under sakerna
+    c = Canvas(12, 3, "")
+    _clinometer(c, 0, 0, 2.0)                       # krängt åt styrbord: nålen till höger
+    mid = "".join(ch for ch, _ in c.cells[1])
+    assert mid.index("▼") > 5 and "12°" in "".join(ch for ch, _ in c.cells[2])
+    assert render_cabin(replace(s, captain_at="cabin"), 0.0, 200, 55, g.chart())

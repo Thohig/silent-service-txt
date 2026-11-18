@@ -41,5 +41,6 @@ inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18 (kväll). Str
 
 ## Små brister i bilden
 
-- **Ubåtsvyn:** profilen får 60 % även när den är tom (stor tom yta i 150 kolumner).
-- **Hytten:** mitten är tom i stora fönster.
+- ~~Ubåtsvyn: profilen tom i stora fönster~~ – 2026-11-18: tidsskalan följer historiken; panelerna i två
+  spalter när de inte ryms och det är brett.
+- ~~Hytten: mitten tom i stora fönster~~ – 2026-11-18: kortet på väggen och krängningsmätaren.
