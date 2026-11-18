@@ -26,6 +26,7 @@ LOSE_AFTER = 120           # sekunder utan hörbar signal innan kontakten förlo
 OWN_LOSE_AFTER = 60        # egen torped: sekunder tyst innan operatören tappar den
 OWN_TURN_DEG = 20.0        # så mycket måste en egen torped svänga för att det ska höras
 OWN_END_WAIT = 2           # sekunder att vänta på detonation när en torped tystnar
+INCOMING_LOSE_AFTER = 15   # fientlig torped: så länge tyst innan den räknas som tappad
 
 # Klassificeringsstadier per typ: (ackumulerad lyssning, text)
 _CLASS_STAGES = {
@@ -98,7 +99,21 @@ class ClassificationUpdate:
     quality: Quality
 
 
-SonarEvent = Detection | Lost | ClassificationUpdate | BearingObs | TransientHeard | OwnTorpedo
+@dataclass
+class IncomingTorpedo:
+    """Operatören hör en fientlig torped (högvarviga skruvar, omisskännliga).
+
+    no: ordningsnumret ombord (torped 1, 2 …), aldrig sanningens id.
+    kind: new (först hörd), bearing (ny bäring), lost (hörs inte längre).
+    """
+    no: int
+    kind: str
+    bearing: float | None
+    se: float = 0.0
+
+
+SonarEvent = (Detection | Lost | ClassificationUpdate | BearingObs | TransientHeard | OwnTorpedo
+              | IncomingTorpedo)
 
 
 @dataclass
@@ -112,6 +127,17 @@ class _Tracking:
     class_stage: int = 0
     fluct: float = 0.0
     last_obs_t: int = -10**9
+
+
+@dataclass
+class _Incoming:
+    """Operatörens minne av en fientlig torped."""
+    no: int
+    held: bool = False
+    silent_for: int = 0
+    last_obs_t: int = -10**9
+    last_bearing: float | None = None
+    ended: bool = False
 
 
 @dataclass
@@ -136,6 +162,8 @@ class SonarStation:
     _next_number: int = 1
     _own: dict[str, _OwnTrack] = field(default_factory=dict)
     _own_count: int = 0
+    _incoming: dict[str, _Incoming] = field(default_factory=dict)
+    _incoming_count: int = 0
     background: float = 0.0       # senast hörda bakgrundsbrus, dB
     under_ice: bool = False       # bruset kommer från isen
 
@@ -171,6 +199,9 @@ class SonarStation:
             if v.side == "own":
                 if v.kind == "torpedo":
                     events += self._own_torpedo(world, v)
+                continue
+            if v.kind == "torpedo":
+                events += self._enemy_torpedo(world, v)
                 continue
             t = self._tracks.setdefault(v.id, _Tracking())
             t.fluct = 0.95 * t.fluct + self.rng.gauss(0.0, 0.5)
@@ -267,6 +298,38 @@ class SonarStation:
             if tr.held and tr.silent_for >= OWN_LOSE_AFTER:
                 tr.held = False
                 out.append(OwnTorpedo(tr.no, "lost", tr.last_bearing))
+        return out
+
+    def _enemy_torpedo(self, world: World, v: Vessel) -> list[SonarEvent]:
+        """En fientlig torped: hörs genast (inget att klassa), bäring tätt, tappad när den tystnat."""
+        tr = self._incoming.get(v.id)
+        if tr is None:
+            tr = self._incoming[v.id] = _Incoming(0)
+        if tr.ended:
+            return []
+        out: list[SonarEvent] = []
+        se = -1.0 if getattr(v, "done", False) else world.raw_signal_excess(v) - self.threshold(world)
+        if se > 0:
+            tr.silent_for = 0
+            if not tr.held:
+                tr.held = True
+                if tr.no == 0:
+                    self._incoming_count += 1
+                    tr.no = self._incoming_count
+                tr.last_obs_t = world.time
+                tr.last_bearing = self._noisy_bearing(world, v, se)
+                return [IncomingTorpedo(tr.no, "new", tr.last_bearing, se)]
+            if world.time - tr.last_obs_t >= OBS_INTERVAL:
+                tr.last_obs_t = world.time
+                tr.last_bearing = self._noisy_bearing(world, v, se)
+                out.append(IncomingTorpedo(tr.no, "bearing", tr.last_bearing, se))
+        else:
+            tr.silent_for += 1
+            if tr.held and tr.silent_for >= INCOMING_LOSE_AFTER:
+                tr.held = False
+                out.append(IncomingTorpedo(tr.no, "lost", tr.last_bearing))
+            if getattr(v, "done", False) and not tr.held:
+                tr.ended = True
         return out
 
     def _transients(self, world: World, own_xy) -> list[SonarEvent]:

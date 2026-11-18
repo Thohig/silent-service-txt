@@ -354,6 +354,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                 if v > limit:
                     self.say("nav.limit", {"what": "speed", "limit": limit})
                     return
+                s.max_speed = limit             # turbinen kan just ha kopplats in på samma rad
                 s.order_speed(v)
                 self._ack("speed", {"speed": v}, s.speed == s.ordered_speed)
             case SetDepth(depth=d):

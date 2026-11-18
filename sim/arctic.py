@@ -124,7 +124,7 @@ class SubmarineAI:
         s = self.vessel.state
         noise = self._noise(world)
         for t in world.contacts:
-            if not isinstance(t, Torpedo) or t.done:
+            if not isinstance(t, Torpedo) or t.done or t.side != "own":
                 continue
             se = t.radiated_level(world.env) - self._tl(world, t.state.x, t.state.y, t.depth) - noise
             if se > 0:

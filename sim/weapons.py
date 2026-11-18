@@ -2,6 +2,11 @@
 
 Torpeder är fartyg i världen (kind="torpedo") som rör sig själva.
 Träff avgörs geometriskt: närmaste passage under ett tidssteg mot målet.
+
+Fiendens torpeder (side="enemy", `launch_enemy_torpedo`, amerikanska Mk 37) söker mot oss och
+våra skenmål: passivt mot det som låter mest i konen, aktivt nära (`active_nm`), där ett skrov
+ekar och ett skenmål inte. En låsning hålls tills något annat hörs klart bättre
+(`RELOCK_DB`); ett skenmål som torpeden passerat bortser den från. En träff på oss är förlusten.
 """
 from __future__ import annotations
 
@@ -12,6 +17,7 @@ from typing import TYPE_CHECKING
 from . import acoustics
 from .entities import Transient, Vessel
 from .geo import NM_IN_M, angle_diff, bearing_to, distance
+from .geo import velocity as _vel
 from .ship import ShipState
 
 if TYPE_CHECKING:
@@ -38,6 +44,7 @@ class TorpedoSpec:
     seeker_cone: float = 35.0
     seeker_noise: float = 70.0
     exercise: bool = False    # övningstorped: ingen stridsspets, går under målet
+    active_nm: float = 0.0    # aktiv målsökare: hittar ett skrov så här nära (ekot)
 
 
 TORPEDO_TYPES: dict[str, TorpedoSpec] = {
@@ -49,6 +56,14 @@ TORPEDO_TYPES: dict[str, TorpedoSpec] = {
     "T-5": TorpedoSpec("T-5", "T-5 (kärnladdning)", speed=40, range_nm=5.5, nuclear=True,
                        source_level=150, kill_radius_nm=1.0),
 }
+# Amerikanska ubåtens torped (Mk 37, 1960): elektrisk, långsam, passiv och aktiv målsökning.
+MK37 = TorpedoSpec("Mk37", "Mk 37 (målsökande)", speed=26, range_nm=5.0, homing=True,
+                   source_level=145, seeker_cone=40.0, seeker_noise=72.0, active_nm=0.4)
+ACTIVE_ECHO_SE = 15.0        # ett skrov inom aktiva räckvidden: så tydligt eko
+RELOCK_DB = 6.0              # något annat måste höras så mycket bättre för att byta mål
+DEPTH_HIT_M = 20.0           # träff bara om djupet stämmer så här nära
+TORPEDO_HIT_HULL = 0.7       # en Mk 37 i skrovet: tillsammans med tryckvågen är det slutet
+
 
 
 @dataclass
@@ -63,10 +78,12 @@ class DepthCharge:
 
 class Torpedo(Vessel):
     def __init__(self, id: str, spec: TorpedoSpec, x: float, y: float, course: float,
-                 launch_t: int, detonate_at_nm: float | None = None):
-        state = ShipState(x=x, y=y, course=course, speed=spec.speed, depth=spec.run_depth,
-                          turn_rate=3.0, max_speed=spec.speed)
-        super().__init__(id=id, kind="torpedo", state=state, side="own")
+                 launch_t: int, detonate_at_nm: float | None = None, side: str = "own",
+                 depth: float | None = None):
+        state = ShipState(x=x, y=y, course=course, speed=spec.speed,
+                          depth=spec.run_depth if depth is None else depth,
+                          turn_rate=3.0, max_speed=spec.speed, depth_rate=2.0, max_depth=450)
+        super().__init__(id=id, kind="torpedo", state=state, side=side)
         self.spec = spec
         self.launch_t = launch_t
         self.launch_xy = (x, y)
@@ -75,6 +92,8 @@ class Torpedo(Vessel):
         self.detonate_at_nm = detonate_at_nm
         self.done = False
         self.passed: dict[str, float] = {}   # övningstorped: närmaste passage per fartyg (nm)
+        self.locked_se = 0.0
+        self.ignored: set[str] = set()       # skenmål som torpeden gått förbi
 
     def radiated_level(self, env) -> float:
         return -999.0 if self.done else self.spec.source_level
@@ -144,8 +163,77 @@ def launch_decoy(world: World) -> Decoy:
     return d
 
 
+def lead_course(sx: float, sy: float, tx: float, ty: float, t_course: float, t_speed: float,
+                speed: float) -> float:
+    """Kursen som möter ett mål på rak kurs (förhållning). Går det inte: rakt mot målet."""
+    vx, vy = _vel(t_course, t_speed)              # sjömil per sekund
+    dx, dy = tx - sx, ty - sy
+    s = speed / 3600.0
+    a = vx * vx + vy * vy - s * s
+    b = 2 * (dx * vx + dy * vy)
+    c = dx * dx + dy * dy
+    disc = b * b - 4 * a * c
+    if abs(a) < 1e-12 or disc < 0:
+        return bearing_to(sx, sy, tx, ty)
+    roots = [r for r in ((-b - math.sqrt(disc)) / (2 * a), (-b + math.sqrt(disc)) / (2 * a)) if r > 0]
+    if not roots:
+        return bearing_to(sx, sy, tx, ty)
+    t = min(roots)
+    return bearing_to(sx, sy, tx + vx * t, ty + vy * t)
+
+
+def launch_enemy_torpedo(world: World, shooter: Vessel, spec: TorpedoSpec, course: float,
+                         depth: float) -> Torpedo:
+    """Fienden skjuter mot oss: torpeden går ut i kursen på djupet och söker själv."""
+    s = shooter.state
+    n = world.mission.get("enemy_torpedoes", 0) + 1
+    world.mission["enemy_torpedoes"] = n
+    t = Torpedo(f"E{n}", spec, s.x, s.y, course, world.time, side="enemy", depth=depth)
+    world.contacts.append(t)
+    world.emit(Transient("launch", s.x, s.y, s.depth, acoustics.LAUNCH_LEVEL, shooter.id, world.time))
+    return t
+
+
+def _enemy_targets(world: World, t: Torpedo) -> list[Vessel]:
+    """Det en fiendetorped kan söka mot: vi och våra skenmål (inte de den gått förbi)."""
+    out: list[Vessel] = [] if world.own.sunk else [world.own]
+    out += [v for v in world.contacts if isinstance(v, Decoy) and not v.sunk
+            and v.id not in t.ignored]
+    return out
+
+
+def _seek_enemy(world: World, t: Torpedo) -> None:
+    ts = t.state
+    best, best_se = None, 0.0
+    for v in _enemy_targets(world, t):
+        rel = angle_diff(bearing_to(ts.x, ts.y, v.state.x, v.state.y), ts.course)
+        if abs(rel) > t.spec.seeker_cone and t.locked != v.id:
+            continue
+        r = distance(ts.x, ts.y, v.state.x, v.state.y)
+        se = v.radiated_level(world.env) - acoustics.transmission_loss(r, ts.depth, v.depth, world.env) \
+            - t.spec.seeker_noise
+        if v is world.own and r <= t.spec.active_nm:
+            se = max(se, ACTIVE_ECHO_SE)            # ekot från skrovet
+        if v.id == t.locked:
+            se += RELOCK_DB                         # låsningen hålls
+        if se > best_se:
+            best, best_se = v, se
+    if best is None:
+        t.locked = None
+        return
+    t.locked, t.locked_se = best.id, best_se
+    ts.order_course(bearing_to(ts.x, ts.y, best.state.x, best.state.y))
+    ts.order_depth(best.depth)
+    if isinstance(best, Decoy) and distance(ts.x, ts.y, best.state.x, best.state.y) < 0.03:
+        t.ignored.add(best.id)                      # förbi skenmålet: sök vidare
+        t.locked = None
+
+
 def _seek(world: World, t: Torpedo) -> None:
     """Passiv målsökare: låser på det starkaste fartyget inom konen."""
+    if t.side == "enemy":
+        _seek_enemy(world, t)
+        return
     best, best_se = None, 0.0
     ts = t.state
     for v in world.contacts:
@@ -235,6 +323,18 @@ def _step_torpedo(world: World, t: Torpedo, dt: int) -> None:
             d = _closest_approach(p0, p1, (v.state.x, v.state.y))
             if d < t.passed.get(v.id, 9.9):
                 t.passed[v.id] = d
+    elif t.side == "enemy":
+        own = world.own
+        if t.run_nm >= ARM_DISTANCE_NM and not own.sunk and \
+                abs(own.depth - ts.depth) <= DEPTH_HIT_M and \
+                _closest_approach(p0, p1, (own.state.x, own.state.y)) <= HIT_RADIUS_NM:
+            t.done = t.sunk = True
+            world.emit(Transient("explosion", ts.x, ts.y, ts.depth, acoustics.EXPLOSION_TORPEDO,
+                                 t.id, world.time))
+            world.mission["hit_by_torpedo"] = world.time
+            own.apply_explosion(5.0, False, world.rng)
+            own.sys.hull -= TORPEDO_HIT_HULL          # en träff är förlusten
+            return
     elif t.run_nm >= ARM_DISTANCE_NM:
         for v in world.contacts:
             if v.side == "own" or v.sunk or not v.is_ship:

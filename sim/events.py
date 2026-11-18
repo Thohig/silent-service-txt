@@ -103,6 +103,14 @@ class PeriscopeBlocked(Event):
 
 
 @dataclass(frozen=True)
+class TorpedoInWater(Event):
+    """Sonar hör en fientlig torped: no (torped 1, 2 …), kind new/bearing/lost, bäringen."""
+    no: int
+    kind: str
+    bearing: float | None
+
+
+@dataclass(frozen=True)
 class HuntSigns(Event):
     """Sonar tolkar ljuden som att fienden har kontakt med oss (snabb pingtakt, sjunkbomber)."""
     reason: str

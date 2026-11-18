@@ -275,7 +275,7 @@ class DestroyerAI:
     def _threats(self, world: World, noise: float) -> None:
         s = self.vessel.state
         for t in world.contacts:
-            if not isinstance(t, Torpedo) or t.done:
+            if not isinstance(t, Torpedo) or t.done or t.side != "own":
                 continue
             se = t.radiated_level(world.env) - self._tl(world, t.state.x, t.state.y,
                                                         t.depth) - noise - DT_PASSIVE

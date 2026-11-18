@@ -23,10 +23,11 @@ from ..reports import Quality
 from ..sonar_view import (KEEP_S as WATERFALL_KEEP_S, SONAR_SOURCES, BearingTrace, ContactLine,
                           HeardMark, LostMark, OwnMark, bearing_drift, track_kind)
 from ..systems import INFO, OK, WARN, Gauge
-from ..sonar import (ClassificationUpdate, Detection, Lost, OwnTorpedo, SonarStation,
-                     TransientHeard)
+from ..sonar import (ClassificationUpdate, Detection, IncomingTorpedo, Lost, OwnTorpedo,
+                     SonarStation, TransientHeard)
 from ..tma import BearingObs
 from .base import Proposal, Station
+from .incoming import IncomingMixin
 
 BEARING_REPORT_DELTA = 5.0
 BEARING_REPORT_MAX_AGE = 300
@@ -200,7 +201,7 @@ RU_PHRASES = {
 phrases.register_ru(RU_PHRASES)
 
 
-class SonarRoom(Station):
+class SonarRoom(IncomingMixin, Station):
     REACHES_WORLD = True        # hydrofonerna och aktiv sonar (sensor)
     role = Role.SONAR
     COMMANDS = [
@@ -210,6 +211,7 @@ class SonarRoom(Station):
     def __init__(self, game):
         super().__init__(game)
         self.sensor = SonarStation(self.member, game.rng_for("sonar"))
+        self._incoming_init()
         self._last_called: dict[str, tuple[float, int]] = {}
         self._pings: dict[str, dict] = {}
         self._unknown_pingers = 0
@@ -394,6 +396,8 @@ class SonarRoom(Station):
                         self._maybe_call_bearing(ev.designation)
                 case TransientHeard():
                     self._on_sound(ev)
+                case IncomingTorpedo():
+                    self._on_incoming(ev)
                 case OwnTorpedo():
                     # Torpedrummet rapporterar egna torpeder med tubnummer.
                     q = Quality.GOD if ev.se >= 6 else Quality.OSAKER
@@ -542,9 +546,17 @@ class SonarRoom(Station):
                                se=ev.se))
 
     def _evasive_depth(self, cooldown: int = 300) -> None:
+        d = self._evasive_target()
+        if d is None:
+            return
+        self.suggest("evade_depth", "sonar.suggest.depth_change", {"depth": d},
+                     order=f"djup {d:.0f}", cooldown=cooldown, alarm=True)
+
+    def _evasive_target(self) -> float | None:
+        """Ett nytt djup att byta till för att gömma sig (skiktet, eller långt från nuvarande)."""
         st = self.own.state
         if self.own.sys.settle or self.own.sys.on_bottom:
-            return
+            return None
         env = self.world.env
         if env.layer_depth is not None and st.ordered_depth < env.layer_depth:
             d = env.layer_depth + 60
@@ -558,9 +570,8 @@ class SonarRoom(Station):
         if lim is not None and d > lim:
             d = lim
             if abs(d - st.ordered_depth) < 20:
-                return                      # botten ger inget utrymme att byta djup
-        self.suggest("evade_depth", "sonar.suggest.depth_change", {"depth": d},
-                     order=f"djup {d:.0f}", cooldown=cooldown, alarm=True)
+                return None                 # botten ger inget utrymme att byta djup
+        return d
 
     def _maybe_call_bearing(self, designation: str) -> None:
         tr = self.game.knowledge.tracks.get(designation)

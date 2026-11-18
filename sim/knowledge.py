@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from .events import (BearingObserved, BridgeSighted, ClassificationChanged, ContactDetected,
                      ConvoyAssessed, ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound,
                      PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported,
-                     ListeningExercise, TelegramReceived, TorpedoExercise)
+                     ListeningExercise, TelegramReceived, TorpedoExercise, TorpedoInWater)
 from .icemap import IceMap
 from .periscope import PeriscopePicture
 from .seabed import Seabed
@@ -71,6 +71,7 @@ class ContactTrack:
 
 
 HUNTED_WINDOW_S = 300          # så länge efter senaste tecknet räknar vi med att de har oss
+TORPEDO_ALARM_S = 60           # så länge efter senaste bäringen på en fientlig torped
 WAYPOINT_DRIFT_KN = 0.3          # isdrift åt okänt håll: så växer osäkerheten
 HUNTER_PING_S = 300            # ett mål som pingat så nyss räknas som jagande
 
@@ -102,6 +103,7 @@ class Knowledge:
     fairway_to: str | None = None
     best_photo: Quality | None = None    # bästa spaningsfotot hittills
     hunt_t: int = -10**9                 # senast sonar hörde att fienden har oss
+    torpedo_t: int = -10**9              # senaste bäringen på en fientlig torped
     periscope: PeriscopePicture | None = None   # utkikens senaste bild
     bridge: PeriscopePicture | None = None      # bryggans bild just nu (None: ingen på bryggan)
     listening: bool = False              # lyssningsövning pågår: plottet tar in vårt eget fartyg
@@ -121,6 +123,7 @@ class Knowledge:
         bus.subscribe(PositionReported, self._on_position)
         bus.subscribe(TelegramReceived, self.telegrams.append)
         bus.subscribe(HuntSigns, self._on_hunt)
+        bus.subscribe(TorpedoInWater, self._on_torpedo)
         bus.subscribe(PhotoTaken, self._on_photo)
         bus.subscribe(PeriscopeSighted, self._on_periscope)
         bus.subscribe(BridgeSighted, self._on_bridge)
@@ -148,6 +151,10 @@ class Knowledge:
 
     def _on_hunt(self, e: HuntSigns) -> None:
         self.hunt_t = e.t
+
+    def _on_torpedo(self, e: TorpedoInWater) -> None:
+        if e.kind != "lost":
+            self.torpedo_t = e.t
 
     def _on_detected(self, e: ContactDetected) -> None:
         known = e.designation in self.tracks
@@ -195,6 +202,10 @@ class Knowledge:
         return tr
 
     # --- frågor ---------------------------------------------------------------
+    def torpedo_alarm(self, now: int, window: int = TORPEDO_ALARM_S) -> bool:
+        """Hör sonar en fientlig torped (nyss)? Då är undanmanövern det enda som gäller."""
+        return now - self.torpedo_t <= window
+
     def hunted(self, now: int, window: int = HUNTED_WINDOW_S) -> bool:
         """Har fienden troligen kontakt med oss (tecken hörda nyligen)?"""
         return now - self.hunt_t <= window

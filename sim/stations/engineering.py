@@ -584,7 +584,9 @@ class EngineeringStation(Station):
             self.suggest("blow", "eng.suggest.blow", {"flooding": s.flooding},
                          order="nödblåsning", cooldown=120, alarm=True)
         hunted = self.game.knowledge.hunted(self.now)
-        if hunted and (p := self._sprint()) is not None:
+        if self.game.knowledge.torpedo_alarm(self.now):
+            pass                            # torped i vattnet: sonars undanmanöver gäller
+        elif hunted and (p := self._sprint()) is not None:
             order, data = p
             self.suggest("sprint", "eng.suggest.sprint", data, order=order, cooldown=600)
         # i ytläge syns vi ändå: smygmotorn hjälper inte
