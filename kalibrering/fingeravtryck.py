@@ -7,7 +7,7 @@ Hashar varje levererad rapport (roll, typ, data, text), egen ubåts sanna läge 
 Användning (från repots rot):
     uv run python kalibrering/fingeravtryck.py [minuter] [frön] [--spara fil] [--jämför fil]
 
-Standard 30 min, frön 0 och 1, alla scenarier. `--spara` skriver fingeravtrycken som JSON,
+Standard 30 min och 2 frön (antalet: frön 0 … n−1), alla scenarier. Flaggorna kan stå var som helst. `--spara` skriver fingeravtrycken som JSON,
 `--jämför` visar vilka scenarier/frön som skiljer sig från en sparad fil (avslutar med 1 då).
 """
 import sys as _sys
@@ -64,13 +64,14 @@ def run(args) -> tuple[str, int, str, str]:
 
 
 def main() -> int:
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    argv = sys.argv[1:]
+    save = argv[argv.index("--spara") + 1] if "--spara" in argv else None
+    comp = argv[argv.index("--jämför") + 1] if "--jämför" in argv else None
+    # filnamnen efter --spara/--jämför är inga minuter eller frön
+    skip = {i + 1 for i, a in enumerate(argv) if a in ("--spara", "--jämför")}
+    args = [a for i, a in enumerate(argv) if not a.startswith("--") and i not in skip]
     minutes = int(args[0]) if args else 30
     seeds = range(int(args[1]) if len(args) > 1 else 2)
-    save = sys.argv[sys.argv.index("--spara") + 1] if "--spara" in sys.argv else None
-    comp = sys.argv[sys.argv.index("--jämför") + 1] if "--jämför" in sys.argv else None
-    if save:
-        args = [a for a in args if a != save]
     t0 = time.time()
     jobs = [(k, s, minutes) for k in SCENARIOS for s in seeds]
     with ProcessPoolExecutor() as ex:
