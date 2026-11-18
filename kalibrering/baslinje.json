@@ -224,26 +224,28 @@
  "konvoj-mot": {
   "passiv": {
    "utfall": {
-    "convoy_attacked": 3,
-    "lost": 1,
-    "patrol_end": 4
+    "convoy_attacked": 4,
+    "convoy_missed": 1,
+    "lost": 2,
+    "patrol_end": 1
    },
    "minuter": {
-    "convoy_attacked": 17,
-    "lost": 23,
+    "convoy_attacked": 20,
+    "convoy_missed": 32,
+    "lost": 26,
     "patrol_end": 34
    }
   },
   "ja": {
    "utfall": {
     "convoy_attacked": 4,
-    "convoy_missed": 2,
-    "patrol_end": 2
+    "convoy_missed": 1,
+    "patrol_end": 3
    },
    "minuter": {
-    "convoy_attacked": 23,
-    "convoy_missed": 28,
-    "patrol_end": 34
+    "convoy_attacked": 22,
+    "convoy_missed": 21,
+    "patrol_end": 33
    }
   }
  },
