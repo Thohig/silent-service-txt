@@ -189,19 +189,24 @@ def rudder_gauge(rudder: float, p: dict) -> Dial:
     return d
 
 
-def planes_gauge(planes: float, p: dict) -> Dial:
+def planes_gauge(planes: float, p: dict, pitch: float | None = None) -> Dial:
+    """Djuprodret, och under det libellen: lutningen (дифферент) om den är känd, annars rodret."""
     d = Dial("right", a0=10, a1=170, title="DJUPROD")
     d.ticks = [(planes_needle(v), v % 25 == 0 or v == 0) for v in (-25, -20, -10, 0, 10, 20, 25)]
     d.labels = [(30, "upp"), (150, "ned")]
     d.needles.append((planes_needle(planes), 0.85, p["needle"], 0.0))
     word = "ned" if planes > 0.5 else "upp" if planes < -0.5 else ""
-    d.readout = [(f"{abs(planes):.0f}° {word}".strip(), "bold"), ("  " + libell(planes), p["needle"])]
+    bubble = libell(planes) if pitch is None else libell(pitch, span=PITCH_SPAN_DEG)
+    d.readout = [(f"{abs(planes):.0f}° {word}".strip(), "bold"), ("  " + bubble, p["needle"])]
     return d
 
 
-def libell(planes: float, width: int = 7) -> str:
+PITCH_SPAN_DEG = 5.0       # libellens fulla utslag för lutningen
+
+
+def libell(planes: float, width: int = 7, span: float = 20.0) -> str:
     """Lutningens libell: bubblan går åt fören när vi går ned."""
-    pos = width // 2 - round(max(-1.0, min(1.0, planes / 20.0)) * (width // 2))
+    pos = width // 2 - round(max(-1.0, min(1.0, planes / span)) * (width // 2))
     return "╞" + "".join("○" if i == pos else "═" for i in range(width)) + "╡"
 
 

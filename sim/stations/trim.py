@@ -24,7 +24,7 @@ from ..fmt import nm
 from ..orders import CommandSpec, Order
 from ..reports import Quality
 from ..russian import ru
-from ..systems import INFO, OFF, OK, WARN, Gauge
+from ..systems import INFO, OFF, OK, WARN, Gauge, TrimTanks
 from .base import Proposal, Station
 
 MEASURE_S = 10                 # rodret och driften läses så här ofta
@@ -362,7 +362,15 @@ class TrimStation(Station):
             g("Pumpar", "stilla")
         if t.hover:
             g("Ligg still", f"på {own.state.depth:.0f} m", INFO)
+        shift = t.fore_ballast_t / (2 * T.FORE_MAX_T)
+        items.append(TrimTanks(fore=0.5 + shift, compensating=(t.ballast_t - T.BALLAST_MIN_T) / span,
+                               aft=0.5 - shift, pitch=t.pitch))
         return items
+
+    def status_fields(self) -> dict:
+        """Lutningsmätaren och rodrets last (egna instrument) till centralens mätare."""
+        t = self.own.sys.trim
+        return {"pitch": t.pitch, "plane_load": t.plane_load}
 
 
 def _moves(order: Order) -> bool:

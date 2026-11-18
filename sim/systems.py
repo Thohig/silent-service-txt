@@ -44,6 +44,15 @@ class TubeRack:
 
 
 @dataclass(frozen=True)
+class TrimTanks:
+    """Trimtankarnas vattennivå (0–1, ur tankmätarna) och lutningen (grader, + förlig)."""
+    fore: float
+    compensating: float
+    aft: float
+    pitch: float
+
+
+@dataclass(frozen=True)
 class Flooding:
     """Vatten i kölsvinet (ton) mot vad ubåten tål."""
     tons: float

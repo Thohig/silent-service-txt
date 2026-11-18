@@ -218,10 +218,16 @@ def rudder_angle(s: StatusSnapshot) -> float:
     return max(-35.0, min(35.0, d))
 
 
+PLANE_HOLD_DEG = 15.0      # rodret när det bär så mycket vikt det orkar
+
+
 def plane_angle(s: StatusSnapshot) -> float:
-    """Djuprodrens läge, grader, ned positivt."""
-    if "depth" not in s.changing or s.on_bottom:
+    """Djuprodrens läge, grader, ned positivt. Vid djupändring mot det beordrade djupet,
+    annars så mycket som behövs för att bära vikten (en tung båt håller rodret uppåt)."""
+    if s.on_bottom:
         return 0.0
+    if "depth" not in s.changing:
+        return max(-25.0, min(25.0, -s.plane_load * PLANE_HOLD_DEG))
     return max(-25.0, min(25.0, s.ordered_depth - s.depth))
 
 
@@ -343,7 +349,7 @@ def _big_instruments(c: _Canvas, g: Geometry, s: StatusSnapshot, shown: dict[str
         "fart": ins.speed_gauge(shown["speed"], s.ordered_speed, s.depth, s.cavitating, p),
         "klocka": ins.clock_face(s.clock, p),
         "sidror": ins.rudder_gauge(shown["rudder"], p),
-        "djupror": ins.planes_gauge(shown["planes"], p),
+        "djupror": ins.planes_gauge(shown["planes"], p, pitch=s.pitch),
         "telegraf": ins.telegraph(s.ordered_speed, s.speed, s.propulsion, s.reactor, p),
     }
     # avläsningarna visar instrumentens exakta värde, visarna det trögare

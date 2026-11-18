@@ -6,7 +6,7 @@ import math
 from rich.text import Text
 
 from sim.systems import (DANGER, INFO, OFF, OK, SEVERITY, WARN, Compartment, Flooding, Gauge,
-                         SystemsView, TubeRack)
+                         SystemsView, TubeRack, TrimTanks)
 
 from .canvas import Canvas, DotLayer
 from .placards import PANEL_RU, RU_STYLE
@@ -34,11 +34,17 @@ def _center(s: str, w: int) -> str:
 # --- genomskärningen ----------------------------------------------------------------
 HULL_ROWS = 7               # torn, överkant, tre textrader, kölsvin, underkant
 BOW_COLS, STERN_COLS = 3, 6
+TANK_W_DOTS, TANK_H_DOTS = 10.0, 4.0
+TANK = "#6f8f9f"
 
 
-def render_hull(comps: list[Compartment], flooding: Flooding | None, width: int) -> list[Text]:
+def render_hull(comps: list[Compartment], flooding: Flooding | None, width: int,
+                tanks: TrimTanks | None = None) -> list[Text]:
     """Genomskärningen: skrovet, tornet, skotten och vattnet i braille, avdelningarnas
-    nummer, namn och läge som text (färg efter läget). Fören till vänster."""
+    nummer, namn och läge som text (färg efter läget). Fören till vänster. Med trimtankarna
+    står de som små rutor med sin vattennivå (för i I, utjämningstanken i III, akter i IX).
+    Lutningen visas på panelen och libellen i centralen, inte här: ett lutande skrov med rak
+    text blev svårläst."""
     if not comps:
         return []
     n = len(comps)
@@ -87,28 +93,49 @@ def render_hull(comps: list[Compartment], flooding: Flooding | None, width: int)
     # skrovet: rundad för, rak överkant och underkant, avsmalnande akter med propeller och roder
     x_bow = 2.0 * ic0
     x_aft = 2.0 * (ic1 + 1)
-    dots.line(x_bow, y_top, x_aft, y_top, HULL, prio=2)
-    dots.line(x_bow, y_bot, x_aft, y_bot, HULL, prio=2)
+    tip = x_aft + 2.0 * (STERN_COLS - 2)
+
+    def line(x0, y0, x1, y1):
+        dots.line(x0, y0, x1, y1, HULL, prio=2)
+
+    line(x_bow, y_top, x_aft, y_top)
+    line(x_bow, y_bot, x_aft, y_bot)
     rx = 2.0 * BOW_COLS - 1
     for k in range(0, 61):
         a = math.pi / 2 + math.pi * k / 60
         dots.dot(x_bow + rx * math.cos(a), cy - ry * math.sin(a), HULL, prio=2)
-    tip = x_aft + 2.0 * (STERN_COLS - 2)
-    dots.line(x_aft, y_top, tip, cy - 1.5, HULL, prio=2)
-    dots.line(x_aft, y_bot, tip, cy + 1.5, HULL, prio=2)
-    dots.line(tip + 1, cy - ry * 0.8, tip + 1, cy + ry * 0.8, HULL, prio=2)     # rodret
-    c.put(int(cy // 4), int(tip // 2) + 1, "╪", HULL)                            # propellern
+    line(x_aft, y_top, tip, cy - 1.5)
+    line(x_aft, y_bot, tip, cy + 1.5)
+    line(tip + 1, cy - ry * 0.8, tip + 1, cy + ry * 0.8)                      # rodret
+    c.put(int(cy // 4), int(tip // 2) + 1, "╪", HULL)                          # propellern
     # skotten mellan avdelningarna
     for sc in seps:
-        dots.line(2 * sc + 1, y_top + 1, 2 * sc + 1, y_bot - 1, HULL, prio=2)
+        line(2 * sc + 1, y_top + 1, 2 * sc + 1, y_bot - 1)
     # tornet över centralen (III)
     sail_at = next((i for i, cp in enumerate(comps) if cp.no == 3), n // 3)
     sx0 = 2.0 * (ic0 + sail_at * (cw + 1)) + cw * 0.4
     sx1 = sx0 + cw * 1.2
-    dots.line(sx0, y_top, sx0 + 2, 1, HULL, prio=2)
-    dots.line(sx0 + 2, 1, sx1 - 1, 1, HULL, prio=2)
-    dots.line(sx1 - 1, 1, sx1, y_top, HULL, prio=2)
-    dots.line((sx0 + sx1) / 2 + 1, 1, (sx0 + sx1) / 2 + 1, -3, HULL, prio=2)    # periskopet
+    line(sx0, y_top, sx0 + 2, 1)
+    line(sx0 + 2, 1, sx1 - 1, 1)
+    line(sx1 - 1, 1, sx1, y_top)
+    line((sx0 + sx1) / 2 + 1, 1, (sx0 + sx1) / 2 + 1, -3)                      # periskopet
+
+    # trimtankarna i botten: för (I), utjämningstanken (III), akter (IX)
+    if tanks is not None:
+        where = {1: tanks.fore, 3: tanks.compensating, 9: tanks.aft}
+        for i, cp in enumerate(comps):
+            if cp.no not in where:
+                continue
+            tw = min(2.0 * cw - 4, TANK_W_DOTS)
+            tx0 = 2.0 * (ic0 + i * (cw + 1)) + (2.0 * cw - tw) / 2
+            tx1 = tx0 + tw
+            ty0, ty1 = y_bot - 1 - TANK_H_DOTS, y_bot - 1
+            for a, b in (((tx0, ty0), (tx1, ty0)), ((tx1, ty0), (tx1, ty1)),
+                         ((tx1, ty1), (tx0, ty1)), ((tx0, ty1), (tx0, ty0))):
+                dots.line(*a, *b, TANK, prio=3)
+            fill = max(0.0, min(1.0, where[cp.no]))
+            for yy in range(int(ty1) - 1, int(ty1 - 1 - round(fill * (TANK_H_DOTS - 1))), -1):
+                dots.line(tx0 + 1, yy, tx1 - 1, yy, WATER, prio=3)
 
     rows = []
     for r in range(HULL_ROWS):
@@ -282,7 +309,7 @@ def render_compact_panels(view: SystemsView, width: int, height: int) -> list[Te
 
 
 def render_systems(view: SystemsView, width: int) -> list[Text]:
-    rows = render_hull(view.compartments(), view.first(Flooding), width)
+    rows = render_hull(view.compartments(), view.first(Flooding), width, view.first(TrimTanks))
     if rows:
         rows.append(Text(""))
     rows.extend(render_panels(view, width))

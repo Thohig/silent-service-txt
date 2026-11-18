@@ -13,7 +13,7 @@ from rich.text import Text
 
 from sim.fmt import fmt_course, kn
 from sim.profile import ProfileView
-from sim.systems import OK, Compartment, Flooding, SystemsView
+from sim.systems import OK, Compartment, Flooding, SystemsView, TrimTanks
 
 from . import profile_render
 from .placards import view_title
@@ -86,7 +86,7 @@ def render_boat(pv: ProfileView, sv: SystemsView, width: int, height: int,
                 max_depth: float | None = None) -> tuple[list[Text], Layout]:
     """sec_per_col None: tidsskalan väljs så att historiken fyller profilen
     (`profile_render.auto_time_zoom`); den valda står i `Layout.sec_per_col`."""
-    hull = render_hull(sv.compartments(), sv.first(Flooding), width)
+    hull = render_hull(sv.compartments(), sv.first(Flooding), width, sv.first(TrimTanks))
     full_panels = len(render_compact_panels(sv, width, 10_000))
     lay = layout(width, height, len(hull), full_panels)
     rows: list[Text] = []

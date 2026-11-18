@@ -128,3 +128,42 @@ def test_torpeden_kanns_genast():
     _run(g, 2)
     assert _trim(g).est == pytest.approx(before - 0.6, abs=0.15)
     assert _trim(g).quality >= Quality.GOD
+
+
+# --- TR3: ubåtsvyn och centralen ------------------------------------------------------
+def test_tankarna_i_genomskarningen():
+    from sim.systems import Compartment, Flooding, TrimTanks
+    from ui.systems_render import render_hull
+    comps = [Compartment(n, "x") for n in range(1, 10)]
+
+    def dots(tanks):
+        text = "\n".join(r.plain for r in render_hull(comps, Flooding(0, 120, False), 120, tanks))
+        return sum(bin(ord(ch) - 0x2800).count("1") for ch in text if 0x2800 <= ord(ch) <= 0x28FF)
+
+    plain = dots(None)
+    empty, full = dots(TrimTanks(0, 0, 0, 0)), dots(TrimTanks(1, 1, 1, 0))
+    assert plain < empty < full
+
+
+def test_systemtavlan_har_trim_och_tankarna():
+    from sim.systems import TrimTanks
+    g, _ = _game()
+    _run(g, 30)
+    v = g.systems()
+    assert "TRIM" in v.panels()
+    labels = [x.label for x in v.gauges("TRIM")]
+    assert labels[:3] == ["Vikt", "Lutning", "Utjämningstank"]
+    assert v.first(TrimTanks) is not None
+
+
+def test_djuprodret_bar_vikten_och_libellen_visar_lutningen():
+    from dataclasses import replace
+    from ui import instruments as ins
+    from ui.central_render import PLANE_HOLD_DEG, plane_angle
+    g, _ = _game()
+    _run(g, 5)
+    s = replace(g.status(), plane_load=0.5, pitch=0.0)
+    assert plane_angle(s) == pytest.approx(-0.5 * PLANE_HOLD_DEG)       # tung: rodret upp
+    level = ins.libell(0.0, span=ins.PITCH_SPAN_DEG)
+    bow_down = ins.libell(4.0, span=ins.PITCH_SPAN_DEG)
+    assert level != bow_down and level.index("○") == 4
