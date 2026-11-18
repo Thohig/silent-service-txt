@@ -37,7 +37,8 @@ class PeriscopeScreen(ViewScreen):
     PREFIX = "periscope"
     REDRAW_S = REDRAW_S
     EMPTY_KEYS = {"escape": "close", "left": "select(-1)", "right": "select(1)",
-                  "up": "raise", "down": "lower", "space": "ahead"}
+                  "up": "raise", "down": "lower", "space": "ahead",
+                  "plus": "power('hög')", "equals_sign": "power('hög')", "minus": "power('låg')"}
 
     def __init__(self) -> None:
         super().__init__()
@@ -74,6 +75,13 @@ class PeriscopeScreen(ViewScreen):
         game = self._game()
         if game is not None and game.status().periscope is not None:
             self._hand(f"vrid periskop {round(game.status().course) % 360:03d}")
+
+    def action_power(self, power: str) -> None:
+        """+ hög och − låg förstoring när periskopet hålls uppe (kaptenens hand)."""
+        game = self._game()
+        if game is not None and game.status().periscope == "hold" and \
+                game.status().periscope_optic != "kikare":
+            self._hand(f"förstoring {power}")
 
     def action_select(self, step: int) -> None:
         game = self._game()
@@ -150,7 +158,10 @@ class PeriscopeScreen(ViewScreen):
             self._share_look(aim)
         elif index is not None and pic.objects:
             self._share_look(ordered_objects(pic)[index].bearing)
-        body.update(Text("\n").join(render_periscope(pic, w, h, index, age, game.clock_str, aim)))
+        power = None if bridge_live or st.periscope_optic == "kikare" else (
+            st.periscope_power if aim is not None else None)
+        body.update(Text("\n").join(render_periscope(pic, w, h, index, age, game.clock_str, aim,
+                                                      power)))
         note = None
         blocked = game.knowledge.periscope_blocked
         if blocked is not None and (pic is None or blocked[0] > pic.t):
@@ -158,11 +169,11 @@ class PeriscopeScreen(ViewScreen):
         up = None if aim is None else (st.periscope, st.periscope_up_s, aim)
         kikare = bridge_live or (aim is not None and st.periscope_optic == "kikare")
         t = header(pic, game.clock_str(pic.t) if pic else "", age, note, up,
-                   "KIKARE, bryggan" if kikare else "PERISKOP")
+                   "KIKARE, bryggan" if kikare else "PERISKOP", power)
         t.append("\n")
         if aim is not None:
-            t.append(" ←/→ vrid · mellanslag förut · ↓ periskop ned · Tab logg · Esc tillbaka",
-                     style="dim")
+            t.append(" ←/→ vrid · mellanslag förut · +/− förstoring (hålls uppe) · ↓ periskop ned"
+                     " · Tab logg · Esc tillbaka", style="dim")
         else:
             t.append(" ←/→ byt föremål · ↑ periskop upp · periskop ger ett svep, periskop 047 "
                      "eller S-3 en kort titt · Tab logg · Esc tillbaka", style="dim")
