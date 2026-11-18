@@ -125,10 +125,8 @@ En patrull 1–28 okt där scenarierna blir uppdrag med transiter emellan; starp
 
 ## Scenarier
 
-- **Duellen under isen** (Nord-3, krig): vapen tillåtna, US-ubåten öppnar torpedrör på 9 nm.
-  Mål: sänka den eller ta sig ut. Kräver att `SubmarineAI` (`sim/arctic.py`) kan skjuta (roe,
-  egen lösning, undanmanöver) och fiendetorpeder som söker mot oss (finns inte i spelet än).
-  Rekommenderad som nästa.
+- ~~**Duellen under isen**~~ – byggd 2026-11-18 (`duell`, `duell-kort`, D1–D4, se
+  `docs/system/scenarier.md`).
 - **Haveri** (K-19-inspirerat): läcka i primärkretsen vid start, fart ≤ 6 kn, strålning per
   avdelning, jagare ovanför. Mål: hålla reservkylningen och nå bärgningsfartygets mötesplats
   oupptäckt. Kräver reaktorstation (temperatur, kylning, strålning som sänker `effective_skill()`

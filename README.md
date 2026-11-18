@@ -8,7 +8,7 @@ och plottlagets målrörelseanalys.
 
 ```bash
 uv run main.py                     # huvudmenyn, slumpat frö
-uv run main.py --scenario kuba     # hoppa över huvudmenyn (kuba, kuba-kort, jagad, jagad-kort, sundet, sundet-in, sundet-ut, konvoj, konvoj-kort, konvoj-mot, arktis, arktis-kort)
+uv run main.py --scenario kuba     # hoppa över huvudmenyn (kuba, kuba-kort, jagad, jagad-kort, sundet, sundet-in, sundet-ut, konvoj, konvoj-kort, konvoj-mot, arktis, arktis-kort, duell, duell-kort)
 uv run main.py --seed 4            # reproducerbart scenario
 uv run main.py --tyst              # utan ljud
 uv run --extra fonster fonster.py  # i eget fönster med ubåtsikonen i Docken (macOS)

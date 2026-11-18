@@ -73,7 +73,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 - **Importgränser** vaktas av `tests/test_import_boundaries.py`: kunskapsmodulerna når aldrig
   sanningen (importer under `TYPE_CHECKING` räknas inte), `sim/` importerar aldrig Textual.
 - **Scenarier** bor i paketet `sim/scenario/`: en modul per scenario med sina korta varianter
-  (`kuba`, `arktis`, `jagad`, `sundet`, `konvoj`, `ovning`), det delade i `common` (`Scenario`,
+  (`kuba`, `arktis`, `duell`, `jagad`, `sundet`, `konvoj`, `ovning`), det delade i `common` (`Scenario`,
   `Warmup`, platserna, `_crew`, registret). De registreras i `__init__.py` (`register(ScenarioDef(...))`,
   menyns ordning) och väljs i gränssnittets väljare eller med `--scenario`. Scenariot bär områdesnamn
   och sluttexter; `Game` ska inte känna till enskilda scenarier.
@@ -151,6 +151,8 @@ utreda, beslut som väntar): `docs/TODO.md`. Stryk det som blir gjort där.
   kollapsade lösningar på patrullbåten i sundet mot oss med σ ≈ 0 och kallades säkra (sundet säker grova
   18 % ⇒ 0); alla scenarier grova 4,8 % ⇒ 3,9 %, > 3σ 7,9 % ⇒ 6,0 %. Det som är kvar är mest girar de senaste minuterna som plottet inte hunnit se. Mätskriptet: `kalibrering/tma_kvalitet.py`.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m, torpedavfyring ≤ 100 m och ≤ 12 kn.
+- Fiendens torped Mk 37: 26 kn, 5 nm, 145 dB, söker passivt i 40° och aktivt inom 0,4 nm och ±50 m i höjd;
+  skenmålet 135 dB och bubbelekot starkare än skrovet; en träff är förlusten. Vi går 28 kn på turbinen.
 - Trim (`sim/trim.py`): kompression 1 t/100 m, skiktet bär 3 t, smältvatten 1 t, torped netto 0,6 t förut,
   rodren 0,8·v² t (högst 10), drift 0,03 m/s per ton, styrningen borta vid 2 t, pumpar 1 t/min och 121 dB.
   Ny djuporder i ≤ 2 kn och uppstigning till ytan görs med barlasten (trimmen spelar ingen roll).

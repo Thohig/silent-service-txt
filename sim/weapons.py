@@ -4,8 +4,8 @@ Torpeder är fartyg i världen (kind="torpedo") som rör sig själva.
 Träff avgörs geometriskt: närmaste passage under ett tidssteg mot målet.
 
 Fiendens torpeder (side="enemy", `launch_enemy_torpedo`, amerikanska Mk 37) söker mot oss och
-våra skenmål: passivt mot det som låter mest i konen, aktivt nära (`active_nm`), där ett skrov
-ekar och ett skenmål inte. En låsning hålls tills något annat hörs klart bättre
+våra skenmål: passivt mot det som låter mest i konen, aktivt nära (`active_nm`) och bara i ett
+band i höjd (`ACTIVE_DEPTH_M`), där skrovet ekar och skenmålets bubbelmoln ekar mer. En låsning hålls tills något annat hörs klart bättre
 (`RELOCK_DB`); ett skenmål som torpeden passerat bortser den från. En träff på oss är förlusten.
 """
 from __future__ import annotations
@@ -60,6 +60,8 @@ TORPEDO_TYPES: dict[str, TorpedoSpec] = {
 MK37 = TorpedoSpec("Mk37", "Mk 37 (målsökande)", speed=26, range_nm=5.0, homing=True,
                    source_level=145, seeker_cone=40.0, seeker_noise=72.0, active_nm=0.4)
 ACTIVE_ECHO_SE = 15.0        # ett skrov inom aktiva räckvidden: så tydligt eko
+DECOY_ECHO_SE = 18.0         # skenmålets gasbubblor ekar mer än skrovet
+ACTIVE_DEPTH_M = 50.0        # den aktiva målsökaren ser bara så långt upp och ned
 RELOCK_DB = 6.0              # något annat måste höras så mycket bättre för att byta mål
 DEPTH_HIT_M = 20.0           # träff bara om djupet stämmer så här nära
 TORPEDO_HIT_HULL = 0.7       # en Mk 37 i skrovet: tillsammans med tryckvågen är det slutet
@@ -212,8 +214,9 @@ def _seek_enemy(world: World, t: Torpedo) -> None:
         r = distance(ts.x, ts.y, v.state.x, v.state.y)
         se = v.radiated_level(world.env) - acoustics.transmission_loss(r, ts.depth, v.depth, world.env) \
             - t.spec.seeker_noise
-        if v is world.own and r <= t.spec.active_nm:
-            se = max(se, ACTIVE_ECHO_SE)            # ekot från skrovet
+        if r <= t.spec.active_nm and abs(v.depth - ts.depth) <= ACTIVE_DEPTH_M:
+            # ekot: skrovet, eller skenmålets bubbelmoln (som ekar mer)
+            se = max(se, DECOY_ECHO_SE if isinstance(v, Decoy) else ACTIVE_ECHO_SE)
         if v.id == t.locked:
             se += RELOCK_DB                         # låsningen hålls
         if se > best_se:

@@ -38,14 +38,20 @@ US_SUB_DT = 0.0                 # bättre sonar än vår
 US_DETECT_S = 30                # så länge den måste höra oss innan den vet
 US_FORGET_S = 900
 TRAIL_NM = 2.0
-ATTACK_NM = 3.0                 # krig: så nära går den för att skjuta
+ATTACK_NM = 2.5                 # krig: så nära går den för att skjuta
 FIRE_NM = 4.0                   # skjuter inte på längre håll
 FIRE_SIGMA_NM = 0.5             # pejlingen måste vara så säker
 FIRE_DATUM_AGE_S = 60
-FIRE_EVERY_S = 300
+FIRE_EVERY_S = 480               # omladdning och ny lösning
 DOORS_S = 30                    # luckorna öppnas så här länge före skottet
 DOORS_LEVEL = 150.0             # luckor och vattenfyllning: transient som hörs på några sjömil
-US_TORPEDOES = 4
+US_TORPEDOES = 3                # laddade och redo i duellen
+US_FORGET_ATTACK_S = 1800       # i krig söker den längre innan den ger upp
+AWARE_S = 300                   # i krig: så färsk måste pejlingen vara för att den ska ha oss
+SEARCH_AFTER_S = 120            # ingen ny pejling så länge: sök där vi hördes sist
+SEARCH_KN = 6                   # tyst nog att höra
+ATTACK_KN = 8                   # på skjutavstånd, på sidan om oss
+SEARCH_RADIUS_NM = 0.8
 
 
 class DriftStation(Vessel):
@@ -61,13 +67,14 @@ class DriftStation(Vessel):
 
 
 class EnemySub(Vessel):
-    def __init__(self, id: str, state: ShipState):
+    def __init__(self, id: str, state: ShipState, base: float = US_SUB_BASE):
         super().__init__(id=id, kind="submarine", state=state, side="enemy")
+        self.base = base
 
     def radiated_level(self, env) -> float:
         if self.sunk:
             return -999.0
-        return US_SUB_BASE + 1.5 * max(self.state.speed, 0.0)
+        return self.base + 1.5 * max(self.state.speed, 0.0)
 
 
 @dataclass
@@ -77,6 +84,10 @@ class SubDatum:
     depth: float
     sigma: float
     t: int
+
+    def predict(self, now: int) -> tuple[float, float]:
+        """Där vi tros vara nu (pejlingen räknar inte med vår fart)."""
+        return self.x, self.y
 
 
 class SubmarineAI:
@@ -94,13 +105,20 @@ class SubmarineAI:
         self.evade_until = -1
         self.next_listen = 0
         self.next_turn = 0
+        self._now = 0
         self.torpedoes = US_TORPEDOES
         self.next_fire = 0
         self.doors_t: int | None = None          # skottet går då (luckorna är öppna)
         self.datums: list[SubDatum] = []         # senaste pejlingarna (kurs och fart ur dem)
 
     def aware(self) -> bool:
-        return self.state == "trail"
+        """Har den oss: skuggar, och (i krig) med en pejling som inte är äldre än `AWARE_S`.
+        Söker den bara där vi var har den oss inte."""
+        if self.state != "trail":
+            return False
+        if self.roe != "attack" or self.datum is None:
+            return True
+        return self._now - self.datum.t <= AWARE_S
 
     def _noise(self, world: World) -> float:
         s = self.vessel.state
@@ -157,13 +175,15 @@ class SubmarineAI:
         if self.vessel.sunk:
             return
         now, s = world.time, self.vessel.state
+        self._now = now
         if now >= self.next_listen:
             self.next_listen = now + 5
             self._listen(world)
         self._threats(world)
         if now < self.evade_until:
             return
-        if self.datum is not None and now - self.datum.t > US_FORGET_S:
+        forget = US_FORGET_ATTACK_S if self.roe == "attack" else US_FORGET_S
+        if self.datum is not None and now - self.datum.t > forget:
             self.datum = None
             self.state = "patrol"
         st = self.station.state
@@ -222,6 +242,9 @@ class SubmarineAI:
 
     def _attack(self, world: World, d: SubDatum, r: float, b: float) -> None:
         s, now = self.vessel.state, world.time
+        if now - d.t > SEARCH_AFTER_S and self.doors_t is None:
+            self._search(d, r, b, now)
+            return
         d = self._fire_datum(now) or d
         r, b = distance(s.x, s.y, d.x, d.y), bearing_to(s.x, s.y, d.x, d.y)
         if self.doors_t is not None and now >= self.doors_t:
@@ -246,5 +269,15 @@ class SubmarineAI:
             s.order_speed(6)
         else:
             s.order_course(norm360(b + 70))
-            s.order_speed(5)
+            s.order_speed(ATTACK_KN)
+
+    def _search(self, d: SubDatum, r: float, b: float, now: int) -> None:
+        """Tappat oss: dit vi hördes sist, tyst och lyssnande, sedan i en växande cirkel."""
+        s = self.vessel.state
+        s.order_speed(SEARCH_KN)
+        if r > SEARCH_RADIUS_NM:
+            s.order_course(b)
+        elif now >= self.next_turn:
+            self.next_turn = now + 240
+            s.order_course(norm360(b + 100))
 

@@ -103,3 +103,26 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen
   märker flyget via radarvarnaren, periskopet och transienterna `buoy`/`buoy_ping`.
+- **Fiendens torpeder** (`weapons.py`, D1): `launch_enemy_torpedo` skjuter en Mk 37 (`MK37`: 26 kn, 5 nm,
+  145 dB) med side "enemy". Den söker mot oss och våra skenmål (`_seek_enemy`): passivt mot det som låter
+  mest i konen (40°), aktivt inom 0,4 nm och ±50 m i höjd (`ACTIVE_DEPTH_M`), där skrovet ekar 15 dB och
+  skenmålets bubbelmoln 18 dB. Låsningen hålls (+6 dB, `RELOCK_DB`), ett passerat skenmål bortses från.
+  Träff bara på rätt djup (±20 m) och då är vi förlorade (`TORPEDO_HIT_HULL`). `lead_course` siktar med
+  förhållning. Sonar (`sonar.py` `IncomingTorpedo`, `stations/incoming.py`) hör den genast, ropar Torped
+  i vattnet (larm, stridslarm i ljudet) och föreslår undanmanöver i en order: svag signal (långt bort)
+  skenmål, kurs bort, turbin, högsta fart och nytt djup; stark (`CLOSE_SE` 8 dB, ~2,5–3 nm under isen)
+  skenmål, smygmotor, tvärs och nytt djup. Djupet räknas från där vi var när torpeden hördes (där den
+  söker), 80 m därifrån, och gäller tills nästa torped. Sedan bäringen och dess drift var 20:e s (står
+  den still kommer den mot oss, förslaget upprepas om inget väntar). Den torped som hörs starkast styr.
+  `Knowledge.torpedo_alarm` och `doors_t` håller maskinens sprint- och kavitationsförslag borta.
+- **US-ubåten i krig** (`arctic.py`, `SubmarineAI.roe = "attack"`, D2): håller 2,5 nm (`ATTACK_NM`) i 8 kn,
+  medlar pejlingarna senaste minuten (σ/√n), räknar vår kurs och fart ur dem, öppnar torpedrören
+  (transient `doors`, 150 dB; sonar larmar och föreslår kurs tvärs och nytt djup) och skjuter 30 s senare
+  med förhållning, högst var 8:e min, 3 torpeder. Tappar den oss söker den där vi hördes sist i 6 kn
+  (`_search`); den har oss bara med en pejling ≤ 5 min gammal (`AWARE_S`), annars kommer vi undan.
+- **Duellen under isen** (`duell`, `duell-kort`, `scenario/duell.py`, D3): krig 28 okt 1962, Nord-3. En
+  amerikansk Skate-ubåt (bas 129 dB, högst 18 kn) skyddar isön T-3 och har order att sänka oss. Sänk den
+  (`sank`) eller lämna området utan att den har oss (`escaped`, marginal 1 nm); 4 h. Kort variant: den har
+  pejlat oss och är 3–4 nm bort, vakten 3 min på smygmotor, vi nära södra kanten, 40 min. För att skjuta
+  måste vi upp till ≤ 100 m. Siffrorna i `kalibrering/README.md` (`kalibrering/duell.py`).
+

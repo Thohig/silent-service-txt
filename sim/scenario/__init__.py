@@ -33,6 +33,7 @@ from .common import (  # noqa: F401
     build_scenario,
     register,
 )
+from .duell import DUEL_SHORT_WARM_S, duel_scenario, duel_short_scenario  # noqa: F401
 from .jagad import (  # noqa: F401
     HUNTED_AIR,
     HUNTED_ORDER,
@@ -147,6 +148,16 @@ register(ScenarioDef(
     "Kort variant. Vakten har gått mot Nord-7 under isen i tjugo minuter. Stationen ligger "
     "några sjömil fram, en amerikansk ubåt är på väg dit och isen ovanför är tjock.",
     arctic_short_scenario, minutes=25))
+register(ScenarioDef(
+    "duell", "Duellen under isen, 28 oktober 1962",
+    "Kriget har börjat. En amerikansk atomubåt skyddar isön T-3 i Nord-3 och har order att "
+    "sänka sovjetiska ubåtar. Sänk den, eller ta er ut ur Nord-3 utan att den har er.",
+    duel_scenario))
+register(ScenarioDef(
+    "duell-kort", "Duellen under isen – kontakt, 28 oktober 1962",
+    "Kort variant. Den amerikanska ubåten har pejlat er och är ett par sjömil bort. Den "
+    "kommer att skjuta: gå undan, sänk den eller ta er ut ur Nord-3.",
+    duel_short_scenario, minutes=40))
 register(ScenarioDef(
     "jagad", "Jagade, natten till 27 oktober 1962",
     "En amerikansk jagare har just fått kontakt och en till är på väg. Bryt kontakten "

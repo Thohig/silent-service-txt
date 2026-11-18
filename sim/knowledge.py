@@ -104,6 +104,7 @@ class Knowledge:
     best_photo: Quality | None = None    # bästa spaningsfotot hittills
     hunt_t: int = -10**9                 # senast sonar hörde att fienden har oss
     torpedo_t: int = -10**9              # senaste bäringen på en fientlig torped
+    doors_t: int = -10**9                # senast sonar hörde fienden öppna torpedrören
     periscope: PeriscopePicture | None = None   # utkikens senaste bild
     bridge: PeriscopePicture | None = None      # bryggans bild just nu (None: ingen på bryggan)
     listening: bool = False              # lyssningsövning pågår: plottet tar in vårt eget fartyg
@@ -151,6 +152,8 @@ class Knowledge:
 
     def _on_hunt(self, e: HuntSigns) -> None:
         self.hunt_t = e.t
+        if e.reason == "doors":
+            self.doors_t = e.t
 
     def _on_torpedo(self, e: TorpedoInWater) -> None:
         if e.kind != "lost":
