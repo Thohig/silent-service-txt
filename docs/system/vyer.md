@@ -29,7 +29,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `ContactTrack.observations` (källorna sonar/ping/aktiv; prickarna bredare efter `se`), hörda transienter med
   bäring (`HeardMark`; pingar bara där inget annat står), tappade (`∅`), egna ljud i marginalen och en rad per
   kontakt (bäring, operatörens bäringsdrift över 3 min, lösningens kvalitet, klassning); plottet lösningens
-  förutsagda bäringar för benet (streckade i kvalitetens färg, på från början, ↑ döljer dem) och sina märkta girar (`‹gir`, högst
+  förutsagda bäringar för benet (streckade i kvalitetens färg, på från början, ↑ döljer dem; neutrala kontakter, alltså handelsfartyg, isljud och drivstationen (`NEUTRAL_KINDS`), tonas ned: spår, lösning och kontaktrad dämpade, spåren under hotens där de korsar och hotens etiketter först, men inget döljs) och sina märkta girar (`‹gir`, högst
   var 5:e min); navigatören kursloggen (var 10:e s) och våra girar ≥ 15° (`↻`/`↺` och en svag linje). Vyn räknar
   inget själv och ger inga verktyg (designprincip 1). Tab-ordningen: sjökort → sonar → ubåten.
 - **Huvudraden och sjögången:** kontakterna hot först i sitt slags färg (`StatusSnapshot.contact_kinds`,

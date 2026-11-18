@@ -15,7 +15,8 @@ from ..geo import angle_diff, norm360
 from ..knowledge import ContactTrack
 from ..orders import DESIG, CommandSpec, Order, desig
 from ..reports import Quality
-from ..sonar_view import KEEP_S as SONAR_KEEP_S, SONAR_SOURCES, SolutionTrace, TargetTurn
+from ..sonar_view import (KEEP_S as SONAR_KEEP_S, SONAR_SOURCES, SolutionTrace, TargetTurn,
+                          track_kind)
 from ..tma import (MANEUVER_CHI2, MANEUVER_SPLIT, MAX_TARGET_KN, BearingObs, Solution,
                    maneuver_statistic, own_maneuvered, predicted_bearing, solve)
 from ..zigzag import (ConvoyEstimate, LegFix, TrackPoint, base_course, escorts_near, groups,
@@ -306,7 +307,8 @@ class PlotTeam(Station):
             if tr.held:
                 pts.append((self.now, predicted_bearing(sol.state, sol.t_ref, self.now, *own_now)))
             if len(pts) >= 2:
-                items.append(SolutionTrace(tr.designation, tuple(pts), sol.quality))
+                items.append(SolutionTrace(tr.designation, tuple(pts), sol.quality,
+                                           track_kind(tr)))
         return items
 
     # --- sjökortet -------------------------------------------------------------

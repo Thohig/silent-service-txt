@@ -272,3 +272,21 @@ def test_render_never_taller_than_asked_with_many_contacts():
     for h in range(6, 16):
         assert len(render_sonar(v, 100, h)) == h, h
     assert any("och" in r for r in _plain(render_sonar(v, 100, 9)))
+
+
+def test_neutral_contacts_are_toned_down_and_threats_win_where_traces_cross():
+    from ui.sonar_render import STYLE
+    pts = tuple((t, 300.0, 10.0) for t in range(0, 1801, 10))
+    items = [BearingTrace("S-2", pts, "civil"), BearingTrace("S-1", pts, "threat"),
+             ContactLine("S-1", "jagare", Quality.GOD, 300.0, None, None, "threat"),
+             ContactLine("S-2", "handelsfartyg", Quality.SAKER, 300.0, None, None, "civil")]
+    lines = render_sonar(_view(items=items), 100, 30, center=300.0)
+    styles = {str(span.style) for line in lines[:-2] for span in line.spans
+              if any("⠀" < ch <= "⣿" for ch in line.plain[span.start:span.end])}
+    assert STYLE["threat"] in styles and not any("#a8b890" in s for s in styles)
+    assert any("S-1" in line.plain for line in lines[:-2])        # hotets etikett vid spåret
+    civil_row, threat_row = lines[-1], lines[-2]
+    whole_dim = lambda row: any(s.start == 0 and s.end >= len(row.plain.rstrip())  # noqa: E731
+                                and "dim" in str(s.style) for s in row.spans)
+    assert "S-2" in civil_row.plain and whole_dim(civil_row)
+    assert "S-1" in threat_row.plain and not whole_dim(threat_row)

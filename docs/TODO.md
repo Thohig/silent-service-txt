@@ -37,8 +37,7 @@ inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18 (kväll). Str
 
 - ~~Konvojen: periskoptitt strax före skjutläget~~ – byggd 2026-11-18 (`off.suggest.fire_look`).
 - ~~Sonarvyn: lösningskurvan på som standard~~ – ja, 2026-11-18.
-- **Sonarvyn:** ett läge med bara hot? Avgörs efter provningen för hand (tona hellre ned neutrala
-  än dölj dem).
+- ~~Sonarvyn: ett läge med bara hot?~~ – nej; neutrala kontakter tonas ned i stället (2026-11-18).
 
 ## Små brister i bilden
 

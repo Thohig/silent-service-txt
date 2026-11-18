@@ -69,6 +69,7 @@ class SolutionTrace:
     designation: str
     points: tuple[tuple[int, float], ...]
     quality: Quality
+    kind: str = "contact"           # kontaktens slag (track_kind): neutrala tonas ned
 
 
 @dataclass(frozen=True)

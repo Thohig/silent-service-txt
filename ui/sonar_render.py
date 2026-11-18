@@ -58,10 +58,12 @@ STYLE = {
     "own_turn_line": "#33463a",
 }
 SOLUTION_PRIO = 1.0
+NEUTRAL_SOLUTION_PRIO = 0.5
 SOLUTION_DASH = 2
 QUIET_MARKS = {"ping", "buoy_ping"}
 BACKGROUND = {"┊", "╌"}                 # rutnätet och girlinjen: bakom prickarna     # täta: ritas bara där inget annat står
 TRACE_PRIO = 2.0
+NEUTRAL_PRIO = 1.5              # neutrala spår under hotens (men över lösningarna)
 
 
 class Waterfall:
@@ -97,9 +99,12 @@ class Waterfall:
         return None if y is None else int(y) // 4
 
 
+NEUTRAL_KINDS = ("civil", "benign")     # handelsfartyg, isljud, drivstationen: tonas ned
+
+
 def kind_style(kind: str, held: bool = True) -> str:
     st = STYLE.get(kind, STYLE["contact"])
-    return st if held else f"{st} dim"
+    return st if held and kind not in NEUTRAL_KINDS else f"{st} dim"
 
 
 def render_sonar(view: SonarView, width: int, height: int, window_s: int = 1800,
@@ -125,7 +130,8 @@ def render_sonar(view: SonarView, width: int, height: int, window_s: int = 1800,
     if show_solution:
         for sol in view.of(SolutionTrace):
             _solution(dots, wf, sol)
-    for tr in view.traces:
+    # hoten först: deras etiketter får platsen, och deras prickar vinner där spåren korsar
+    for tr in sorted(view.traces, key=lambda tr: tr.kind in NEUTRAL_KINDS):
         _trace(dots, over, wf, tr)
     _heard(dots, over, wf, view)
     _target_turns(dots, over, wf, view)
@@ -165,6 +171,8 @@ def contact_line(c: ContactLine, width: int) -> Text:
         t.append(f"{c.solution_quality.label:<7}", style=QUALITY_STYLE[c.solution_quality])
     t.append(f"  {c.classification}", style="" if c.held else "dim")
     t.append(f" ({c.class_quality.label})", style=QUALITY_STYLE[c.class_quality])
+    if c.kind in NEUTRAL_KINDS:
+        t.stylize("dim")                # neutral: hela raden nedtonad, hoten står ut
     t.truncate(width)
     return t
 
@@ -232,6 +240,7 @@ def _time_axis(canvas: Canvas, wf: Waterfall) -> None:
 # --- spåren -----------------------------------------------------------------------
 def _trace(dots: DotLayer, over: dict, wf: Waterfall, tr: BearingTrace) -> None:
     style = kind_style(tr.kind, tr.held)
+    prio = NEUTRAL_PRIO if tr.kind in NEUTRAL_KINDS else TRACE_PRIO
     prev: tuple[int, float, float] | None = None
     newest: tuple[float, float] | None = None
     for t, b, se in tr.points:
@@ -240,14 +249,14 @@ def _trace(dots: DotLayer, over: dict, wf: Waterfall, tr: BearingTrace) -> None:
             prev = None
             continue
         x = wf.x(wf.bearing(t, b))
-        dots.dot(x, y, style, TRACE_PRIO)
+        dots.dot(x, y, style, prio)
         if se >= MEDIUM_SE:
-            dots.dot(x + 1, y, style, TRACE_PRIO)
+            dots.dot(x + 1, y, style, prio)
         if se >= STRONG_SE:
-            dots.dot(x - 1, y, style, TRACE_PRIO)
+            dots.dot(x - 1, y, style, prio)
         if prev is not None and t - prev[0] <= JOIN_GAP_S and \
                 abs(x - prev[1]) <= JOIN_MAX_DEG / 360.0 * wf.w:
-            dots.line(prev[1], prev[2], x, y, style, TRACE_PRIO)
+            dots.line(prev[1], prev[2], x, y, style, prio)
         prev = (t, x, y)
         if newest is None or y < newest[1]:
             newest = (x, y)
@@ -312,7 +321,9 @@ def _own_marks(canvas: Canvas, wf: Waterfall, view: SonarView) -> None:
 def _solution(dots: DotLayer, wf: Waterfall, sol: SolutionTrace) -> None:
     """Plottets lösning: de bäringar den förutsäger, streckat i kvalitetens färg. Där
     spåret och lösningen glider isär stämmer lösningen inte längre."""
-    style = QUALITY_STYLE[sol.quality]
+    neutral = sol.kind in NEUTRAL_KINDS
+    style = QUALITY_STYLE[sol.quality] + (" dim" if neutral else "")
+    prio = NEUTRAL_SOLUTION_PRIO if neutral else SOLUTION_PRIO
     pts = []
     for t, b in sol.points:
         y = wf.y(t)
@@ -320,7 +331,7 @@ def _solution(dots: DotLayer, wf: Waterfall, sol: SolutionTrace) -> None:
             pts.append((wf.x(wf.bearing(t, b)), y))
     for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
         if abs(x1 - x0) <= JOIN_MAX_DEG / 360.0 * wf.w:
-            dots.line(x0, y0, x1, y1, style, SOLUTION_PRIO, dash=SOLUTION_DASH)
+            dots.line(x0, y0, x1, y1, style, prio, dash=SOLUTION_DASH)
 
 
 def _target_turns(dots: DotLayer, over: dict, wf: Waterfall, view: SonarView) -> None:
