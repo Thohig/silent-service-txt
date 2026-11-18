@@ -144,7 +144,7 @@ sim/                 ren Python, ingen Textual
   environment.py     ljudprofil (språngskikt/arktis), ström, dygnsljus
   ice.py             SANNING: packis, kölar, råkar, drift, kontakt med isen
   icemap.py          KUNSKAP: iskartan ur isekolodets lodningar
-  scenario.py        scenarier och scenarioregistret
+  scenario/          scenarier (en modul per scenario, common) och registret
   arctic.py          SANNING: drivstationen och den amerikanska ubåtens AI
   traffic.py         SANNING: civil trafik, leder och handelsfartygens AI
   air.py             SANNING: ubåtsjaktflyg, sonobojar och MAD

@@ -31,7 +31,7 @@ stationer som plugin). Förbättringar i prioritetsordning:
 1. ~~Målobjekt~~ – gjort 2026-11-16: `sim/goals.py`, `World.goals`. `mission` håller bara det
    som hänt (sänkt, foto, rapport, grundstötning, räknare).
 2. ~~Kalibreringsbotarna in i repot~~ – gjort 2026-11-15, se `kalibrering/`.
-3. **Dela `navigation.py`** (~2 400 rader) i delmoduler, och `scenario.py` (~1 200) till paket.
+3. **Dela `navigation.py`** (~2 400 rader) i delmoduler; ~~`scenario.py` till paket~~ (gjort 2026-11-18).
 
 Mindre: ~~importtest~~ (gjort 2026-11-16, `tests/test_import_boundaries.py`); talet är bundet
 till macOS `say`.
@@ -47,7 +47,7 @@ I föreslagen ordning; inget ändrar spelet, alla ska ge samma utfall för samma
    ger avbrotten ett gemensamt ställe (dagens fel med stjärnfixen från bryggan var ett avbrott som
    glömts). Delningen följer sedan av sig själv: `navigation/` med bestick och fixar, botten och is,
    styruppdragen, vägen ut. Steg: flytta ett uppdrag i taget, fixarna först.
-2. **`scenario.py` som paket** (1 222 rader, 14 scenarier): `scenario/` med en modul per scenario
+2. ~~**`scenario.py` som paket**~~ – gjort 2026-11-18. (1 222 rader, 14 scenarier): `scenario/` med en modul per scenario
    och `common.py` (platser, trafik, flyg, `_place`, uppvärmningens piloter). Registreringen som nu.
 3. **Stationernas väg till sanningen synlig.** Stationerna läser `self.game.world` på ~80 ställen i
    12 moduler. Det mesta är egna instrument och reglage (egen ubåt, `masts_clear`, `emit_em`,

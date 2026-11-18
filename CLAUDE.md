@@ -51,8 +51,10 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   räknare). Nytt mål = ny klass i `goals.py`, `World` ändras inte.
 - **Importgränser** vaktas av `tests/test_import_boundaries.py`: kunskapsmodulerna når aldrig
   sanningen (importer under `TYPE_CHECKING` räknas inte), `sim/` importerar aldrig Textual.
-- **Scenarier** registreras i `sim/scenario.py` (`register(ScenarioDef(...))`) och
-  väljs i gränssnittets väljare eller med `--scenario`. Scenariot bär områdesnamn
+- **Scenarier** bor i paketet `sim/scenario/`: en modul per scenario med sina korta varianter
+  (`kuba`, `arktis`, `jagad`, `sundet`, `konvoj`, `ovning`), det delade i `common` (`Scenario`,
+  `Warmup`, platserna, `_crew`, registret). De registreras i `__init__.py` (`register(ScenarioDef(...))`,
+  menyns ordning) och väljs i gränssnittets väljare eller med `--scenario`. Scenariot bär områdesnamn
   och sluttexter; `Game` ska inte känna till enskilda scenarier.
 - **Civil trafik:** `traffic.py` (sanning). `World.spawners` skickar in nya fartyg,
   `MerchantAI` styr dem. Neutrala fartyg (`World.neutral_ships`) är inte fiender; sänks
@@ -477,7 +479,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   än max(20°, 3σ) från lösningen före titten ⇒ målet har girat, TMA börjar om från titten
   (`PlotTeam._look_turn`). Konvoj, titt var 2:a min på 2–6 nm: lösningar säker hade läge median
   0,48 nm, kurs 39°, fart 3 kn fel; nu 0,23 nm, 7°, 0,9 kn (p90 0,5 nm, 41°: girar mellan tittarna).
-- Civil trafik (Kuba, `KUBA_TRAFFIC` i `scenario.py`): tre leder, 1,8 fartyg/h plus 3 från
+- Civil trafik (Kuba, `KUBA_TRAFFIC` i `scenario/kuba.py`): tre leder, 1,8 fartyg/h plus 3 från
   start, 9–14 kn, källnivå `140 + fart`. Maskering: neutralt fartyg inom 4° av målets
   bäring adderar sitt brus; ubåt < 100 m inom 0,3 nm från ett handelsfartyg får −12 dB eko
   hos jagaren. Jagaren hittar ja-boten i ~5 av 8 frön, som utan trafik.
