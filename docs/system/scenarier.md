@@ -103,6 +103,12 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen
   märker flyget via radarvarnaren, periskopet och transienterna `buoy`/`buoy_ping`.
+  Radarvarnaren (vakthavande, var 10:e s på periskopdjup) publicerar `AirRadarHeard` med starkaste
+  flygradarn eller None ⇒ `Knowledge.air_radar`, `air_close_t` (stark/mycket stark, `AIR_CLOSE`).
+  Vakthavande föreslår `djup 60` så länge flygradarn är nära (larm, spärr 2 min). Radion föreslår inte
+  `sänd rapport` medan senaste svepet hörde flyget nära, och inte periskopdjup inom `AIR_QUIET_S` (2 min)
+  efter; drev flyget ned oss under fönstret föreslår den periskopdjup igen efter 2 min
+  (`radio.suggest.air_clear`), om minst `AIR_LEFT_S` (2½ min) av fönstret är kvar.
 - **Fiendens torpeder** (`weapons.py`, D1): `launch_enemy_torpedo` skjuter en Mk 37 (`MK37`: 26 kn, 5 nm,
   145 dB) med side "enemy". Den söker mot oss och våra skenmål (`_seek_enemy`): passivt mot det som låter
   mest i konen (40°), aktivt inom 0,4 nm och ±50 m i höjd (`ACTIVE_DEPTH_M`), där skrovet ekar 15 dB och

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .events import (BearingObserved, BridgeSighted, ClassificationChanged, ContactDetected,
+from .events import (AirRadarHeard, BearingObserved, BridgeSighted, ClassificationChanged, ContactDetected,
                      ConvoyAssessed, ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound,
                      PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported,
                      ListeningExercise, TelegramReceived, TorpedoExercise, TorpedoInWater)
@@ -90,6 +90,9 @@ class Waypoint:
         return self.sigma0 + WAYPOINT_DRIFT_KN * max(0, now - self.t) / 3600.0
 
 
+AIR_CLOSE = ("stark", "mycket stark")    # flygradarns styrka då masterna kan synas
+
+
 @dataclass
 class Knowledge:
     tracks: dict[str, ContactTrack] = field(default_factory=dict)
@@ -110,6 +113,8 @@ class Knowledge:
     listening: bool = False              # lyssningsövning pågår: plottet tar in vårt eget fartyg
     torpedo_exercise: bool = False       # torpedövning pågår: skjutlösning på vårt eget fartyg
     periscope_blocked: tuple[int, str] | None = None   # (tid, skäl) när periskopet inte kom upp
+    air_radar: tuple[int, str | None] | None = None   # radarvarnarens senaste svep: (tid, flygradarns styrka)
+    air_close_t: int | None = None       # senast radarvarnaren hörde flygradar nära (stark, mycket stark)
     convoy: ConvoyEstimate | None = None   # plottets bild av en konvoj
     telegrams: list[TelegramReceived] = field(default_factory=list)   # det radion tagit emot
     order_tasks: frozenset[str] = frozenset()   # vad ordern kräver (Scenario.tasks)
@@ -129,11 +134,21 @@ class Knowledge:
         bus.subscribe(PeriscopeSighted, self._on_periscope)
         bus.subscribe(BridgeSighted, self._on_bridge)
         bus.subscribe(ConvoyAssessed, lambda e: setattr(self, "convoy", e.estimate))
+        bus.subscribe(AirRadarHeard, self._on_air_radar)
         bus.subscribe(PeriscopeBlocked, lambda e: setattr(self, "periscope_blocked", (e.t, e.reason)))
         bus.subscribe(ListeningExercise, lambda e: setattr(self, "listening", e.active))
         bus.subscribe(TorpedoExercise, lambda e: setattr(self, "torpedo_exercise", e.active))
 
     # --- händelser ------------------------------------------------------------
+    def _on_air_radar(self, e: AirRadarHeard) -> None:
+        self.air_radar = (e.t, e.strength)
+        if e.strength in AIR_CLOSE:
+            self.air_close_t = e.t
+
+    def air_close_now(self) -> bool:
+        """Hörde radarvarnaren flygradar nära i sitt senaste svep (det gäller bara på periskopdjup)?"""
+        return self.air_radar is not None and self.air_radar[1] in AIR_CLOSE and \
+            self.air_radar[0] == self.air_close_t
     def _on_periscope(self, e: PeriscopeSighted) -> None:
         self.periscope = e.picture
 

@@ -111,3 +111,54 @@ def test_kuba_short_hands_over_with_the_destroyer_plotted_and_the_window_ahead()
             g.tick()
         assert "radio.prewarn" in types or "radio.wait" in types
     assert plotted >= 3
+
+
+def test_radio_does_not_suggest_sending_while_the_air_radar_is_close():
+    from sim.events import AirRadarHeard
+    from sim.stations import OfficerStation
+    g, types = _game(window_at=10)
+    _far(g)
+    off = g.station(OfficerStation)
+    heard = ["stark"]                                            # radarvarnaren hör flyget nära
+    off._esm_air = lambda: g.bus.publish(AirRadarHeard(g.now, heard[0]))
+    g.command("periskopdjup, fart 3")
+    for _ in range(200):
+        g.tick()
+    assert not any(d.get("order") == "sänd rapport" for _, d in types)
+    heard[0] = "medel"
+    for _ in range(40):
+        g.tick()
+    assert any(d.get("order") == "sänd rapport" for _, d in types)
+
+
+def test_radio_suggests_going_up_again_when_the_aircraft_has_been_quiet():
+    from sim.events import AirRadarHeard
+    from sim.stations.radio import AIR_QUIET_S
+    g, types = _game(window_at=10)
+    _far(g)
+    g.command("djup 60, fart 3")
+    for _ in range(20):
+        g.tick()
+    g.bus.publish(AirRadarHeard(g.now, "mycket stark"))          # flyget drev ned oss
+    t0 = g.now
+    while g.now < t0 + AIR_QUIET_S - 2:
+        g.tick()
+    assert not any(t == "radio.suggest.air_clear" for t, _ in types)
+    for _ in range(30):                                          # förslaget når kaptenen
+        g.tick()
+    assert any(t == "radio.suggest.air_clear" and d.get("order") == "periskopdjup" for t, d in types)
+
+
+def test_air_clear_needs_time_left_in_the_window():
+    from sim.events import AirRadarHeard
+    from sim.stations.radio import AIR_LEFT_S
+    g, types = _game(window_at=10)                               # fönstret stänger 310
+    _far(g)
+    g.command("djup 60, fart 3")
+    for _ in range(30):
+        g.tick()
+    g.world.time = 310 - AIR_LEFT_S
+    g.bus.publish(AirRadarHeard(g.now - 200, "stark"))
+    for _ in range(60):
+        g.tick()
+    assert not any(t == "radio.suggest.air_clear" for t, _ in types)

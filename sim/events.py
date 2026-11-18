@@ -68,6 +68,13 @@ class ContactDetected(Event):
 
 
 @dataclass(frozen=True)
+class AirRadarHeard(Event):
+    """Radarvarnarens svep på periskopdjup: starkaste flygradarn ("svag" … "mycket stark"),
+    eller None när ingen flygradar hörs. Bara när radarvarnaren är uppe."""
+    strength: str | None
+
+
+@dataclass(frozen=True)
 class PhotoTaken(Event):
     """Periskopfoto av ett spaningsmål, med bildens kvalitet."""
     quality: Quality

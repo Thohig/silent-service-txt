@@ -21,8 +21,9 @@ from dataclasses import dataclass
 from .. import phrases
 from ..crew import ROLE_LABEL, Role
 from ..entities import Emission
-from ..events import (BearingObserved, Handover, ClassificationChanged, ContactDetected,
-                      PhotoTaken)
+from ..events import (AirRadarHeard, BearingObserved, Handover, ClassificationChanged,
+                      ContactDetected, PhotoTaken)
+from ..knowledge import AIR_CLOSE
 from ..fmt import fmt_course, kn, nm
 from ..geo import bearing_to, distance, norm360
 from ..orders import AskSuggestion, CommandSpec, Order
@@ -46,6 +47,7 @@ def is_big_ship(track) -> bool:
 RADAR_S = 10
 RADAR_RANGE_NM = 12.0
 AIR_ESM_NM = 40.0          # flygradar hörs så här långt
+AIR_STRENGTHS = ("svag", "medel", "stark", "mycket stark")
 QUIET_S = 600              # tystnad från kaptenen innan besättningen tar initiativ
 IDLE_RETRY_S = 60          # om ingen station hade något att föreslå
 REPEAT_S = 1200            # samma order föreslås inte igen inom denna tid
@@ -593,6 +595,7 @@ class OfficerStation(Station):
     def _esm_air(self) -> None:
         """Flygradar: stark på långt håll, och bäringen drar snabbt."""
         world, rng = self.world, self.rng
+        strongest = None
         for v in world.contacts:
             if v.kind != "aircraft" or v.gone:
                 continue
@@ -601,17 +604,20 @@ class OfficerStation(Station):
                 continue
             strength = ("mycket stark" if r < 4 else "stark" if r < 10
                         else "medel" if r < 20 else "svag")
+            if strongest is None or AIR_STRENGTHS.index(strength) > AIR_STRENGTHS.index(strongest):
+                strongest = strength
             prev = self._esm_last.get(v.id)
+            close = strength in AIR_CLOSE
             if prev is None or prev[0] != strength or self.now - prev[1] > 600:
                 self._esm_last[v.id] = (strength, self.now)
                 b = norm360(world.true_bearing(v) + rng.gauss(0, 3))
-                close = strength in ("mycket stark", "stark")
                 self.say("off.esm.air", {"bearing": b, "strength": strength}, kind="contact",
                          alarm=close)
-                if close:
-                    self.suggest("down_air", "off.suggest.down",
-                                 {"reason": "Flygradar, nära. De kan se våra master.", "why": "air", "depth": 60},
-                                 order="djup 60", cooldown=300, alarm=True)
+            if close:       # också när vi kommer upp igen och flyget fortfarande är nära
+                self.suggest("down_air", "off.suggest.down",
+                             {"reason": "Flygradar, nära. De kan se våra master.", "why": "air", "depth": 60},
+                             order="djup 60", cooldown=120, alarm=True)
+        self.game.bus.publish(AirRadarHeard(self.now, strongest))
 
     def _surface_ships(self):
         return [v for v in self.world.contacts

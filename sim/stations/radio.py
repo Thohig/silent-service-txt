@@ -27,6 +27,8 @@ TRANSMIT_S = 30
 PREWARN_S = 600
 RADIO_SAFE_NM = 5.0          # en hotkontakt närmare än så enligt plottet: vänta med att gå upp
 REPORT_SUGGEST_S = 180       # förslaget att sända upprepas högst så här ofta
+AIR_QUIET_S = 120            # så länge efter flygradar nära innan radion föreslår att gå upp igen
+AIR_LEFT_S = 150             # minst så mycket kvar av fönstret: upp från djupet och trettio sekunder sändning
 LISTEN_S = 20                # så länge radiomannen letar upp Moskva på kortvåg
 RADIO_VAK_MAX_M = 2500        # öppningar längre bort hinner vi inte till
 
@@ -64,6 +66,9 @@ PHRASES = {
                        else "Vi har ingen öppning loggad, vi behöver hitta öppet vatten."),
     "radio.opening_now": lambda d: f"Kapten, radio. Navigatören har {d['kind']} ovanför oss nu, och "
     f"sambandstillfället kl {d['clock']} är inte avklarat. Föreslår att vi stoppar här.",
+    "radio.suggest.air_clear": lambda d: f"Kapten, radio. Flygradarn hördes nära för "
+    f"{d['minutes']} minuter sedan, och sambandstillfället stänger kl {d['close']}. Föreslår "
+    "periskopdjup: radarvarnaren säger om flyget gått, och då sänder vi.",
     "radio.ice": lambda d: "Kapten, radio. Antennen är under isen, vi får ingen mottagning. "
     "Vi behöver öppet vatten ovanför.",
     "radio.suggest.report": lambda d: "Kapten, radio. Sambandstillfället är öppet och huvudstaben "
@@ -89,6 +94,9 @@ phrases.register(PHRASES)
 
 RU_PHRASES = {
     "radio.refused": lambda d: f"{R.CAPTAIN}, радист. Выполнить не могу.",
+    "radio.suggest.air_clear": lambda d: f"{R.CAPTAIN}, радист. Самолёт слышали рядом "
+    f"{R.count(d['minutes'], R.MINUTE)} назад, сеанс связи кончается в {d['close']}. Предлагаю "
+    "перископную глубину: станция предупреждения покажет, ушёл ли самолёт, и тогда передадим.",
     "radio.prewarn_ice": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}. Над нами лёд. "
     + (f"У штурмана полынья {d['no']}, пеленг {R.course(d['bearing'])}, около "
        f"{R.count(d['range'], R.METER)}. Предлагаю идти туда." if d.get("no")
@@ -396,11 +404,21 @@ class RadioStation(Station):
             return
         if self.game.knowledge.hunted(self.now) or self._threat_near() is not None:
             return
-        st = self.own.state
+        st, k = self.own.state, self.game.knowledge
+        air_recent = k.air_close_t is not None and self.now - k.air_close_t < AIR_QUIET_S
         if st.depth <= PERISCOPE_DEPTH + 0.5:
-            self.suggest("report_send", "radio.suggest.report", {"now": True},
-                         order="sänd rapport", cooldown=REPORT_SUGGEST_S)
-        elif st.depth <= ANTENNA_DEPTH + 0.5 and any(
+            if not k.air_close_now():           # flyget nära: vakthavande föreslår djup 60
+                self.suggest("report_send", "radio.suggest.report", {"now": True},
+                             order="sänd rapport", cooldown=REPORT_SUGGEST_S)
+        elif st.depth > ANTENNA_DEPTH + 0.5 and k.air_close_t is not None and k.air_close_t >= w0 \
+                and not air_recent \
+                and w0 + self.window_len - self.now >= AIR_LEFT_S:
+            # flyget drev ned oss under fönstret: gå upp och se om det gått
+            self.suggest(f"report_air{k.air_close_t}", "radio.suggest.air_clear",
+                         {"minutes": round((self.now - k.air_close_t) / 60),
+                          "close": self.game.clock_str(w0 + self.window_len)[:5]},
+                         order="periskopdjup", cooldown=REPORT_SUGGEST_S)
+        elif st.depth <= ANTENNA_DEPTH + 0.5 and not air_recent and any(
                 i in self._handled for i, w in enumerate(self.windows) if w == w0):
             self.suggest("report_depth", "radio.suggest.report", {"now": False},
                          order="periskopdjup", cooldown=REPORT_SUGGEST_S)
