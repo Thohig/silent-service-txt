@@ -535,6 +535,9 @@ class SonarRoom(IncomingMixin, Station):
             if self._dedupe("ice", ICE_REPORT_S):
                 self.say("sonar.ice", {**d, "near": ev.se > 25}, kind="contact",
                          quality=Quality.GOD if ev.se > 10 else Quality.OSAKER)
+        elif ev.kind == "doors":
+            if self._dedupe("doors", 60):
+                self._on_doors(ev.bearing)
         elif ev.kind == "uwt":
             if self._dedupe("uwt", 120):
                 self.say("sonar.uwt", d, kind="contact")

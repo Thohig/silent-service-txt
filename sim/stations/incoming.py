@@ -55,6 +55,10 @@ PHRASES = {
     "sonar.torpedo.bearing": lambda d: f"Torpeden bäring {fmt_course(d['bearing'])}. {_drift_text(d)}",
     "sonar.torpedo.lost": lambda d: "Torpeden hörs inte längre"
     + (f", sista bäring {fmt_course(d['bearing'])}." if d.get("bearing") is not None else "."),
+    "sonar.doors": lambda d: f"Kapten, sonar! Mekaniskt ljud i bäring {fmt_course(d['bearing'])}, "
+    "luckor och vatten som fylls. De öppnar torpedrören!",
+    "sonar.suggest.spoil": lambda d: f"Kapten! Föreslår kurs {fmt_course(d['course'])} och djup "
+    f"{d['depth']:.0f}, så stämmer inte deras lösning när de skjuter.",
     "sonar.suggest.evade": lambda d: f"Kapten! Föreslår skenmål, kurs {fmt_course(d['course'])} "
     f"bort från torpeden, fart {kn(d['speed'])}"
     + (f" och djup {d['depth']:.0f}" if d.get("depth") is not None else "") + "!",
@@ -75,6 +79,10 @@ RU_PHRASES = {
     "sonar.torpedo": lambda d: f"Торпеда! Торпеда в воде, пеленг {R.course(d['bearing'])}!",
     "sonar.torpedo.bearing": lambda d: f"Торпеда, пеленг {R.course(d['bearing'])}. {_ru_drift(d)}",
     "sonar.torpedo.lost": lambda d: "Торпеду больше не слышно.",
+    "sonar.doors": lambda d: f"{R.CAPTAIN}, акустик! Механический шум, пеленг {R.course(d['bearing'])}. "
+    "Открывают торпедные аппараты!",
+    "sonar.suggest.spoil": lambda d: f"{R.CAPTAIN}! Предлагаю курс {R.course(d['course'])}, глубина "
+    f"{R.count(d['depth'], R.METER)}, чтобы сбить им решение.",
     "sonar.suggest.evade": lambda d: f"{R.CAPTAIN}! Предлагаю имитатор, курс {R.course(d['course'])} "
     f"от торпеды, ход {R.count(d['speed'], R.KNOT)}"
     + (f", глубина {R.count(d['depth'], R.METER)}" if d.get("depth") is not None else "") + "!",
@@ -114,6 +122,19 @@ class IncomingMixin:
                      quality=Quality.GOD if ev.se > 6 else Quality.OSAKER)
             if steady:
                 self._suggest_evasion(ev.bearing, again=True)
+
+    def _on_doors(self, bearing: float) -> None:
+        """De öppnar torpedrören: byt kurs och djup innan de skjuter."""
+        self.say("sonar.doors", {"bearing": bearing}, kind="contact", alarm=True)
+        self.game.bus.publish(HuntSigns(self.now, "doors"))
+        own = self.own
+        rel = angle_diff(bearing, own.state.course)
+        course = round(norm360(bearing + (-90 if rel > 0 else 90))) % 360    # tvärs, bort
+        depth = self._evasive_target()
+        if depth is None:
+            return
+        self.suggest("spoil", "sonar.suggest.spoil", {"course": course, "depth": depth},
+                     order=f"kurs {course:03d}, djup {depth:.0f}", cooldown=120, alarm=True)
 
     def _suggest_evasion(self, bearing: float, again: bool = False) -> None:
         """Skenmål, bort från torpeden, högsta fart och ett annat djup, i en order."""

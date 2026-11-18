@@ -8,6 +8,11 @@ Den amerikanska ubåten är på väg mot samma område. Den lyssnar bättre än 
 (lägre egenbrus, bättre sonar) men går inte till anfall: insatsreglerna
 1962 är att följa och dokumentera. Hör den oss skuggar den oss på ett par
 sjömils avstånd. Hör den en torped väjer den.
+
+I krig (`roe = "attack"`, Duellen) går den närmare (`ATTACK_NM`), räknar vår kurs och fart ur
+sina senaste pejlingar, öppnar torpedluckorna (`DOORS_LEVEL`, hörs på några sjömil) och skjuter
+en Mk 37 med förhållning `DOORS_S` senare, om pejlingen är färsk och säker nog (`FIRE_SIGMA_NM`)
+och vi är inom `FIRE_NM`. Sedan väntar den `FIRE_EVERY_S` och har `torpedoes` kvar.
 """
 from __future__ import annotations
 
@@ -20,7 +25,8 @@ from . import acoustics
 from .entities import Vessel
 from .geo import bearing_to, distance, norm360
 from .ship import ShipState
-from .weapons import Torpedo
+from .entities import Transient
+from .weapons import MK37, Torpedo, launch_enemy_torpedo, lead_course
 
 if TYPE_CHECKING:
     from .world import World
@@ -32,6 +38,14 @@ US_SUB_DT = 0.0                 # bättre sonar än vår
 US_DETECT_S = 30                # så länge den måste höra oss innan den vet
 US_FORGET_S = 900
 TRAIL_NM = 2.0
+ATTACK_NM = 3.0                 # krig: så nära går den för att skjuta
+FIRE_NM = 4.0                   # skjuter inte på längre håll
+FIRE_SIGMA_NM = 0.5             # pejlingen måste vara så säker
+FIRE_DATUM_AGE_S = 60
+FIRE_EVERY_S = 300
+DOORS_S = 30                    # luckorna öppnas så här länge före skottet
+DOORS_LEVEL = 150.0             # luckor och vattenfyllning: transient som hörs på några sjömil
+US_TORPEDOES = 4
 
 
 class DriftStation(Vessel):
@@ -80,6 +94,10 @@ class SubmarineAI:
         self.evade_until = -1
         self.next_listen = 0
         self.next_turn = 0
+        self.torpedoes = US_TORPEDOES
+        self.next_fire = 0
+        self.doors_t: int | None = None          # skottet går då (luckorna är öppna)
+        self.datums: list[SubDatum] = []         # senaste pejlingarna (kurs och fart ur dem)
 
     def aware(self) -> bool:
         return self.state == "trail"
@@ -108,14 +126,16 @@ class SubmarineAI:
                 continue
             if tr.level - self._tl(world, tr.x, tr.y, tr.depth) - noise > 0:
                 heard = True
-                if tr.kind == "launch":
+                if tr.kind == "launch" and self.roe != "attack":
                     self.roe = "evade"
         self._heard_for = self._heard_for + 1 if heard else 0
         if heard and (self._heard_for >= US_DETECT_S or self.datum is not None):
             r = distance(self.vessel.state.x, self.vessel.state.y, own.state.x, own.state.y)
             err = 0.2 * r + 0.1
             self.datum = SubDatum(own.state.x + self.rng.gauss(0, err),
-                                  own.state.y + self.rng.gauss(0, err), own.depth, err, now)
+                                  own.state.y + self.rng.gauss(0, err),
+                                  own.depth + self.rng.gauss(0, 15), err, now)
+            self.datums = [d for d in self.datums if now - d.t <= 180] + [self.datum]
             if self.state != "trail":
                 world.mission["us_sub_contact"] = world.mission.get("us_sub_contact", 0) + 1
             self.state = "trail"
@@ -151,6 +171,9 @@ class SubmarineAI:
             d = self.datum
             r = distance(s.x, s.y, d.x, d.y)
             b = bearing_to(s.x, s.y, d.x, d.y)
+            if self.roe == "attack":
+                self._attack(world, d, r, b)
+                return
             if r > TRAIL_NM + 0.5:
                 s.order_course(b)
                 s.order_speed(10)
@@ -175,3 +198,53 @@ class SubmarineAI:
         elif now >= self.next_turn:
             self.next_turn = now + 600
             s.order_course(norm360(bearing_to(st.x, st.y, s.x, s.y) + 90))
+
+    # --- krig ---------------------------------------------------------------------------
+    def _target_motion(self) -> tuple[float, float]:
+        """Vår kurs och fart ur de senaste pejlingarna (grovt)."""
+        ds = self.datums
+        if len(ds) < 2 or ds[-1].t - ds[0].t < 60:
+            return 0.0, 0.0
+        a, b = ds[0], ds[-1]
+        dt_h = (b.t - a.t) / 3600.0
+        sp = distance(a.x, a.y, b.x, b.y) / dt_h
+        return bearing_to(a.x, a.y, b.x, b.y), min(sp, 30.0)
+
+    def _fire_datum(self, now: int) -> SubDatum | None:
+        """Pejlingarna senaste minuten medlade: eldledningens läge på oss (σ/√n)."""
+        recent = [d for d in self.datums if now - d.t <= FIRE_DATUM_AGE_S]
+        if not recent:
+            return None
+        n = len(recent)
+        return SubDatum(sum(d.x for d in recent) / n, sum(d.y for d in recent) / n,
+                        sum(d.depth for d in recent) / n,
+                        sum(d.sigma for d in recent) / n / math.sqrt(n), recent[-1].t)
+
+    def _attack(self, world: World, d: SubDatum, r: float, b: float) -> None:
+        s, now = self.vessel.state, world.time
+        d = self._fire_datum(now) or d
+        r, b = distance(s.x, s.y, d.x, d.y), bearing_to(s.x, s.y, d.x, d.y)
+        if self.doors_t is not None and now >= self.doors_t:
+            self.doors_t = None
+            if self.torpedoes > 0:
+                course, speed = self._target_motion()
+                aim = lead_course(s.x, s.y, d.x, d.y, course, speed, MK37.speed) if speed > 1 else b
+                launch_enemy_torpedo(world, self.vessel, MK37, aim, max(20.0, d.depth))
+                self.torpedoes -= 1
+                self.next_fire = now + FIRE_EVERY_S
+                world.mission["us_fired"] = world.mission.get("us_fired", 0) + 1
+        ready = self.torpedoes > 0 and now >= self.next_fire and self.doors_t is None
+        if ready and r <= FIRE_NM and d.sigma <= FIRE_SIGMA_NM and now - d.t <= FIRE_DATUM_AGE_S:
+            self.doors_t = now + DOORS_S
+            world.emit(Transient("doors", s.x, s.y, s.depth, DOORS_LEVEL, self.vessel.id, now))
+        # håll skjutavståndet, på sidan om vår kurs
+        if r > ATTACK_NM + 0.5:
+            s.order_course(b)
+            s.order_speed(12)
+        elif r < ATTACK_NM - 1.0:
+            s.order_course(norm360(b + 180))
+            s.order_speed(6)
+        else:
+            s.order_course(norm360(b + 70))
+            s.order_speed(5)
+

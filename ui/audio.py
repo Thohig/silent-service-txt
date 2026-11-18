@@ -65,6 +65,8 @@ CUE_BY_TYPE = {
     "sonar.ping.fast": "general",
     "sonar.splash": "general",
     "sonar.nuclear": "general",
+    "sonar.torpedo": "general",
+    "sonar.doors": "attention",
     # haverilarm
     "eng.blow": "klaxon",
     "reactor.scram": "klaxon",
