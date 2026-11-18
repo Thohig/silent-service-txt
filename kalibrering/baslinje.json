@@ -28,9 +28,9 @@
   },
   "ja": {
    "utfall": {
-    "patrol_end": 2,
+    "patrol_end": 1,
     "report_missed": 4,
-    "reported": 2
+    "reported": 3
    },
    "minuter": {
     "patrol_end": 45,
@@ -50,14 +50,14 @@
   },
   "ja": {
    "utfall": {
-    "lost": 1,
-    "patrol_end": 2,
+    "lost": 2,
+    "patrol_end": 1,
     "station_reached": 5
    },
    "minuter": {
-    "lost": 206,
+    "lost": 242,
     "patrol_end": 360,
-    "station_reached": 251
+    "station_reached": 336
    }
   }
  },
@@ -72,12 +72,12 @@
   },
   "ja": {
    "utfall": {
-    "patrol_end": 3,
-    "station_reached": 5
+    "patrol_end": 4,
+    "station_reached": 4
    },
    "minuter": {
     "patrol_end": 55,
-    "station_reached": 47
+    "station_reached": 46
    }
   }
  },
@@ -92,12 +92,12 @@
   },
   "ja": {
    "utfall": {
-    "escaped": 4,
-    "lost": 4
+    "escaped": 6,
+    "lost": 2
    },
    "minuter": {
-    "escaped": 44,
-    "lost": 83
+    "escaped": 50,
+    "lost": 88
    }
   }
  },
@@ -193,7 +193,7 @@
     "convoy_missed": 8
    },
    "minuter": {
-    "convoy_missed": 121
+    "convoy_missed": 112
    }
   }
  },
@@ -210,11 +210,11 @@
   },
   "ja": {
    "utfall": {
-    "convoy_missed": 2,
-    "patrol_end": 6
+    "convoy_missed": 1,
+    "patrol_end": 7
    },
    "minuter": {
-    "convoy_missed": 74,
+    "convoy_missed": 73,
     "patrol_end": 80
    }
   }
