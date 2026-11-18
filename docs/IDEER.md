@@ -189,17 +189,13 @@ konspiration, ensam kapten. Tre motståndare:
 - Öppna frågor: kaptenen eller en annan avhoppare; motivet (outsagt, personligt, vägrar T-5); staben
   via radioomdesignen eller förenklad.
 
-## Radion (parkerad, "avvakta")
+## ~~Radion~~ (byggd 2026-11-19, R1–R6, se `docs/system/besattning.md`)
 
-1. Rapporter med innehåll ur kunskapen; sändningstid efter innehåll; pejlrisken växer med längd
-   och närhet.
-2. `sim/headquarters.py`: huvudstaben vet bara vad vi sänt (`ReportTransmitted`) och skriver
-   meddelanden efter det.
-3. Uppdragsmål i slutrapporten (rapporterat, förblev oupptäckt, ingen vapenanvändning,
-   sambandstillfällen).
-4. Valfritt: villkorat tillstånd för T-5 – känsligt, användarens beslut.
-
-Framtida idé: radiospaning av amerikansk trafik vid sambandstillfällen, t.ex. i Arktis.
+Byggt: rapporter med innehåll ur kunskapen och sändningstid efter längd (R1), pejlrisk efter längd
+(R2), huvudstaben som bara vet vad vi sänt (R3), sambandet i slutrapporten (R4), villkorat tillstånd
+för T-5 i jagad (R5), radiospaning (R6). Kvar som idé: stabens svar som styr nästa uppdrag i en
+kampanj (`Headquarters.received` sparar det vi rapporterat), zampolitens samtycke till T-5
+(kärnvapenbeslutet).
 
 ## Nya system och vyer
 

@@ -46,6 +46,13 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   ("jagarna rapporterar kontakt till varandra", larm). Kvalitet ur hur mycket som hördes: två
   sändare eller fler god, en osäker, ingen dålig. `InterceptHeard` ⇒ `Knowledge.intercept`. Vid
   tystnad på antenndjup föreslår radiomannen avlyssning högst var 30:e min (`idle_proposals`).
+- **Villkorat tillstånd för T-5** (R5): ett telegram med flaggan `nuclear_condition` "real_charges"
+  (jagad: "ENDAST OM NI ANGRIPS MED SKARPA SJUNKBOMBER") ger tillstånd först när en skarp sjunkbomb
+  detonerat efter telegrammet (`mission["real_charges"]` mot `nuclear_condition_base`, satt när
+  telegrammet togs emot; signalbomber räknas inte). Uppfyllt: torpedrummet frågar en gång
+  (`torp.nuclear_confirm`, larm) och skjuter på upprepad order inom en minut; aldrig i salva, och
+  avfyring föreslås som förut aldrig som ja-order. Zampolitens samtycke (kärnvapenbeslutet) är
+  inte byggt.
 - **Starpom** (`stations/starpom.py`, `FirstOfficer`, `Role.XO`, Sokolov, kapten 3:e rang): `starpom har befälet`
   ⇒ kaptenen i hytten; starpom svarar på förslag via `Station.on_suggestion` (Game frågar stationerna efter
   leverans; sant = beslutat) och ger ordern med `game.command(order, by="starpom")` (`OrderIssued.by`, räknas

@@ -41,8 +41,9 @@ SLUT
 HUNTED_RADIO = [
     RadioMessage("FRÅN HUVUDSTABEN. AMERIKANSKA JAGARE HAR FÄLLT SJUNKBOMBER MOT VÅRA "
                  "UBÅTAR I FLERA KVADRATER. LÄMNA KVADRAT 7. FÖRBLI OUPPTÄCKT."),
-    RadioMessage("FRÅN HUVUDSTABEN. INGEN ÄNDRING. KÄRNVAPEN EJ AUKTORISERADE.",
-                 {"nuclear_authorized": False}),
+    RadioMessage("FRÅN HUVUDSTABEN. KÄRNVAPEN FÅR ANVÄNDAS ENDAST OM NI ANGRIPS MED SKARPA "
+                 "SJUNKBOMBER. SIGNALSJUNKBOMBER ÄR INGET ANGREPP.",
+                 {"nuclear_authorized": False, "nuclear_condition": "real_charges"}),
 ]
 
 # Flyget kommer tidigare: jagarna har kallat på det.

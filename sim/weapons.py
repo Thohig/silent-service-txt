@@ -136,6 +136,8 @@ def _step_charges(world: World, dt: int) -> None:
         world.emit(Transient("explosion", c.x, c.y, c.depth, level, c.source_id,
                              world.time, c.practice))
         world.mission["charges_exploded"] = world.mission.get("charges_exploded", 0) + 1
+        if not c.practice:      # skarpa: det stabens villkorade tillstånd för T-5 talar om
+            world.mission["real_charges"] = world.mission.get("real_charges", 0) + 1
         horiz_m = distance(c.x, c.y, own.state.x, own.state.y) * NM_IN_M
         dist_m = math.hypot(horiz_m, c.depth - own.state.depth)
         own.apply_explosion(dist_m, c.practice, world.rng)

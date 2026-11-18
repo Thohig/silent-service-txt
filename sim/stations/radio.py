@@ -668,6 +668,9 @@ class RadioStation(Station):
             self.world.mission.update(msg.flags)
             if msg.flags.get("report_requested"):
                 self.hq.request_report()
+            if msg.flags.get("nuclear_condition"):
+                # villkoret räknas från telegrammet: bara sjunkbomber efter det
+                self.world.mission["nuclear_condition_base"] = self.world.mission.get("real_charges", 0)
             if msg.waypoint is not None:
                 name, x, y, sigma, t_pos = msg.waypoint
                 self.game.bus.publish(PositionReported(self.now, name, x, y, sigma, t_pos))

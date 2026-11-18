@@ -192,6 +192,9 @@ def _solution(d: dict) -> str:
 
 PHRASES = {
     "torp.refused": lambda d: f"Kapten, {d['reason']}.",
+    "torp.nuclear_confirm": lambda d: f"Kapten, torped. Tub {d['tube']} har kärnladdning. Stabens "
+    "villkor är uppfyllt: vi har angripits med skarpa sjunkbomber. Upprepa ordern om vi ska skjuta "
+    f"mot {d['designation']}.",
     "torp.confirm": lambda d: (
         f"Kapten, {d['designation']} är klassad som {d['classification']}. "
         if d["civil"] else
@@ -297,6 +300,9 @@ def _ru_tubes(d: dict) -> str:
 
 RU_PHRASES = {
     "torp.refused": lambda d: f"{R.CAPTAIN}, минёр. Выполнить не могу.",
+    "torp.nuclear_confirm": lambda d: f"{R.CAPTAIN}, минёр. В аппарате {d['tube']} ядерная "
+    "торпеда. Условие штаба выполнено: нас атаковали боевыми глубинными бомбами. Повторите "
+    "приказ, если стреляем.",
     "torp.confirm": lambda d: f"{R.CAPTAIN}, минёр. "
     + (f"{R.contact(d['designation']).capitalize()}: {R.classification(d['classification'])}. "
        if d["civil"] else
@@ -376,6 +382,7 @@ class TorpedoRoom(Station):
         super().__init__(game)
         self.tubes = [Tube(i + 1) for i in range(N_TUBES)]
         self._confirmed: dict[str, int] = {}     # kontakt -> när vi frågade om den
+        self._nuclear_confirm_t = -10**9          # när vi frågade om kärnladdningen
         self._neutral_warned: dict[str, int] = {}   # mål (eller "kurs") -> när vi varnade
         for t in self.tubes[:4]:
             t.load = "53-61"
@@ -422,8 +429,21 @@ class TorpedoRoom(Station):
 
     def _blocked(self, type_key: str) -> str | None:
         if TORPEDO_TYPES[type_key].nuclear and not self.world.mission.get("nuclear_authorized"):
+            if self._nuclear_conditional():
+                if self._nuclear_condition_met():
+                    return None
+                return ("stabens tillstånd för kärnladdningen gäller bara om vi angrips med "
+                        "skarpa sjunkbomber, och det har vi inte blivit")
             return "kärnladdningen kräver order från Moskva"
         return None
+
+    def _nuclear_conditional(self) -> bool:
+        """Staben har gett villkorat tillstånd (R5): bara om vi angrips med skarpa sjunkbomber."""
+        return self.world.mission.get("nuclear_condition") == "real_charges"
+
+    def _nuclear_condition_met(self) -> bool:
+        m = self.world.mission
+        return m.get("real_charges", 0) > m.get("nuclear_condition_base", 0)
 
     # --- order -------------------------------------------------------------------
     def on_order(self, order: Order) -> None:
@@ -550,6 +570,17 @@ class TorpedoRoom(Station):
             quality = sol.quality
             if spec.nuclear:
                 detonate_at = dist
+                if self._nuclear_conditional() and not self.world.mission.get("nuclear_authorized"):
+                    if o.in_salvo:
+                        self.say("torp.refused", {"reason": "kärnladdningen skjuts inte i salva"})
+                        return False
+                    if self._nuclear_confirm_t < self.now - CONFIRM_S:
+                        # villkoret är uppfyllt: torpedrummet frågar en gång, upprepad order skjuter
+                        self._nuclear_confirm_t = self.now
+                        self.say("torp.nuclear_confirm", {"tube": o.tube,
+                                                          "designation": o.designation},
+                                 alarm=True)
+                        return False
         else:
             course = o.course
             if not self._neutrals_clear(None, [course], tube.load):
