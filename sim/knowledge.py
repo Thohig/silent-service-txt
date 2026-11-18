@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .events import (AirRadarHeard, BearingObserved, BridgeSighted, ClassificationChanged, ContactDetected,
+from .events import (AirRadarHeard, BearingObserved, InterceptHeard, BridgeSighted, ClassificationChanged, ContactDetected,
                      ConvoyAssessed, ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound,
                      PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported,
                      ListeningExercise, TelegramReceived, TorpedoExercise, TorpedoInWater)
@@ -114,6 +114,7 @@ class Knowledge:
     torpedo_exercise: bool = False       # torpedövning pågår: skjutlösning på vårt eget fartyg
     periscope_blocked: tuple[int, str] | None = None   # (tid, skäl) när periskopet inte kom upp
     air_radar: tuple[int, str | None] | None = None   # radarvarnarens senaste svep: (tid, flygradarns styrka)
+    intercept: InterceptHeard | None = None   # senaste radiospaningen
     air_close_t: int | None = None       # senast radarvarnaren hörde flygradar nära (stark, mycket stark)
     convoy: ConvoyEstimate | None = None   # plottets bild av en konvoj
     telegrams: list[TelegramReceived] = field(default_factory=list)   # det radion tagit emot
@@ -135,6 +136,7 @@ class Knowledge:
         bus.subscribe(BridgeSighted, self._on_bridge)
         bus.subscribe(ConvoyAssessed, lambda e: setattr(self, "convoy", e.estimate))
         bus.subscribe(AirRadarHeard, self._on_air_radar)
+        bus.subscribe(InterceptHeard, lambda e: setattr(self, "intercept", e))
         bus.subscribe(PeriscopeBlocked, lambda e: setattr(self, "periscope_blocked", (e.t, e.reason)))
         bus.subscribe(ListeningExercise, lambda e: setattr(self, "listening", e.active))
         bus.subscribe(TorpedoExercise, lambda e: setattr(self, "torpedo_exercise", e.active))

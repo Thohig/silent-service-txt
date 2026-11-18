@@ -139,3 +139,30 @@ def test_end_summary_scores_what_we_reported_against_the_truth():
     assert s["contact_course_err"] < 5 and s["own_err_nm"] < 1.0
     from ui.widgets import radio_rows
     assert radio_rows(s)[0] == ("Sambandstillfällen med rapport", "1 av 1")
+
+
+def test_intercept_hears_aircraft_and_hunting_destroyers_at_antenna_depth():
+    """R6: radiospaning på antenndjup; kvaliteten ur hur mycket som hördes."""
+    from sim.enemy import Datum, DestroyerAI
+    from sim.events import InterceptHeard
+    g = Game(build_scenario("kuba", random.Random(3)), seed=3)
+    heard, reports = [], []
+    g.bus.subscribe(InterceptHeard, heard.append)
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    s = g.world.own.state
+    s.depth = s.ordered_depth = 60.0
+    g.command("avlyssna")
+    for _ in range(5):
+        g.tick()
+    assert any(r.type == "radio.refused" for r in reports)
+    s.depth = s.ordered_depth = 25.0
+    dd = next(a for a in g.world.ais if isinstance(a, DestroyerAI))
+    g.command("avlyssna")
+    for _ in range(70):
+        dd.datum = Datum(s.x, s.y, 50.0, 0.5, g.now)        # jagaren har kontakt
+        g.tick()
+        s.depth = s.ordered_depth = 25.0
+    assert heard and heard[-1].hunting and heard[-1].ships >= 1
+    r = next(r for r in reports if r.type == "radio.intercept")
+    assert r.alarm and "rapporterar kontakt" in r.text
+    assert g.knowledge.intercept is heard[-1]

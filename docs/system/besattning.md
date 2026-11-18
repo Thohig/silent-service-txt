@@ -40,6 +40,12 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `goals.report_summary` ⇒ `summary["radio"]` i `Game._end`; slutrapporten
   (`ui/widgets.radio_rows`) visar sambandstillfällen med rapport, största felet i rapporterat eget
   läge och kontakternas medianfel. Bara i slutrapporten: staben vet inget om felen.
+- **Radiospaning** (R6, `avlyssna`): på antenndjup (masten fri, radion hel) avlyssnar radiomannen
+  amerikansk trafik i `INTERCEPT_S` (60 s; avbryts om antennen går under). Sensor i radion:
+  flygplan i luften inom 150 nm, jagare inom 60 nm, och om någon av dem haft datum de senaste 10 min
+  ("jagarna rapporterar kontakt till varandra", larm). Kvalitet ur hur mycket som hördes: två
+  sändare eller fler god, en osäker, ingen dålig. `InterceptHeard` ⇒ `Knowledge.intercept`. Vid
+  tystnad på antenndjup föreslår radiomannen avlyssning högst var 30:e min (`idle_proposals`).
 - **Starpom** (`stations/starpom.py`, `FirstOfficer`, `Role.XO`, Sokolov, kapten 3:e rang): `starpom har befälet`
   ⇒ kaptenen i hytten; starpom svarar på förslag via `Station.on_suggestion` (Game frågar stationerna efter
   leverans; sant = beslutat) och ger ordern med `game.command(order, by="starpom")` (`OrderIssued.by`, räknas

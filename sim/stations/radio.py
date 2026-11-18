@@ -15,7 +15,7 @@ from ..entities import Emission
 from ..broadcasts import broadcasts_for, order_day
 from ..dispatch import SentReport, compose, report_text
 from ..headquarters import Headquarters
-from ..events import (Handover, OwnActionLogged, OwnTorpedoHeard, PhotoTaken, PositionReported,
+from ..events import (Handover, InterceptHeard, OwnActionLogged, OwnTorpedoHeard, PhotoTaken, PositionReported,
                       ReportTransmitted, TelegramReceived)
 from ..fmt import fmt_course, nm
 from ..geo import angle_diff, distance
@@ -37,6 +37,11 @@ RADIO_SAFE_NM = 5.0          # en hotkontakt närmare än så enligt plottet: v�
 REPORT_SUGGEST_S = 180       # förslaget att sända upprepas högst så här ofta
 AIR_QUIET_S = 120            # så länge efter flygradar nära innan radion föreslår att gå upp igen
 AIR_LEFT_S = 150             # minst så mycket kvar av fönstret: upp från djupet och trettio sekunder sändning
+INTERCEPT_S = 60             # radiospaning: så länge radiomannen avlyssnar trafiken
+INTERCEPT_AIR_NM = 150       # flygradion hörs så långt (VHF/UHF från höjd)
+INTERCEPT_SHIP_NM = 60       # fartygens radiotelefoni
+INTERCEPT_AGAIN_S = 1800     # radiomannen föreslår en ny avlyssning högst så här ofta
+INTERCEPT_HUNT_S = 600       # jagarna har haft kontakt så nyss: deras trafik är livlig
 LISTEN_S = 20                # så länge radiomannen letar upp Moskva på kortvåg
 RADIO_VAK_MAX_M = 2500        # öppningar längre bort hinner vi inte till
 
@@ -57,6 +62,11 @@ class ListenBroadcast(Order):
     pass
 
 
+@dataclass(frozen=True)
+class Intercept(Order):
+    """Radiospaning: avlyssna amerikansk trafik på antenndjup."""
+
+
 KIND_SV = {"full": "rapporten", "short": "kort rapport", "contact": "rapport om kontakten"}
 KIND_RU = {"full": "донесение", "short": "короткое донесение", "contact": "донесение о цели"}
 RISK_RU = {"liten": "малый", "måttlig": "умеренный", "stor": "большой"}
@@ -68,6 +78,34 @@ def _groups(n: int) -> str:
 
 def _contacts_sv(n: int) -> str:
     return "en kontakt" if n == 1 else f"{n} kontakter"
+
+
+def _intercept_sv(d: dict) -> str:
+    parts = []
+    if d["air"]:
+        parts.append("amerikansk flygradio, " + ("ett plan" if d["air"] == 1 else
+                                                 f"{d['air']} plan") + " i luften i området")
+    if d["ships"]:
+        parts.append("radiotelefoni från " + ("ett örlogsfartyg" if d["ships"] == 1 else
+                                              f"{d['ships']} örlogsfartyg"))
+    if d["hunting"]:
+        parts.append("jagarna rapporterar kontakt till varandra, de söker något")
+    if not parts:
+        return "Kapten, radio. Avlyssning: bara avlägsen rutintrafik, inget som rör oss."
+    return "Kapten, radio. Avlyssning: " + "; ".join(parts) + "."
+
+
+def _intercept_ru(d: dict) -> str:
+    parts = []
+    if d["air"]:
+        parts.append(f"американская авиационная связь, самолётов в районе: {d['air']}")
+    if d["ships"]:
+        parts.append(f"радиотелефон военных кораблей: {d['ships']}")
+    if d["hunting"]:
+        parts.append("эсминцы докладывают друг другу о контакте, они кого-то ищут")
+    if not parts:
+        return f"{R.CAPTAIN}, радист. Радиоперехват: только дальний обычный трафик."
+    return f"{R.CAPTAIN}, радист. Радиоперехват: " + "; ".join(parts) + "."
 
 
 PHRASES = {
@@ -93,6 +131,11 @@ PHRASES = {
     "radio.suggest.air_clear": lambda d: f"Kapten, radio. Flygradarn hördes nära för "
     f"{d['minutes']} minuter sedan, och sambandstillfället stänger kl {d['close']}. Föreslår "
     "periskopdjup: radarvarnaren säger om flyget gått, och då sänder vi.",
+    "radio.intercept.start": lambda d: "Avlyssnar amerikansk trafik, en minut.",
+    "radio.intercept.lost": lambda d: "Avlyssningen avbröts, antennen kom under ytan.",
+    "radio.intercept": _intercept_sv,
+    "radio.suggest.intercept": lambda d: "Kapten, radio. Vi har antennen uppe. Föreslår att vi "
+    "avlyssnar den amerikanska trafiken en minut, så vet vi om flyget och jagarna är i närheten.",
     "radio.ice": lambda d: "Kapten, radio. Antennen är under isen, vi får ingen mottagning. "
     "Vi behöver öppet vatten ovanför.",
     "radio.suggest.report": lambda d: "Kapten, radio. Sambandstillfället är öppet och huvudstaben "
@@ -122,6 +165,11 @@ phrases.register(PHRASES)
 
 RU_PHRASES = {
     "radio.refused": lambda d: f"{R.CAPTAIN}, радист. Выполнить не могу.",
+    "radio.intercept.start": lambda d: "Есть, слушаем американский трафик, одну минуту.",
+    "radio.intercept.lost": lambda d: "Перехват прерван, антенна ушла под воду.",
+    "radio.intercept": _intercept_ru,
+    "radio.suggest.intercept": lambda d: f"{R.CAPTAIN}, радист. Антенна поднята. Предлагаю минуту "
+    "послушать американский трафик, узнаем, нет ли рядом самолётов и эсминцев.",
     "radio.suggest.air_clear": lambda d: f"{R.CAPTAIN}, радист. Самолёт слышали рядом "
     f"{R.count(d['minutes'], R.MINUTE)} назад, сеанс связи кончается в {d['close']}. Предлагаю "
     "перископную глубину: станция предупреждения покажет, ушёл ли самолёт, и тогда передадим.",
@@ -178,6 +226,8 @@ class RadioStation(Station):
                     lambda m: SendReport("contact", desig(m[1] or m[2])), "sänd rapport S-3"),
         CommandSpec(r"sänd rapport|sand rapport|rapportera|sänd", lambda m: SendReport(), "sänd rapport"),
         CommandSpec(r"radio|meddelanden", lambda m: RadioStatus(), "radio"),
+        CommandSpec(r"avlyssna|avlyssning|radiospaning|lyssna(?: på)? trafik(?:en)?",
+                    lambda m: Intercept(), "avlyssna"),
         CommandSpec(r"lyssna(?: på)? (?:radio|moskva|radio moskva)|radio moskva|moskva",
                     lambda m: ListenBroadcast(), "lyssna radio"),
     ]
@@ -211,6 +261,8 @@ class RadioStation(Station):
         self._broadcast_n = 0
         self._listen_until: int | None = None   # radiomannen letar upp Moskva
         self.received = 0                       # mottagningsnummer ombord
+        self._intercept_until: int | None = None    # radiospaning pågår
+        self._intercept_start = 0
 
 
     def attach(self, bus) -> None:
@@ -300,6 +352,19 @@ class RadioStation(Station):
                 elif self._listen_until is None:
                     self._listen_until = self.now + LISTEN_S
                     self.say("radio.listen", kind="ack")
+            case Intercept():
+                st, sys = self.own.state, self.own.sys
+                if st.depth > ANTENNA_DEPTH:
+                    self.say("radio.refused", {"reason": "vi måste upp på antenndjup för att "
+                                                         "avlyssna"})
+                elif sys.health["radio"] < 0.3:
+                    self.say("radio.refused", {"reason": "radion är skadad"})
+                elif not self.masts_free:
+                    self.say("radio.refused", {"reason": "det är is ovanför, antennen kommer inte upp"})
+                elif self._intercept_until is None:
+                    self._intercept_until = self.now + INTERCEPT_S
+                    self._intercept_start = self.now
+                    self.say("radio.intercept.start", kind="ack")
             case RadioStatus():
                 nxt = next((w for w in self.windows if w + self.window_len > self.now), None)
                 self.say("radio.status", {
@@ -360,6 +425,11 @@ class RadioStation(Station):
 
     def idle_proposals(self) -> list[Proposal]:
         if self.own.state.depth <= ANTENNA_DEPTH:
+            k = self.game.knowledge
+            if self._intercept_until is None and self.masts_free and \
+                    (k.intercept is None or self.now - k.intercept.t > INTERCEPT_AGAIN_S):
+                return [Proposal(5, "idle_intercept", "radio.suggest.intercept", "avlyssna",
+                                 cooldown=INTERCEPT_AGAIN_S)]
             return []
         for i, w0 in enumerate(self.windows):
             # påminnelse: förvarningen är redan given men vi är kvar på djupet
@@ -399,6 +469,13 @@ class RadioStation(Station):
                 self.say("radio.listen.lost")
             elif self.now >= self._listen_until:
                 self._broadcast()
+        if self._intercept_until is not None:
+            if st.depth > ANTENNA_DEPTH + 1 or not self.masts_free:
+                self._intercept_until = None
+                self.say("radio.intercept.lost")
+            elif self.now >= self._intercept_until:
+                self._intercept_until = None
+                self._intercept()
         i = self.window_pending()
         nav = self._nav()
         if i is not None and nav is not None and nav.opening_now() is not None \
@@ -476,6 +553,23 @@ class RadioStation(Station):
                 self._handled.add(i)
                 if self._next_msg <= i and self._next_msg < len(self.messages):
                     self.say("radio.missed", alarm=False)
+
+    def _intercept(self) -> None:
+        """Radiospaning (sensor): amerikansk flygradio, fartygens radiotrafik och om jagarna
+        rapporterar kontakt till varandra. Kvaliteten ur hur mycket som hördes."""
+        from ..enemy import DestroyerAI
+        w = self.world
+        air = [v for v in w.contacts if v.kind == "aircraft" and not v.gone
+               and w.true_range(v) <= INTERCEPT_AIR_NM]
+        ships = [ai for ai in w.ais if isinstance(ai, DestroyerAI) and not ai.vessel.sunk
+                 and w.true_range(ai.vessel) <= INTERCEPT_SHIP_NM]
+        hunting = any(ai.datum is not None and w.time - ai.datum.t <= INTERCEPT_HUNT_S
+                      for ai in ships)
+        heard = len(air) + len(ships)
+        q = Quality.GOD if heard >= 2 else Quality.OSAKER if heard == 1 else Quality.DALIG
+        d = {"air": len(air), "ships": len(ships), "hunting": hunting}
+        self.game.bus.publish(InterceptHeard(self.now, len(air), len(ships), hunting, q))
+        self.say("radio.intercept", d, kind="contact", quality=q, alarm=hunting)
 
     def _truth_of(self, r: SentReport) -> dict:
         """Hur väl rapporten stämde (sanningen, bara för slutrapporten; staben vet det inte).

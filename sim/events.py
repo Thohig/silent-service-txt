@@ -208,6 +208,15 @@ class TelegramReceived(Event):
 
 
 @dataclass(frozen=True)
+class InterceptHeard(Event):
+    """Radiospaning: vad radiomannen hörde av den amerikanska trafiken."""
+    air: int                # flygplan vars radio hördes
+    ships: int              # örlogsfartyg vars radiotelefoni hördes
+    hunting: bool           # jagarna rapporterade kontakt till varandra
+    quality: Quality
+
+
+@dataclass(frozen=True)
 class ReportTransmitted(Event):
     """Radion har sänt en rapport till staben (`dispatch.SentReport`). complete = falskt om
     sändningen avbröts: staben fick den inte, men den kan ha pejlats."""
