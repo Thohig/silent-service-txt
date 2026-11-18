@@ -60,8 +60,11 @@ class LogScreen(ViewScreen):
             pass
 
     def on_unmount(self) -> None:
+        """Sluta spegla, men bara om spegeln är vår (en ny loggvy kan redan ha tagit över)."""
         try:
-            self.app.gs().query_one("#log", ReportLog).mirror = None
+            main = self.app.gs().query_one("#log", ReportLog)
+            if main.mirror is self.query_one("#logview-log", FilteredLog):
+                main.mirror = None
         except NoMatches:
             pass
 

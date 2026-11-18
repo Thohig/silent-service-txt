@@ -183,3 +183,43 @@ def test_ending_returns_to_menu_and_next_mission_starts_clean(tmp_path):
 
     asyncio.run(run())
     assert len(list(tmp_path.glob("truth-*.log"))) == 2   # en sanningslogg per uppdrag
+
+
+def test_the_log_never_takes_focus_and_ctrl_p_is_not_a_palette():
+    """Ett klick i loggen fick orderraden att tappa fokus (ordern försvann); ctrl+p öppnade
+    Textuals kommandopalett mitt i spelet och trasslade till skärmstacken."""
+    from ui.widgets import ReportLog
+    assert not ReportLog.can_focus
+    assert not SubApp.ENABLE_COMMAND_PALETTE
+
+
+@pytest.mark.slow
+def test_log_view_keeps_mirroring_after_the_end_and_cabin_enter_goes_to_menu(tmp_path):
+    from ui.bridge import BridgeScreen
+    from ui.widgets import ReportLog
+
+    async def run():
+        app = SubApp(seed=1, log_dir=tmp_path, scenario="kuba")
+        async with app.run_test(size=(130, 40)) as pilot:
+            await pilot.press("enter", "enter")
+            await pilot.pause()
+            app.push_screen(BridgeScreen())
+            await pilot.pause(0.2)
+            assert len(app.screen._timers) == 3            # inte dubbla (draw, förslag, …)
+            await pilot.press("escape")
+            await pilot.pause()
+            await pilot.press("tab")                       # stort fönster: loggvyn först
+            await pilot.pause()
+            main = app.gs().query_one("#log", ReportLog)
+            await pilot.press(*"avbryt uppdraget", "enter")
+            await pilot.press(*"ja", "enter")
+            await pilot.pause(0.5)
+            assert app.game.over and main.mirror is not None
+            await pilot.press(*"hytt", "enter")
+            await pilot.pause(0.7)
+            await pilot.press("enter")
+            await pilot.pause(0.3)
+            assert isinstance(app.screen, MenuScreen) and app.game is None
+            assert [type(s).__name__ for s in app.screen_stack][-1] == "MenuScreen"
+
+    asyncio.run(run())

@@ -48,7 +48,7 @@ class BridgeScreen(ViewScreen):
         look = getattr(self.app, "look_bearing", None)
         if game is not None and look is not None:
             self.view_rel = norm360(look - game.status().course)
-        super().on_mount()
+        # ViewScreen.on_mount körs ändå (Textual går genom MRO); super() gav dubbla timers
 
     def _share_look(self) -> None:
         game = getattr(self.app, "game", None)

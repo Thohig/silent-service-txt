@@ -138,7 +138,10 @@ class StatusBar(Static):
 
 class ReportLog(RichLog):
     """Loggboken. Sparar allt som skrivits (`entries`) så att loggvyn kan visa hela loggen,
-    och skriver vidare till en spegel (`mirror`) medan loggvyn är öppen."""
+    och skriver vidare till en spegel (`mirror`) medan loggvyn är öppen. Tar aldrig fokus
+    (orderraden ska ha det; hjulet rullar ändå)."""
+
+    can_focus = False
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

@@ -44,7 +44,10 @@ class CabinScreen(ViewScreen):
 
     def action_answer(self) -> None:
         game = getattr(self.app, "game", None)
-        if game is not None and game.status().phone == "ring":
+        if game is None or game.over:
+            self.app.return_to_menu()       # uppdraget är slut: Enter tar oss till menyn
+            return
+        if game.status().phone == "ring":
             self.app.captain_says("svara")
 
     def add_report(self, clock: str, report: Report) -> None:

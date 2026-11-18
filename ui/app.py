@@ -103,6 +103,7 @@ class GameScreen(Screen):
 
 class SubApp(App):
     TITLE = "K-114"
+    ENABLE_COMMAND_PALETTE = False      # ctrl+p mitt i spelet trasslade till skärmstacken
     CSS = """
     Screen { background: #0b0f0c; }
     #status { height: 2; background: #1c2a20; color: #c8d0b0; }
@@ -598,8 +599,12 @@ class SubApp(App):
     def return_to_menu(self) -> None:
         """Uppdraget är slut: stäng spelet och visa huvudmenyn med samma scenario markerat."""
         key = self.scenario_key
+        game_screen = self._screen
         self._close_game()
-        while isinstance(self.screen, VIEWS):
+        # allt ovanpå spelskärmen bort (vyer, men också annat som lagts där), sedan menyn i dess ställe
+        while len(self.screen_stack) > 1 and (
+                self.screen is not game_screen if game_screen is not None
+                else isinstance(self.screen, VIEWS)):
             self.pop_screen()
         self.switch_screen(MenuScreen(selected=key))
 
