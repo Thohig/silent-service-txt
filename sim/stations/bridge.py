@@ -139,6 +139,7 @@ phrases.register_ru(RU_PHRASES)
 
 class BridgeWatch(Station):
     """Utkiken på bryggan i ytläge. Vakthavande har bryggan, därför samma roll."""
+    REACHES_WORLD = True        # utkiken på bryggan (sensor)
     role = Role.OFFICER
 
     def __init__(self, game):
@@ -153,9 +154,6 @@ class BridgeWatch(Station):
         self._land_f: tuple[int, float] = (-10**9, 1.0)
         self._events: list[tuple[int, SightedObject]] = []    # (syns till, händelsen)
 
-    @property
-    def own(self):
-        return self.game.world.own
 
     def update(self) -> None:
         self._watch_hatch()
@@ -173,7 +171,7 @@ class BridgeWatch(Station):
             return
         prev, self._hatch = self._hatch, b
         if b == "manned":
-            self.say("bridge.manned", {"sea": self.game.world.env.sea_state})
+            self.say("bridge.manned", {"sea": self.world.env.sea_state})
         elif b == "clearing":
             self.game.bus.publish(BridgeSighted(self.now, None))
             self.say("bridge.clearing", {"seconds": BRIDGE_CLEAR_S}, kind="ack")
@@ -200,7 +198,7 @@ class BridgeWatch(Station):
         return last is None or self.now - last > RESIGHT_S
 
     def _look(self) -> None:
-        world, now = self.game.world, self.now
+        world, now = self.world, self.now
         light = world.env.light(now)
         day, vis = light.daylight, light.visibility_nm
         objects: list[SightedObject] = []
@@ -248,7 +246,7 @@ class BridgeWatch(Station):
 
     def _land(self, reach: float) -> tuple[LandBearing, ...]:
         """Stranden i varje riktning ut till sikten (landet är högre än horisonten)."""
-        seabed = self.game.world.env.seabed
+        seabed = self.world.env.seabed
         if seabed is None or not seabed.has_land:
             return ()
         o = self.own.state
@@ -279,7 +277,7 @@ class BridgeWatch(Station):
     def _watch_events(self) -> bool:
         """Plask, vattenpelare och träffar bland transienterna (hörbara i år, alltså
         skedde de nyss). Sant om något nytt syntes."""
-        world, now = self.game.world, self.now
+        world, now = self.world, self.now
         day, vis = world.env.daylight(now), world.env.visibility_nm(now)
         torpedoes = {v.id: v for v in world.contacts if v.kind == "torpedo"}
         new = False
@@ -316,7 +314,7 @@ class BridgeWatch(Station):
         """Spåret efter en ångtorped (inte den eldrivna) på nära håll i dagsljus."""
         if t.spec.key == "SET-53" or getattr(t, "done", False):
             return None
-        r = self.game.world.true_range(t)
+        r = self.world.true_range(t)
         if r > WAKE_NM:
             return None
         b, r_meas = self._seen_at(t.state.x, t.state.y, t.id)
@@ -325,7 +323,7 @@ class BridgeWatch(Station):
                              aob=angle_on_bow(b, course), course=course, seen_t=self.now)
 
     def _ice(self) -> tuple[IceBearing, ...]:
-        view = ice_view(self.game.world)
+        view = ice_view(self.world)
         t, f = self._ice_f
         if self.now - t >= JUDGE_EVERY_S or len(f) != len(view):
             f = [self.rng.uniform(0.85, 1.15) for _ in view]
@@ -334,7 +332,7 @@ class BridgeWatch(Station):
                      for (b, e, ridged), k in zip(view, f))
 
     def _ship(self, v, r: float, light) -> SightedObject:
-        world = self.game.world
+        world = self.world
         desig = self.game.station(SonarRoom).sensor.designate(v.id)
         j, fresh = self._judgement(v.id)
         full, short = SIGHTED.get(v.kind, ("ytfartyg", "fartyg"))
@@ -386,7 +384,7 @@ class BridgeWatch(Station):
             course_sigma=c_sig, speed_obs=speed, speed_sigma=SPEED_SIGMA)))
 
     def _aircraft(self, v, r: float) -> SightedObject:
-        world = self.game.world
+        world = self.world
         j, _ = self._judgement(v.id)
         bearing = norm360(world.true_bearing(v) + j.bearing * 2.0)
         r_meas = max(0.2, r * (1 + 0.2 * j.range_rel))
@@ -401,7 +399,7 @@ class BridgeWatch(Station):
                              detail="lågt" if low else "")
 
     def _station(self, v, r: float) -> SightedObject:
-        world = self.game.world
+        world = self.world
         j, fresh = self._judgement(v.id)
         bearing = norm360(world.true_bearing(v) + j.bearing * BEARING_SIGMA)
         r_sig = 0.1 * r + 0.03

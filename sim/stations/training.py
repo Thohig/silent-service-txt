@@ -71,6 +71,7 @@ STEPS: dict[str, Step] = {
 
 class TrainingOfficer(Station):
     """Vakthavande som övningsledare. Gör ingenting utan övningsprogram i scenariot."""
+    REACHES_WORLD = True        # undervattenstelefonen (partnerns svar) och övningens mål
     role = Role.OFFICER
 
     def __init__(self, game):
@@ -99,9 +100,6 @@ class TrainingOfficer(Station):
         if e.kind == "launch":
             self._fired_t = e.t
 
-    @property
-    def own(self):
-        return self.game.world.own
 
     # --- kunskap ---------------------------------------------------------------
     def _area(self):
@@ -231,7 +229,7 @@ class TrainingOfficer(Station):
                              cooldown=LOOK_FRESH_S)
                 return
         if key == "djup100":
-            data["layer"] = self.game.world.env.layer_depth
+            data["layer"] = self.world.env.layer_depth
         if key == "provdjup":
             cd = self._chart_depth()
             if cd is not None and cd < TEST_DEPTH + PROOF_MARGIN_M:
@@ -263,7 +261,7 @@ class TrainingOfficer(Station):
     def _partner_check(self, data: dict, tr) -> None:
         """Bevakningsfartyget meddelar kurs, fart och läge på undervattenstelefonen; vi
         jämför med plottet. Telefonen är en sensor (exercise.partner_report)."""
-        rep = partner_report(self.game.world, self.rng)
+        rep = partner_report(self.world, self.rng)
         if rep is None or self.own.state.depth > 100:
             self.say("train.partner.none", {}, extra_delay=8)
             return
@@ -302,7 +300,7 @@ class TrainingOfficer(Station):
                 and self._fired_t >= self._torp_t
             data["fired"] = fired
             if fired:
-                rep = torpedo_report(self.game.world)
+                rep = torpedo_report(self.world)
                 self.say("train.torpedo.result", rep or {}, extra_delay=8)
         self.say("train.step.done", data, kind="done")
         if self.i >= len(self.steps):
@@ -310,7 +308,7 @@ class TrainingOfficer(Station):
             self.say("train.done", {"steps": [STEPS[k].name for k, _ in self.done],
                                     "minutes": max(1, round((self.now - first) / 60))},
                      extra_delay=5)
-            goal = self.game.world.goal(TrainingGoal)
+            goal = self.world.goal(TrainingGoal)
             if goal is not None:
                 goal.done_t = self.now + DONE_DELAY_S
 

@@ -67,11 +67,11 @@ class FixMixin:
     def _bridge_bearings(self) -> bool:
         """I ytläge med folk på bryggan och land i sikte: fix med pejlskivan, inget periskop."""
         return self.own.surfaced and self.own.sys.bridge == "manned" and \
-            self._land_in_sight(self.game.world.env.daylight(self.now))
+            self._land_in_sight(self.world.env.daylight(self.now))
 
     def _start_fix(self, quiet: bool = False) -> None:
         own = self.own
-        day = self.game.world.env.daylight(self.now)
+        day = self.world.env.daylight(self.now)
         if self._bridge_bearings():
             self.tasks["fix"] = PositionFix(self.now + (COAST_FIX_S if day else COAST_FIX_NIGHT_S),
                                             coast=True, quiet=quiet, bridge=True)

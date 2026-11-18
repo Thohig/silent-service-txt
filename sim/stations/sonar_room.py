@@ -202,6 +202,7 @@ phrases.register_ru(RU_PHRASES)
 
 
 class SonarRoom(Station):
+    REACHES_WORLD = True        # hydrofonerna och aktiv sonar (sensor)
     role = Role.SONAR
     COMMANDS = [
         CommandSpec(r"aktiv sonar|pinga|ping|aktiv", lambda m: ActivePing(), "aktiv sonar"),
@@ -258,7 +259,7 @@ class SonarRoom(Station):
 
     def profile_items(self) -> list:
         items: list = list(self.heard)
-        layer = self.game.world.env.layer_depth
+        layer = self.world.env.layer_depth
         if layer is not None:
             items.append(Level(layer, "språngskikt", "layer", "─"))
         return items
@@ -295,7 +296,7 @@ class SonarRoom(Station):
         items = [Gauge("SONAR", "Kontakter", contacts_text(held, len(threats)),
                        WARN if threats else INFO if held else OK),
                  Gauge("SONAR", "Bakgrund", f"{noise:.0f} dB" + (", isbrus" if ice else ""), INFO)]
-        if self.game.world.own.sys.health["sonar"] < 0.5:
+        if self.own.sys.health["sonar"] < 0.5:
             items.append(Gauge("SONAR", "Aktiv sonar", "ur bruk, skadad", WARN))
         return items
 
@@ -306,9 +307,6 @@ class SonarRoom(Station):
         """Bakgrundsbruset i lurarna: (dB, kommer från isen)."""
         return self.sensor.background, self.sensor.under_ice
 
-    @property
-    def own(self):
-        return self.game.world.own
 
     # --- order -------------------------------------------------------------------
     def on_order(self, order: Order) -> None:
@@ -316,7 +314,7 @@ class SonarRoom(Station):
             self._active_ping()
 
     def _active_ping(self) -> None:
-        world, own = self.game.world, self.own
+        world, own = self.world, self.own
         if own.sys.health["sonar"] < 0.3:
             self.say("sonar.active.refused", {"reason": "sonaren är skadad"})
             return
@@ -356,7 +354,7 @@ class SonarRoom(Station):
     def update(self) -> None:
         bus = self.game.bus
         own_xy = self.game.own_position_estimate()
-        for ev in self.sensor.update(self.game.world, own_xy):
+        for ev in self.sensor.update(self.world, own_xy):
             match ev:
                 case Detection():
                     known = self.game.knowledge.tracks.get(ev.designation)
@@ -403,7 +401,7 @@ class SonarRoom(Station):
                     bus.publish(OwnTorpedoHeard(self.now, ev.no, ev.kind, ev.bearing, q))
 
     def idle_proposals(self) -> list[Proposal]:
-        st, env = self.own.state, self.game.world.env
+        st, env = self.own.state, self.world.env
         held = self.game.knowledge.threat_held()
         out = []
         d = self._below_layer(env.layer_depth) if env.layer_depth is not None else None
@@ -445,7 +443,7 @@ class SonarRoom(Station):
         return radio.needs_mast() and not self.game.knowledge.hunted(self.now)
 
     def _suggest_layer(self) -> None:
-        env, st = self.game.world.env, self.own.state
+        env, st = self.world.env, self.own.state
         if env.layer_depth is not None and st.ordered_depth < env.layer_depth \
                 and not self._up_for_radio():
             d = self._below_layer(env.layer_depth)
@@ -548,7 +546,7 @@ class SonarRoom(Station):
         st = self.own.state
         if self.own.sys.settle or self.own.sys.on_bottom:
             return
-        env = self.game.world.env
+        env = self.world.env
         if env.layer_depth is not None and st.ordered_depth < env.layer_depth:
             d = env.layer_depth + 60
         elif st.ordered_depth < 200:

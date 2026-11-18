@@ -32,7 +32,7 @@ class ExitMixin:
     def outside_area(self) -> bool:
         if (line := self._escape_line()) is not None:
             return self.est_y < line
-        m, size = self.game.escape_nm or 0.0, self.game.world.size_nm
+        m, size = self.game.escape_nm or 0.0, self.area_nm
         return not (-m <= self.est_x <= size + m and -m <= self.est_y <= size + m)
 
     def _clear_path(self, x: float, y: float, course: float, dist: float) -> bool:
@@ -46,7 +46,7 @@ class ExitMixin:
 
     def _edge_routes(self, x: float, y: float) -> list[tuple[float, float]]:
         """Raka vägar ut till marginalen utanför varje kant som inte går över land."""
-        m, size = self.game.escape_nm or 0.0, self.game.world.size_nm
+        m, size = self.game.escape_nm or 0.0, self.area_nm
         sigma = self.uncertainty()
         routes = [(90.0, size + m - x), (270.0, x + m), (0.0, size + m - y), (180.0, y + m)]
         if (line := self._escape_line()) is not None:
@@ -68,7 +68,7 @@ class ExitMixin:
         """Sjökortets vatten (djupt nog för periskopdjup) på ett rutnät, en gång."""
         if self._water is None:
             chart = self.game.knowledge.bathymetry
-            size, m = self.game.world.size_nm, (self.game.escape_nm or 0.0) + PATH_STEP_NM * 2
+            size, m = self.area_nm, (self.game.escape_nm or 0.0) + PATH_STEP_NM * 2
             xs = np.arange(-m, size + m + PATH_STEP_NM / 2, PATH_STEP_NM)
             gx, gy = np.meshgrid(xs, xs)            # [rad=y, kolumn=x]
             self._water = (xs, chart.depths(gx, gy) >= LAND_CLEAR_M)
@@ -82,7 +82,7 @@ class ExitMixin:
             return None
         xs, ok = self._water_grid()
         n = len(xs)
-        m, size = self.game.escape_nm or 0.0, self.game.world.size_nm
+        m, size = self.game.escape_nm or 0.0, self.area_nm
         i0 = int(round((y - xs[0]) / PATH_STEP_NM))
         j0 = int(round((x - xs[0]) / PATH_STEP_NM))
         if not (0 <= i0 < n and 0 <= j0 < n):

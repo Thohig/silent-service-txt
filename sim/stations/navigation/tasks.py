@@ -17,7 +17,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
 from ...geo import bearing_to, distance
-from ...ice import masts_clear
 from ...ownship import PERISCOPE_DEPTH
 from ...reports import Quality
 from ...seabed import match_soundings
@@ -170,6 +169,6 @@ def periscope_refusal(nav: NavigationStation, too_deep: str) -> str | None:
         return "farten är för hög för periskopet"
     if own.sys.health["periscope"] < 0.3:
         return "periskopet är skadat"
-    if not masts_clear(nav.game.world):
+    if not nav.masts_free:
         return "det är is ovanför, periskopet kommer inte upp"
     return None

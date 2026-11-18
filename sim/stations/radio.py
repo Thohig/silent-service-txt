@@ -15,7 +15,6 @@ from ..broadcasts import broadcasts_for, order_day
 from ..events import OwnActionLogged, Handover, PositionReported, TelegramReceived
 from ..fmt import fmt_course, nm
 from ..icemap import thickness_words
-from ..ice import masts_clear
 from ..orders import CommandSpec, Order
 from ..reports import Quality
 from ..ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH
@@ -115,6 +114,7 @@ phrases.register_ru(RU_PHRASES)
 
 
 class RadioStation(Station):
+    REACHES_WORLD = True        # sändningar (pejlbara emissioner) och huvudstabens meddelanden
     role = Role.RADIO
     COMMANDS = [
         CommandSpec(r"sänd rapport|sand rapport|rapportera|sänd", lambda m: SendReport(), "sänd rapport"),
@@ -146,9 +146,6 @@ class RadioStation(Station):
         self._listen_until: int | None = None   # radiomannen letar upp Moskva
         self.received = 0                       # mottagningsnummer ombord
 
-    @property
-    def own(self):
-        return self.game.world.own
 
     def attach(self, bus) -> None:
         super().attach(bus)
@@ -166,14 +163,14 @@ class RadioStation(Station):
                     self.say("radio.refused", {"reason": "vi måste upp på periskopdjup för att sända"})
                 elif sys.health["radio"] < 0.3:
                     self.say("radio.refused", {"reason": "radion är skadad"})
-                elif not masts_clear(self.game.world):
+                elif not self.masts_free:
                     self.say("radio.refused", {"reason": "det är is ovanför, antennen kommer inte upp"})
                 elif self.tx_done_t is not None:
                     self.say("radio.refused", {"reason": "vi sänder redan"})
                 else:
                     sys.transmit_until = self.now + TRANSMIT_S
                     self.tx_done_t = self.now + TRANSMIT_S
-                    self.game.world.emit_em(Emission("hf", st.x, st.y, self.own.id, self.now))
+                    self.world.emit_em(Emission("hf", st.x, st.y, self.own.id, self.now))
                     self.say("radio.sending", kind="ack")
             case ListenBroadcast():
                 st, sys = self.own.state, self.own.sys
@@ -182,7 +179,7 @@ class RadioStation(Station):
                                                          "Moskva"})
                 elif sys.health["radio"] < 0.3:
                     self.say("radio.refused", {"reason": "radion är skadad"})
-                elif not masts_clear(self.game.world):
+                elif not self.masts_free:
                     self.say("radio.refused", {"reason": "det är is ovanför, antennen kommer inte upp"})
                 elif self._listen_until is None:
                     self._listen_until = self.now + LISTEN_S
@@ -281,7 +278,7 @@ class RadioStation(Station):
     def update(self) -> None:
         st = self.own.state
         if self._listen_until is not None:
-            if st.depth > ANTENNA_DEPTH + 1 or not masts_clear(self.game.world):
+            if st.depth > ANTENNA_DEPTH + 1 or not self.masts_free:
                 self._listen_until = None
                 self.say("radio.listen.lost")
             elif self.now >= self._listen_until:
@@ -302,7 +299,7 @@ class RadioStation(Station):
                 self.say("radio.aborted")
             elif self.now >= self.tx_done_t:
                 self.tx_done_t = None
-                w = self.game.world
+                w = self.world
                 w.mission["reports_sent"] = w.mission.get("reports_sent", 0) + 1
                 w.mission["last_report_t"] = self.now
                 self._reported_t = self.now
@@ -337,7 +334,7 @@ class RadioStation(Station):
                     self._opened.add(i)
                     self._listen = 0
                     self.say("radio.window_open")
-                if st.depth <= ANTENNA_DEPTH and not masts_clear(self.game.world):
+                if st.depth <= ANTENNA_DEPTH and not self.masts_free:
                     if i not in self._ice_warned:
                         self._ice_warned.add(i)
                         self.say("radio.ice")
@@ -403,7 +400,7 @@ class RadioStation(Station):
             self.delivered.append(msg.text)
             self.received += 1
             self.game.bus.publish(TelegramReceived(self.now, msg.text, "telegram", self.received))
-            self.game.world.mission.update(msg.flags)
+            self.world.mission.update(msg.flags)
             if msg.waypoint is not None:
                 name, x, y, sigma, t_pos = msg.waypoint
                 self.game.bus.publish(PositionReported(self.now, name, x, y, sigma, t_pos))

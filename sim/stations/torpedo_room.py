@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from .. import phrases
 from ..chart import LAYER_RAY, Mark, Ray, Track
@@ -283,6 +283,7 @@ phrases.register_ru(RU_PHRASES)
 
 
 class TorpedoRoom(Station):
+    REACHES_WORLD = True        # torpeder och skenmål i vattnet, uppdragets flaggor
     role = Role.TORPEDO
     COMMANDS = [
         CommandSpec(rf"(?:eld|avfyra|fyr|skjut)\s+tub\s+(\d)\s+(?:mot\s+)?{DESIG}",
@@ -327,9 +328,6 @@ class TorpedoRoom(Station):
         bus.subscribe(SoundHeard, self._on_sound)
         bus.subscribe(OwnTorpedoHeard, self._on_own_torpedo)
 
-    @property
-    def own(self):
-        return self.game.world.own
 
     # --- eldledning --------------------------------------------------------------
     def _solution_for(self, designation: str | None):
@@ -353,7 +351,7 @@ class TorpedoRoom(Station):
         return course, t_h * 3600, spec.speed * t_h
 
     def _blocked(self, type_key: str) -> str | None:
-        if TORPEDO_TYPES[type_key].nuclear and not self.game.world.mission.get("nuclear_authorized"):
+        if TORPEDO_TYPES[type_key].nuclear and not self.world.mission.get("nuclear_authorized"):
             return "kärnladdningen kräver order från Moskva"
         return None
 
@@ -379,7 +377,7 @@ class TorpedoRoom(Station):
                     self.say("torp.refused", {"reason": "skenmålen är slut"})
                     return
                 self.decoys -= 1
-                launch_decoy(self.game.world)
+                launch_decoy(self.world)
                 self.game.bus.publish(OwnSoundMade(self.now, "decoy"))
                 self.say("torp.decoy", {"left": self.decoys}, kind="ack")
 
@@ -470,10 +468,10 @@ class TorpedoRoom(Station):
                 detonate_at = dist
         else:
             course = o.course
-        launch_torpedo(self.game.world, spec, course, detonate_at)
+        launch_torpedo(self.world, spec, course, detonate_at)
         self.game.bus.publish(OwnSoundMade(self.now, "launch"))
         if not spec.exercise:
-            self.game.world.mission["hostile_act"] = True
+            self.world.mission["hostile_act"] = True
         tube.load = None
         self._launches += 1
         run_nm = min(detonate_at, spec.range_nm) if detonate_at else spec.range_nm

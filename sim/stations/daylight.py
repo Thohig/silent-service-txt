@@ -124,7 +124,7 @@ class LightWatch(Station):
                 return
             if m <= SOON_S // 60 and self._once("sunset_soon", day):
                 self.say("light.sunset_soon", {"minutes": m})
-            own = self.game.world.own
+            own = self.own
             if own.surfaced and self.game.knowledge.threat_held():
                 self.suggest("wait_dark", "light.suggest.wait_dark",
                              {"minutes": m, "depth": WAIT_DARK_DEPTH},

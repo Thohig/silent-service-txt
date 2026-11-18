@@ -24,6 +24,10 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
 3. **Sanning och kunskap hålls isär.** Bara sensorer (`sim/sonar.py`, och
    periskop/radar/aktiv sonar i stationerna) läser `World`. `Knowledge` byggs
    enbart från händelser på bussen och har ingen referens till världen.
+   Stationerna når världen bara genom `Station` (`sim/stations/base.py`): `own` och
+   `masts_free` (egna instrument), `area_nm`/`patrol_end` (ordern) och `world`, som bara
+   finns i stationer med `REACHES_WORLD = True` (sensorer och vapen, med skälet bredvid).
+   `tests/test_import_boundaries.py` vaktar det.
    Rapporter får aldrig avslöja sanningens id:n (`DD1`, `T1` …).
 4. **`sim/` importerar aldrig Textual.** Gränssnittet bor i `ui/`.
 5. **Besättningen föreslår åtgärder** via `Station.suggest(..., order="…")`;

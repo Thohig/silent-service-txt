@@ -44,7 +44,7 @@ class BottomMixin:
         items: list = []
         chart = self.game.knowledge.bathymetry
         if chart is not None:
-            size, m = self.game.world.size_nm, CONTOUR_MARGIN_NM
+            size, m = self.area_nm, CONTOUR_MARGIN_NM
             if chart.has_land:
                 step = LAND_MARK_STEP_NM
                 xs = np.arange(-m, size + m + step / 2, step)
@@ -236,7 +236,7 @@ class BottomMixin:
 
     def _echo(self) -> float:
         """Ekolodet: en sensor. Lodar botten rakt under oss (hörs) och loggar lodningen."""
-        world, s = self.game.world, self.ship
+        world, s = self.world, self.ship
         world.emit(Transient("echosounder", s.x, s.y, s.depth,
                              acoustics.ECHO_SOUNDER_LEVEL, world.own.id, self.now))
         bottom = world.env.bottom_at(s.x, s.y)

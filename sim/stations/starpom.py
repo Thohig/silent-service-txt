@@ -363,10 +363,10 @@ class FirstOfficer(Station):
         try:
             d = self.game.station(OfficerStation).briefing_data(0)
         except KeyError:
-            st = self.game.world.own.state
+            st = self.own.state
             d = {"depth": st.depth, "course": st.course, "speed": round(st.speed),
                  "contacts": [], "civil": 0, "convoy": None}
-        st = self.game.world.own.state
+        st = self.own.state
         d.update(depth=st.ordered_depth, course=st.ordered_course,
                  speed=round(st.ordered_speed))
         return d
@@ -600,7 +600,7 @@ class FirstOfficer(Station):
                                   "minutes": max(1, round((nav.attack_eta_t - now) / 60))})
         if "anfall" in k.order_tasks and not hunted:
             self._target_watch()
-        end = self.game.world.patrol_end       # tidsgränsen står i ordern
+        end = self.patrol_end       # tidsgränsen står i ordern
         if end is not None and not self._time_warned and end - now <= TIME_WARN_S:
             self._time_warned = True
             self._wake("question", {"kind": "time", "minutes": max(1, (end - now) // 60)})

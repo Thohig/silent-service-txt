@@ -51,7 +51,8 @@ I föreslagen ordning; inget ändrar spelet, alla ska ge samma utfall för samma
    styruppdragen, vägen ut. Steg: flytta ett uppdrag i taget, fixarna först.
 2. ~~**`scenario.py` som paket**~~ – gjort 2026-11-18. (1 222 rader, 14 scenarier): `scenario/` med en modul per scenario
    och `common.py` (platser, trafik, flyg, `_place`, uppvärmningens piloter). Registreringen som nu.
-3. **Stationernas väg till sanningen synlig.** Stationerna läser `self.game.world` på ~80 ställen i
+3. ~~**Stationernas väg till sanningen synlig.**~~ – gjort 2026-11-18 (`Station.own`, `masts_free`,
+   `area_nm`, `patrol_end`, `world` med `REACHES_WORLD`; testat). Stationerna läser `self.game.world` på ~80 ställen i
    12 moduler. Det mesta är egna instrument och reglage (egen ubåt, `masts_clear`, `emit_em`,
    avfyring), men regeln "bara sensorer läser World" vaktas inte av importtestet för stationerna.
    Förslag: `self.instruments` (egna mätare och reglage) och `self.sensors` (det som får se ut i

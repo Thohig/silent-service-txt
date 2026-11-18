@@ -10,9 +10,8 @@ from ..fmt import fmt_course, kn, nm
 from .. import russian as R
 from ..russian import ru
 from ..orders import CommandSpec, Order
-from ..ice import masts_clear
 from ..ownship import (COMPONENT_LABEL, COMPONENTS, FLOOD_LOSS_T, PERISCOPE_DEPTH, SMOKE_LEVELS,
-                       TEST_DEPTH, TRIM_RESERVE_T)
+                       TRIM_RESERVE_T)
 from ..systems import (DANGER, INFO, OFF, OK, SEVERITY, WARN, Compartment, Flooding, Gauge,
                        health_state, health_word)
 from .base import Proposal, Station
@@ -344,9 +343,6 @@ class EngineeringStation(Station):
         self._last_shock = -10**9
         self._inspect_t: int | None = None     # avdelningarna rapporterar då
 
-    @property
-    def own(self):
-        return self.game.world.own
 
     def on_order(self, order: Order) -> None:
         own = self.own
@@ -359,7 +355,7 @@ class EngineeringStation(Station):
                     self.say("eng.refused", {"reason": "luften är ren, ingen ventilation behövs"})
                 elif st.depth > PERISCOPE_DEPTH:
                     self.say("eng.refused", {"reason": "vi måste upp på periskopdjup för att ventilera"})
-                elif not own.start_ventilation(masts_clear(self.game.world)):
+                elif not own.start_ventilation(self.masts_free):
                     self.say("eng.refused", {"reason": "det är is ovanför, masten kommer inte upp"})
                 else:
                     self.say("eng.vent.start", {"surface": own.surfaced}, kind="ack")
@@ -530,7 +526,7 @@ class EngineeringStation(Station):
         if s.smoke < 0.15 or s.fire or s.ventilating:
             return
         alarm = s.smoke >= 0.7
-        if own.state.depth <= PERISCOPE_DEPTH and masts_clear(self.game.world):
+        if own.state.depth <= PERISCOPE_DEPTH and self.masts_free:
             self.suggest("vent", "eng.suggest.vent", {"smoke": s.smoke}, order="ventilera",
                          cooldown=120, alarm=alarm)
             return

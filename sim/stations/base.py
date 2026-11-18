@@ -12,6 +12,16 @@ En station är ett system ombord med en ansvarig besättningsmedlem. Den
 
 Nya system (torpedrum, reaktor, radio, periskop …) läggs till som nya
 stationer utan att Game behöver ändras.
+
+Vägen till sanningen (designprincip 3): en station når `World` bara genom
+- `own`: egen ubåt, dvs. egna instrument och reglage (gyro, logg, djupmätare, system),
+  och `masts_free` (masterna kommer upp eller tar i isen),
+- `area_nm` och `patrol_end`: kvadratens storlek och tidsgränsen, som står i ordern,
+- `world`: bara i stationer med `REACHES_WORLD = True`, dvs. sensorer (sonar, periskop,
+  brygga, radar, ekolod, isekolod, undervattenstelefon) och det som verkar i världen
+  (torpeder, skenmål, sändningar). De skriver varför vid flaggan.
+`tests/test_import_boundaries.py` underkänner `game.world` utanför denna fil och
+`self.world` i stationer utan flaggan.
 """
 from __future__ import annotations
 
@@ -25,6 +35,8 @@ from ..reports import Quality
 
 if TYPE_CHECKING:
     from ..game import Game
+    from ..ownship import OwnShip
+    from ..world import World
 
 # Obesvarade förslag glesas ut: får kaptenen samma förslag (nyckel) igen utan
 # att ha sagt något sedan förra gången, fördubblas väntetiden för varje gång.
@@ -51,6 +63,7 @@ class Proposal:
 class Station:
     role: ClassVar[Role]
     COMMANDS: ClassVar[list[CommandSpec]] = []
+    REACHES_WORLD: ClassVar[bool] = False     # sensor eller vapen: får använda self.world
 
     def __init__(self, game: Game):
         self.game = game
@@ -109,6 +122,35 @@ class Station:
     def propose(self, p: Proposal) -> bool:
         return self.suggest(p.key, p.type, p.data, order=p.order, cooldown=p.cooldown,
                             quality=p.quality)
+
+    # --- vägen till sanningen ---------------------------------------------------
+    @property
+    def own(self) -> OwnShip:
+        """Egen ubåt: egna instrument och reglage."""
+        return self.game.world.own
+
+    @property
+    def masts_free(self) -> bool:
+        """Kan masterna komma upp (ingen is ovanför)? Hydrauliken känner det själv."""
+        from ..ice import masts_clear
+        return masts_clear(self.game.world)
+
+    @property
+    def area_nm(self) -> float:
+        """Operationsområdets storlek (står i ordern)."""
+        return self.game.world.size_nm
+
+    @property
+    def patrol_end(self) -> int | None:
+        """Tidsgränsen i simtid (står i ordern)."""
+        return self.game.world.patrol_end
+
+    @property
+    def world(self) -> World:
+        """Världen, för stationens sensorer och vapen. Bara med REACHES_WORLD."""
+        if not self.REACHES_WORLD:
+            raise RuntimeError(f"{type(self).__name__} är ingen sensor och når inte världen")
+        return self.game.world
 
     # --- hjälp --------------------------------------------------------------
     @property

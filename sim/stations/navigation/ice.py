@@ -70,7 +70,7 @@ class IceMixin:
     # --- isen -----------------------------------------------------------------------
     def _sound_ice(self) -> None:
         """Isekolodet: en sensor, läser isen rakt ovanför och publicerar lodningen."""
-        ice = self.game.world.env.ice
+        ice = self.world.env.ice
         if ice is None or self.now < self._next_sound:
             return
         self._next_sound = self.now + SOUNDER_INTERVAL_S

@@ -35,7 +35,7 @@ from ..events import (OwnActionLogged, BearingObserved, ClassificationChanged, C
                       PeriscopeSighted, PositionReported)
 from ..fmt import fmt_course, kn, nm
 from ..geo import angle_diff, norm360, velocity
-from ..ice import ice_view, masts_clear
+from ..ice import ice_view
 from ..orders import DESIG, CommandSpec, Order, desig
 from ..ownship import PERISCOPE_DEPTH
 from ..periscope import (sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
@@ -166,6 +166,7 @@ phrases.register_ru(RU_PHRASES)
 
 class PeriscopeWatch(Station):
     """Periskopet. Vakthavande sköter det, därför samma roll."""
+    REACHES_WORLD = True        # periskopet (sensor)
     role = Role.OFFICER
     COMMANDS = [
         CommandSpec(r"periskop|titta", lambda m: PeriscopeLook(), "periskop"),
@@ -199,9 +200,6 @@ class PeriscopeWatch(Station):
         self._last_call: dict[str, tuple[int, float, float]] = {}   # (t, kurs, fart) senast utropat
         self._new_raising()
 
-    @property
-    def own(self):
-        return self.game.world.own
 
     @property
     def up_s(self) -> int:
@@ -274,9 +272,9 @@ class PeriscopeWatch(Station):
     def _may_raise(self) -> bool:
         if self.binoculars:
             return True
-        if reason := mast_refusal(self.game, "periskopet"):
+        if reason := mast_refusal(self, "periskopet"):
             self.say("off.refused", {"reason": reason})
-            if self.own.state.depth <= PERISCOPE_DEPTH and not masts_clear(self.game.world):
+            if self.own.state.depth <= PERISCOPE_DEPTH and not self.masts_free:
                 self.game.bus.publish(PeriscopeBlocked(self.now, "is"))
             return False
         return True
@@ -337,7 +335,7 @@ class PeriscopeWatch(Station):
             self.mode = self.t_end = None           # svep och titt: ingen bild
             return
         if self.mode == "hold":
-            reason = mast_refusal(self.game, "periskopet")
+            reason = mast_refusal(self, "periskopet")
             if reason is not None:
                 self.say("off.periscope.lowered", {"reason": reason})
                 self._lower(final=True)
@@ -367,7 +365,7 @@ class PeriscopeWatch(Station):
             self._publish(live=True)
 
     def _finish(self) -> None:
-        world = self.game.world
+        world = self.world
         if not self._seen:
             self._say("off.periscope.none", {"day": world.env.daylight(self.now),
                                             "visibility": world.env.visibility_nm(self.now),
@@ -396,7 +394,7 @@ class PeriscopeWatch(Station):
 
     def _observe(self) -> None:
         """Det som ligger i okularet just nu (World: periskopet är en sensor)."""
-        world, now = self.game.world, self.now
+        world, now = self.world, self.now
         light = world.env.light(now)
         day, vis = light.daylight, light.visibility_nm
         eye = EYE_BRIDGE_M if self.own.surfaced else EYE_PERISCOPE_M
@@ -433,7 +431,7 @@ class PeriscopeWatch(Station):
         return self._judges.get(key, self.now, self.rng, since=self._up_t)
 
     def _ship(self, v, r: float, light, eye: float) -> SightedObject:
-        world = self.game.world
+        world = self.world
         desig_ = self.game.station(SonarRoom).sensor.designate(v.id)
         j, fresh = self._judgement(v.id)
         full, short = SIGHTED.get(v.kind, ("ytfartyg", "fartyg"))
@@ -496,7 +494,7 @@ class PeriscopeWatch(Station):
             course_sigma=c_sig, speed_obs=speed, speed_sigma=SPEED_SIGMA + 0.3)))
 
     def _aircraft(self, v, r: float) -> SightedObject:
-        world = self.game.world
+        world = self.world
         j, _ = self._judgement(v.id)
         bearing = norm360(world.true_bearing(v) + j.bearing * 2.0)
         r_meas = max(0.2, r * (1 + 0.2 * j.range_rel))
@@ -512,7 +510,7 @@ class PeriscopeWatch(Station):
 
     def _station(self, v, r: float) -> SightedObject:
         """Stationens ljus: bäring och avstånd, och läget till navigatören."""
-        world = self.game.world
+        world = self.world
         j, fresh = self._judgement(v.id)
         bearing = norm360(world.true_bearing(v) + j.bearing * 1.0)
         r_sig = 0.1 * r + 0.03
@@ -539,7 +537,7 @@ class PeriscopeWatch(Station):
 
     # --- bilden ---------------------------------------------------------------------
     def _publish(self, live: bool) -> None:
-        world, now = self.game.world, self.now
+        world, now = self.world, self.now
         one_look = self.mode in ("sweep", "look")   # ett svep eller en titt är en bild
         objects = [replace(o, seen_t=now) if one_look else o for o in self._seen.values()]
         covered = self._covered

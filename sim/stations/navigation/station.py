@@ -79,6 +79,7 @@ def _course(m: re.Match) -> Order:
 
 
 class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixin, Station):
+    REACHES_WORLD = True        # ekolodet, isekolodet och dagsljuset för landmärken
     role = Role.NAVIGATOR
     COMMANDS = [
         CommandSpec(rf"(?:kurs|k|styr)\s+{NUM}", _course, "kurs 090"),
@@ -165,13 +166,10 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         self.chart_depth_log: list[tuple[int, float]] = [] if cd is None else [(0, round(cd))]
         self._contour_items: list | None = None
 
-    @property
-    def own(self):
-        return self.game.world.own
 
     @property
     def ship(self):
-        return self.game.world.own.state
+        return self.own.state
 
     # --- bestick ---------------------------------------------------------------
     def position_estimate(self) -> tuple[float, float]:
@@ -441,7 +439,7 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         if s.depth > TEST_DEPTH + 5:
             out.append(Proposal(1, "idle_test_depth", "nav.suggest.test_depth", "djup 280",
                                 {"depth": s.depth}, cooldown=300))
-        size = self.game.world.size_nm
+        size = self.area_nm
         if self.game.escape_nm is not None:
             if self.game.escape_ready() and (route := self.exit_route()) is not None:
                 c, dist, clear = route
@@ -476,7 +474,7 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
                 and self.now - self.course_set_t >= SEARCH_LEG_S \
                 and self.vak is None and self.goal is None and s.ordered_speed > 0:
             # gir 90° åt den sida som pekar mest mot kvadratens mitt
-            size = self.game.world.size_nm
+            size = self.area_nm
             to_mid = bearing_to(self.est_x, self.est_y, size / 2, size / 2)
             c = min((norm360(s.ordered_course + 90), norm360(s.ordered_course - 90)),
                     key=lambda k: abs(angle_diff(k, to_mid)))
@@ -576,7 +574,7 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         elif sigma > 1.0 and s.depth > PERISCOPE_DEPTH:
             self.suggest("fix", "nav.suggest.fix", {"sigma": sigma}, order="periskopdjup",
                          cooldown=1800)
-        size = self.game.world.size_nm
+        size = self.area_nm
         if self.game.escape_nm is not None:
             self._escape_watch()
         elif not (0.5 <= self.est_x <= size - 0.5 and 0.5 <= self.est_y <= size - 0.5):

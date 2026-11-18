@@ -25,7 +25,6 @@ from ..events import (BearingObserved, Handover, ClassificationChanged, ContactD
                       PhotoTaken)
 from ..fmt import fmt_course, kn, nm
 from ..geo import bearing_to, distance, norm360
-from ..ice import masts_clear
 from ..orders import AskSuggestion, CommandSpec, Order
 from ..ownship import PERISCOPE_DEPTH
 from ..periscope import SightedObject
@@ -84,9 +83,9 @@ SIGHTED = {"destroyer": ("jagare, amerikansk", "jagare"),
            "tanker": ("tankfartyg, amerikanskt", "tankfartyg")}
 
 
-def mast_refusal(game, what: str) -> str | None:
+def mast_refusal(station, what: str) -> str | None:
     """Varför masten inte kan komma upp nu (eget läge och egna instrument), annars None."""
-    own = game.world.own
+    own = station.own
     st, sys = own.state, own.sys
     if st.depth > PERISCOPE_DEPTH:
         return f"vi måste upp på periskopdjup för {what}"
@@ -94,7 +93,7 @@ def mast_refusal(game, what: str) -> str | None:
         return "farten är för hög, periskopet vibrerar och ger svall"
     if sys.health["periscope"] < 0.3:
         return "periskopet och masterna är skadade"
-    if not masts_clear(game.world):
+    if not station.masts_free:
         return "det är is ovanför, masterna kommer inte upp"
     return None
 
@@ -220,6 +219,7 @@ phrases.register_ru(RU_PHRASES)
 
 
 class OfficerStation(Station):
+    REACHES_WORLD = True        # radarn, radarvarnaren och kameran (sensorer)
     role = Role.OFFICER
     COMMANDS = [
         CommandSpec(r"radar|radarsvep", lambda m: RadarSweep(), "radar"),
@@ -235,9 +235,6 @@ class OfficerStation(Station):
         self._idle_t = -10**9       # senaste initiativ (eller försök) vid tystnad
         self._hunt_seen = -10**9    # senaste jakttecken vakthavande har tagit ställning till
 
-    @property
-    def own(self):
-        return self.game.world.own
 
     def attach(self, bus) -> None:
         super().attach(bus)
@@ -292,7 +289,7 @@ class OfficerStation(Station):
         return self.game.station(SonarRoom)
 
     def _check_mast(self, what: str) -> str | None:
-        return mast_refusal(self.game, what)
+        return mast_refusal(self, what)
 
     def on_order(self, order: Order) -> None:
         sys = self.own.sys
@@ -312,7 +309,7 @@ class OfficerStation(Station):
                     return
                 o = self.own.state
                 sys.radar_until = self.now + RADAR_S
-                self.game.world.emit_em(Emission("radar", o.x, o.y, self.own.id, self.now))
+                self.world.emit_em(Emission("radar", o.x, o.y, self.own.id, self.now))
                 self.radar_done_t = self.now + RADAR_S
                 self.say("off.radar.start", kind="ack")
 
@@ -408,7 +405,7 @@ class OfficerStation(Station):
                  label: str, velocity=None) -> dict:
         """En observation till plottet. velocity(): periskopets bedömning
         (kurs, σ, fart, σ), dras efter bäring och avstånd."""
-        world, rng = self.game.world, self.game.rng
+        world, rng = self.world, self.game.rng
         sonar = self._sonar().sensor
         desig = sonar.designate(v.id)
         bearing = norm360(world.true_bearing(v) + rng.gauss(0, bearing_sigma))
@@ -435,18 +432,18 @@ class OfficerStation(Station):
         return d
 
     def _photo_targets(self):
-        world = self.game.world
+        world = self.world
         return [v for v in world.contacts if v.kind == PHOTO_TARGET_KIND and not v.sunk]
 
     def _photo_quality(self, r: float) -> Quality | None:
-        day = self.game.world.env.daylight(self.now)
+        day = self.world.env.daylight(self.now)
         for limit, q in PHOTO_RANGES[day]:
             if r <= limit:
                 return q
         return None
 
     def _photo_done(self) -> None:
-        world = self.game.world
+        world = self.world
         if self.own.state.depth > PERISCOPE_DEPTH + 1:
             self.say("off.photo.aborted")
             return
@@ -468,7 +465,7 @@ class OfficerStation(Station):
 
     def _suggest_photo(self) -> None:
         """Efter ett periskopsvep: ankarplatsen nära nog för en bättre bild än vi har."""
-        world = self.game.world
+        world = self.world
         targets = self._photo_targets()
         if not targets:
             return
@@ -482,7 +479,7 @@ class OfficerStation(Station):
 
     def _esm_air(self) -> None:
         """Flygradar: stark på långt håll, och bäringen drar snabbt."""
-        world, rng = self.game.world, self.game.rng
+        world, rng = self.world, self.game.rng
         for v in world.contacts:
             if v.kind != "aircraft" or v.gone:
                 continue
@@ -504,11 +501,11 @@ class OfficerStation(Station):
                                  order="djup 60", cooldown=300, alarm=True)
 
     def _surface_ships(self):
-        return [v for v in self.game.world.contacts
+        return [v for v in self.world.contacts
                 if v.side != "own" and v.is_ship and not v.sunk and v.depth < 10]
 
     def update(self) -> None:
-        world, st, rng = self.game.world, self.own.state, self.game.rng
+        world, st, rng = self.world, self.own.state, self.game.rng
         self._idle_watch()
         self._battle_watch()
         if self.now % CONVOY_STEP_S == 0:

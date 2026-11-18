@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import dataclasses
-import re
 from dataclasses import dataclass
 
 import math
@@ -562,10 +561,10 @@ class PlotTeam(Station):
     def _maneuvered_recently(self, tr: ContactTrack) -> bool:
         recent = [o for o in tr.observations if o.t >= self.now - SUGGEST_MIN_LEG_S]
         return (own_maneuvered(recent, threshold_deg=15.0)
-                or "course" in self.game.world.own.state.changing())
+                or "course" in self.own.state.changing())
 
     def _suggest_course(self, sol: Solution, tr: ContactTrack) -> float:
-        own_course = self.game.world.own.state.course
+        own_course = self.own.state.course
         window = [o for o in tr.observations if o.t >= self.now - 1800]
         if sol.own_maneuvered and window:
             # sicksack: spegla förra giren så att nästa ben korsar tillbaka
