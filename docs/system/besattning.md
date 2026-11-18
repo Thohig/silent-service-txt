@@ -27,8 +27,11 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   fråga = telefonen ringer (hotkontakt med lösning ≥ osäker, stort fartyg, konvoj, telegram, förslag utanför
   mandatet, tidsgränsen 15 min, `väck mig`, larm i `ALARM_LEVELS`; samma fråga högst var 10:e min; ordonnansen
   efter 20 s), fara = högtalaren (`alarm_level` "danger": övriga larm, jakttecken) ⇒ 1× och kaptenen går (40 s,
-  `Station.intercept` stoppar hans order under tiden) och får lägesrapport (`xo.handback`, `officer.situation`).
-  `tid 30`/`60` bara med starpom i befäl; `sov` ⇒ 60×. Status: `StatusSnapshot.command`, `captain_at`, `walk_s`,
+  `Station.intercept` stoppar hans order under tiden; telefonen tystnar när han går, och ett andra
+  `jag har befälet` på vägen ger `xo.walking`) och får lägesrapport (`xo.handback`, `officer.situation`).
+  En väckningstid som passerat innan överlämnandet släpps vid överlämnandet.
+  `tid 30`/`60` bara med starpom i befäl; `sov` ⇒ 60×, och larm som bara tänder lampan (info/None i
+  `ALARM_LEVELS`) sänker inte tiden (`keeps_time_scale`); frågor och fara sänker han själv i `_wake`. Status: `StatusSnapshot.command`, `captain_at`, `walk_s`,
   `phone`, `sleeping` (via `Station.status_fields`). Vyn `hytt` (`ui/cabin.py`, `ui/cabin_render.py`: från 64 × 18 sedd från kudden i perspektiv,
   dörren längst bort till höger, `_Room`; på skottet rivkalendern för orderns dag
   (`StatusSnapshot.order_day` via starpom, nästa blad vid midnatt), fotot av hans första ubåt, diplomet,

@@ -1,86 +1,32 @@
 # K-114 – idéer och förbättringar som inte är byggda
 
-Samlat 2026-11-15 ur tidigare samtal, uppdaterat 2026-11-17. Inget av detta är beställt; varje punkt
-väntar på kaptenens (användarens) beslut. Det som redan är byggt står i CLAUDE.md och README.md.
+Samlat 2026-11-15 ur tidigare samtal, uppdaterat 2026-11-18. Inget av detta är beställt; varje punkt
+väntar på kaptenens (användarens) beslut. Det som redan är byggt står i CLAUDE.md och README.md;
+konkreta öppna uppgifter (köra om, prova, utreda) i `docs/TODO.md`.
 
 ## Öppna fel och osäkra siffror
 
-- ~~Plottet kallar ibland felaktiga lösningar "god"~~ – rättat 2026-11-15 (manöverbrus, gamla
-  lösningar, kursen som tak). Kvar: girar de senaste minuterna innan plottet sett dem (~9 % grova fel).
-- ~~Torpedrummet säger skjutlösning på bevakningsfartyget före torpedsteget~~ – rättat 2026-11-16
-  (`TorpedoExercise` ⇒ `Knowledge.torpedo_exercise`).
-- ~~Kalibreringssiffror som glidit~~ – alla botar omkörda 2026-11-15 och siffrorna rättade i
-  CLAUDE.md. Störst skillnad: Kvadrat 7 hittas nu av jagaren i 12 av 12 (angivet 9) och flyget 11
-  av 12 (8); konvoj-mot passiv/ja 5 av 8 (3/4). Inte omkört: sundet med sanningsboten, väntläget.
-- **Gränssnittet ej provkört för hand** i riktig terminal: övningen, periskopet i realtid, ubåtsvyn,
-  hyttvyn (färgerna), sjökortets blyertsmärken.
-- **Konvojen:** ska besättningen föreslå en periskoptitt strax före skjutläge? Boten skjuter
-  på gamla lösningar (titt var 4:e min, ben på 5–10 min).
-- **Konvojen med starpom:** ett neutralt fartyg sänkt i en körning med salvaboten (troligen botens
-  fel, inte utrett).
-- **Sjökortet:** i en jaktkörning (`jagad-kort`, frö 2) fick bara den ena jagaren märket "först hörd";
-  den andra fick troligen sin beteckning på annat sätt än genom sonarens upptäckt. Inte utrett.
-- **Ubåtsvyn:** profilen får 60 % även när den är tom (stor tom yta i 150 kolumner).
-- **Hytten:** mitten är tom i stora fönster.
+Flyttade till `docs/TODO.md` (2026-11-18).
 
-## Arkitektur (granskning 2026-11-15, "inte nu")
+## Arkitektur
 
 Grunden håller (sanning/kunskap isär, determinism, `sim/` utan Textual, rapporter som data,
-stationer som plugin). Förbättringar i prioritetsordning:
+stationer som plugin). Gjort efter granskningarna 2026-11-15 och 2026-11-18: målobjekt (`goals.py`),
+kalibreringsbotarna i `kalibrering/`, importtestet, `navigation/` och `scenario/` som paket,
+navigatörens uppdrag (`NavTask`, `Steering`), stationernas väg till sanningen (`REACHES_WORLD`),
+slumpen per station (`rng_for`), kalibreringskontrollen (`kontroll.py`, `fingeravtryck.py`),
+vyerna en gång per läge och CLAUDE.md delad i `docs/system/`.
 
-1. ~~Målobjekt~~ – gjort 2026-11-16: `sim/goals.py`, `World.goals`. `mission` håller bara det
-   som hänt (sänkt, foto, rapport, grundstötning, räknare).
-2. ~~Kalibreringsbotarna in i repot~~ – gjort 2026-11-15, se `kalibrering/`.
-3. ~~Dela `navigation.py` och `scenario.py`~~ (gjort 2026-11-18).
+Kvar:
 
-Mindre: ~~importtest~~ (gjort 2026-11-16, `tests/test_import_boundaries.py`); talet är bundet
-till macOS `say`.
-
-### Förslag (granskning 2026-11-18)
-
-I föreslagen ordning; inget ändrar spelet, alla ska ge samma utfall för samma frö (utom 4).
-
-1. ~~**Navigatörens uppdrag som objekt.**~~ – gjort 2026-11-18: `navigation/` delad i delar, fixarna
-   (fix, stjärnfix, bottenfix) är `NavTask` och styruppdragen `Steering` (`nav.steer`) i `tasks.py`.
-   Ursprungligt förslag: `navigation.py` (2 395 rader, ~95 metoder) håller ett tiotal
-   pågående uppdrag som lösa fält och `_x_step`-metoder: `fix_done_t`, `_star`, bottenfixen, `goal`
-   ("station", "circle", "fairway", "wait" …), följ, anfall, väg ut. Ett litet protokoll
-   `NavTask` (`start`, `step`, `abort(skäl)`, `chart_items`) gör varje uppdrag till en egen modul och
-   ger avbrotten ett gemensamt ställe (dagens fel med stjärnfixen från bryggan var ett avbrott som
-   glömts). Delningen följer sedan av sig själv: `navigation/` med bestick och fixar, botten och is,
-   styruppdragen, vägen ut. Steg: flytta ett uppdrag i taget, fixarna först.
-2. ~~**`scenario.py` som paket**~~ – gjort 2026-11-18. (1 222 rader, 14 scenarier): `scenario/` med en modul per scenario
-   och `common.py` (platser, trafik, flyg, `_place`, uppvärmningens piloter). Registreringen som nu.
-3. ~~**Stationernas väg till sanningen synlig.**~~ – gjort 2026-11-18 (`Station.own`, `masts_free`,
-   `area_nm`, `patrol_end`, `world` med `REACHES_WORLD`; testat). Stationerna läser `self.game.world` på ~80 ställen i
-   12 moduler. Det mesta är egna instrument och reglage (egen ubåt, `masts_clear`, `emit_em`,
-   avfyring), men regeln "bara sensorer läser World" vaktas inte av importtestet för stationerna.
-   Förslag: `self.instruments` (egna mätare och reglage) och `self.sensors` (det som får se ut i
-   världen: sonar, periskop, brygga, radar, ekolod), och ett test som underkänner `game.world`
-   i stationerna utanför dem.
-4. ~~**Slumpen per station.**~~ – gjort 2026-11-18 (`Game.rng_for`; kontrollen före och efter i
-   `kalibrering/README.md`). Fem moduler drar ur den delade `game.rng` (navigatören, officeren …),
-   så en ny dragning flyttar allt efter den och kalibreringen glider. Bryggan och periskopet har
-   egna strömmar via `hash(game.rng.getstate())`, och övningsledaren `Random(1962)` (samma fel på
-   undervattenstelefonen i alla frön). Förslag: `game.rng_for("bridge")` = `Random(hash((frö, namn)))`
-   för alla stationer. Ändrar utfallen en gång ⇒ kalibreringen körs om efteråt.
-5. ~~**Kalibreringen som regressionstest.**~~ – gjort 2026-11-18 (`kalibrering/kontroll.py`,
-   `baslinje.json`; och `fingeravtryck.py` för omstruktureringar). Botarna i `kalibrering/` körs för hand och siffrorna skrivs
-   in i CLAUDE.md, där de glidit (Kvadrat 7: 9 ⇒ 12 av 12). Förslag: varje bot skriver sitt utfall
-   till `kalibrering/baslinje.json`; `uv run kalibrering/kontroll.py` jämför mot baslinjen med
-   tolerans och säger vad som flyttat sig. Körs före större ändringar, inte i CI (minuter).
-6. ~~**Vyernas data en gång per tick.**~~ – gjort 2026-11-18 (`Game._view`, nyckel tick/order/tidsskala
-   och `EventBus.published`; efter sonarrättningen kostade vyerna bara 0–4 ms). `Game.chart()`, `sonar()`, `profile()` och `systems()` bygger
-   om allt från stationerna vid varje omritning (sonarvyn 2–4 gånger i sekunden, centralen 10).
-   Cache per `now` (och tidsskala) i `Game`; dagens prestandafel i sonarvyn hade då kostat en gång
-   per tick i stället för per bild.
-7. ~~**CLAUDE.md delas.**~~ – gjort 2026-11-18: 663 ⇒ 166 rader; systemen i `docs/system/`, siffrorna i
-   `kalibrering/README.md`. Filen är 648 rader, mest systembeskrivningar och kalibreringssiffror per
-   scenario. Behåll regler, arkitektur och fallgropar (~150 rader); flytta systemen till
-   `docs/system/<system>.md` och kalibreringen till `kalibrering/README.md` (siffrorna nära botarna
-   som ger dem). Mindre att läsa i varje session och färre ställen där siffror blir gamla.
-8. **Talet bakom ett gränssnitt.** `say`/Milena/Alva är inbyggt i `ui/audio.py`. En `Voice`-backend
-   (macOS `say`, espeak-ng, tyst) gör att ljudet går att provköra på Linux och i testerna.
+- **Talet bakom ett gränssnitt** (resonerat 2026-11-18). Det finns redan en spelare (`MacPlayer`,
+  `NullPlayer`, testernas `RecordingPlayer`); bundet till macOS är `say`/`afplay`, röstnamnen och
+  tre kopior av `say -v ?`. Steg:
+  T1 rösterna på ett ställe (`ui/voices.py`, backend per språk, `MacSay`), ingen hörbar skillnad;
+  T2 talet och effektljuden genom sounddevice-mixern (förrenderat med `say -o`, som Radio Moskva):
+  hytten dämpar centralen i stället för att tysta den, telefonfilter för stationerna utanför
+  centralen, inga `afplay`-processer – det enda som märks på Mac, och det enda med risk (fördröjning);
+  T3 piper/espeak-ng för Linux och ett webbfönster.
 
 ## Gränssnitt och grafik
 
@@ -88,7 +34,8 @@ Granskning 2026-11-15. Byggt sedan dess: braille i sjökort, profil, genomskärn
 periskopets okular (2026-11-17), ubåtsvyn (djupprofil + systemtavla, 2026-11-16), plottlagets
 blyertsmärken på sjökortet (B1–B3, 2026-11-17; valt i stället för animering, se nedan).
 
-~~**Sonarvy med vattenfall**~~ – byggd 2026-11-17 (S1–S5, se CLAUDE.md). Kvar att pröva: om
+~~**Sonarvy med vattenfall**~~ – byggd 2026-11-17 (S1–S5, se `docs/system/vyer.md`); rättad 2026-11-18
+(girmärken, relativ bäring). Kvar att pröva (`docs/TODO.md`): om
 lösningskurvan ska vara på som standard, och om vyn behöver ett läge med bara hot. Ej provkörd
 för hand i riktig terminal.
 
@@ -235,7 +182,7 @@ System: trim och flytkraft (torpedvikt, kompression), batytermograf och akustisk
 egenbrus, luft (O₂/CO₂, regenereringspatroner), vakter och trötthet, undervattenstelefon i fler
 scenarier, torpedomladdning, ljuskulor. (~~Astronavigering~~ byggd som stjärnfix 2026-11-17.)
 
-Vyer: sonarvattenfall, plottbord, eldledning, trimtavla, besättningslista, hydrologi.
+Vyer: ~~sonarvattenfall~~ (byggt), plottbord, eldledning, trimtavla, besättningslista, hydrologi.
 
 ## Realismluckor mot Projekt 627A
 

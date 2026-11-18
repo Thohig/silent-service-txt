@@ -150,7 +150,8 @@ botarna är inte omkörda. `baslinje.json` är efter bytet.
   ⇒ `convoy_missed`. Kuba-trafik och flyg finns kvar. Träffradie för stora fartyg = halva längden
   (`HULL_HALF_NM`: transport 0,045, tanker 0,05 nm). Salva (`salva S-x`, `eld tub 1-3 mot S-x`):
   raka torpeder i solfjäder, avstånd vid målet = lägesfelet (σ avstånd, fart, kurs under gångtiden)
-  inom 0,08–0,25 nm. Sonar håller isär okända pingare på en utjämnad bäring (grind 8° + 0,15°/s sedan förra pingen, högst 20°). 8 frön: passiv 0, ja-boten 0,
+  inom 0,08–0,25 nm; hel eller inte alls (alla tuber prövas före första avfyringen, `_refusal`),
+  omvänt intervall (`3-1`) = samma tuber. Sonar håller isär okända pingare på en utjämnad bäring (grind 8° + 0,15°/s sedan förra pingen, högst 20°). 8 frön: passiv 0, ja-boten 0,
   bot med besättningens verktyg (periskop var 4:e min, `anfall`, salva mot klassad transport/tanker
   inom 3 nm, sedan djupt bort) 3 (och 1 neutral sänkt). Boten i scratchpad (`convoy_bots.py`).
 - Konvojen kort (`konvoj-kort`): konvojen 13–15 nm bort, vakt 35 min (periskopdjup, fart 3, svep var

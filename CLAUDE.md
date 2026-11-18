@@ -13,8 +13,8 @@ oktober 1962. Python 3.12, Textual, numpy, uv. Användaren kör macOS (Apple Sil
 ## Kommandon
 ```bash
 uv run main.py [--seed N] [--scenario kuba] [--tyst]   # spela (utan --scenario: huvudmenyn)
-uv run pytest -q              # snabba tester, parallellt (~8 s; 12 s på 4 kärnor)
-uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4 min på 4 kärnor); före commit
+uv run pytest -q              # snabba tester, parallellt (~18 s på 4 kärnor)
+uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 4 kärnor); före commit
 ```
 
 ## Designprinciper (får inte brytas)
@@ -45,7 +45,9 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~1,5 min; 4
   Transienter/emissioner som skapas under ett tick blir hörbara nästa tick.
 - **Stationer** (`sim/stations/`): en per system, ärver `Station`. Har `COMMANDS`
   (`CommandSpec`), `on_order`, `update`, `say`, `suggest`. Nya system = ny station
-  i `DEFAULT_STATIONS`; `Game` ska inte behöva ändras.
+  i `DEFAULT_STATIONS`; `Game` ska inte behöva ändras. Krokar `Game` frågar alla stationer:
+  `intercept` (order medan kaptenen går), `on_suggestion` (starpom beslutar), `vetoes` (förslag som
+  inte får ges), `keeps_time_scale` (ett larm som inte ska sänka tidskomprimeringen), `status_fields`.
 - **Navigatören** är paketet `sim/stations/navigation/`: `station.py` (stationen, bestick, order,
   `update`), `common.py` (konstanter och order), `phrases.py`, och delarna som `NavigationStation` ärver:
   `fixes.py`, `bottom.py`, `ice.py`, `steering.py`, `exit_route.py`. Pågående fixar är uppdrag
@@ -113,6 +115,9 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
 - `docs/system/vyer.md`: Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
 - `docs/system/granssnitt.md`: Huvudmenyn, Ljud
 
+Idéer som inte är beställda: `docs/IDEER.md`. Konkreta öppna uppgifter (köra om, prova för hand,
+utreda, beslut som väntar): `docs/TODO.md`. Stryk det som blir gjort där.
+
 ## Kalibrering (ändra medvetet, kör sedan provspel)
 - Språngskikt 60 m, 7 dB (`Thermocline` i `environment.py`). Arktis (`ArcticProfile`):
   inget skikt, sfäriskt till 1 nm sedan cylindriskt, isstudsar 2,4 dB/nm som halveras
@@ -163,6 +168,11 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
   tidsskala, händelse på bussen) och är bara till läsning. Ändrar ett test en stations tillstånd
   direkt: `g.invalidate_views()` före nästa vy.
 - Döp aldrig en metod i en Textual-widget till `_render` (krockar med Textual).
+- En vy som har egen `on_mount` ska inte anropa `super().on_mount()`: Textual kör redan
+  `ViewScreen.on_mount` (går genom MRO), och då startar timers två gånger.
+- `ReportLog` tar aldrig fokus och kommandopaletten är av (`ENABLE_COMMAND_PALETTE`): orderraden ska
+  alltid ha fokus. Ny widget som kan ta fokus i en vy: `can_focus = False`.
+- Ett tyst uppdrag (navigatörens egen pejling) avbryts tyst: `NavTask.abort` ger en tom typ.
 - Timer-callbacks i `ui/app.py` kan köras under nedstängning – skydda mot `NoMatches`.
 - Förslag spärras per nyckel med `cooldown`; glöm inte det, annars spammar
   besättningen.
