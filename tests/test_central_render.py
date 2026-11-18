@@ -5,7 +5,7 @@ from dataclasses import replace
 import pytest
 
 from sim.game import StatusSnapshot
-from ui.central_render import (DIAL_ROW, H, W, Geometry, plane_angle, render_central,
+from ui.central_render import (DIAL_ROW, eyepiece, H, W, Geometry, plane_angle, render_central,
                                rudder_angle)
 
 G = Geometry(W, H)
@@ -102,6 +102,25 @@ def test_smoke_and_water():
     wet = plain(replace(BASE, flooding=50))
     assert "≈" in wet[FLOOR_ROW - 2]
     assert "≈" not in "".join(plain(replace(BASE, flooding=0.1)))
+
+
+def test_eyepiece_turns_with_the_periscope_bearing():
+    assert eyepiece(0) == "═▐██▌═"                       # rakt förut: handtagen åt sidorna
+    assert eyepiece(90).endswith("▶") and eyepiece(-90).startswith("◀")
+    assert "◉◉" in eyepiece(180) and "◉◉" in eyepiece(-170)
+    assert eyepiece(40)[-1] == "◥" and eyepiece(-130)[0] == "◣"
+    up = replace(BASE, depth=15, ordered_depth=15, periscope="hold", periscope_up_s=20)
+    assert "═▐██▌▶" in plain(replace(up, periscope_train=180))[PERI_EYE_UP]   # kurs 090: styrbord tvärs
+
+
+def test_big_room_shows_the_periscope_bearing_and_power():
+    up = replace(BASE, depth=15, ordered_depth=15, periscope="look", periscope_up_s=20,
+                 periscope_train=47, periscope_power="hög")
+    g = Geometry(130, 36)
+    rows = plain(up, width=130, height=36)
+    assert "PERISKOP 047 · titt · hög" in rows[g.head]
+    assert "PERISKOP" not in "".join(plain(replace(up, periscope=None), width=130, height=36))
+    assert "PERISKOP" not in "".join(plain(up))           # den lilla bilden: bara okularet
 
 
 def test_periscope_column_stays_clear_of_dials():

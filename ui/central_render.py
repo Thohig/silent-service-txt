@@ -218,6 +218,25 @@ def plane_angle(s: StatusSnapshot) -> float:
     return max(-25.0, min(25.0, s.ordered_depth - s.depth))
 
 
+def eyepiece(rel: float) -> str:
+    """Okularet sett akterifrån, vridet mot periskopets bäring relativt fören (rel, grader):
+    rakt förut handtagen åt sidorna, åt sidan en pil dit det ser, akterut linserna mot oss."""
+    e = list("═▐██▌═")
+    sector = round(((rel + 360.0) % 360.0) / 45.0) % 8
+    match sector:
+        case 1: e[5] = "◥"
+        case 2: e[5] = "▶"
+        case 3: e[5] = "◢"
+        case 4: e[2:4] = "◉◉"
+        case 5: e[0] = "◣"
+        case 6: e[0] = "◀"
+        case 7: e[0] = "◤"
+    return "".join(e)
+
+
+PERI_MODE = {"sweep": "svep", "look": "titt", "hold": "håller"}
+
+
 def _ring_cell(angle: float, rx: int, ry: int) -> tuple[int, int]:
     """Var på mätarens ram en vinkel hamnar, relativt mitten."""
     a = math.radians(angle)
@@ -409,7 +428,11 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
         eye = max(g.peri_eye_up, g.floor - s.periscope_up_s)
         for r in range(2, g.floor):
             c.text(r, g.peri, "┃┃", p["tube"])
-        c.text(eye, g.peri - 2, "═▐██▌═", p["eye"])
+        c.text(eye, g.peri - 2, eyepiece(_signed_diff(s.course, s.periscope_train)), p["eye"])
+        if g.big:                                   # gradringen under okularet, vid pulpeten
+            label = (f"PERISKOP {ins.fmt_course(s.periscope_train)} · "
+                     f"{PERI_MODE.get(s.periscope, s.periscope)} · {s.periscope_power}")
+            c.text(g.head, g.peri + 3, label, p["eye"])
     c.text(g.floor, g.peri - 1, "▁▁▁▁", p["tube"])
 
     # besättningen

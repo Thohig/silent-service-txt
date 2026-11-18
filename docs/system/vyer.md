@@ -69,7 +69,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   lådmätarna. Ren funktion `render_central(status, speaking, t, width, height, shown)`
   ur `StatusSnapshot` (bara egna instrument) och vem som rapporterat senaste 3 s (`SubApp._spoke`, roll ⇒
   plats eller snabbtelefonens lampa). Mätare kurs/sidroder/djup/djuproder (rodren härledda ur beordrat mot
-  verkligt), periskopet hissas med `periscope_up_s`, stegen och luckan (himlen syns), maskintelegrafen,
+  verkligt), periskopet hissas med `periscope_up_s` och okularet vrids efter bäringen relativt fören
+  (`eyepiece`: handtagen rakt förut, pil åt sidorna, linserna akterut; stor bild: `PERISKOP 047 · titt · hög`
+  under pulpeten), stegen och luckan (himlen syns), maskintelegrafen,
   julgranen (lucka, periskop, master), rött ljus på natten eller jagade (`night`, `hunted`), larmlampor,
   rök och vatten.
 - **Systemtavlan**: `Station.system_items()` ger element (`sim/systems.py`):
