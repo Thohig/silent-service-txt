@@ -161,7 +161,7 @@ botarna är inte omkörda. `baslinje.json` är efter bytet.
   (samma bot i `konvoj`: 1, på 69 min). Uppvärmningen tar ~5–8 s. Efter plottets periskoprättelse:
   `konvoj` 2 av 8, `konvoj-kort` fortfarande 1 av 8 (omkört 2026-11-15 med `konvoj_salva.py`: `konvoj` 3
   av 8 på 57–60 min, `konvoj-kort` 2 av 8; `konvoj.py attack` 2 av 8); boten skjuter på gamla lösningar (titt var 4:e min,
-  ben på 5–10 min). Öppen fråga: ska besättningen föreslå en titt strax före skjutläge?
+  ben på 5–10 min). Titt före skottet (vakthavande, ≤ 3,5 nm, var 90:e s) byggd 2026-11-18; inte omkört.
 - Konvojen motanfall (`konvoj-mot`, `convoy_counter_scenario`): ledpunkten 1–2 nm före tvärs, vi 1,8–2,4 nm
   vid sidan. Vakten (`_CounterattackWatch`): periskopdjup, titt var 60:e s, `salva` (två gånger) mot
   stort fartyg med lösning ≥ god, ≥ 60 s sedan senaste gir, titt ≤ 60 s gammal, fart ≤ 20 kn, ≤ 2,5 nm;

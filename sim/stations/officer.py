@@ -51,6 +51,8 @@ IDLE_RETRY_S = 60          # om ingen station hade något att föreslå
 REPEAT_S = 1200            # samma order föreslås inte igen inom denna tid
 LOOK_INTERVAL_S = 900      # på periskopdjup utan kontakt: titta så här ofta
 CONVOY_LOOK_S = 240        # konvojen känd: en kort titt mot den så här ofta (utkiken ger kursen)
+FIRE_LOOK_NM = 3.5         # ett stort fartyg så nära enligt plottet: snart skjutläge
+FIRE_LOOK_S = 90           # ... då en titt före skottet om förra titten på det är så här gammal
 CONVOY_STEP_S = 30
 ESCORT_CLOSE_NM = 3.0      # en jagare så nära: föreslå inte att gå upp
 ESM_STRONG_S = 300         # mycket stark radar så nyligen: föreslå inte att gå upp
@@ -104,6 +106,11 @@ def _view_object(type_: str, d: dict) -> SightedObject | None:
         return SightedObject("net", "bojrad", d["bearing"], d["range"], Quality.OSAKER,
                              detail="grinden öppen" if d["gate_open"] else "grinden stängd")
     return None
+
+
+def _minutes_old(s: int) -> str:
+    m = round(s / 60)
+    return "en minut" if m <= 1 else f"{m} minuter"
 
 
 def _names(ds: list[str]) -> str:
@@ -188,6 +195,13 @@ PHRASES = {
     "utkiken ser vart de styr. Föreslår periskopdjup för en titt.",
     "off.suggest.convoy_look": lambda d: f"Kapten, vakthavande. Föreslår en kort titt mot "
     f"{d['designation']}, så att plottet får kursen ur vinkeln på bogen.",
+    "off.suggest.fire_look": lambda d: f"Kapten, vakthavande. {d['designation']} är "
+    f"{nm(d['range'])} sjömil bort, snart skjutläge. "
+    + (f"Senaste titten på det är {_minutes_old(d['age'])} gammal. " if d["age"] is not None
+       else "Vi har inte sett det i periskopet. ")
+    + "Föreslår en titt före skottet, så att lösningen är färsk."
+    + (f" Obs, jagare {d['escort']} på {nm(d['escort_range'])} sjömil: masten kan synas."
+       if d.get("escort") else ""),
 }
 phrases.register(PHRASES)
 
@@ -214,6 +228,10 @@ RU_PHRASES = {
     "Предлагаю всплыть на перископную глубину и посмотреть.",
     "off.suggest.convoy_look": lambda d: f"{R.CAPTAIN}, вахтенный офицер. Предлагаю короткий "
     f"взгляд в перископ на {R.contact(d['designation'], True)}.",
+    "off.suggest.fire_look": lambda d: f"{R.CAPTAIN}, вахтенный офицер. "
+    f"{R.contact(d['designation']).capitalize()}, дистанция {R.dec(d['range'], R.MILE)}. "
+    f"Предлагаю взгляд в перископ перед залпом."
+    + (f" Внимание, эсминец {R.contact(d['escort'])} рядом." if d.get("escort") else ""),
 }
 phrases.register_ru(RU_PHRASES)
 
@@ -361,35 +379,71 @@ class OfficerStation(Station):
                  {"station": ROLE_LABEL[role] if role else None, "other": other})
 
     def _convoy_watch(self) -> None:
-        """Konvojen känd: utkiken ger plottet kursen, så föreslå periskopdjup och korta tittar."""
+        """Konvojen känd: utkiken ger plottet kursen, så föreslå periskopdjup och korta tittar.
+        Nära skjutläget en titt före skottet, också med en jagare nära (risken sägs)."""
         k = self.game.knowledge
         c = k.convoy
-        big = [t.designation for t in k.tracks.values() if t.held and is_big_ship(t)]
-        if (c is None and not big) or k.hunted(self.now) or self._escort_close() \
-                or any(strength == "mycket stark" and self.now - t <= ESM_STRONG_S
-                       for strength, t in self._esm_last.values()):
+        big = [t for t in k.tracks.values() if t.held and is_big_ship(t)]
+        if (c is None and not big) or k.hunted(self.now):
             return
+        escort = self._escort_close()
+        held_back = escort is not None or \
+            any(strength == "mycket stark" and self.now - t <= ESM_STRONG_S
+                for strength, t in self._esm_last.values())
         st = self.own.state
         if st.depth > PERISCOPE_DEPTH + 1:
-            self.suggest("convoy_up", "off.suggest.convoy_up", order="periskopdjup", cooldown=600)
-        elif not self._periscope().busy and st.speed <= 7 and \
-                self.now - self._periscope().last_look_t >= CONVOY_LOOK_S:
-            d = c.members[0] if c is not None and c.members else big[0]
+            if not held_back:
+                self.suggest("convoy_up", "off.suggest.convoy_up", order="periskopdjup",
+                             cooldown=600)
+            return
+        if self._periscope().busy or st.speed > 7:
+            return
+        if self._fire_look(big, escort):
+            return
+        if not held_back and self.now - self._periscope().last_look_t >= CONVOY_LOOK_S:
+            d = c.members[0] if c is not None and c.members else big[0].designation
             self.suggest("convoy_look", "off.suggest.convoy_look", {"designation": d},
                          order=f"periskop {d}", cooldown=CONVOY_LOOK_S)
 
-    def _escort_close(self) -> bool:
-        """En klassad jagare inom ESCORT_CLOSE_NM enligt plottet."""
+    def _fire_look(self, big, escort: tuple[str, float] | None) -> bool:
+        """Det närmaste stora fartyget inom FIRE_LOOK_NM enligt plottet (lösning ≥ osäker):
+        föreslå en titt på det om förra titten är äldre än FIRE_LOOK_S. Sant om ett fartyg är
+        så nära (då föreslås inga vanliga konvojtittar)."""
+        near = [(r, tr) for tr in big
+                if (r := self._predicted_range(tr, Quality.OSAKER)) is not None and r <= FIRE_LOOK_NM]
+        if not near:
+            return False
+        r, tr = min(near, key=lambda n: n[0])
+        looks = [o.t for o in tr.observations if o.course_obs is not None]
+        age = self.now - looks[-1] if looks else None
+        if age is None or age >= FIRE_LOOK_S:
+            d = tr.designation
+            data = {"designation": d, "range": r, "age": age}
+            if escort is not None:
+                data["escort"], data["escort_range"] = escort
+            self.suggest(f"fire_look{d}", "off.suggest.fire_look", data,
+                         order=f"periskop {d}", cooldown=FIRE_LOOK_S)
+        return True
+
+    def _predicted_range(self, tr, min_quality: Quality | None = None) -> float | None:
+        """Avståndet till kontakten nu enligt plottets lösning, framräknad (kunskap)."""
+        sol = tr.solution
+        if sol is None or not tr.held or (min_quality is not None and sol.quality < min_quality):
+            return None
         ex, ey = self.game.own_position_estimate()
-        for tr in self.game.knowledge.tracks.values():
-            sol = tr.solution
-            if "jagare" not in tr.classification or sol is None or not tr.held:
-                continue
-            dt = (self.now - sol.t) / 3600.0
-            x, y = sol.x + sol.state[2] * dt, sol.y + sol.state[3] * dt
-            if math.hypot(x - ex, y - ey) < ESCORT_CLOSE_NM:
-                return True
-        return False
+        dt = (self.now - sol.t) / 3600.0
+        x, y = sol.x + sol.state[2] * dt, sol.y + sol.state[3] * dt
+        return math.hypot(x - ex, y - ey)
+
+    def _escort_close(self) -> tuple[str, float] | None:
+        """Närmaste klassade jagare inom ESCORT_CLOSE_NM enligt plottet: (beteckning, avstånd)."""
+        close = [(r, tr.designation) for tr in self.game.knowledge.tracks.values()
+                 if "jagare" in tr.classification
+                 and (r := self._predicted_range(tr)) is not None and r < ESCORT_CLOSE_NM]
+        if not close:
+            return None
+        r, d = min(close)
+        return d, r
 
     def idle_proposals(self) -> list[Proposal]:
         st = self.own.state

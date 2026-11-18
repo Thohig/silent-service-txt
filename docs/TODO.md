@@ -14,6 +14,8 @@ inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18. Stryk det so
 - **Starpom** (`kalibrering/starpom.py`): sömnen håller nu för larm som bara tänder lampan
   (`Station.keeps_time_scale`, 2026-11-18). Ringningar och farlarm per körning bör ha ändrats;
   även utfallen med salva i konvoj och konvoj-kort.
+- **Titten före skottet** (2026-11-18): `konvoj_salva.py` och `konvoj.py attack` på konvoj och
+  konvoj-kort, 8 frön. Väntat: fler sänkta, inte fler neutrala sänkta eller fler gånger upptäckta.
 - **Inte omkört sedan 2026-11-15:** sundet med sanningsboten (`sundet.py --orakel`), väntläget.
 
 ## Prova för hand (riktig terminal, macOS)
@@ -34,9 +36,10 @@ inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18. Stryk det so
 
 ## Beslut som väntar på kaptenen
 
-- **Konvojen:** ska besättningen föreslå en periskoptitt strax före skjutläget? Boten skjuter på
-  gamla lösningar (titt var 4:e min, ben på 5–10 min).
-- **Sonarvyn:** lösningskurvan på som standard? Ett läge med bara hot?
+- ~~Konvojen: periskoptitt strax före skjutläget~~ – byggd 2026-11-18 (`off.suggest.fire_look`).
+- ~~Sonarvyn: lösningskurvan på som standard~~ – ja, 2026-11-18.
+- **Sonarvyn:** ett läge med bara hot? Avgörs efter provningen för hand (tona hellre ned neutrala
+  än dölj dem).
 
 ## Små brister i bilden
 

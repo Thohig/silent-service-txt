@@ -218,8 +218,9 @@ def test_sonar_screen_keys_and_words(tmp_path):
             assert "SONARRUMMET" in head and "ГИДРОАКУСТИЧЕСКАЯ РУБКА" in head
             await pilot.press("down")
             assert app.screen.relative
+            assert app.screen.show_solution              # plottets lösning syns från början
             await pilot.press("up", "minus", "right")
-            assert app.screen.show_solution and app.screen.window_s == 3600 and app.screen.turn == 30
+            assert not app.screen.show_solution and app.screen.window_s == 3600 and app.screen.turn == 30
             await pilot.press("space")
             assert app.screen.turn == 0
             app.save_screenshot(str(tmp_path / "sonar.svg"))

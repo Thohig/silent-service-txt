@@ -228,3 +228,59 @@ def test_officer_does_not_suggest_going_up_while_hunted():
         g.knowledge.hunt_t = g.now
         _ticks(g, 10)
     assert not any(r.type == "off.suggest.convoy_up" for r in reports)
+
+
+def _plotted(g, desig, dx, dy, classification, quality=Quality.GOD):
+    """En kontakt med en plottad lösning dx, dy nm från vårt beräknade läge."""
+    from sim.knowledge import ContactTrack
+    from sim.tma import Solution
+    ex, ey = g.own_position_estimate()
+    tr = g.knowledge.tracks.get(desig) or ContactTrack(desig, g.now)
+    g.knowledge.tracks[desig] = tr
+    tr.classification, tr.class_quality = classification, Quality.GOD
+    tr.solution = Solution(t=g.now, t_ref=g.now, state=(ex + dx, ey + dy, 0.0, 0.0), x=ex + dx,
+                           y=ey + dy, course=180.0, speed=0.0, range_nm=math.hypot(dx, dy),
+                           bearing=0.0, range_sigma=0.2, course_sigma=10.0, speed_sigma=1.0,
+                           quality=quality, n_obs=20, span_s=900, own_maneuvered=True,
+                           rms_residual=1.0)
+    return tr
+
+
+def _at_periscope_depth(g):
+    g.command("periskopdjup")
+    g.world.own.state.depth = 16
+    g.command("fart 3")
+    g.world.own.state.speed = 3.0
+
+
+def test_officer_suggests_a_look_before_the_shot_when_a_big_ship_is_close():
+    o0 = default_scenario(random.Random(3)).world.own.state
+    g, reports = _game_with_convoy_estimate(o0.x - 1.0, o0.y + 14.0)
+    _at_periscope_depth(g)
+    _plotted(g, "S-7", 0.0, 2.5, "stort fartyg, trolig transport")
+    _ticks(g, 70)
+    sug = [r for r in reports if r.type == "off.suggest.fire_look"]
+    assert sug and "[ja: periskop S-7]" in sug[0].text and "2,5 sjömil" in sug[0].text
+    assert "jagare" not in sug[0].text
+    assert not any(r.type == "off.suggest.convoy_look" for r in reports)
+
+
+def test_look_before_the_shot_names_a_close_escort_instead_of_staying_quiet():
+    o0 = default_scenario(random.Random(3)).world.own.state
+    g, reports = _game_with_convoy_estimate(o0.x - 1.0, o0.y + 14.0)
+    _at_periscope_depth(g)
+    _plotted(g, "S-7", 0.0, 2.5, "stort fartyg, trolig transport")
+    _plotted(g, "S-9", 1.5, 0.0, "jagare")
+    _ticks(g, 70)
+    sug = [r for r in reports if r.type == "off.suggest.fire_look"]
+    assert sug and "jagare S-9 på 1,5 sjömil" in sug[0].text
+
+
+def test_no_look_before_the_shot_on_a_far_target_or_a_poor_solution():
+    o0 = default_scenario(random.Random(3)).world.own.state
+    g, reports = _game_with_convoy_estimate(o0.x - 1.0, o0.y + 14.0)
+    _at_periscope_depth(g)
+    _plotted(g, "S-7", 0.0, 6.0, "stort fartyg, trolig transport")
+    _plotted(g, "S-8", 0.0, 2.0, "stort fartyg, trolig transport", quality=Quality.DALIG)
+    _ticks(g, 70)
+    assert not any(r.type == "off.suggest.fire_look" for r in reports)

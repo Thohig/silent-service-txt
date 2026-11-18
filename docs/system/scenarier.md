@@ -37,7 +37,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   vi ligger framför (inte jagade, inte inom 20 min efter skjutläge, var 5:e min). Vakthavande föreslår
   `periskopdjup` och sedan `periskop S-x` var 4:e min när konvojen är känd eller sonar hör stora fartyg
   (`is_big_ship`: klassning stort/transport/tank, inte civilt), utom när vi är jagade, en klassad jagare
-  är < 3 nm enligt plottet eller radarn varit mycket stark senaste 5 min. 8 frön, ja-boten: framme i
+  är < 3 nm enligt plottet eller radarn varit mycket stark senaste 5 min. Titt före skottet
+  (`_fire_look`, 2026-11-18): ett stort fartyg ≤ 3,5 nm enligt plottet (lösning ≥ osäker) ⇒
+  `off.suggest.fire_look`, `periskop S-x` när förra titten på det är ≥ 90 s gammal (i stället för de
+  vanliga konvojtittarna); en jagare < 3 nm stoppar inte förslaget utan nämns ("masten kan synas"). 8 frön, ja-boten: framme i
   4 (förut ~2); ja-boten som skjuter `salva` när navigatören säger skjutläge sänker 1–2 (förut 0).
 - **Övningen** (`ovning`, `training_scenario`): 8 okt 1962, 10:00, ytläge med bryggan bemannad i
   Kolafjorden utanför Poljarnyj, kurs ut, 10 kn. Botten `kola_seabed` (`seabed.Fjord`: land söder om

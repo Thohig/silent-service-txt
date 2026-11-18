@@ -46,7 +46,7 @@ class SonarScreen(ViewScreen):
         self.window = DEFAULT_WINDOW
         self.turn = 0.0                  # vridning från norr (sann) eller fören (relativ)
         self.relative = False
-        self.show_solution = False
+        self.show_solution = True        # plottets lösning syns från början; ↑ döljer den
 
     def compose(self) -> ComposeResult:
         yield Static(id="sonar-head")
