@@ -4,8 +4,10 @@ from __future__ import annotations
 import math
 
 from ...events import IceSounded, OpeningNotFound
-from ...geo import angle_diff, bearing_to, distance, norm360
+from ...geo import NM_IN_M, angle_diff, bearing_to, distance, norm360
 from ...icemap import (
+    BREAKABLE_M,
+    HULL_HALF_M,
     MIN_SURFACE_LEN_M,
     OPEN_M,
     IceMap,
@@ -37,6 +39,8 @@ from .common import (
     VAK_TIMEOUT_S,
 )
 from .tasks import Station as StationSteer
+
+VAK_TRIES = 2                   # så många gånger lägger vi om mot mitten innan vi tar det vi har
 
 
 class IceMixin:
@@ -83,6 +87,14 @@ class IceMixin:
         else:
             t = max(0.1, t_true + rng.gauss(0, 0.1 + 0.15 * (1 - skill)))
             d = max(0.8 * t, ice.draft_at(s.x, s.y) + rng.gauss(0, 0.5))
+        # isekolodet för och akter: ryms hela skrovet under en öppning (inte i isens karta)
+        ends = []
+        for sgn in (1, -1):
+            hx = s.x + sgn * math.sin(math.radians(s.course)) * HULL_HALF_M / NM_IN_M
+            hy = s.y + sgn * math.cos(math.radians(s.course)) * HULL_HALF_M / NM_IN_M
+            te = ice.thickness_at(hx, hy)
+            ends.append(0.0 if te < OPEN_M else max(0.1, te + rng.gauss(0, 0.1 + 0.15 * (1 - skill))))
+        self._hull_ice = (self.now, ends[0], ends[1])
         before = self.icemap.current
         obs = IceSoundingObs(self.now, self.est_x, self.est_y, round(t, 2), round(d, 1))
         self.game.bus.publish(IceSounded(self.now, obs))
@@ -94,6 +106,12 @@ class IceMixin:
             self.suggest("ice_closing", "nav.suggest.ice_closing", {"depth": SAFE_ICE_DEPTH},
                          order=f"djup {SAFE_ICE_DEPTH}", cooldown=120, alarm=True)
         self._prev_usable = obs.usable
+
+    def hull_clear(self) -> bool:
+        """Visar isekolodet för och akter is vi kan bryta (eller öppet vatten), nyss?"""
+        h = self._hull_ice
+        return h is not None and self.now - h[0] <= 2 * SOUNDER_INTERVAL_S and \
+            max(h[1], h[2]) <= BREAKABLE_M
 
     def _ice_report(self) -> None:
         latest = self.icemap.latest(self.now)
@@ -109,6 +127,7 @@ class IceMixin:
 
     def _go_to_opening(self) -> None:
         s = self.ship
+        self._vak_tries = 0
         cur = self.icemap.current
         if cur is not None and self.icemap.latest(self.now) is not None:
             self.vak, self._vak_t, self._vak_stopping = cur, self.now, True
@@ -122,7 +141,7 @@ class IceMixin:
             return
         self._steer_for(o)
 
-    def _steer_for(self, o: Opening) -> None:
+    def _steer_for(self, o: Opening, quiet: bool = False) -> None:
         s = self.ship
         self.vak, self._vak_t, self._vak_stopping, self._vak_here = o, self.now, False, False
         d = self.opening_data(o)
@@ -134,8 +153,9 @@ class IceMixin:
         if s.ordered_depth > SAFE_ICE_DEPTH:
             depth = SAFE_ICE_DEPTH
             s.order_depth(depth)
-        self.say("nav.vak.ack", {**d, "speed": speed, "depth": depth}, kind="ack",
-                 quality=o.quality(self.now))
+        if not quiet:
+            self.say("nav.vak.ack", {**d, "speed": speed, "depth": depth}, kind="ack",
+                     quality=o.quality(self.now))
 
     def _steer_to_opening(self) -> None:
         o, s = self.vak, self.ship
@@ -167,9 +187,19 @@ class IceMixin:
         # stilla: vad säger isekolodet?
         self.vak, self._vak_stopping = None, False
         latest = self.icemap.latest(self.now)
+        near = self.near_station()
+        # ytläge (vid stationen, eller genom nyis) kräver hela skrovet under öppningen; tornet kan
+        # stå i kanten eller på tvären. Isekolodet för och akter säger det (periskopdjup räcker med
+        # tornet)
+        cramped = latest is not None and latest.usable and o.length_m >= MIN_SURFACE_LEN_M \
+            and (near or not latest.open) and not self.hull_clear()
+        if cramped and self._vak_tries < VAK_TRIES:
+            self._vak_tries += 1
+            self.say("nav.vak.reposition", {"no": o.no})
+            self._steer_for(o, quiet=True)
+            return
         if latest is not None and latest.open:
-            near = self.near_station()
-            if near and o.length_m < MIN_SURFACE_LEN_M:
+            if near and (o.length_m < MIN_SURFACE_LEN_M or cramped):
                 # masterna kommer upp, men skrovet ryms inte: leta vidare runt stationen
                 self.suggest("vak_narrow_station", "nav.vak.narrow_station",
                              {"length": round_m(o.length_m), "name": STATION_NAME,
@@ -184,7 +214,7 @@ class IceMixin:
                          order="ytläge" if near else "periskopdjup", cooldown=0)
             return
         if latest is not None and latest.usable:
-            if o.length_m >= MIN_SURFACE_LEN_M:
+            if o.length_m >= MIN_SURFACE_LEN_M and not cramped:
                 self.suggest("vak_up", "nav.suggest.up",
                              {"kind": thickness_words(latest.thickness), "open": False},
                              order="ytläge", cooldown=0)

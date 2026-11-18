@@ -250,6 +250,8 @@ PHRASES = {
     f"{d['length']} meter, för smal för ytläge. Föreslår att vi letar vidare runt {d['name']}, "
     f"fart 4 på {d['depth']} meter.",
     "nav.vak.overshot": lambda d: "Vi gled förbi öppningen när vi stoppade. Vänder tillbaka.",
+    "nav.vak.reposition": lambda d: "Tornet står i kanten av öppningen, för- eller akterskeppet "
+    "har is ovanför. Lägger oss mitt i den först.",
     "nav.vak.search": lambda d: "Kapten, navigatören. Ingen annan öppning loggad. Föreslår att vi "
     f"fortsätter söka, fart 5 på {d['depth']} meter.",
     "nav.suggest.stop_here": lambda d: f"Kapten, navigatören. {d['kind'].capitalize()} ovanför oss nu. "
@@ -378,6 +380,8 @@ RU_PHRASES = {
     f"{R.count(d['length'], R.METER)}, для всплытия узко. Предлагаю искать дальше вокруг станции, "
     f"ход четыре узла на {R.count(d['depth'], R.METER)}.",
     "nav.vak.overshot": lambda d: "При остановке проскочили полынью. Возвращаемся.",
+    "nav.vak.reposition": lambda d: "Рубка у края полыньи, над носом или кормой лёд. "
+    "Сначала встанем посередине.",
     "nav.vak.search": lambda d: f"{_NAV} Других полыней не отмечено. Предлагаю продолжать поиск, "
     f"ход пять узлов на {R.count(d['depth'], R.METER)}.",
     "nav.vak.timeout": lambda d: f"{R.CAPTAIN}, полынью найти не можем. Прекращаем.",

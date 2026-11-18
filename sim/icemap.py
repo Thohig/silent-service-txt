@@ -22,6 +22,7 @@ BREAKABLE_M = 1.0           # tunn is som ubåten kan bryta igenom
 BASE_SIGMA_M = 20.0         # ekolodets fotavtryck och besticksbrus
 GROWTH_M_PER_MIN = 8.0      # isdrift (~0,25 kn åt okänt håll) och besticksglidning
 MIN_SURFACE_LEN_M = 120.0   # kortare än så: trångt, ubåten är 107 m lång
+HULL_HALF_M = 50.0          # för- och akterskeppet från tornet (egen ubåt, inte isen)
 FORGET_S = 3600             # äldre öppningar har drivit iväg
 RECENT_S = 30               # lodning som räknas som "just nu"
 LONG_OPENING_M = 250        # längre öppningar: sikta en bit innanför utgången

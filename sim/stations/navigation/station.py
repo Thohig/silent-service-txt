@@ -139,6 +139,8 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         self._vak_t = 0
         self._vak_stopping = False
         self._vak_here = False
+        self._hull_ice: tuple[int, float, float] | None = None   # isekolodet för och akter (t, m, m)
+        self._vak_tries = 0                 # gånger vi lagt om mot mitten för att skrovet inte rymdes
         self._prev_usable = False
         self._told_out = False                # har sagt att vi lämnat området
         self.exit_via: str | None = None      # vägen ut går först runt land

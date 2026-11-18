@@ -1,4 +1,5 @@
 """Isekolodet, iskartan och navigatörens arbete under isen."""
+import math
 import random
 
 import pytest
@@ -202,6 +203,7 @@ def test_vak_at_the_station_ends_the_station_search_so_we_stay_under_the_opening
     nav.vak, nav._vak_stopping = o or nav.icemap.current, True
     nav.near_station = lambda: True
     nav._station_overhead = lambda: (nav.est_x, nav.est_y)
+    nav._hull_ice = (g.now, 0.0, 0.0)           # isekolodet för och akter: öppet vatten
     s = g.world.own.state
     s.speed = 0.0
     s.order_speed(0)
@@ -209,3 +211,26 @@ def test_vak_at_the_station_ends_the_station_search_so_we_stay_under_the_opening
     nav._steer_step(StationSteer)
     assert nav.steer is None
     assert s.ordered_speed == 0
+
+
+def _round_opening(g, radius_nm):
+    """Isen som en rund öppning kring tornet (sanningens is byts mot en enkel funktion)."""
+    s = g.world.own.state
+    s.speed = s.ordered_speed = 0.0
+    x0, y0 = s.x, s.y
+    ice = g.world.env.ice
+    ice.thickness_at = lambda x, y: 0.0 if math.hypot(x - x0, y - y0) < radius_nm else 3.0
+
+
+def test_sounder_fore_and_aft_tells_whether_the_hull_fits():
+    """Isekolodet för och akter: tornet i en liten öppning räcker inte för ytläge."""
+    g, _ = _arctic(1)
+    nav = g.station(NavigationStation)
+    _round_opening(g, 0.02)                     # 37 m: för- och akterskeppet (50 m) under isen
+    for _ in range(12):
+        g.tick()
+    assert not nav.hull_clear()
+    _round_opening(g, 0.1)                      # 185 m: hela skrovet under öppet vatten
+    for _ in range(12):
+        g.tick()
+    assert nav.hull_clear()

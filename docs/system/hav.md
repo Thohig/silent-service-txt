@@ -36,7 +36,12 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
 - **Is:** `ice.py` är sanning (bara isekolodet i `navigation/ice.py`, mastkontrollerna
   `masts_clear` och periskopets `ice_view` läser den); `icemap.py` är kunskap, byggd av `IceSounded` med
   beräknad position. Öppningars kvalitet = lägesosäkerhet (växer 8 m/min) mot
-  halva längden.
+  halva längden. Isekolodet lodar också för och akter (50 m från tornet; `_hull_ice`,
+  `hull_clear()`): ytläge (vid stationen eller genom nyis) föreslås bara när båda visar is vi kan
+  bryta. Annars står tornet i kanten eller på tvären: `nav.vak.reposition` och tillbaka mot öppningens
+  mitt, högst `VAK_TRIES` (2) gånger, sedan som en för smal öppning. Periskopdjup kräver bara tornet.
+  Mätt (arktis-kort, ja-boten efter 1/5/20 s, 16 frön): stötar efter ytläge 7 ⇒ 3, "tjock is" efter
+  ytläge 7 ⇒ 1, stationen nådd 17 ⇒ 13 av 48 (omläggningarna tar tid).
 - **Havsbotten:** `seabed.py` är sanning (`Environment.bottom_at`; bara ekolodet läser den).
   Scenariot ger också `chart_seabed`, det gamla sjökortets bild (`Seabed.chart_copy`:
   formerna flyttade, ingen ojämnhet, ibland utan berg) som blir `Knowledge.bathymetry`.
@@ -44,7 +49,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   Botten dras sist i scenariot så att övriga slumpdragningar inte flyttas.
   Bottenkontakt (`seabed.bottom_contact`, efter förflyttningen): ≤ 2 kn sätter sig kölen
   utan skador, annars grundstötning (skrov −0,015·fart, sonar/roder efter var, läcka > 5 kn);
-  trimmen tar oss 15 m upp. Navigatören (`_shoal_watch`, var 20:e s) ser på kortet 6 min
+  trimmen tar oss 15 m upp. Redan i kontakt får ett steg som inte gör det värre gälla (gör giren
+  det värre gäller förflyttningen med förra kursen), så att båten kommer loss; trycker båten mot land
+  står den still (farten genom vattnet 0, besticket glider inte) och maskin säger `bottom.pressed`
+  var 2:a min; `bottom.touch` högst en gång per minut. Navigatören (`_shoal_watch`, var 20:e s) ser på kortet 6 min
   framåt (minst 1 nm) ± bestickets σ åt sidorna, och en färsk lodning; föreslår djup
   30 m över botten. `NavigationStation.depth_limit()` begränsar sonarens djupförslag.
   Lotsen (`pilotage.py`, sanning, efter AI:erna i varje tick): andra fartyg än vårt prövar vägen
