@@ -42,6 +42,13 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 ## Siffrorna
 
+**Trim (2026-11-18, TR4):** efter trimmen (`sim/trim.py`, trimmaren) ger `kontroll.py` samma utfall som
+baslinjen i alla scenarier (passiv och ja-boten, 8 frön; inget flyttat ≥ 2 av 8 eller ≥ 25 % i tid).
+Arktis med ja-boten (`test_icemap`, 6 h): drivstationen 5–6 av 8 och öppet vatten 8 av 8, mot 5 och 8 utan
+trim; utan regeln att barlasten bär lodräta djupändringar i låg fart och att trimmaren väntar med sina
+förslag när ett annat väntar blev det 2 av 8 och två kvävda (uppstigningarna under öppningarna gick för
+långsamt, och trimmarens förslag tog platsen för navigatörens).
+
 Flyttade ur CLAUDE.md (2026-11-18). Ändra medvetet och kör sedan botarna; uppdatera här.
 
 **Omkört 2026-11-18** (efter slumpen per station, processbrus för sicksack q = 30 och avfyring ≤ 100 m;

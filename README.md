@@ -59,6 +59,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 | Sonar | `aktiv sonar` (ger avstånd men avslöjar oss) |
 | Plott | `läge S-1` · `plot S-1` |
 | Navigation | `position` · `fix` (periskopdjup) · `kurs mot <plats>` · `följ S-1` (i kontaktens kölvatten) · `anfall S-1` (till skjutläge 1,2 nm från målets väg, efter konvojens baskurs om plottet har den) · `ekolod` · `isekolod` · `vak` (gå till och stoppa under en loggad öppning i isen) · `drivstationen` (styr mot Nord-7) · `botten` (lägg oss stilla på botten; `djup` eller `fart` lättar) · `bottenfix` (nio lodningar på tre minuter jämförs med sjökortets djup) |
+| Trim | `trimma` · `trim stopp` (inga pumpar utom i fara) · `trim` (hur tung båten är, med kvalitet) · `ligg still` (fart 0, djupet hålls bara med trimmen) |
 | Maskin | `smygmotor` · `turbin` · `stäng reaktorn` · `starta reaktorn` · `nödblåsning` · `maskin` · `ventilera` (periskopdjup i öppen luft) |
 | Vakthavande | `periskop` (svep runt i låg förstoring, 15 s) · `periskop 047` eller `periskop S-3` (kort titt: söker ±16° i låg och mäter i hög förstoring med stadimetern, kortare tid med masten uppe) · `periskop upp` (står uppe tills `periskop ned`; `vrid periskop 047` vrider okularet; `förstoring hög`/`förstoring låg` byter mellan 1,5× med 32° synfält och 6× med 8°) · i ytläge med folk på bryggan tittar vakthavande med kikaren i stället, utan mast och fartgräns · `radar` (periskopdjup; radarvarnaren är automatisk) · `foto` (periskopfoto av ankarplatsen) |
 | Radio | `sänd rapport` (periskopdjup, kan pejlas) · `radio` |
@@ -84,6 +85,7 @@ en del säger de vilken, och resten verkställs ändå.
 | Kavitation | Över en viss fart (högre på djupet) hörs ubåten långt. |
 | Språngskikt (60 m, Kuba) | Skyddar mot jagarens sonar, men vi hör också sämre genom det. |
 | Roder, barlast, skrov | Djupändring kräver fart. Under provdjup (300 m) knakar skrovet; 450 m krossar det. |
+| Trim och flytkraft | Djupet, språngskiktet, isens smältvatten, torpederna och läckor gör båten tung eller lätt. I fart bär djuprodret det; i smygfart driver en otrimmad båt mot ytan eller djupet. Trimmaren trimmar själv på turbinen men ber först på smygmotorn, eftersom pumparna hörs. Ubåtsvyn visar tankarna och panelen TRIM; i centralen står djuprodret ute med lasten och libellen visar lutningen. |
 | Skador, läckor, nödblåsning | Sjunkbomber ger skador och vatteninträngning; reparationer tar tid. |
 | Passiv och aktiv sonar | Passiv ger bäringar; aktiv ger avstånd men avslöjar oss. |
 | Periskop, radar, radarvarnare | Avstånd och kurs på periskopdjup, med risk att synas. Periskopet ser också kusten i de riktningar det tittat, och vakthavande ropar ut land i sikte. |

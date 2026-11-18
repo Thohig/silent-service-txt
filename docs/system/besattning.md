@@ -1,4 +1,4 @@
-# Radion och starpom
+# Radion, starpom och trimmaren
 
 Flyttat ur CLAUDE.md (2026-11-18). Arbetsreglerna står kvar där; här är hur systemen
 fungerar och deras siffror. Uppdatera här när systemet ändras.
@@ -53,3 +53,28 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   när starpom ber om hans beslut): kuba-kort rapporten i 5 (ja-boten 4; förut 0, ingen sände), med `salva`
   (kaptenen skjuter bara i centralen) konvoj 3 sänkt och 1 neutral (vaken salvakapten 3), konvoj-kort 1 (1);
   utan starpoms rop före skjutläget och vid stort fartyg < 3,5 nm var konvoj 0. Nej i 5 av 40 körningar (1–4 st).
+- **Trim och flytkraft** (`sim/trim.py`, sanning; `TrimState` i `own.sys.trim`): båten är trimmad för
+  startdjupet (`TrimState.start`). Vikten ändras av djupet (skrovet trycks ihop, `COMPRESS_T_PER_100M` 1 t),
+  språngskiktet (under det bär kallare vatten `LAYER_LIFT_T` 3 t, över `LAYER_BAND_M`), smältvatten under isen
+  (`MELT_T` 1 t ovanför 25 m), torpeder och skenmål (`TORPEDO_T` 2 t, ersättningstanken tar `REPLACE_SHARE`
+  70 %, resten saknas förut) och läckvatten. Djuprodren bär `plane_capacity` = 0,8·v² ton (högst 10, gånger
+  rodrens hälsa); det de inte bär (`free_t`) driver båten 0,03 m/s per ton när den håller djupet, och tar bort
+  djupstyrningen helt vid `CONTROL_LOST_T` 2 t. Så länge styrningen orkar hålls djupet exakt (annars tror
+  navigatören att vi byter djup). Barlasten bär och trimmen spelar ingen roll (`ballast_carries`): på väg upp
+  till ytan (huvudbarlasten blåses, från 40 m) och vid en ny djuporder i högst 2 kn tills djupet är nått
+  (lodrätt, t.ex. genom en öppning i isen). Utjämningstanken −25 … +15 t (läckgränsen `TRIM_RESERVE_T` är
+  dess 25 t) pumpas 1 t/min, för–akter 0,5 t/min (±8 t); pumparna hörs (`PUMP_LEVEL` 121 dB, ~+1,7 dB på
+  smygmotorn, inget bredvid turbinen). Lutningen 0,6° per ton framåtlast.
+- **Trimmaren** (`stations/trim.py`, `TrimStation`, `Role.TRIM`, Zajtsev, mitjman, vid trimposten i centralen,
+  трюмный): bedömningen `est` ± σ ur det han vet (pumpat och skjutet exakt, läckan ±10 %, kompressionen,
+  0,02 t²/m för okänt djupberoende, 0,0005 t²/s åldring) och rodret och driften var 10:e s (Kalman,
+  σ = (0,2 + 0,03·rodrens last)·(1,6 − skicklighet)); kvalitet ur σ (0,4/0,8/1,6 t). Trimmar bort ≥ 1 t
+  (0,3 t när vi ligger still) själv på turbinen; på smygmotorn ber han först (`trim.suggest`, `trimma`), men
+  inte medan ett annat förslag väntar eller ligger i kön (det skulle ta dess plats); i fara (obalans > rodren
+  + 2 t) pumpar han alltid och säger varför. Order: `trimma`, `trim stopp` (inga pumpar utom i fara),
+  `trim` (rapport med kvalitet), `ligg still` (fart 0, kräver σ ≤ 0,6 och ≤ 1 t, annars ber han att få trimma;
+  slutar vid order om fart). Starpom får besluta om alla fyra. Panelen TRIM (vikt ± σ, lutning,
+  utjämningstank, pumpar), `TrimTanks` till genomskärningen (tankarna i I, III och IX med vattennivå) och
+  `pitch`/`plane_load` till statusraden: centralens djuproder står ute med lasten (`PLANE_HOLD_DEG` 15° vid
+  full last, tung ⇒ uppåt) och libellen visar lutningen (`PITCH_SPAN_DEG` 5°). Ett lutande skrov i
+  genomskärningen provades men blev svårläst med rak text.

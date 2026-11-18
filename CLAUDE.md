@@ -116,7 +116,7 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
 - `docs/system/scenarier.md`: Civil trafik, Konvoj, Konvoj i plottet, Anfall, Övningen, Flyg
 - `docs/system/hav.md`: Land skymmer, Ljuset, Is, Havsbotten
 - `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden
-- `docs/system/besattning.md`: Radion och telegrammen, Starpom
+- `docs/system/besattning.md`: Radion och telegrammen, Starpom, Trim och flytkraft, Trimmaren
 - `docs/system/vyer.md`: Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
 - `docs/system/granssnitt.md`: Huvudmenyn, Ljud
 
@@ -150,6 +150,9 @@ utreda, beslut som väntar): `docs/TODO.md`. Stryk det som blir gjort där.
   kollapsade lösningar på patrullbåten i sundet mot oss med σ ≈ 0 och kallades säkra (sundet säker grova
   18 % ⇒ 0); alla scenarier grova 4,8 % ⇒ 3,9 %, > 3σ 7,9 % ⇒ 6,0 %. Det som är kvar är mest girar de senaste minuterna som plottet inte hunnit se. Mätskriptet: `kalibrering/tma_kvalitet.py`.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m, torpedavfyring ≤ 100 m och ≤ 12 kn.
+- Trim (`sim/trim.py`): kompression 1 t/100 m, skiktet bär 3 t, smältvatten 1 t, torped netto 0,6 t förut,
+  rodren 0,8·v² t (högst 10), drift 0,03 m/s per ton, styrningen borta vid 2 t, pumpar 1 t/min och 121 dB.
+  Ny djuporder i ≤ 2 kn och uppstigning till ytan görs med barlasten (trimmen spelar ingen roll).
 - Scenariernas och systemens siffror (botar, frön, utfall) står i `kalibrering/README.md` under
   Siffrorna. `uv run python kalibrering/kontroll.py` jämför passiva boten och ja-boten med
   `kalibrering/baslinje.json`; `kalibrering/fingeravtryck.py` visar att en omstrukturering inte
