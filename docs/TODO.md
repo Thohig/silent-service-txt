@@ -7,8 +7,8 @@ inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18. Stryk det so
 ## Köra om
 
 - ~~De särskilda botarna, starpom och sundet med sanningsboten~~ – omkörda 2026-11-18, se tabellen under
-  Siffrorna i `kalibrering/README.md`. Inget har blivit märkbart sämre; `kontroll.py` (passiv och ja-bot
-  mot baslinjen) är inte omkörd efter processbruset för sicksack.
+  Siffrorna i `kalibrering/README.md`. Inget har blivit märkbart sämre. `kontroll.py` omkörd: bara konvoj-kort ja flyttade
+  (convoy_missed 1 ⇒ 3, patrol_end 7 ⇒ 5), baslinjen uppdaterad.
 
 ## Prova för hand (riktig terminal, macOS)
 
