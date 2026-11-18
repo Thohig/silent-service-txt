@@ -54,10 +54,8 @@ per uppdrag. Kräver ny kalibrering.
 2. ~~Animering i realtid på sjökortet~~ – ersatt av blyertsmärken (ett papperskort och
    автопрокладчик är realistiskt; vidgade ringar, blixtar och mjuk förflyttning är det inte, och
    en braillepunkt är 0,05 nm, så mjuk förflyttning syns inte). Föreslå inte igen.
-3. Bilder i terminalen (Kitty/sixel) – medel–stor, 5–8 steg, hög risk, bara vissa terminaler,
-   behöver braillereserv. Prova först.
-4. Webb: A) Textual Serve – 1 steg, ingen grafisk vinst; B) egen webbklient – 15–30 steg, dubbelt
-   underhåll, `sim/` oförändrad.
+3. ~~Bilder i terminalen (Kitty/sixel) och webbklient~~ – strukna 2026-11-18 (kaptenens beslut).
+   Föreslå inte igen.
 
 ### ~~Periskopets förstoring~~ (byggd 2026-11-18, Z1–Z4, se `docs/system/utkik.md`)
 
