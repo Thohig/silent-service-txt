@@ -46,7 +46,20 @@ def test_heading_at():
     v = SonarView("12:00:00", 100, 0, 200.0)
     from sim.sonar_view import OwnHeading
     v.items.append(OwnHeading(((0, 10.0), (50, 20.0))))
-    assert v.heading_at(-5) == 200.0 and v.heading_at(10) == 10.0 and v.heading_at(70) == 20.0
+    assert v.heading_at(-5) == 200.0 and v.heading_at(70) == 20.0
+    assert v.heading_at(0) == 10.0 and v.heading_at(25) == pytest.approx(15.0)
+    w = SonarView("12:00:00", 100, 0, 200.0)       # genom norr den korta vägen
+    w.items.append(OwnHeading(((0, 350.0), (10, 10.0), (10, 10.0))))
+    assert w.heading == [(0, 350.0), (10, 10.0)]
+    assert w.heading_at(5) == pytest.approx(0.0) or w.heading_at(5) == pytest.approx(360.0)
+
+
+def test_own_turns_ignore_a_repeated_point_mid_turn():
+    """Kursen nu läggs efter loggen; samma tidpunkt två gånger får inte avsluta giren."""
+    log = [(0, 90.0), (10, 90.0), (20, 100.0), (30, 112.0), (30, 112.0), (40, 124.0),
+           (50, 135.0), (60, 135.0)]
+    turns = own_turns(log)
+    assert [(t.t, t.course_from, t.course_to) for t in turns] == [(60, 90.0, 135.0)]
 
 
 @pytest.mark.slow

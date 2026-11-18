@@ -11,10 +11,12 @@ kvalitet är sonarrummets och plottets egna siffror.
 """
 from __future__ import annotations
 
+import bisect
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from .geo import angle_diff
+from .geo import angle_diff, norm360
 from .reports import Quality
 
 if TYPE_CHECKING:
@@ -137,18 +139,27 @@ class SonarView:
         return sorted(self.of(ContactLine),
                       key=lambda c: (not c.held, order.get(c.kind, 9), c.designation))
 
-    @property
+    @cached_property
     def heading(self) -> list[tuple[int, float]]:
-        return sorted((p for h in self.of(OwnHeading) for p in h.points), key=lambda p: p[0])
+        """Vår kurs över tid, en punkt per tidpunkt (räknas en gång per vy)."""
+        pts = sorted((p for h in self.of(OwnHeading) for p in h.points), key=lambda p: p[0])
+        return [p for i, p in enumerate(pts) if i + 1 == len(pts) or pts[i + 1][0] != p[0]]
 
-    def heading_at(self, t: int) -> float:
-        """Vår kurs vid tiden t (senaste loggningen före), annars kursen nu."""
-        best = self.course
-        for pt, c in self.heading:
-            if pt > t:
-                break
-            best = c
-        return best
+    @cached_property
+    def _heading_t(self) -> list[int]:
+        return [t for t, _ in self.heading]
+
+    def heading_at(self, t: float) -> float:
+        """Vår kurs vid tiden t, mellan loggningarna den korta vägen; före loggen kursen nu."""
+        h = self.heading
+        i = bisect.bisect_right(self._heading_t, t)
+        if i == 0:
+            return self.course
+        t0, c0 = h[i - 1]
+        if i == len(h):
+            return c0
+        t1, c1 = h[i]
+        return norm360(c0 + angle_diff(c1, c0) * (t - t0) / (t1 - t0))
 
 
 # --- hjälp för stationerna --------------------------------------------------------
@@ -208,7 +219,11 @@ def own_turns(points: Sequence[tuple[int, float]],
     steady = points[0][1]
     turning_from: float | None = None
     prev = points[0][1]
+    prev_t = points[0][0]
     for t, c in points[1:]:
+        if t <= prev_t:                 # samma tidpunkt två gånger: ingen ny loggning
+            continue
+        prev_t = t
         if turning_from is None:
             if abs(angle_diff(c, steady)) > OWN_TURN_START_DEG:
                 turning_from = steady

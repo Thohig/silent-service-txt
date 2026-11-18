@@ -1044,7 +1044,9 @@ class NavigationStation(Station):
     # --- sonarvyn ----------------------------------------------------------------
     def sonar_items(self) -> list:
         """Vår kurs över tid (för relativ bäring) och våra girar, ur gyrot."""
-        pts = tuple(self.course_log) + ((self.now, round(self.ship.course, 1)),)
+        pts = tuple(self.course_log)
+        if not pts or pts[-1][0] < self.now:          # kursen nu, om den inte just loggats
+            pts += ((self.now, round(self.ship.course, 1)),)
         return [OwnHeading(pts), *own_turns(pts)]
 
     def _log_depth(self) -> None:
