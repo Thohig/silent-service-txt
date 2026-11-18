@@ -36,6 +36,45 @@ stationer som plugin). Förbättringar i prioritetsordning:
 Mindre: ~~importtest~~ (gjort 2026-11-16, `tests/test_import_boundaries.py`); talet är bundet
 till macOS `say`.
 
+### Förslag (granskning 2026-11-18)
+
+I föreslagen ordning; inget ändrar spelet, alla ska ge samma utfall för samma frö (utom 4).
+
+1. **Navigatörens uppdrag som objekt.** `navigation.py` (2 395 rader, ~95 metoder) håller ett tiotal
+   pågående uppdrag som lösa fält och `_x_step`-metoder: `fix_done_t`, `_star`, bottenfixen, `goal`
+   ("station", "circle", "fairway", "wait" …), följ, anfall, väg ut. Ett litet protokoll
+   `NavTask` (`start`, `step`, `abort(skäl)`, `chart_items`) gör varje uppdrag till en egen modul och
+   ger avbrotten ett gemensamt ställe (dagens fel med stjärnfixen från bryggan var ett avbrott som
+   glömts). Delningen följer sedan av sig själv: `navigation/` med bestick och fixar, botten och is,
+   styruppdragen, vägen ut. Steg: flytta ett uppdrag i taget, fixarna först.
+2. **`scenario.py` som paket** (1 222 rader, 14 scenarier): `scenario/` med en modul per scenario
+   och `common.py` (platser, trafik, flyg, `_place`, uppvärmningens piloter). Registreringen som nu.
+3. **Stationernas väg till sanningen synlig.** Stationerna läser `self.game.world` på ~80 ställen i
+   12 moduler. Det mesta är egna instrument och reglage (egen ubåt, `masts_clear`, `emit_em`,
+   avfyring), men regeln "bara sensorer läser World" vaktas inte av importtestet för stationerna.
+   Förslag: `self.instruments` (egna mätare och reglage) och `self.sensors` (det som får se ut i
+   världen: sonar, periskop, brygga, radar, ekolod), och ett test som underkänner `game.world`
+   i stationerna utanför dem.
+4. **Slumpen per station.** Fem moduler drar ur den delade `game.rng` (navigatören, officeren …),
+   så en ny dragning flyttar allt efter den och kalibreringen glider. Bryggan och periskopet har
+   egna strömmar via `hash(game.rng.getstate())`, och övningsledaren `Random(1962)` (samma fel på
+   undervattenstelefonen i alla frön). Förslag: `game.rng_for("bridge")` = `Random(hash((frö, namn)))`
+   för alla stationer. Ändrar utfallen en gång ⇒ kalibreringen körs om efteråt.
+5. **Kalibreringen som regressionstest.** Botarna i `kalibrering/` körs för hand och siffrorna skrivs
+   in i CLAUDE.md, där de glidit (Kvadrat 7: 9 ⇒ 12 av 12). Förslag: varje bot skriver sitt utfall
+   till `kalibrering/baslinje.json`; `uv run kalibrering/kontroll.py` jämför mot baslinjen med
+   tolerans och säger vad som flyttat sig. Körs före större ändringar, inte i CI (minuter).
+6. **Vyernas data en gång per tick.** `Game.chart()`, `sonar()`, `profile()` och `systems()` bygger
+   om allt från stationerna vid varje omritning (sonarvyn 2–4 gånger i sekunden, centralen 10).
+   Cache per `now` (och tidsskala) i `Game`; dagens prestandafel i sonarvyn hade då kostat en gång
+   per tick i stället för per bild.
+7. **CLAUDE.md delas.** Filen är 648 rader, mest systembeskrivningar och kalibreringssiffror per
+   scenario. Behåll regler, arkitektur och fallgropar (~150 rader); flytta systemen till
+   `docs/system/<system>.md` och kalibreringen till `kalibrering/README.md` (siffrorna nära botarna
+   som ger dem). Mindre att läsa i varje session och färre ställen där siffror blir gamla.
+8. **Talet bakom ett gränssnitt.** `say`/Milena/Alva är inbyggt i `ui/audio.py`. En `Voice`-backend
+   (macOS `say`, espeak-ng, tyst) gör att ljudet går att provköra på Linux och i testerna.
+
 ## Gränssnitt och grafik
 
 Granskning 2026-11-15. Byggt sedan dess: braille i sjökort, profil, genomskärning, brygga och
