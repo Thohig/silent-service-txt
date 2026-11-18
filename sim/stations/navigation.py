@@ -22,7 +22,7 @@ from ..seabed import contours, match_soundings
 from ..sonar_view import KEEP_S as SONAR_KEEP_S, OwnHeading, own_turns
 from ..crew import Role
 from ..entities import Transient
-from ..events import IceSounded, OpeningNotFound
+from ..events import IceSounded, OpeningNotFound, OwnActionLogged
 from ..fmt import clock, fmt_course, kn, nm
 from .. import russian as R
 from ..russian import ru
@@ -392,7 +392,8 @@ PHRASES = {
         if d["method"] == "stjärnor" else
         ", tar höjder på månen och några stjärnor mot månhorisonten, cirka fyra minuter."),
     "nav.starfix.refused": lambda d: f"Ingen stjärnfix nu: {d['reason']}.",
-    "nav.starfix.aborted": lambda d: "Stjärnfixen avbröts, vi gick under periskopdjup.",
+    "nav.starfix.aborted": lambda d: "Stjärnfixen avbröts, " + (
+        "bryggan utryms." if d.get("bridge") else "vi gick under periskopdjup."),
     "nav.starfix.done": lambda d: f"Stjärnfix klar, osäkerhet {nm(d['sigma'])} sjömil. Bestick "
     f"korrigerat {nm(d['error'])} sjömil åt {fmt_course(d['bearing'])}.",
     "nav.suggest.starfix": lambda d: f"Kapten, navigatören. {d['when'].capitalize()}: horisonten och "
@@ -1329,6 +1330,7 @@ class NavigationStation(Station):
         t = (COAST_FIX_S if day else COAST_FIX_NIGHT_S) if self._fix_coast else FIX_TIME_S
         own.sys.periscope_until = max(own.sys.periscope_until, self.now + t)
         self.fix_done_t = self.now + t
+        self.game.bus.publish(OwnActionLogged(self.now, "periscope"))   # ⊙ på kortet
         self.say("nav.fix.start", {"coast": self._fix_coast, "day": day}, kind="ack")
 
     def _star_method(self, alm=None) -> tuple[str | None, float, str]:
@@ -1365,18 +1367,20 @@ class NavigationStation(Station):
         if not bridge:
             sigma *= PERISCOPE_SEXTANT_F
             own.sys.periscope_until = max(own.sys.periscope_until, self.now + STAR_FIX_S)
+            self.game.bus.publish(OwnActionLogged(self.now, "periscope"))
         self._star = (self.now + STAR_FIX_S, sigma, method, bridge)
         self.say("nav.starfix.start", {"method": method, "bridge": bridge}, kind="ack")
 
     def _star_step(self) -> None:
-        """Stjärnfixen pågår: avbryts under periskopdjup, ger annars ett fix med sin σ."""
+        """Stjärnfixen pågår: avbryts under periskopdjup eller när bryggan utryms, ger annars
+        ett fix med sin σ."""
         if self._star is None:
             return
         done_t, sigma, method, bridge = self._star
         s = self.ship
-        if not bridge and s.depth > PERISCOPE_DEPTH + 1:
+        if (self.own.sys.bridge != "manned") if bridge else s.depth > PERISCOPE_DEPTH + 1:
             self._star = None
-            self.say("nav.starfix.aborted")
+            self.say("nav.starfix.aborted", {"bridge": bridge})
             return
         if self.now < done_t:
             return

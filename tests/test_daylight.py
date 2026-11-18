@@ -104,3 +104,19 @@ def test_star_fix_aborted_when_we_go_deep():
     g.world.own.state.depth = 60.0
     _run(g, 5)
     assert any(r.type == "nav.starfix.aborted" for r in reports)
+
+
+def test_star_fix_from_the_bridge_aborted_when_we_dive():
+    """Sextanten på bryggan: utryms bryggan avbryts fixen, inget fix kommer från djupet."""
+    g, reports = _game(17.85)
+    st = g.world.own.state
+    st.depth = st.ordered_depth = 0.0
+    st.speed = st.ordered_speed = 5.0
+    _run(g, 40)                                       # bryggan bemannas
+    assert g.world.own.sys.bridge == "manned"
+    g.command("stjärnfix")
+    _run(g, 20)
+    g.command("djup 100")
+    _run(g, STAR_FIX_S + 5)
+    assert any(r.type == "nav.starfix.aborted" for r in reports)
+    assert not any(r.type == "nav.starfix.done" for r in reports)

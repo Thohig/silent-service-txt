@@ -339,3 +339,15 @@ def test_contact_first_heard_and_lost_pencilled_with_designation():
     labels = [m.label for m in _pencil(g.chart(), contacts=True)
               if m.label.startswith(("»", "∅"))]
     assert sorted(labels) == ["» S-9", "∅ S-9"]
+
+
+def test_navigators_periscope_fix_is_pencilled_too():
+    g = _game()
+    plot = g.station(PlotTeam)
+    s = g.world.own.state
+    s.depth = s.ordered_depth = 15
+    s.speed = s.ordered_speed = 3
+    g.command("fix")
+    for _ in range(5):
+        g.tick()
+    assert [m.symbol for m in plot.pencil if m.kind == "periscope"] == ["⊙"]
