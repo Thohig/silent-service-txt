@@ -1,6 +1,6 @@
 # K-114 – idéer och förbättringar som inte är byggda
 
-Samlat 2026-11-15 ur tidigare samtal, uppdaterat 2026-11-18. Inget av detta är beställt; varje punkt
+Samlat 2026-11-15 ur tidigare samtal, uppdaterat 2026-11-18 (kväll). Inget av detta är beställt; varje punkt
 väntar på kaptenens (användarens) beslut. Det som redan är byggt står i CLAUDE.md och README.md;
 konkreta öppna uppgifter (köra om, prova, utreda) i `docs/TODO.md`.
 
@@ -32,12 +32,13 @@ Kvar:
 
 Granskning 2026-11-15. Byggt sedan dess: braille i sjökort, profil, genomskärning, brygga och
 periskopets okular (2026-11-17), ubåtsvyn (djupprofil + systemtavla, 2026-11-16), plottlagets
-blyertsmärken på sjökortet (B1–B3, 2026-11-17; valt i stället för animering, se nedan).
+blyertsmärken på sjökortet (B1–B3, 2026-11-17; valt i stället för animering, se nedan),
+periskopets förstoring och bryggans kikare, hyttens kort och krängningsmätare, ubåtsvyns
+automatiska tidsskala (2026-11-18).
 
 ~~**Sonarvy med vattenfall**~~ – byggd 2026-11-17 (S1–S5, se `docs/system/vyer.md`); rättad 2026-11-18
-(girmärken, relativ bäring). Kvar att pröva (`docs/TODO.md`): om
-lösningskurvan ska vara på som standard, och om vyn behöver ett läge med bara hot. Ej provkörd
-för hand i riktig terminal.
+(girmärken, relativ bäring). Lösningskurvan på från början och neutrala kontakter nedtonade
+(2026-11-18) i stället för ett läge med bara hot. Ej provkörd för hand i riktig terminal.
 
 ~~**Snabba fixar**~~ – gjorda 2026-11-17 (F1–F5a): huvudradens kontakter hot först och i färg,
 sonarpanelen räknar, profilens band heter "sonar hörde", utkikens avstånd i periskopbilden,
@@ -60,10 +61,9 @@ per uppdrag. Kräver ny kalibrering.
 
 ### ~~Periskopets förstoring~~ (byggd 2026-11-18, Z1–Z4, se `docs/system/utkik.md`)
 
-- **Z1** låg/hög förstoring (32°/8° synfält), bedömningens σ efter förstoringen.
-- **Z2** besättningen växlar själv: svep i låg, titt i hög.
-- **Z3** siluetten skalad efter vinkelstorleken (braille).
-- **Z4** kikaren på bryggan 7×.
+Byggt: låg/hög förstoring med σ efter förstoringen, svep i låg och titt i hög, upptäckt efter
+vinkelstorlek och horisont, okularet efter förstoringen med stadimeterns streck, utkikens kikare 7×
+och kikaren i bryggvyn. Kvar som idé: siluetter i braille skalade steglöst efter vinkelstorleken.
 
 Periskopet ser ännu inte land eller händelser (bara bryggan gör det). Ingen däckskanon (627A hade
 ingen; föreslå inte).
