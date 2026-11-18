@@ -240,7 +240,7 @@ class BottomMixin:
         world.emit(Transient("echosounder", s.x, s.y, s.depth,
                              acoustics.ECHO_SOUNDER_LEVEL, world.own.id, self.now))
         bottom = world.env.bottom_at(s.x, s.y)
-        under = round(bottom - s.depth + self.game.rng.gauss(0, 2 + bottom * 0.005), -1)
+        under = round(bottom - s.depth + self.rng.gauss(0, 2 + bottom * 0.005), -1)
         self.bottom_soundings.append(BottomSounding(self.now, s.depth + under,
                                                     self.est_x, self.est_y))
         return s.depth + under

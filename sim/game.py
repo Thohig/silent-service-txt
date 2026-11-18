@@ -129,6 +129,10 @@ class Game:
                  truth_log: TruthLog | None = None,
                  stations: list[type[Station]] | None = None, warm_up: bool = True):
         self.rng = random.Random(seed)
+        # en egen slumpström per station och användning (rng_for), så att en ny dragning i en
+        # station inte flyttar allt annat; samma frö ⇒ samma strömmar
+        self._rng_base = seed if seed is not None else self.rng.getrandbits(64)
+        self._rngs: dict[str, random.Random] = {}
         self.scenario = scenario
         self.world = scenario.world
         env = self.world.env
@@ -237,12 +241,19 @@ class Game:
     def clock_str(self, sim_t: int | None = None) -> str:
         return clock(self.start_clock + (self.now if sim_t is None else sim_t))
 
+    def rng_for(self, name: str) -> random.Random:
+        """Slumpströmmen för `name` (t.ex. "navigation", "delay:sonar"): densamma varje gång,
+        oberoende av de andra strömmarna och av PYTHONHASHSEED (strängfrö går via sha512)."""
+        if name not in self._rngs:
+            self._rngs[name] = random.Random(f"{self._rng_base}:{name}")
+        return self._rngs[name]
+
     # ------------------------------------------------------------------ rapporter
     def say(self, role: Role, type: str, data: dict[str, Any], *, kind: str = "info",
             quality: Quality | None = None, alarm: bool = False, extra_delay: int = 0) -> None:
         member = self.crew[role]
         self.queue.submit(Report(
-            t_due=self.now + member.report_delay(self.rng) + extra_delay,
+            t_due=self.now + member.report_delay(self.rng_for(f"delay:{role.value}")) + extra_delay,
             speaker=member.callsign, type=type, data=data, role=role.value,
             quality=quality, alarm=alarm, kind=kind))
 

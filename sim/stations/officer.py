@@ -228,6 +228,7 @@ class OfficerStation(Station):
 
     def __init__(self, game):
         super().__init__(game)
+        self.rng = game.rng_for("officer")
         self.radar_done_t: int | None = None
         self.photo_done_t: int | None = None
         self._esm_last: dict[str, tuple[str, int]] = {}
@@ -405,7 +406,7 @@ class OfficerStation(Station):
                  label: str, velocity=None) -> dict:
         """En observation till plottet. velocity(): periskopets bedömning
         (kurs, σ, fart, σ), dras efter bäring och avstånd."""
-        world, rng = self.world, self.game.rng
+        world, rng = self.world, self.rng
         sonar = self._sonar().sensor
         desig = sonar.designate(v.id)
         bearing = norm360(world.true_bearing(v) + rng.gauss(0, bearing_sigma))
@@ -459,7 +460,7 @@ class OfficerStation(Station):
         n = sum(1 for v in targets if world.true_range(v) <= r + 1.0)
         world.mission["best_photo"] = max(world.mission.get("best_photo", -1), int(q))
         self.game.bus.publish(PhotoTaken(self.now, q, "ankarplatsen"))
-        self.say("off.photo.done", {"range": r * self.game.rng.uniform(0.9, 1.1), "count": n,
+        self.say("off.photo.done", {"range": r * self.rng.uniform(0.9, 1.1), "count": n,
                                     "quality": q.label, "day": world.env.daylight(self.now)},
                  quality=q)
 
@@ -479,7 +480,7 @@ class OfficerStation(Station):
 
     def _esm_air(self) -> None:
         """Flygradar: stark på långt håll, och bäringen drar snabbt."""
-        world, rng = self.world, self.game.rng
+        world, rng = self.world, self.rng
         for v in world.contacts:
             if v.kind != "aircraft" or v.gone:
                 continue
@@ -505,7 +506,7 @@ class OfficerStation(Station):
                 if v.side != "own" and v.is_ship and not v.sunk and v.depth < 10]
 
     def update(self) -> None:
-        world, st, rng = self.world, self.own.state, self.game.rng
+        world, st, rng = self.world, self.own.state, self.rng
         self._idle_watch()
         self._battle_watch()
         if self.now % CONVOY_STEP_S == 0:

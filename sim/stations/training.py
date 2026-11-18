@@ -9,7 +9,6 @@ uppdraget (`TrainingGoal`) räknas som genomfört en halv minut senare.
 """
 from __future__ import annotations
 
-import random
 from dataclasses import dataclass
 
 from .. import phrases
@@ -88,7 +87,7 @@ class TrainingOfficer(Station):
         self._listen_t: int | None = None     # när lyssningsövningen föreslogs första gången
         self._torp_t: int | None = None       # när torpedövningen gicks igenom första gången
         self._fired_t: int | None = None      # senaste avfyring (vårt eget ljud)
-        self.rng = random.Random(1962)          # undervattenstelefonens fel: egen slump
+        self.rng = game.rng_for("training")   # undervattenstelefonens fel
 
     def attach(self, bus) -> None:
         super().attach(bus)

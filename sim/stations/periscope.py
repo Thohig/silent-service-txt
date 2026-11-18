@@ -24,7 +24,6 @@ per hissning. Egen slump, så att periskopet inte flyttar resten av spelets drag
 """
 from __future__ import annotations
 
-import random
 from dataclasses import dataclass, replace
 
 from .. import phrases
@@ -187,7 +186,7 @@ class PeriscopeWatch(Station):
     def __init__(self, game):
         super().__init__(game)
         # egen slump (fröet ur spelets oanvända tillstånd, skilt från bryggans)
-        self.rng = random.Random(hash(game.rng.getstate()) ^ 0x9E3779B9)
+        self.rng = game.rng_for("periscope")
         self.mode: str | None = None        # sweep, look, hold; None = nere
         self.optic = "periskop"             # periskop, eller kikare från bryggan
         self.train = 0.0                    # okularets bäring (sann)

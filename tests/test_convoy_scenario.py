@@ -97,6 +97,9 @@ def test_salvo_fans_out_around_the_solution():
 
 def test_two_unknown_pingers_on_different_bearings_are_not_a_fast_pinger():
     g, reports = _game(1)
+    for ai in g.world.ais:                        # scenariots egna eskorter tiger under provet
+        if hasattr(ai, "next_ping"):
+            ai.next_ping = 10**9
     sonar = g.station(SonarRoom)
     from sim.sonar import TransientHeard
     for k in range(6):

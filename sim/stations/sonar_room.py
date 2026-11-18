@@ -6,7 +6,6 @@ plottlaget och torpedrummet lyssnar utan att känna till sonaren.
 """
 from __future__ import annotations
 
-import random
 from dataclasses import dataclass
 
 from .. import acoustics, phrases
@@ -210,7 +209,7 @@ class SonarRoom(Station):
 
     def __init__(self, game):
         super().__init__(game)
-        self.sensor = SonarStation(self.member, random.Random(game.rng.random()))
+        self.sensor = SonarStation(self.member, game.rng_for("sonar"))
         self._last_called: dict[str, tuple[float, int]] = {}
         self._pings: dict[str, dict] = {}
         self._unknown_pingers = 0

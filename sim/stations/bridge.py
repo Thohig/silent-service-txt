@@ -14,7 +14,6 @@ och flyg i sikte eller en jagare nära ger förslag att dyka.
 """
 from __future__ import annotations
 
-import random
 
 import numpy as np
 
@@ -146,7 +145,7 @@ class BridgeWatch(Station):
         super().__init__(game)
         # egen slump, så att utkiken inte flyttar resten av spelets dragningar;
         # fröet ur spelets (oanvända) tillstånd, alltså samma för samma frö
-        self.rng = random.Random(hash(game.rng.getstate()))
+        self.rng = game.rng_for("bridge")
         self._hatch = self.own.sys.bridge
         self._judges = Judges(JUDGE_EVERY_S)
         self._seen: dict[str, int] = {}

@@ -74,7 +74,7 @@ class IceMixin:
         if ice is None or self.now < self._next_sound:
             return
         self._next_sound = self.now + SOUNDER_INTERVAL_S
-        s, rng = self.ship, self.game.rng
+        s, rng = self.ship, self.rng
         skill = self.member.effective_skill()
         t_true = ice.thickness_at(s.x, s.y)
         if t_true < OPEN_M:

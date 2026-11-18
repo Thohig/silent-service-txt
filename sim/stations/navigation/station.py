@@ -124,7 +124,7 @@ class NavigationStation(BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixi
         self.dr_track: list[list[tuple[float, float]]] = [[(s.x, s.y)]]
         self.dr_ticks: list[tuple[int, float, float]] = []   # besticket var 10:e min på klockan
         self.fixes: list[tuple[float, float, int]] = []
-        rng = game.rng
+        self.rng = rng = game.rng_for("navigation")
         skill = self.member.effective_skill()
         self.gyro_err = rng.gauss(0, 0.3)
         self.log_bias = rng.gauss(0, 0.01 + 0.02 * (1 - skill))

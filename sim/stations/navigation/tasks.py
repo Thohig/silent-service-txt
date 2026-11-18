@@ -64,7 +64,7 @@ class PositionFix(NavTask):
     def step(self, nav: NavigationStation) -> bool:
         if nav.now < self.done_t:
             return False
-        s, rng = nav.ship, nav.game.rng
+        s, rng = nav.ship, nav.rng
         e = COAST_FIX_SIGMA if self.coast else 0.08
         new_x, new_y = s.x + rng.gauss(0, e), s.y + rng.gauss(0, e)
         err = distance(nav.est_x, nav.est_y, new_x, new_y)
@@ -92,7 +92,7 @@ class StarFix(NavTask):
     def step(self, nav: NavigationStation) -> bool:
         if nav.now < self.done_t:
             return False
-        s, rng, sigma = nav.ship, nav.game.rng, self.sigma
+        s, rng, sigma = nav.ship, nav.rng, self.sigma
         new_x, new_y = s.x + rng.gauss(0, sigma), s.y + rng.gauss(0, sigma)
         err = distance(nav.est_x, nav.est_y, new_x, new_y)
         b = bearing_to(nav.est_x, nav.est_y, new_x, new_y)
