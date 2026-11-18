@@ -297,7 +297,8 @@ class TorpedoRoom(Station):
         CommandSpec(rf"(?:skjutlösning|skjutlosning|eldlösning|eldlosning)(?:\s+{DESIG})?",
                     lambda m: FiringSolution(desig(m[1])), "skjutlösning S-1"),
         CommandSpec(rf"(?:eld|avfyra|fyr|skjut)\s+tub\s+(\d)\s*-\s*(\d)\s+(?:mot\s+)?{DESIG}",
-                    lambda m: FireSalvo(desig(m[3]), tuple(range(int(m[1]), int(m[2]) + 1))),
+                    lambda m: FireSalvo(desig(m[3]), tuple(range(min(int(m[1]), int(m[2])),
+                                                                 max(int(m[1]), int(m[2])) + 1))),
                     "eld tub 1-3 mot S-1"),
         CommandSpec(rf"salva\s+(?:mot\s+)?{DESIG}", lambda m: FireSalvo(desig(m[1])), "salva S-1"),
         CommandSpec(r"skenmål|skenmal|motmedel", lambda m: LaunchDecoy(), "skenmål"),
@@ -406,6 +407,11 @@ class TorpedoRoom(Station):
             gap = min(max(err, SALVO_GAP_NM), SALVO_GAP_MAX_NM)
         step = math.degrees(math.atan2(gap, max(dist, 0.1)))
         step = min(max(step, SALVO_STEP_DEG[0]), SALVO_STEP_DEG[1])
+        # hela salvan eller ingen: en tub som inte kan skjuta stoppar den innan någon gått
+        for tube in tubes:
+            if why := self._refusal(FireTube(tube, designation=o.designation)):
+                self.say("torp.refused", {"reason": why})
+                return
         n = len(tubes)
         for i, tube in enumerate(tubes):
             off = (i - (n - 1) / 2) * step
@@ -416,7 +422,8 @@ class TorpedoRoom(Station):
         if aim:
             self._leg_warning(o.designation, aim[1], first_type)
 
-    def _fire(self, o: FireTube) -> bool:
+    def _refusal(self, o: FireTube) -> str | None:
+        """Varför tuben inte kan skjuta nu (tuben, djup och fart, tillstånd, målet), annars None."""
         tube = self._tube(o.tube)
         st, sys = self.own.state, self.own.sys
         reason = None
@@ -434,26 +441,28 @@ class TorpedoRoom(Station):
             reason = f"farten är för hög för avfyring, högst {MAX_LAUNCH_SPEED} knop"
         elif b := self._blocked(tube.load):
             reason = b
-        if reason:
+        elif o.designation:
+            tr, sol = self._solution_for(o.designation)
+            if tr is None:
+                reason = f"vi har ingen kontakt {o.designation}"
+            elif sol is None:
+                reason = f"plottet har ingen lösning på {o.designation}"
+            elif self._aim(sol, tube.load) is None:
+                reason = f"{o.designation} är utom räckhåll för {TORPEDO_TYPES[tube.load].key}"
+        return reason
+
+    def _fire(self, o: FireTube) -> bool:
+        if reason := self._refusal(o):
             self.say("torp.refused", {"reason": reason})
             return False
+        tube = self._tube(o.tube)
         spec = TORPEDO_TYPES[tube.load]
         quality = None
         run_s = None
         detonate_at = None
         if o.designation:
             tr, sol = self._solution_for(o.designation)
-            if tr is None:
-                self.say("torp.refused", {"reason": f"vi har ingen kontakt {o.designation}"})
-                return False
-            if sol is None:
-                self.say("torp.refused", {"reason": f"plottet har ingen lösning på {o.designation}"})
-                return False
-            aim = self._aim(sol, tube.load)
-            if aim is None:
-                self.say("torp.refused", {"reason": f"{o.designation} är utom räckhåll för {spec.key}"})
-                return False
-            course, run_s, dist = aim
+            course, run_s, dist = self._aim(sol, tube.load)
             course = (course + o.offset) % 360
             if not tr.warship and not (spec.exercise and tr.friendly) and \
                     self._confirmed.get(tr.designation, -10**9) < self.now - CONFIRM_S:

@@ -138,6 +138,7 @@ def test_a_two_torpedo_salvo_still_warns_about_the_zigzag():
     room._aim = lambda s, load: (90.0, 300.0, 2.0)
     fired, warned = [], []
     room._fire = lambda o: fired.append(o) or True
+    room._refusal = lambda o: None
     room._leg_warning = lambda d, run_s, kind: warned.append((d, run_s))
     room._salvo(FireSalvo("S-1", (1, 2)))
     assert len(fired) == 2 and all(o.offset != 0.0 for o in fired)

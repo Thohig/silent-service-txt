@@ -135,3 +135,24 @@ def test_tubes_and_torpedoes_are_separate_orders():
         g.tick()
     t = _types(reports)
     assert "torp.status" in t and "torp.in_water" in t
+
+
+def test_salvo_is_all_or_nothing():
+    """En tub i intervallet som inte får skjuta (T-5 utan order) stoppar salvan innan någon går."""
+    g, reports = _game(1)
+    _setup(g)
+    room = g.station(TorpedoRoom)
+    room.tubes[1].load = "T-5"
+    loaded = [t.load for t in room.tubes]
+    g.command("eld tub 1-3 mot S-1")
+    for _ in range(5):
+        g.tick()
+    assert [t.load for t in room.tubes] == loaded and not room.in_water
+    refused = [r for r in reports if r.type == "torp.refused"]
+    assert refused and "kärnladdningen" in refused[0].text
+
+
+def test_reverse_tube_range_means_the_same_tubes():
+    from sim.stations.torpedo_room import FireSalvo
+    g, _ = _game(1)
+    assert g.registry.parse("eld tub 3-1 mot S-1") == FireSalvo("S-1", (1, 2, 3))
