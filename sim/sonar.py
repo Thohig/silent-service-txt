@@ -32,9 +32,9 @@ INCOMING_LOSE_AFTER = 15   # fientlig torped: så länge tyst innan den räknas 
 _CLASS_STAGES = {
     "destroyer": ["okänd kontakt", "ytfartyg", "ytfartyg, tvåskruv, trolig jagare",
                   "jagare, ångturbiner, två axlar"],
-    "merchant": ["okänd kontakt", "ytfartyg", "ytfartyg, enskruv, trolig handelsfartyg",
+    "merchant": ["okänd kontakt", "ytfartyg", "ytfartyg, enskruv, troligt handelsfartyg",
                  "handelsfartyg, diesel, en axel"],
-    "guardship": ["okänd kontakt", "ytfartyg", "ytfartyg, tvåskruv, trolig bevakningsfartyg",
+    "guardship": ["okänd kontakt", "ytfartyg", "ytfartyg, tvåskruv, troligt bevakningsfartyg",
                   "bevakningsfartyg, ångturbiner, två axlar"],
     "patrol": ["okänd kontakt", "ytfartyg", "ytfartyg, tvåskruv, snabbgående, trolig patrullbåt",
                "patrullbåt, diesel, två axlar"],

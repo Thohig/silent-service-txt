@@ -35,7 +35,7 @@ from ..events import (OwnActionLogged, BearingObserved, ClassificationChanged, C
 from ..fmt import fmt_course, kn, nm
 from ..geo import angle_diff, norm360, velocity
 from ..ice import ice_view
-from ..orders import DESIG, CommandSpec, Order, desig
+from ..orders import DESIG, CommandSpec, Order, Unknown, desig
 from ..ownship import PERISCOPE_DEPTH
 from ..periscope import (sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
                          LandBearing, NIGHT_LAND,
@@ -97,6 +97,12 @@ def _power(word: str) -> str:
     return "hög" if word.lower().startswith("h") else "låg"
 
 
+def _bearing(m, build) -> Order:
+    """Bäringen 000–360 (360 är norr); `periskop 400` ska inte tyst bli 040."""
+    b = int(m[1])
+    return build(b % 360) if b <= 360 else Unknown("", "bäringen måste vara 000–359")
+
+
 @dataclass(frozen=True)
 class PeriscopeTrain(Order):
     """Vrid okularet. Kaptenens hand på periskopet, inte en order till besättningen."""
@@ -136,7 +142,7 @@ PHRASES = {
     f"{d['designation']}. Masten kan synas på deras radar. Föreslår periskop ned.",
     "off.periscope.none": lambda d: (f"Periskop: inget i sikte i bäring {fmt_course(d['sector'])}. "
                                      if d.get("sector") is not None else "Periskop: inget i sikte. ")
-    + f"{'Dagsljus' if d['day'] else 'Mörkt'}, sikt cirka {nm(d['visibility'])} sjömil. Periskop ner.",
+    + f"{'Dagsljus' if d['day'] else 'Mörkt'}, sikt cirka {kn(d['visibility'])} sjömil. Periskop ner.",
     "off.periscope.station": lambda d: f"Periskop: ljus på isen i bäring {fmt_course(d['bearing'])}, "
     f"avstånd cirka {nm(d['range'])} sjömil. Baracker och radiomaster. Det måste vara Nord-7! "
     "Inga rörelser, inget ljus i fönstren.",
@@ -148,7 +154,7 @@ PHRASES = {
     "off.binoculars.down": lambda d: "Kikaren ner.",
     "off.binoculars.none": lambda d: (f"Kikaren: inget i sikte i bäring {fmt_course(d['sector'])}. "
                                       if d.get("sector") is not None else "Kikaren: inget i sikte. ")
-    + f"{'Dagsljus' if d['day'] else 'Mörkt'}, sikt cirka {nm(d['visibility'])} sjömil.",
+    + f"{'Dagsljus' if d['day'] else 'Mörkt'}, sikt cirka {kn(d['visibility'])} sjömil.",
     "off.periscope.land": lambda d: f"Periskop: land i sikte, närmast i bäring "
     f"{fmt_course(d['bearing'])}, cirka {nm(d['range'])} sjömil.",
     "off.periscope.aircraft": lambda d: f"Periskop: flygplan i bäring {fmt_course(d['bearing'])}, "
@@ -197,7 +203,7 @@ class PeriscopeWatch(Station):
         CommandSpec(rf"(?:periskop|titta)\s+(?:mot\s+)?{DESIG}",
                     lambda m: PeriscopeLook(target=desig(m[1])), "periskop S-3"),
         CommandSpec(r"(?:periskop|titta)\s+(?:mot\s+|bäring\s+|baring\s+)?(\d{1,3})",
-                    lambda m: PeriscopeLook(bearing=int(m[1]) % 360), "periskop 047"),
+                    lambda m: _bearing(m, lambda b: PeriscopeLook(bearing=b)), "periskop 047"),
         CommandSpec(r"periskop upp|håll periskopet uppe|hall periskopet uppe",
                     lambda m: PeriscopeHold(), "periskop upp"),
         CommandSpec(r"periskop (?:ned|ner|in)|periskopet (?:ned|ner)|fäll periskopet|fall periskopet",
@@ -209,7 +215,7 @@ class PeriscopeWatch(Station):
         CommandSpec(rf"vrid periskop(?:et)?\s+(?:mot\s+)?{DESIG}",
                     lambda m: PeriscopeTrain(target=desig(m[1]))),
         CommandSpec(r"vrid periskop(?:et)?\s+(?:mot\s+|bäring\s+|baring\s+)?(\d{1,3})",
-                    lambda m: PeriscopeTrain(bearing=int(m[1]) % 360)),
+                    lambda m: _bearing(m, lambda b: PeriscopeTrain(bearing=b))),
     ]
 
     def __init__(self, game):

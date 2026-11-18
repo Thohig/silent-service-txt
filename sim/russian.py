@@ -85,12 +85,12 @@ CLASS_RU = {
     "ytfartyg": "надводная цель",
     "ytfartyg, tvåskruv, trolig jagare": "надводная цель, двухвальная, вероятно эсминец",
     "jagare, ångturbiner, två axlar": "эсминец, паровые турбины, два вала",
-    "ytfartyg, enskruv, trolig handelsfartyg": "надводная цель, одновальная, вероятно транспорт",
+    "ytfartyg, enskruv, troligt handelsfartyg": "надводная цель, одновальная, вероятно транспорт",
     "handelsfartyg, diesel, en axel": "транспорт, дизель, один вал",
     "ytfartyg, tvåskruv, snabbgående, trolig patrullbåt":
         "надводная цель, двухвальная, быстроходная, вероятно сторожевой катер",
     "patrullbåt, diesel, två axlar": "сторожевой катер, дизели, два вала",
-    "ytfartyg, tvåskruv, trolig bevakningsfartyg":
+    "ytfartyg, tvåskruv, troligt bevakningsfartyg":
         "надводная цель, двухвальная, вероятно сторожевой корабль",
     "bevakningsfartyg, ångturbiner, två axlar": "сторожевой корабль, паровые турбины, два вала",
     "bevakningsfartyg, sovjetiskt": "наш сторожевой корабль",

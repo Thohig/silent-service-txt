@@ -370,7 +370,7 @@ class FirstOfficer(Station):
                  "contacts": [], "civil": 0, "convoy": None}
         st = self.own.state
         d.update(depth=st.ordered_depth, course=st.ordered_course,
-                 speed=round(st.ordered_speed))
+                 speed=round(st.ordered_speed, 1))
         return d
 
     def _mark_seen(self) -> None:

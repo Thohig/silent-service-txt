@@ -132,7 +132,7 @@ def test_hiding_under_a_merchant_hides_us_from_the_destroyer():
 def test_merchant_classified_as_civil_is_not_a_threat():
     g, _ = _game()
     k = g.knowledge
-    g.bus.publish(ContactDetected(0, "S-7", 10.0, "ytfartyg, enskruv, trolig handelsfartyg",
+    g.bus.publish(ContactDetected(0, "S-7", 10.0, "ytfartyg, enskruv, troligt handelsfartyg",
                                   Quality.GOD))
     tr = k.track("S-7")
     assert tr.civil and tr.benign and not tr.threat and not tr.warship

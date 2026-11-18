@@ -126,3 +126,10 @@ def test_russian_speech_is_pure_cyrillic_over_a_patrol():
         assert sum(r.type in RU_PHRASES for r in spoken) > 0.8 * len(spoken), key
         for r in spoken:
             assert r.speech and not re.search(r"[A-Za-zÅÄÖåäö]", r.speech), (r.type, r.speech)
+
+
+def test_half_knots_are_spoken_not_rounded_away():
+    from sim.phrases import RU_PHRASES
+    assert "пять десятых узла" in RU_PHRASES["nav.speed.ack"]({"speed": 0.5})
+    assert "5 и пять десятых узла" in RU_PHRASES["nav.speed.done"]({"speed": 5.5})
+    assert "Есть, ход 6 узлов." == RU_PHRASES["nav.speed.ack"]({"speed": 6})

@@ -715,3 +715,13 @@ def test_periscope_land_range_is_rough_but_honest_over_seeds():
     assert errs
     mean_abs = sum(abs(e) for e in errs) / len(errs)
     assert 0.0 < mean_abs < 0.3                                # ögonmått i låg förstoring, σ 15 %
+
+
+def test_periscope_bearing_out_of_range_is_refused_not_wrapped():
+    from sim.orders import Unknown
+    from sim.stations.periscope import PeriscopeLook, PeriscopeTrain
+    g = _game_at_periscope_depth(day=True, dd_range=5.0)
+    assert isinstance(g.registry.parse("periskop 400"), Unknown)
+    assert isinstance(g.registry.parse("vrid periskop 361"), Unknown)
+    assert g.registry.parse("periskop 360") == PeriscopeLook(bearing=0)
+    assert g.registry.parse("vrid periskop 047") == PeriscopeTrain(bearing=47)

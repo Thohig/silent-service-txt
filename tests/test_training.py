@@ -191,7 +191,7 @@ def test_exercise_ship_is_friendly_and_stays_in_the_area():
 
 def test_guardship_track_is_friendly_not_a_threat():
     from sim.knowledge import ContactTrack
-    tr = ContactTrack("S-2", 0, classification="ytfartyg, tvåskruv, trolig bevakningsfartyg")
+    tr = ContactTrack("S-2", 0, classification="ytfartyg, tvåskruv, troligt bevakningsfartyg")
     assert tr.friendly and not tr.threat
     assert ContactTrack("S-3", 0, classification="ytfartyg").threat
 
@@ -279,7 +279,7 @@ def test_firing_solution_on_the_guardship_only_during_the_torpedo_exercise():
                    course_sigma=10.0, speed_sigma=1.0, quality=Quality.GOD, n_obs=30,
                    span_s=600, own_maneuvered=True, rms_residual=0.5)
     g.knowledge.tracks["S-9"] = ContactTrack(
-        "S-9", 0, classification="ytfartyg, tvåskruv, trolig bevakningsfartyg",
+        "S-9", 0, classification="ytfartyg, tvåskruv, troligt bevakningsfartyg",
         class_quality=Quality.GOD, solution=sol)
     said = []
     room.suggest = lambda key, typ, data, **kw: said.append(typ)

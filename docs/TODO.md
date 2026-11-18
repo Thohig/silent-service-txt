@@ -18,11 +18,32 @@ Inget just nu.
 
 ## Utreda
 
-Inget just nu.
+Från provspelet 2026-11-18 (huvudlösa botar med blandade order och ja-boten):
+
+- **Plottets benförslag mot land.** `sundet-ut`, frö 1, ja-boten: plottet föreslår `kurs 240` rakt mot
+  stranden 0,1 nm bort; båten tar i botten. Navigatören säger inget, eftersom kortet visar land redan
+  där besticket står (-10 m), och då är alla kurser lika dåliga i `_land_watch`. En `vetoes` i
+  navigatören för kursförslag mot kortets land vore naturlig men flyttar spelet (kör `kontroll.py`).
+- **Båten står tyst mot stranden.** I låg fart mot en brant strand flyttas båten tillbaka varje sekund
+  (nu också kursen, se `seabed.bottom_contact`). Den står still med fart på loggen, besticket glider
+  (0,35 nm på 20 min) och kursen blir aldrig "påkommen". Bara en `bottom.touch` i början.
+- **Arktis: ytläge i en öppning korsad i annan vinkel.** `arktis-kort`, frö 4: navigatören stoppar under
+  öppning 2 och föreslår ytläge, men för- och akterskeppet står under tjock is (`ice.bump`). Öppningens
+  längd mäts längs banan där den loggades, inte längs vår kurs nu.
+- **Arktis: vaken stannar i kanten.** Samma frö: `nav.suggest.up` (öppet vatten) och fem sekunder senare
+  `nav.suggest.resume` (tjock is) när båten krupit eller isen drivit förbi kanten.
+- **Pingar "för första gången" igen.** När sonar tappat jagaren säger den `sonar.ping.first` ("Någon
+  söker") fast pingarna hörts i tolv minuter (`konvoj-mot`, frö 2, 06:45).
 
 ## Beslut som väntar på kaptenen
 
-Inget just nu.
+- **Förslag skriver över varandra.** Det senaste förslaget ersätter det väntande, oavsett larm. Över 40
+  korta spel med ja-boten: 75 förslag ersatta inom 10 s, ungefär hälften larmförslag som ersatts av
+  rutinförslag (`sonar.suggest.depth_change!` → `torp.suggest.decoy`/`eng.suggest.sprint`,
+  `off.suggest.down!` "flygradar, nära" → `radio.suggest.report`). Ska ett larmförslag stå kvar en stund
+  mot ett vanligt? Ändrar ja-botens siffror.
+- **Ryska fraser saknas för 81 typer** (av 340), bland dem larm som hörs ofta: `off.esm`, `off.esm.air`,
+  `off.suggest.down`, `ice.bump`, `net.caught`, `torp.in_water`. Testet kräver bara 80 % av det som sägs.
 
 ## Små brister i bilden
 

@@ -42,7 +42,8 @@ PHRASES = {
     + (f" Det är is ovanför, kapten, vi kommer inte högre än cirka {d['ice_ceiling']:.0f} meter."
        if d.get("ice_ceiling") else
        " Det är is ovanför, kapten, masterna kommer inte upp här." if d.get("ice_masts") else "")
-    + (f" Kortet visar botten på cirka {d['shoal']:.0f} meter här, kapten." if d.get("shoal") else ""),
+    + ("" if "shoal" not in d else " Kortet visar land här, kapten." if d["shoal"] <= 0
+       else f" Kortet visar botten på cirka {d['shoal']:.0f} meter här, kapten."),
     "nav.settle.ack": lambda d: f"{ru('Jest')}, lägger oss på botten. "
     + (f"Ekolodet gav {d['depth']:.0f} meter" if d.get("sounded") else
        f"Kortet visar cirka {d['depth']:.0f} meter")
@@ -289,8 +290,9 @@ def _ru_depth_ack(d: dict) -> str:
         txt += f" Над нами лёд, выше {R.count(d['ice_ceiling'], R.METER)} не поднимемся."
     elif d.get("ice_masts"):
         txt += " Над нами лёд, мачты здесь не поднять."
-    if d.get("shoal"):
-        txt += f" По карте глубина здесь около {R.count(d['shoal'], R.METER)}."
+    if "shoal" in d:
+        txt += " По карте здесь земля." if d["shoal"] <= 0 else \
+            f" По карте глубина здесь около {R.count(d['shoal'], R.METER)}."
     return txt
 
 
@@ -302,13 +304,13 @@ RU_PHRASES = {
     "nav.course.ack": lambda d: f"Есть, курс {R.course(d['course'])}."
     + (" Уже на курсе." if d.get("already") else ""),
     "nav.speed.ack": lambda d: "Есть, стоп машина." if d["speed"] == 0
-    else f"Есть, ход {R.count(d['speed'], R.KNOT)}.",
+    else f"Есть, ход {R.dec(d['speed'], R.KNOT)}.",
     "nav.depth.ack": _ru_depth_ack,
     "nav.course.done": lambda d: f"{R.CAPTAIN}, легли на курс {R.course(d['course'])}.",
-    "nav.speed.done": lambda d: f"Ход {R.count(d['speed'], R.KNOT)}.",
+    "nav.speed.done": lambda d: f"Ход {R.dec(d['speed'], R.KNOT)}.",
     "nav.depth.done": lambda d: "Мы в надводном положении, товарищ командир." if d["depth"] < 1
     else f"Глубина {R.count(d['depth'], R.METER)}, товарищ командир.",
-    "nav.limit": lambda d: f"{R.CAPTAIN}, предельный ход сейчас {R.count(d['limit'], R.KNOT)}."
+    "nav.limit": lambda d: f"{R.CAPTAIN}, предельный ход сейчас {R.dec(d['limit'], R.KNOT)}."
     if d["what"] == "speed" else f"{R.CAPTAIN}, предельная глубина {R.count(d['limit'], R.METER)}.",
     "nav.settle.ack": lambda d: f"Есть, ложимся на грунт. Глубина около {R.count(d['depth'], R.METER)}. "
     "Ход один узел, погружаемся.",
