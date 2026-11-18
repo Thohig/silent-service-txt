@@ -32,8 +32,8 @@ inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18. Stryk det so
 
 ## Beslut som väntar på kaptenen
 
-- **Torpedrummet:** varna (eller vägra utan `ändå`) när en känd neutral kontakt ligger nära
-  skjutriktningen inom torpedens räckvidd? Ur kunskapen: bäring och lösning på neutrala.
+- ~~Torpedrummet: varna för neutrala i skjutriktningen~~ – byggt 2026-11-18 (`torp.neutral`): varning, inte
+  vägran; upprepad order inom en minut skjuter.
 
 - ~~Konvojen: periskoptitt strax före skjutläget~~ – byggd 2026-11-18 (`off.suggest.fire_look`).
 - ~~Sonarvyn: lösningskurvan på som standard~~ – ja, 2026-11-18.

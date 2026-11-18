@@ -181,3 +181,59 @@ def test_sinking_a_merchant_ends_the_patrol():
 def test_merchant_is_loud_enough_to_hear_at_distance():
     """Ett handelsfartyg i 12 kn hörs ungefär som jagaren i patrullfart."""
     assert abs(acoustics.source_level("merchant", 12) - acoustics.source_level("destroyer", 15)) < 6
+
+
+def _target_and_merchant_behind(g):
+    """Jagaren 2 nm rakt fram (mål) och ett känt handelsfartyg 4 nm bortom den i banan."""
+    w = g.world
+    o = w.own.state
+    o.depth = o.ordered_depth = 20
+    o.speed = 3.0
+    dd, m = w.contacts[0], _merchants(g)[0]
+    ex, ey = g.own_position_estimate()
+    _place(dd, ex, ey + 2.0)
+    _place(m, ex + 0.1, ey + 4.0)
+    _known(g, "S-7", "jagare", Quality.GOD, dd)
+    _known(g, "S-8", "handelsfartyg", Quality.GOD, m)
+    for tr in g.knowledge.tracks.values():
+        g.knowledge.resolve(tr.designation, g.now, (ex, ey))
+    return g.station(TorpedoRoom)
+
+
+def test_torpedo_room_warns_about_a_merchant_in_the_torpedo_lane():
+    g, reports = _game()
+    room = _target_and_merchant_behind(g)
+    loaded = room.tubes[0].load
+    g.command("eld tub 1 mot S-7")
+    _run(g, 5)
+    assert room.tubes[0].load == loaded                 # inget skott ännu
+    warn = [r for r in reports if r.type == "torp.neutral"]
+    assert warn and "S-8" in warn[0].text and "Upprepa" in warn[0].text
+    g.command("eld tub 1 mot S-7")                     # kaptenen står fast: skott, ingen ny fråga
+    _run(g, 5)
+    assert room.tubes[0].load is None
+    assert sum(r.type == "torp.neutral" for r in reports) == 1
+
+
+def test_the_firing_solution_mentions_a_merchant_in_the_lane():
+    g, reports = _game()
+    _target_and_merchant_behind(g)
+    g.command("skjutlösning S-7")
+    _run(g, 5)
+    warn = [r for r in reports if r.type == "torp.neutral"]
+    assert warn and "S-8" in warn[0].text and "Upprepa" not in warn[0].text
+
+
+def test_no_warning_when_the_merchant_is_well_off_the_lane():
+    g, reports = _game()
+    room = _target_and_merchant_behind(g)
+    m = _merchants(g)[0]
+    ex, ey = g.own_position_estimate()
+    _place(m, ex + 4.0, ey - 1.0)
+    g.knowledge.tracks.pop("S-8")
+    _known(g, "S-8", "handelsfartyg", Quality.GOD, m)
+    g.knowledge.resolve("S-8", g.now, (ex, ey))
+    g.command("eld tub 1 mot S-7")
+    _run(g, 5)
+    assert room.tubes[0].load is None
+    assert not any(r.type == "torp.neutral" for r in reports)

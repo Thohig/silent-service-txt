@@ -22,6 +22,7 @@ from ..chart import LAYER_RAY, Mark, Ray, Track
 from ..crew import Role
 from ..events import OwnSoundMade, OwnTorpedoHeard, SoundHeard
 from ..fmt import fmt_course, nm
+from ..geo import angle_diff
 from .. import russian as R
 from ..russian import ru
 from ..firecontrol import intercept
@@ -33,6 +34,9 @@ from .base import Proposal, Station
 
 N_TUBES = 8
 CONFIRM_S = 60          # en upprepad eldorder inom så här lång tid verkställs
+NEUTRAL_LANE_NM = 0.5   # ett känt handelsfartyg så nära en torpedbana (enligt plottet): varna
+NEUTRAL_CONE_DEG = 10.0  # ... eller, utan lösning, med bäringen så nära banan
+NEUTRAL_STEP_S = 10      # banan prövas så här tätt
 SALVO_MAX = 3
 SALVO_GAP_NM = 0.08     # torpederna i en salva går minst så här långt isär vid målet (~150 m)
 SALVO_GAP_MAX_NM = 0.25 # ... och högst så här (lägesfelet vid målet bestämmer)
@@ -193,6 +197,12 @@ PHRASES = {
         if d["civil"] else
         f"Kapten, {d['designation']} är inte säkert klassad som örlogsfartyg, "
         f"bara {d['classification']}. ") + "Upprepa ordern om vi ska skjuta.",
+    "torp.neutral": lambda d: "Kapten, torpedrummet. Varning: "
+    + ", ".join(f"{n['designation']} ({n['classification']}, bäring {fmt_course(n['bearing'])}"
+                + (f", {nm(n['range'])} sjömil" if n.get("range") is not None else ", avståndet okänt")
+                + ")" for n in d["ships"])
+    + " ligger nära torpedernas bana. En rak torped som missar går vidare och kan träffa."
+    + ("" if d.get("preview") else " Upprepa ordern om vi ska skjuta."),
     "torp.fired": lambda d: f"{ru('Torpeda vysjla')}! Tub {d['tube']} avfyrad, {d['type']}, kurs {fmt_course(d['course'])}"
     + (f", beräknad gångtid {_mmss(d['run_s'])}" if d.get("run_s") else "")
     + (". Lösningen var dålig, risk för miss." if d.get("quality") == Quality.DALIG else "."),
@@ -247,6 +257,10 @@ RU_PHRASES = {
     + (". Решение было плохое, возможен промах." if d.get("quality") == Quality.DALIG else "."),
     "torp.salvo": lambda d: f"Залп по {R.contact(d['designation'], True)}: "
     f"{R.count(d['n'], ('торпеда', 'торпеды', 'торпед'))} веером.",
+    "torp.neutral": lambda d: f"{R.CAPTAIN}, торпедный отсек. Внимание: "
+    + ("торговое судно" if len(d["ships"]) == 1 else "торговые суда")
+    + " рядом с курсом торпед."
+    + ("" if d.get("preview") else " Повторите приказ, если стреляем."),
     "torp.leg_warning": lambda d: f"{R.CAPTAIN}, торпедный отсек. Внимание: цель идёт "
     f"зигзагом, конвой может повернуть раньше, чем дойдёт торпеда.",
     "torp.time": lambda d: f"Время торпеды из аппарата {d['tube']}"
@@ -308,6 +322,7 @@ class TorpedoRoom(Station):
         super().__init__(game)
         self.tubes = [Tube(i + 1) for i in range(N_TUBES)]
         self._confirmed: dict[str, int] = {}     # kontakt -> när vi frågade om den
+        self._neutral_warned: dict[str, int] = {}   # mål (eller "kurs") -> när vi varnade
         for t in self.tubes[:4]:
             t.load = "53-61"
         for t in self.tubes[4:6]:
@@ -413,6 +428,10 @@ class TorpedoRoom(Station):
                 self.say("torp.refused", {"reason": why})
                 return
         n = len(tubes)
+        if aim and not self._neutrals_clear(
+                o.designation, [(aim[0] + (i - (n - 1) / 2) * step) % 360 for i in range(n)],
+                first_type):
+            return
         for i, tube in enumerate(tubes):
             off = (i - (n - 1) / 2) * step
             if not self._fire(FireTube(tube, designation=o.designation, offset=off,
@@ -464,6 +483,8 @@ class TorpedoRoom(Station):
             tr, sol = self._solution_for(o.designation)
             course, run_s, dist = self._aim(sol, tube.load)
             course = (course + o.offset) % 360
+            if not o.in_salvo and not self._neutrals_clear(tr.designation, [course], tube.load):
+                return False
             if not tr.warship and not (spec.exercise and tr.friendly) and \
                     self._confirmed.get(tr.designation, -10**9) < self.now - CONFIRM_S:
                 # torpedrummet frågar en gång; samma order inom en minut verkställs
@@ -477,6 +498,8 @@ class TorpedoRoom(Station):
                 detonate_at = dist
         else:
             course = o.course
+            if not self._neutrals_clear(None, [course], tube.load):
+                return False
         launch_torpedo(self.world, spec, course, detonate_at)
         self.game.bus.publish(OwnSoundMade(self.now, "launch"))
         if not spec.exercise:
@@ -496,6 +519,61 @@ class TorpedoRoom(Station):
         if o.designation and run_s and not o.in_salvo:
             self._leg_warning(o.designation, run_s, spec.key)
         return True
+
+    def _neutrals_in_lane(self, target: str | None, courses: list[float],
+                          type_key: str) -> list[dict]:
+        """Kända handelsfartyg nära någon av torpedernas banor, hela vägen ut (kunskap)."""
+        spec = TORPEDO_TYPES[type_key]
+        if spec.homing or spec.exercise:
+            return []
+        k = self.game.knowledge
+        ex, ey = self.game.own_position_estimate()
+        run_s = spec.range_nm / spec.speed * 3600
+        out = []
+        for tr in k.tracks.values():
+            if not tr.held or not tr.civil or tr.designation == target or not tr.observations:
+                continue
+            sol = tr.solution
+            if sol is not None and sol.quality >= Quality.OSAKER:
+                dt0 = (self.now - sol.t) / 3600.0
+                sx, sy = sol.x + sol.state[2] * dt0 - ex, sol.y + sol.state[3] * dt0 - ey
+                near = False
+                for c in courses:
+                    b = math.radians(c)
+                    for t in range(0, int(run_s) + 1, NEUTRAL_STEP_S):
+                        h = t / 3600.0
+                        dx = sx + sol.state[2] * h - spec.speed * h * math.sin(b)
+                        dy = sy + sol.state[3] * h - spec.speed * h * math.cos(b)
+                        if math.hypot(dx, dy) <= NEUTRAL_LANE_NM:
+                            near = True
+                            break
+                    if near:
+                        break
+                if near:
+                    out.append({"designation": tr.designation, "classification": tr.classification,
+                                "bearing": math.degrees(math.atan2(sx, sy)) % 360,
+                                "range": math.hypot(sx, sy)})
+            else:
+                b = tr.last_bearing
+                lo, hi = min(courses), max(courses)
+                if any(abs(angle_diff(b, c)) <= NEUTRAL_CONE_DEG for c in courses) or \
+                        (hi - lo < 180 and lo <= b <= hi):
+                    out.append({"designation": tr.designation, "classification": tr.classification,
+                                "bearing": b, "range": None})
+        return out
+
+    def _neutrals_clear(self, target: str | None, courses: list[float], type_key: str) -> bool:
+        """Varna en gång för kända handelsfartyg i banan; samma order inom en minut skjuter.
+        Varningen räknas också som bekräftelse av målet (ingen andra fråga)."""
+        ships = self._neutrals_in_lane(target, courses, type_key)
+        key = target or "kurs"
+        if not ships or self._neutral_warned.get(key, -10**9) >= self.now - CONFIRM_S:
+            return True
+        self._neutral_warned[key] = self.now
+        if target:
+            self._confirmed[target] = self.now
+        self.say("torp.neutral", {"ships": ships}, quality=Quality.GOD)
+        return False
 
     def _leg_warning(self, designation: str, run_s: float, type_key: str) -> None:
         """Ett sicksackande mål kan gira innan torpeden är framme: säg det."""
@@ -555,6 +633,9 @@ class TorpedoRoom(Station):
         if straight:
             self._leg_warning(tr.designation, min(r["run_s"] for r in straight),
                               straight[0]["type"])
+            if ships := self._neutrals_in_lane(tr.designation, [straight[0]["course"]],
+                                               straight[0]["type"]):
+                self.say("torp.neutral", {"ships": ships, "preview": True}, quality=Quality.GOD)
 
     # --- löpande -----------------------------------------------------------------
     def update(self) -> None:
