@@ -57,6 +57,7 @@ class OwnSystems:
     blowing: bool = False
     ice_contact: bool = False        # ubåten ligger an mot isen ovanför
     bottom_contact: bool = False     # kölen tar i botten
+    bottom_touch_t: int = 0          # senaste rapporten om kontakten
     settle: bool = False             # order: lägg oss på botten
     on_bottom: bool = False          # ligger stilla på botten
     fire: bool = False               # brand ombord

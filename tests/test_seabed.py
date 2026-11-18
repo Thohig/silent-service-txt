@@ -395,3 +395,41 @@ def test_navigator_does_not_take_charted_land_for_the_bottom():
     assert nav.chart_depth_at(nav.est_x, nav.est_y) < 0 < g.world.own.state.depth
     assert nav.bottom_here() is None
     assert nav._settle_proposal() is None
+
+
+def _at_shore(course, ordered_course, speed=1.0, depth=24.0):
+    """sundet-ut, frö 1: den branta stranden väster om x ≈ 7,52 (sann), ingen trafik."""
+    g = Game(build_scenario("sundet-ut", random.Random(1)), seed=1, warm_up=False)
+    g.world.ais.clear()
+    g.world.contacts[:] = [v for v in g.world.contacts if v is g.world.own]
+    s = g.world.own.state
+    s.x, s.y, s.depth, s.ordered_depth = 7.55, 10.05, depth, depth
+    s.course, s.ordered_course, s.speed, s.ordered_speed = course, ordered_course, speed, speed
+    reports = []
+    from sim.events import ReportDelivered
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    return g, reports
+
+
+def test_stern_against_the_shore_comes_loose_when_turning_away():
+    """Aktern i land efter en gir: båten kommer loss framåt och kursen blir påkommen."""
+    g, reports = _at_shore(course=200.0, ordered_course=110.0)
+    s = g.world.own.state
+    for _ in range(300):
+        g.tick()
+    assert abs(s.course - 110.0) < 2 and s.x > 7.57
+    assert sum(r.type == "bottom.touch" for r in reports) <= 3
+
+
+def test_bow_pressed_against_the_shore_stops_the_log_and_says_so():
+    """Fören mot land: båten står still, loggen visar 0 (besticket glider inte), maskin säger till."""
+    from sim.stations import NavigationStation
+    g, reports = _at_shore(course=270.0, ordered_course=270.0)
+    nav = g.station(NavigationStation)
+    for _ in range(60):
+        g.tick()
+    x0, y0 = nav.est_x, nav.est_y
+    for _ in range(300):
+        g.tick()
+    assert math.hypot(nav.est_x - x0, nav.est_y - y0) < 0.02
+    assert any(r.type == "bottom.pressed" for r in reports)

@@ -169,6 +169,8 @@ PHRASES = {
     "har trasslat in sig, maskinen stoppad. Bojarna på ytan rör sig, de vet var vi är!",
     "bottom.touch": lambda d: f"Vi tog i botten med {d['where']}, kapten. Låg fart, inga skador. "
     f"Går upp till {d['back_to']} meter.",
+    "bottom.pressed": lambda d: f"Kapten, vi står fast med {d['where']} mot botten och kommer "
+    "inte framåt. Föreslår en annan kurs, bort från land.",
     "ice.touch": lambda d: "Vi tog i en isköl, kapten. Långsam fart, inga skador. Maskinen stoppad.",
     "ice.bump": lambda d: ("Vi stöter i isen ovanför, kapten. "
                            + ("Den är tunn, men vi har för hög fart för att bryta igenom. "
@@ -333,6 +335,8 @@ RU_PHRASES = {
     f"{_ru_leak(d)} Машина остановлена. Всплываем на {R.count(d['back_to'], R.METER)}.",
     "bottom.touch": lambda d: f"Коснулись грунта, товарищ командир. Малый ход, повреждений нет. "
     f"Всплываем на {R.count(d['back_to'], R.METER)}.",
+    "bottom.pressed": lambda d: f"{R.CAPTAIN}, упёрлись в грунт, хода нет. Предлагаю "
+    "другой курс, от берега.",
     "ice.touch": lambda d: "Коснулись ледового киля, товарищ командир. Малый ход, повреждений нет.",
     "shock": lambda d: ("Взрывы рядом, повреждений нет. Малые заряды." if d.get("practice")
                         else "Сильный гидроудар! Повреждений нет." if d["strength"] == "kraftig"
@@ -610,7 +614,7 @@ class EngineeringStation(Station):
                     continue
                 self._last_shock = self.now
             alarm = type in ("reactor.scram", "damage", "surfaced", "ice.collision", "ice.bump",
-                             "bottom.collision", "bottom.touch", "net.caught",
+                             "bottom.collision", "bottom.touch", "bottom.pressed", "net.caught",
                              "fire") or (type == "smoke" and data["level"] >= 0.7) or \
                 (type == "battery" and data["level"] <= 0.1)
             self.say(type, data, kind="info", alarm=alarm)

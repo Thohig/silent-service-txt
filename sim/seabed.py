@@ -39,6 +39,8 @@ HULL_HALF_NM = 50.0 / NM_IN_M   # för- och akterskeppet från tornet
 TOUCH_MAX_KN = 2.0              # så sakta: kölen sätter sig, inga skador
 LEAK_KN = 5.0                   # fortare: läckor
 CLEAR_M = 2.0                   # så här långt över botten räknas kontakten som släppt
+TOUCH_REPEAT_S = 60             # kölen skrapar av och på: samma rapport högst så här ofta
+PRESSED_REPEAT_S = 120          # står båten kvar mot land säger maskin till igen så här ofta
 BACKOFF_M = 15.0                # trimmen tar oss upp så här mycket efter kontakt
 ROCK_SLOPE_M_PER_NM = 450.0     # brantare än så: klippa
 SAND_DEPTH_M = 400.0            # grundare än så (och inte klippa): sand, annars lera
@@ -543,6 +545,15 @@ def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
             sys.bottom_contact = False
         return
     px, py, pdepth = prev[:3]
+    if sys.bottom_contact and not sys.settle and len(prev) > 3:
+        # redan i kontakt: ett steg som inte gör det värre får gälla, så att båten kommer loss.
+        # Gör giren det värre gäller förflyttningen med förra kursen.
+        before = keel_clearance(seabed, px, py, prev[3], max(pdepth, SURFACE_DRAFT_M)) - 0.01
+        if gap >= before:
+            return
+        if keel_clearance(seabed, st.x, st.y, prev[3], max(st.depth, SURFACE_DRAFT_M)) >= before:
+            st.course = prev[3]
+            return
     where = min(keel_points(st.x, st.y, st.course),
                 key=lambda p: seabed.depth_at(p[1], p[2]))[0]
     speed = st.speed
@@ -571,11 +582,19 @@ def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
         own.alert("bottom.settled", depth=round(floor), kind=kind)
         return
     if sys.bottom_contact:
+        # båten trycker mot land: den står still, loggen visar ingen fart genom vattnet
+        st.speed = 0.0
+        if world.time - sys.bottom_touch_t >= PRESSED_REPEAT_S:
+            sys.bottom_touch_t = world.time
+            own.alert("bottom.pressed", where=where)
         return
     sys.bottom_contact = True
     if speed <= TOUCH_MAX_KN:
-        own.alert("bottom.touch", where=where, back_to=round(st.ordered_depth))
+        if world.time - sys.bottom_touch_t >= TOUCH_REPEAT_S or not sys.bottom_touch_t:
+            own.alert("bottom.touch", where=where, back_to=round(st.ordered_depth))
+        sys.bottom_touch_t = world.time
         return
+    sys.bottom_touch_t = world.time
     st.speed = st.ordered_speed = 0.0
     world.mission.setdefault("grounded_t", world.time)
     sys.hull -= 0.015 * speed
