@@ -204,7 +204,11 @@ System: trim och flytkraft (torpedvikt, kompression), batytermograf och akustisk
 egenbrus, luft (O₂/CO₂, regenereringspatroner), vakter och trötthet, undervattenstelefon i fler
 scenarier, torpedomladdning, ljuskulor. (~~Astronavigering~~ byggd som stjärnfix 2026-11-17.)
 
-Vyer: ~~sonarvattenfall~~ (byggt), plottbord, eldledning, trimtavla, besättningslista, hydrologi.
+Vyer: ~~sonarvattenfall~~ (byggt), eldledning, trimtavla, besättningslista, hydrologi.
+~~Plottbord~~ som egen vy strukits 2026-11-18: sjökortet är redan plottbordet (bestick, blyertsmärken,
+lösningar). Kvar som utbyggnad av sjökortet: **bäringslinjerna för ett markerat mål**, plottlagets solfjäder
+från våra beräknade lägen längs benet (ur `ContactTrack.observations` sedan `tma_from_t`), så att det syns
+varför avståndet är osäkert (nästan parallella linjer före en gir). Bara kunskap, inga verktyg (princip 1).
 
 ## Realismluckor mot Projekt 627A
 
