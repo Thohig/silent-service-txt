@@ -58,12 +58,14 @@ I föreslagen ordning; inget ändrar spelet, alla ska ge samma utfall för samma
    Förslag: `self.instruments` (egna mätare och reglage) och `self.sensors` (det som får se ut i
    världen: sonar, periskop, brygga, radar, ekolod), och ett test som underkänner `game.world`
    i stationerna utanför dem.
-4. **Slumpen per station.** Fem moduler drar ur den delade `game.rng` (navigatören, officeren …),
+4. ~~**Slumpen per station.**~~ – gjort 2026-11-18 (`Game.rng_for`; kontrollen före och efter i
+   `kalibrering/README.md`). Fem moduler drar ur den delade `game.rng` (navigatören, officeren …),
    så en ny dragning flyttar allt efter den och kalibreringen glider. Bryggan och periskopet har
    egna strömmar via `hash(game.rng.getstate())`, och övningsledaren `Random(1962)` (samma fel på
    undervattenstelefonen i alla frön). Förslag: `game.rng_for("bridge")` = `Random(hash((frö, namn)))`
    för alla stationer. Ändrar utfallen en gång ⇒ kalibreringen körs om efteråt.
-5. **Kalibreringen som regressionstest.** Botarna i `kalibrering/` körs för hand och siffrorna skrivs
+5. ~~**Kalibreringen som regressionstest.**~~ – gjort 2026-11-18 (`kalibrering/kontroll.py`,
+   `baslinje.json`; och `fingeravtryck.py` för omstruktureringar). Botarna i `kalibrering/` körs för hand och siffrorna skrivs
    in i CLAUDE.md, där de glidit (Kvadrat 7: 9 ⇒ 12 av 12). Förslag: varje bot skriver sitt utfall
    till `kalibrering/baslinje.json`; `uv run kalibrering/kontroll.py` jämför mot baslinjen med
    tolerans och säger vad som flyttat sig. Körs före större ändringar, inte i CI (minuter).

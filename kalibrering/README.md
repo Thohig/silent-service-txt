@@ -44,6 +44,13 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 Flyttade ur CLAUDE.md (2026-11-18). Ändra medvetet och kör sedan botarna; uppdatera här.
 
+Siffrorna nedan är tagna före slumpen per station (`Game.rng_for`, 2026-11-18). Bytet ger varje frö
+andra dragningar. `kontroll.py` före och efter (passiv och ja, 8 frön, 14 scenarier): kuba, kuba-kort,
+jagad-kort, sundet-in, sundet-ut, konvoj, konvoj-kort, ovning och ovning-kort lika eller ±1; arktis ja
+station 6 ⇒ 4 men arktis-kort ja 2 ⇒ 5, jagad ja escaped 4 ⇒ 5, konvoj-mot passiv anfallen 5 ⇒ 3 och ja
+5 ⇒ 4, sundet ja 0 ⇒ 1 forced. Skillnaderna går åt båda hållen och är inom vad 8 frön ger; de särskilda
+botarna är inte omkörda. `baslinje.json` är efter bytet.
+
 - Periskopet i TMA: varje titt ger, utöver avstånd (σ 8 % + 0,03 nm), kurs (`AOB_SIGMA` efter synlig del)
   och fart (σ 2 kn) som mätningar (`BearingObs.course_obs`/`speed_obs`). En titt vars kurs avviker mer
   än max(20°, 3σ) från lösningen före titten ⇒ målet har girat, TMA börjar om från titten
