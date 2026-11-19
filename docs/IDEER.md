@@ -59,10 +59,6 @@ Bara med det som behöver dem:
 - **Öppna frågor:** Holy Loch eller en påhittad bas (en påhittad norsk fjord vore mindre arbete i N4)?
   Tidvattnet kraftigare än verkligheten (Clyde mest 0,5–1,5 kn, starkast i Kilbrannan Sound)?
 
-## Gränssnitt
-
-- **M4 tjänsteblad** (huvudmenyn): spelade uppdrag med utfall, datum och frö sparade i fil mellan körningar.
-
 ## Historiska anmärkningar
 
 Kuba-ubåtarna 1962 var Projekt 641 (diesel), inte 627A. Provdjup 300 m och krossdjup 450 m är troligen
