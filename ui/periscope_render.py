@@ -21,13 +21,20 @@ from rich.text import Text
 from sim.fmt import fmt_course, kn, nm
 from sim.geo import angle_diff, norm360
 from sim.ice import ICE_LOOK_NM
-from sim.periscope import EVENT_KINDS, SECTOR_HALF_DEG, IceBearing, PeriscopePicture, SightedObject, in_sector
+from sim.periscope import EVENT_KINDS, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, wave_height_m, IceBearing, PeriscopePicture, SightedObject, in_sector
 
 from .canvas import DotLayer
+from .silhouettes import (MIN_MAST_DOTS, MIN_MAST_DOTS_HIGH, WATERLINE_DOT, column_dots,
+                          silhouette)
 
 FOV_DEG = 32.0              # okularets synfält i låg förstoring
 POWER_FOV = {"låg": FOV_DEG, "hög": FOV_DEG / 4, "kikare": 7.0}  # synfältet efter optiken
 POWER_TEXT = {"låg": "låg förstoring 1,5×", "hög": "hög förstoring 6×", "kikare": "kikare 7×"}
+
+
+def eye_of(pic: PeriscopePicture) -> float:
+    """Ögats höjd för bilden: periskopet eller bryggan."""
+    return EYE_BRIDGE_M if pic.eye == "brygga" else EYE_PERISCOPE_M
 
 
 def fov_of(power: str | None) -> float:
@@ -65,107 +72,8 @@ STYLE = {
     "fire": "bold #ff8c2a",
 }
 
-# --- siluetter ------------------------------------------------------------------
-# Rader uppifrån; första tecknet anger del: m mast, s överbyggnad, h skrov.
-# Fören åt höger. Sista raden ligger på horisonten.
-ART: dict[str, dict[str, list[str]]] = {
-    "destroyer": {
-        "L": ["m             |       |          ",
-              "m            _|_    __|__        ",
-              "s       ____|___|__|_____|___    ",
-              "s   ___|_____________________|__ ",
-              "h   \\__________________________/ "],
-        "S": ["m    |   |    ",
-              "s __|_|_|_|__ ",
-              "h \\_________/ "],
-    },
-    "merchant": {
-        "L": ["m   |                    |         ",
-              "m   |      ||            |         ",
-              "s   |   ___||___       __|_        ",
-              "s __|__|________|_____|____|____   ",
-              "h \\_____________________________/  "],
-        "S": ["m  |   |  |   ",
-              "s _|_|_|__|_  ",
-              "h \\_________/ "],
-    },
-    "patrol": {
-        "L": ["m        |         ",
-              "s     __|_|__      ",
-              "h \\___________/    "],
-        "S": ["m   |    ",
-              "h \\_|_/  "],
-    },
-}
-ART["transport"] = {
-    "L": ["m      |              |              |        ",
-          "m      |          ____|____          |        ",
-          "s      |    _____|_[]_[]_[]|_____    |        ",
-          "s  ____|___|___________________|_____|_____   ",
-          "s |  o  o  o  o  o  o  o  o  o  o  o  o  o \\  ",
-          "h  \\______________________________________/   "],
-    "S": ["m   |    ||    |   ",
-          "s __|__|____|__|__ ",
-          "h \\______________/ "],
-}
-ART["tanker"] = {
-    "L": ["m     |                               |       ",
-          "s   __|__                          ___|__     ",
-          "s  |_____|________________________|______|__  ",
-          "h  \\________________________________________/ "],
-    "S": ["m  |          |  ",
-          "s _|__________|_ ",
-          "h \\____________/ "],
-}
-ART["moored"] = ART["merchant"]
-ART["guardship"] = ART["destroyer"]
+# --- siluetter (fartygen i braille: ui/silhouettes.py) ----------------------------
 AIRCRAFT_ART = ["   _|_   ", "--=(o)=--"]
-MIRROR = str.maketrans("/\\()[]<>", "\\/)(][><")
-
-
-def mirror(lines: list[str]) -> list[str]:
-    return [ln[0] + ln[1:][::-1].translate(MIRROR) for ln in lines]
-
-
-def compress(lines: list[str], factor: float) -> list[str]:
-    """Tryck ihop vågrätt (fartyget går mot eller från oss); behåll master och kanter."""
-    w = len(lines[0]) - 1
-    n = max(3, round(w * factor))
-    if n >= w:
-        return lines
-    out = []
-    for ln in lines:
-        body = ln[1:]
-        cols = []
-        for j in range(n):
-            a, b = int(j * w / n), max(int(j * w / n) + 1, int((j + 1) * w / n))
-            chunk = body[a:b]
-            pick = next((c for c in "|_\\/" if c in chunk), None)
-            cols.append(pick or next((c for c in chunk if c != " "), " "))
-        out.append(ln[0] + "".join(cols))
-    return out
-
-
-def silhouette(obj: SightedObject, large: bool) -> list[str]:
-    """Siluettens rader (utan deltecken), skurna efter synlig del, vända och ihoptryckta."""
-    art = ART.get(obj.kind)
-    if art is None:
-        return []
-    lines = list(art["L" if large and "L" in art else "S"])
-    if obj.aob is not None:
-        if obj.aob < 0:
-            lines = mirror(lines)
-        lines = compress(lines, max(0.3, abs(math.sin(math.radians(obj.aob)))))
-    keep = {"helt": "mhs", "överbyggnad": "ms", "mastoppar": "m"}.get(obj.visible, "mhs")
-    lines = [ln for ln in lines if ln[0] in keep]
-    return [ln[1:].rstrip() for ln in lines]
-
-
-def _is_large(obj: SightedObject, fov: float = FOV_DEG) -> bool:
-    """Den stora siluetten när fartyget är nära, eller lika stort i okularet i hög förstoring
-    (vinkelstorleken: fyra gånger så långt bort i 6× som i 1,5×)."""
-    return obj.range_nm < 2.5 * FOV_DEG / fov
-
 
 def aob_text(aob: float) -> str:
     a = abs(aob)
@@ -608,9 +516,12 @@ def render_eyepiece(pic: PeriscopePicture, w: int, h: int, selected: SightedObje
     for o in shown:
         sel = o is selected
         if o.kind in EVENT_KINDS:
-            _draw_event(g, inside, o, col_of(o.bearing), horizon, pic.t, pic.day)
+            _draw_event(g, inside, o, col_of(o.bearing), horizon, pic.t, pic.day,
+                        2 * cols_per_deg)
             continue
-        _draw_object(g, inside, o, col_of(o.bearing), horizon, pic.day, sel, stale, pic.t, fov)
+        _draw_object(g, inside, o, col_of(o.bearing), horizon, pic.day, sel, stale, pic.t,
+                     2 * cols_per_deg, eye_of(pic), pic.sea_state,
+                     MIN_MAST_DOTS_HIGH if fov < FOV_DEG else MIN_MAST_DOTS)
     _range_labels(g, inside, [o for o in shown if range_tag(o)], col_of, horizon, selected, stale)
     return g.rows()
 
@@ -657,7 +568,7 @@ def _draw_ice(g: _Grid, inside, pic: PeriscopePicture, center: float, cx: float,
 
 
 def _draw_event(g: _Grid, inside, o: SightedObject, x: float, horizon: int, t: int,
-                day: bool = True) -> None:
+                day: bool = True, dpd: float = 6.0) -> None:
     """Plask, vattenpelare, träff och torpedspår. På natten bara blixten och elden."""
     def put(px: int, py: int, ch: str, st: str) -> None:
         if 0 <= py < g.h and 0 <= px < g.w and inside[py][px] and ch != " ":
@@ -671,14 +582,10 @@ def _draw_event(g: _Grid, inside, o: SightedObject, x: float, horizon: int, t: i
     elif o.kind == "column" and not day:
         if age <= 2:
             put(xi, horizon - 1, "*", STYLE["light_white"])
-    elif o.kind == "column":
-        small = o.detail == "övning"
-        rows = ([" . ", r"\|/", "|||"] if not small else [r"\|/", " | "])
-        fall = min(len(rows) - 1, age // 4)            # pelaren sjunker ihop
-        rows = rows[fall:]
-        for i, ln in enumerate(rows):
-            for j, ch in enumerate(ln):
-                put(xi - 1 + j, horizon - len(rows) + i, ch, STYLE["foam"])
+    elif o.kind == "column":                            # stiger, sprutar och sjunker ihop
+        put_dots(g, inside, x, horizon,
+                 column_dots(o.range_nm, dpd, age, o.detail == "övning"),
+                 lambda what: STYLE["foam"])
     elif o.kind == "hit":
         big = o.detail == "kärnladdning"
         flame = "▲▲▲▲▲" if big else "▲▲▲"
@@ -701,7 +608,10 @@ def _draw_event(g: _Grid, inside, o: SightedObject, x: float, horizon: int, t: i
 
 
 def _draw_object(g: _Grid, inside, o: SightedObject, x: float, horizon: int, day: bool,
-                 sel: bool, stale: bool, pic_t: int = 0, fov: float = FOV_DEG) -> None:
+                 sel: bool, stale: bool, pic_t: int = 0, dpd: float = 6.0,
+                 eye_m: float = EYE_PERISCOPE_M, sea: int = 3,
+                 min_dots: int = MIN_MAST_DOTS) -> None:
+    """Flyg, ljus, nät, lanternor, eller fartygets siluett. dpd: prickar per grad i bilden."""
     def put(px: int, py: int, ch: str, st: str) -> None:
         if 0 <= py < g.h and 0 <= px < g.w and inside[py][px] and ch != " ":
             g.put(px, py, ch, STYLE["ship_old"] if stale or old else st)
@@ -734,13 +644,51 @@ def _draw_object(g: _Grid, inside, o: SightedObject, x: float, horizon: int, day
         if "akter" in o.lights:
             put(xi, horizon - 1, "*", STYLE["light_white"])
         return
-    lines = silhouette(o, large=_is_large(o, fov) and (sel or fov < FOV_DEG))
-    st = STYLE["ship"] if sel else STYLE["ship_other"]
-    top = horizon - len(lines) + 1
-    x0 = xi - max(map(len, lines), default=0) // 2
-    for i, ln in enumerate(lines):
-        for j, ch in enumerate(ln):
-            put(x0 + j, top + i, ch, st)
+    st = STYLE["ship_old"] if stale or old else STYLE["ship"] if sel else STYLE["ship_other"]
+    draw_silhouette(g, inside, o, x, horizon, dpd, eye_m, wave_height_m(sea), pic_t, st, min_dots)
+
+
+SHIP_PRIO = 5               # siluettens prickar går före himlens och sjöns
+KEEP_CHARS = set("┊┼┴╪")    # okularets sikte och streck ligger över siluetten
+PART_STYLE = {"bow": "foam", "smoke": "smoke"}
+
+
+def draw_silhouette(g: _Grid, inside, o: SightedObject, x: float, horizon: int, dpd: float,
+                    eye_m: float, wave_m: float, t: int, st: str,
+                    min_dots: int = MIN_MAST_DOTS) -> None:
+    """Fartyget i braille (`ui/silhouettes.py`): i verklig vinkelstorlek, men minst min_dots
+    högt. Vattenlinjen i horisontens rad."""
+    sil = silhouette(o.kind, o.aob, o.range_nm, dpd, eye_m, wave_m, o.speed, t,
+                     min_mast_dots=min_dots)
+    if sil is None:
+        return
+    dots = sil.dots
+    if o.visible == "mastoppar":            # bara mastopparna: utkiken ser inget mer
+        dots = {k: v for k, v in dots.items() if v in ("mast", "smoke")}
+    put_dots(g, inside, x, horizon, dots, lambda what: STYLE[PART_STYLE[what]]
+             if what in PART_STYLE else st)
+
+
+def put_dots(g: _Grid, inside, x: float, horizon: int, dots: dict[tuple[int, int], str],
+             style_of) -> None:
+    """Prickar (dx, dz uppåt) kring kolumnen x med vattenlinjen i horisontens rad. Rutorna de
+    hamnar i töms på annat (horisontens streck, himlens prickar), utom okularets sikte, som
+    ligger ovanpå."""
+    x0, y0 = 2 * x + 1, 4 * horizon + WATERLINE_DOT
+    placed: dict[tuple[int, int], list] = {}
+    for (dx, dz), what in dots.items():
+        px, py = int(x0 + dx), int(y0 - dz)
+        row, col = py // 4, px // 2
+        if not (0 <= row < g.h and 0 <= col < g.w) or not inside[row][col]:
+            continue
+        placed.setdefault((row, col), []).append((px, py, what))
+    for (row, col), cell in placed.items():
+        if g.cells[row][col][0] in KEEP_CHARS:
+            continue
+        g.cells[row][col] = (" ", "")
+        g.dots.cells.pop((row, col), None)
+        for px, py, what in cell:
+            g.dots.dot(px, py, style_of(what), SHIP_PRIO - (what in PART_STYLE))
 
 
 # --- datarad och rubrik -------------------------------------------------------------

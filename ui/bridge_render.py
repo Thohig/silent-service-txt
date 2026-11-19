@@ -19,7 +19,7 @@ from rich.text import Text
 
 from sim.fmt import fmt_course, nm
 from sim.geo import angle_diff, norm360
-from sim.periscope import EVENT_KINDS, PeriscopePicture, SightedObject
+from sim.periscope import EVENT_KINDS, EYE_BRIDGE_M, PeriscopePicture, SightedObject
 
 from .periscope_render import (STYLE, _draw_event, _draw_ice, _draw_object, _Grid, _marker, data_line,
                                draw_land, draw_sky, object_key, phase_text, render_strip,
@@ -232,12 +232,13 @@ def render_scene(pic: PeriscopePicture, w: int, h: int, view_rel: float, t: int,
     for o in sorted(seen, key=lambda o: -o.range_nm):
         x = col_of(o)
         if o.kind in EVENT_KINDS:
-            _draw_event(g, inside, o, x, horizon, t, pic.day)
+            _draw_event(g, inside, o, x, horizon, t, pic.day, 2 * cols_per_deg)
         elif o.designation is not None and o.range_nm >= FAR_NM and o.visible != "ljus":
             ch, st = _marker(o, pic.day)
             g.put(round(x), horizon, ch, st)
         else:
-            _draw_object(g, inside, o, x, horizon, pic.day, True, False)
+            _draw_object(g, inside, o, x, horizon, pic.day, True, False, t, 2 * cols_per_deg,
+                         EYE_BRIDGE_M, pic.sea_state)
     _labels(g, seen, col_of, horizon, focus)
     _foreground(g, horizon, view_rel, cx, cols_per_deg, own_speed, t)
     return g.rows()

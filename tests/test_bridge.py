@@ -456,7 +456,11 @@ def test_scene_draws_land_and_events():
     bare = _plain(render_bridge(PeriscopePicture(100, True, 10.0, 0.0, "brygga", objs), 110, 30,
                                 0.0, 100))
     assert _braille(txt) > _braille(bare) + 60, "landet är en silhuett i prickar"
-    assert "|||" in txt and "▲▲▲" in txt and "===" in txt
+    assert "▲▲▲" in txt and "===" in txt
+    no_col = tuple(o for o in objs if o.kind != "column")
+    without = _plain(render_bridge(PeriscopePicture(100, True, 10.0, 0.0, "brygga", no_col, land=land),
+                                   110, 30, 0.0, 100))
+    assert _braille(txt) > _braille(without) + 3, "vattenpelaren i prickar"
     later = _plain(render_scene(pic, 110, 24, 0.0, 130))
     assert "░" in later or "▒" in later, "röken stiger efter en stund"
     night = PeriscopePicture(100, False, 2.5, 0.0, "brygga", objs, land=land)

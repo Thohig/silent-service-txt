@@ -203,7 +203,8 @@ ui/                  Textual
   profile_render.py  rastrering av djupprofilen och djupmätaren
   systems_render.py  genomskärning och paneler till tecken
   periscope.py       periskopbilden i helskärm (utkikens senaste svep)
-  periscope_render.py remsa, okular och siluetter till tecken
+  periscope_render.py remsa, okular och händelser till tecken
+  silhouettes.py     fartygens siluetter i braille (profiler i meter, vinkelstorlek), vattenpelaren
   bridge.py          utsikten från bryggan i helskärm (utkikens bild, varannan sekund)
   bridge_render.py   himmel, sjö, fördäck och kölvatten, föremålen med periskopets siluetter
 ```

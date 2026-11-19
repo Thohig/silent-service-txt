@@ -69,13 +69,23 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   och `HEIGHTS`; kursbedömningens σ (`AOB_SIGMA`) följer synlig del, natt = bara lanternor (σ 25°).
   Vinkel på bogen `aob` + styrbord. Fartyg bär plottets beteckning, aldrig sanningens id.
   Vyn (`ui/periscope_render.py`, `ui/periscope.py`): 360°-remsa med fören i mitten, okular (32° i låg och 8° i
-  hög förstoring, `POWER_FOV`; i hög stadimeterns strecksskala på siktlinjen och gradering varje grad, och den stora
-  siluetten fyra gånger så långt bort, `_is_large`; rubriken säger förstoringen; + och − byter i hålläge; kanten,
+  hög förstoring, `POWER_FOV`; i hög stadimeterns strecksskala på siktlinjen och gradering varje grad; rubriken
+  säger förstoringen; + och − byter i hålläge; kanten,
   vågkammarna och landet i braille, `draw_land` delas med bryggan);
   masten uppe (`StatusSnapshot.periscope`/`periscope_train`/`periscope_up_s`): okularet står mot
   periskopets bäring, ← → vrider 5° (`vrid periskop`, `Order.INSTRUMENT`: inte i loggboken), mellanslag
-  förut, ↓ ned; nere: mot valt föremål (← →), ↑ `periskop upp`; siluetter i `ART` (fören åt höger, speglas vid babord, trycks ihop efter
-  |sin vpb|, skärs efter synlig del), natt bara lanternor, bild äldre än 60 s nedtonad.
+  förut, ↓ ned; nere: mot valt föremål (← →), ↑ `periskop upp`; natt bara lanternor, bild äldre än 60 s nedtonad.
+  Siluetterna i braille (`ui/silhouettes.py`, SB1–SB3 2026-11-19): varje fartygstyp är en profil i meter
+  (skrov med språng och lutande förstäv, överbyggnader, skorstenar, master med rår; höjderna = `HEIGHTS`, testat),
+  projicerad efter vinkeln på bogen (längden × |sin|, bredden × |cos|, fören åt höger på styrbordssidan) och
+  skuren vid bildens avstånd där horisonten och vågtopparna skymmer (`hidden_height_m` + `WAVE_M`; vattenlinjen
+  rör sig med tiden i grov sjö). Skalan är verklig (prickar per grad × vinkelstorleken), men masten är minst
+  8 prickar hög i låg förstoring och från bryggan och 20 i hög och kikaren (`MIN_MAST_DOTS(_HIGH)`): i verklig
+  skala är en jagare på 2 nm 18 × 5 prickar i hög och 4 × 1 i låg, alltså nästan osynlig; nära fartyg är
+  verkliga och växer med förstoringen. Bogvåg i skum efter bedömd fart (≥ 4 kn), rök ur ångarnas skorstenar
+  i dagsljus. Horisontens streck viker undan för skrovet, siktet ligger kvar ovanpå (`put_dots`). Bara
+  mastoppar: bara masterna ritas. Vattenpelaren (`column_dots`) stiger på 2 s, sprutar ut upptill och sjunker
+  ihop till skum på 10 s, övningsladdning hälften så hög; i okularet och på bryggan.
   Där okularet inte varit under hissningen följer föremål med från bilden före i 10 min (`seen_t`,
   ritas nedtonade); i ett svep eller en titt räknas allt som setts som sett nu.
   Is: `ice.ice_view` (periskopet är en sensor) ger kant och vallar i 16 riktningar ut till 0,6 nm;

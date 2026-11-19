@@ -1,6 +1,7 @@
 """Periskopet ser plask, vattenpelare och träffar (P1–P2): bara i okularet, bara över
 horisonten och vågtopparna, och plottet skriver ett blyertsmärke där det syntes."""
 import random
+from dataclasses import replace
 
 from sim import acoustics
 from sim.entities import Transient
@@ -142,5 +143,8 @@ def test_eyepiece_draws_the_column():
     _hold(g, 0)
     _emit(g, "explosion", 0.0, 1.5, ticks=2)
     pic = frames[-1].picture
-    rows = "\n".join(r.plain for r in render_eyepiece(pic, 60, 18, None, False, aim=0.0))
-    assert "|||" in rows or r"\|/" in rows
+    from ui.periscope_render import render_eyepiece as re_
+    empty = replace(pic, objects=())
+    with_col = "\n".join(r.plain for r in render_eyepiece(pic, 60, 18, None, False, aim=0.0))
+    without = "\n".join(r.plain for r in re_(empty, 60, 18, None, False, aim=0.0))
+    assert with_col != without

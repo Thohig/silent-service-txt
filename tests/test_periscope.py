@@ -138,8 +138,7 @@ def test_far_targets_give_worse_angle_on_bow_over_seeds():
 
 # --- vyn -------------------------------------------------------------------------------
 from sim.periscope import PeriscopePicture, SightedObject  # noqa: E402
-from ui.periscope_render import (compress, mirror, ordered_objects, render_periscope,  # noqa: E402
-                                 silhouette)
+from ui.periscope_render import ordered_objects, render_periscope  # noqa: E402
 
 
 def _ship(desig="S-1", bearing=10.0, rng=1.5, aob=60.0, visible="helt", kind="destroyer",
@@ -151,22 +150,6 @@ def _ship(desig="S-1", bearing=10.0, rng=1.5, aob=60.0, visible="helt", kind="de
 
 def _pic(*objs, day=True):
     return PeriscopePicture(100, day, 8.0, 0.0, "periskop", tuple(objs))
-
-
-def test_silhouette_turns_with_the_bow_and_is_cut_by_the_horizon():
-    stb = silhouette(_ship(aob=90), large=True)
-    bb = silhouette(_ship(aob=-90), large=True)
-    assert stb[-1].rstrip().endswith("/") and bb[-1].lstrip().startswith("\\")
-    assert mirror(mirror(["h ab/("])) == ["h ab/("]
-    far = silhouette(_ship(aob=90, visible="mastoppar"), large=True)
-    sup = silhouette(_ship(aob=90, visible="överbyggnad"), large=True)
-    assert len(far) < len(sup) < len(stb)
-    assert all("\\" not in ln for ln in far)
-    # rakt förut: smal siluett, men masterna finns kvar
-    bow_on = silhouette(_ship(aob=3), large=True)
-    assert max(map(len, bow_on)) < max(map(len, stb)) / 2
-    assert "|" in "".join(bow_on)
-    assert compress(["h abc"], 1.0) == ["h abc"]
 
 
 def test_render_shows_strip_eyepiece_and_data_without_truth():
@@ -614,9 +597,9 @@ def test_eyepiece_follows_the_power_large_silhouette_and_stadimeter_in_high():
         rows = [r.plain for r in render_periscope(g.knowledge.periscope, 90, 22, None, 0,
                                                    g.clock_str, st.periscope_train,
                                                    st.periscope_power)]
-        shapes[p] = sum(r.count("_") + r.count("|") for r in rows)
+        shapes[p] = sum(1 for r in rows for ch in r if "\u2801" <= ch <= "\u28ff")
         assert ("╪" in "".join(rows)) == (p == "hög")              # stadimeterns streck
-    assert shapes["hög"] > 2 * shapes["låg"]                         # större i 6×
+    assert shapes["hög"] > shapes["låg"] + 20                        # större i 6×
 
 
 def test_detection_by_apparent_size_and_horizon():
