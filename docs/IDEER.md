@@ -118,8 +118,8 @@ konspiration, ensam kapten. Tre motståndare:
 
 ## Nya system
 
-Batytermograf och akustisk prognos, egenbrus, luft (O₂/CO₂, regenereringspatroner), vakter och
-trötthet, undervattenstelefon i fler scenarier, torpedomladdning, ljuskulor. (Inga nya vyer: det nya
+Batytermograf och akustisk prognos, egenbrus, luft (O₂/CO₂, regenereringspatroner),
+undervattenstelefon i fler scenarier, torpedomladdning, ljuskulor. (Inga nya vyer: det nya
 syns i de vyer som finns.)
 
 ## Realismluckor mot Projekt 627A
@@ -127,7 +127,7 @@ syns i de vyer som finns.)
 - Två reaktorer, två turbiner, två axlar.
 - Primärkrets och strålningsdos per avdelning.
 - Huvudbarlasten bara som regel (ytläge, lodrät djupändring); turbogeneratorer och nöddiesel; hydraulik.
-- Syre och regenereringspatroner; vaktschema.
+- Syre och regenereringspatroner.
 - Tröghets- och radionavigering i Arktis.
 - Signalspaning av fiendens ping; sambandsschema och långvåg.
 - Minor; nödutrymning.
