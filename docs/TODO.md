@@ -10,30 +10,11 @@ Inget just nu.
 
 ## Prova för hand (riktig terminal, macOS)
 
-Nyast först.
-
-- Kärnvapenrådet (2026-11-19): `kärnvapenråd` i jagad och kuba med en T-5 laddad (`ladda tub 7 T-5`),
-  replikerna och ordningen (zampoliten, starpom, torpedrummets besked), panelen VAPEN, slutet `nuclear`
-  och rådet i slutrapporten; sonarens nya ord om sjunkbomberna ("eller skarpa långt bort").
-- Sjögången och siluetterna (2026-11-19): siluetterna i braille i periskopet (låg/hög, svep, titt, kikaren)
-  och på bryggan i riktig terminal, särskilt läsbarheten i låg förstoring (minsta masthöjd 8 prickar) och
-  storleken i hög (20); vattenpelaren som stiger och faller; konvojen i Beaufort 5 (trimmarens förslag
-  om fart, tornet som bryter ytan, periskopet som sköljs över, sonarens havsbrus när vädret slår om);
-  det ryska talet för de nya replikerna (Milena).
-- Radion (R1–R6, 2026-11-19): `sänd rapport`/`sänd kort rapport`/`sänd rapport S-3` och remsan
-  ДОНЕСЕНИЕ, stabens svar vid nästa sambandstillfälle, `avlyssna`, sambandet i slutrapporten. Det ryska
-  talet för alla nya repliker (Milena).
-- Periskopets förstoring (`+`/`-` i hålläge, titt i hög) och bryggans kikare (`+`/`-` i bryggvyn).
-- Övningen, periskopet i realtid, ubåtsvyn, hyttvyn (färgerna), sjökortets blyertsmärken.
-- Sonarvyn (`sonar`): läsbarheten, relativ bäring under girar, kontaktraderna i små fönster.
-- Att ctrl+p inte längre gör något, och att ett klick i loggen lämnar fokus i orderraden.
-- Sömnen med starpom: att `sov` håller över en ny kontakt och att telefonen ringer för frågor.
-- Larmförslagen som står 30 s mot vanliga förslag, och radions förslag om periskopdjup efter flyget.
-- Navigatören vid kortets land (sundet-ut), båten mot stranden, omläggningen under isöppningar (arktis).
+Inget just nu.
 
 ## Utreda
 
-Inget just nu. (De fem felen från provspelet 2026-11-18 är rättade, se `docs/system/hav.md`.)
+Inget just nu.
 
 ## Beslut som väntar på kaptenen
 
