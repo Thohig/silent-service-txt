@@ -138,3 +138,30 @@ def test_propeller_cavitates_sooner_astern():
     quiet = own.radiated_level(g.world.env)
     own.state.astern = own.state.ordered_astern = False
     assert quiet - own.radiated_level(g.world.env) == 12.0      # 5 kn akterut kaviterar på 25 m
+
+
+def test_views_show_astern():
+    import dataclasses
+    from tests.test_instruments import BASE
+    from ui import instruments as ins
+    from sim.fmt import kn_dir
+    assert kn_dir(3, True) == "back 3" and kn_dir(3, False) == "3" and kn_dir(0, True) == "0"
+    s = dataclasses.replace(BASE, speed=4.0, ordered_speed=8.0, astern=True, ordered_astern=True)
+    p = {"needle": "white", "label": "white"}
+    tele = ins.telegraph(s.ordered_speed, s.speed, s.propulsion, s.reactor, p,
+                         astern=True, ordered_astern=True)
+    assert all(a == ins.TELEGRAPH_ASTERN_ANGLE for a, *_ in tele.needles)
+    assert any("back" in text for text, _ in tele.readout)
+    gauge = ins.speed_gauge(4.0, 8.0, 100, False, p, astern=True, ordered_astern=True)
+    assert gauge.readout[0][0].startswith("B ")
+
+
+def test_status_and_systems_show_astern():
+    g, _ = _game()
+    g.command("djup 100")
+    g.command("back 3")
+    _run(g, 120)
+    st = g.status()
+    assert st.astern and st.ordered_astern
+    fart = [i for i in g.systems().items if getattr(i, "label", "") == "Fart"]
+    assert fart and fart[0].text.startswith("back 3")

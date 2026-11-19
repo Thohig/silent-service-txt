@@ -105,6 +105,8 @@ class StatusSnapshot:
     door: str | None = None         # hyttdörren: steps (någon utanför), ajar (ordonnansen), open (kaptenen går)
     pitch: float = 0.0              # lutningen (дифферент), grader, + förlig
     plane_load: float = 0.0         # andel av djuprodrens förmåga som bär vikten (+ tung)
+    astern: bool = False            # båten går akterut (speed är farten genom vattnet)
+    ordered_astern: bool = False    # back i maskin beordrad
 
 
 def build_registry(station_classes: list[type[Station]]) -> CommandRegistry:
@@ -506,7 +508,7 @@ class Game:
         """Djupprofilen: stationernas element ur kunskapen, längs tidsaxeln."""
         s = self.world.own.state
         view = ProfileView(self.clock_str(), self.now, self.start_clock, s.depth,
-                           s.ordered_depth, s.speed, s.course)
+                           s.ordered_depth, s.speed, s.course, astern=s.astern)
         for st in self.stations:
             view.items.extend(st.profile_items())
         return view
@@ -564,6 +566,7 @@ class Game:
             clock=(self.start_clock + self.now) % 86400, sim_time=self.now,
             course=s.course, ordered_course=s.ordered_course,
             speed=s.speed, ordered_speed=s.ordered_speed,
+            astern=s.astern, ordered_astern=s.ordered_astern,
             depth=s.depth, ordered_depth=s.ordered_depth,
             changing=frozenset(s.changing()), time_scale=self.time_scale,
             contacts_held=held, contact_kinds=kinds,

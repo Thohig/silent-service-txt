@@ -23,7 +23,7 @@ import re
 from rich.text import Text
 
 from sim.game import StatusSnapshot
-from sim.fmt import kn
+from sim.fmt import kn, kn_dir
 
 from . import instruments as ins
 from .canvas import Braille, Canvas
@@ -158,7 +158,7 @@ def footer(s: StatusSnapshot) -> Text:
     if s.command == "starpom":
         t.append(" СТАРПОМ ", style=PLATE_STYLE)
         t.append(" Starpom har befälet", style="bold #e0e0a0")
-        t.append(f"   kurs {s.ordered_course:03.0f} · fart {kn(s.ordered_speed)} kn · "
+        t.append(f"   kurs {s.ordered_course:03.0f} · fart {kn_dir(s.ordered_speed, s.ordered_astern)} kn · "
                  f"djup {s.ordered_depth:.0f} m", style="#a09070")
         if s.sleeping:
             t.append("   · ni sover", style="dim")

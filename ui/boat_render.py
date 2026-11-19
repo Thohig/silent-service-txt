@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from rich.text import Text
 
-from sim.fmt import fmt_course, kn
+from sim.fmt import fmt_course, kn, kn_dir
 from sim.profile import ProfileView
 from sim.systems import OK, Compartment, Flooding, SystemsView, TrimTanks
 
@@ -134,7 +134,7 @@ def header(pv: ProfileView, sv: SystemsView) -> Text:
     t.append(f" djup {pv.depth:.0f} m", style="bold")
     if abs(pv.ordered_depth - pv.depth) >= 1:
         t.append(f" ▸{pv.ordered_depth:.0f} m", style="yellow")
-    t.append(f" · fart {kn(pv.speed)} kn · kurs {fmt_course(pv.course)}")
+    t.append(f" · fart {kn_dir(pv.speed, pv.astern)} kn · kurs {fmt_course(pv.course)}")
     for n in pv.notes:
         t.append(f" · {n.text}")
     t.append(" · ")

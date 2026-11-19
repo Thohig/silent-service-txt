@@ -52,6 +52,7 @@ ROLE_LIGHT = {
     "radio": "bold #d0a8ff", "starpom": "bold #f0f0b0", "trim": "bold #8fd7c6",
 }
 GREEN, RED, AMBER = "bold #5fd75f", "bold #ff5f5f", "bold #ffaf00"
+ASTERN_LAMP = ins.ASTERN_LAMP
 SKY_DAY, SKY_NIGHT = "#a8c8e8", "#283850"
 MARKER = "bold #f0c674"
 # färg per kontaktslag (huvudraden och bäringsrepeatern, som sonarvyns spår)
@@ -346,11 +347,13 @@ def _big_instruments(c: _Canvas, g: Geometry, s: StatusSnapshot, shown: dict[str
         "gyro": ins.gyro(shown["course"], s.ordered_course if turning else None, p,
                          repeater(s)),
         "djup": ins.depth_gauge(shown["depth"], s.ordered_depth if diving else None, p),
-        "fart": ins.speed_gauge(shown["speed"], s.ordered_speed, s.depth, s.cavitating, p),
+        "fart": ins.speed_gauge(shown["speed"], s.ordered_speed, s.depth, s.cavitating, p,
+                                astern=s.astern, ordered_astern=s.ordered_astern),
         "klocka": ins.clock_face(s.clock, p),
         "sidror": ins.rudder_gauge(shown["rudder"], p),
         "djupror": ins.planes_gauge(shown["planes"], p, pitch=s.pitch),
-        "telegraf": ins.telegraph(s.ordered_speed, s.speed, s.propulsion, s.reactor, p),
+        "telegraf": ins.telegraph(s.ordered_speed, s.speed, s.propulsion, s.reactor, p,
+                                  astern=s.astern, ordered_astern=s.ordered_astern),
     }
     # avläsningarna visar instrumentens exakta värde, visarna det trögare
     dials["gyro"].readout[0] = (ins.fmt_course(s.course), "bold")
@@ -451,6 +454,8 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
     tele = GREEN if s.propulsion == "turbine" else "bold #5fafff"
     if s.reactor != "online":
         tele = AMBER
+    if s.ordered_astern:
+        tele = ASTERN_LAMP                          # back i maskin
     if not g.big:                                   # stor: telegrafen är ett instrument
         for i, ch in enumerate("▂▄▆█"):
             c.put(g.lamps, g.telegraph + i, ch, tele if i < steps else p["lamp_off"])

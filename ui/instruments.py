@@ -118,6 +118,8 @@ def planes_needle(p: float) -> float:
 
 TELEGRAPH = [("STOPP", 0.0), ("SAKTA", 0.5), ("HALV", 6.0), ("FULL", 12.0)]
 TELEGRAPH_ANGLES = [-60.0, -20.0, 20.0, 60.0]
+TELEGRAPH_ASTERN_ANGLE = -80.0     # back i maskin
+ASTERN_LAMP = "bold #ff8787"       # back: telegrafens lampor och loggens visare
 
 
 def telegraph_step(speed: float) -> int:
@@ -163,18 +165,23 @@ def depth_gauge(depth: float, ordered: float | None, p: dict) -> Dial:
     return d
 
 
-def speed_gauge(speed: float, ordered: float, depth: float, cavitating: bool, p: dict) -> Dial:
+def speed_gauge(speed: float, ordered: float, depth: float, cavitating: bool, p: dict,
+                astern: bool = False, ordered_astern: bool = False) -> Dial:
+    """Loggen visar farten genom vattnet; akterut står B (back) i avläsningen och den röda
+    zonen börjar vid propellerns kavitationsfart bakåt (halva)."""
     d = Dial("full", a0=speed_angle(0), a1=speed_angle(MAX_SPEED_KN), title="FART")
     d.ticks = [(speed_angle(v), v % 10 == 0) for v in range(0, int(MAX_SPEED_KN) + 1, 2)]
     d.labels = [(speed_angle(v), f"{v}") for v in range(0, int(MAX_SPEED_KN) + 1, 10)]
-    cav = cavitation_kn(depth)
+    cav = cavitation_kn(depth) * (0.5 if ordered_astern else 1.0)
     d.zones = [(speed_angle(cav), speed_angle(MAX_SPEED_KN), REDZONE)]
-    if abs(ordered - speed) >= 0.3:
+    other = abs(ordered - speed) >= 0.3 or (astern != ordered_astern and ordered > 0)
+    if other:
         d.markers.append((speed_angle(ordered), "◆", MARKER))
-    d.needles.append((speed_angle(speed), 0.8, p["needle"], 0.12))
-    d.readout = [(f"{speed:.1f}".replace(".", ","), "bold #ff5f5f" if cavitating else "bold")]
-    if abs(ordered - speed) >= 0.3:
-        d.readout.append((f" ▸ {kn(ordered)}", MARKER))
+    d.needles.append((speed_angle(speed), 0.8, ASTERN_LAMP if astern else p["needle"], 0.12))
+    back = "B " if astern and speed > 0 else ""      # B som på telegrafen: back
+    d.readout = [(back + f"{speed:.1f}".replace(".", ","), "bold #ff5f5f" if cavitating else "bold")]
+    if other:
+        d.readout.append((f" ▸ {'B ' if ordered_astern else ''}{kn(ordered)}", MARKER))
     return d
 
 
@@ -210,18 +217,25 @@ def libell(planes: float, width: int = 7, span: float = 20.0) -> str:
     return "╞" + "".join("○" if i == pos else "═" for i in range(width)) + "╡"
 
 
-def telegraph(ordered: float, speed: float, propulsion: str, reactor: str, p: dict) -> Dial:
+def telegraph(ordered: float, speed: float, propulsion: str, reactor: str, p: dict,
+              astern: bool = False, ordered_astern: bool = False) -> Dial:
+    """Maskintelegrafen: framåt i fyra steg, back längst till vänster (handtaget mot B)."""
     d = Dial("top", a0=-80, a1=80, title="TELEGRAF")
     d.ticks = [(a, False) for a in (-80, -40, 0, 40, 80)]
-    d.labels = [(a, name) for a, (name, _) in zip(TELEGRAPH_ANGLES, TELEGRAPH)]
-    handle = TELEGRAPH_ANGLES[telegraph_step(ordered)]
-    answer = TELEGRAPH_ANGLES[telegraph_step(speed)]
+    d.labels = [(a, name) for a, (name, _) in zip(TELEGRAPH_ANGLES, TELEGRAPH)] + \
+        [(TELEGRAPH_ASTERN_ANGLE, "B")]
+    handle = TELEGRAPH_ASTERN_ANGLE if ordered_astern and ordered > 0 else \
+        TELEGRAPH_ANGLES[telegraph_step(ordered)]
+    answer = TELEGRAPH_ASTERN_ANGLE if astern and speed > 0 else \
+        TELEGRAPH_ANGLES[telegraph_step(speed)]
     d.needles.append((answer, 0.55, ANSWER, 0.0))
     d.needles.append((handle, 0.92, p["needle"], 0.0))
     motor = {"turbine": "turbin", "electric": "smygmotor"}.get(propulsion, propulsion)
     if reactor != "online":
         motor = "batteri"
     d.readout = [(motor, "bold #ffaf00" if reactor != "online" else "bold")]
+    if ordered_astern and ordered > 0:
+        d.readout.append((" · back", ASTERN_LAMP))
     return d
 
 

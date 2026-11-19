@@ -84,6 +84,7 @@ class ProfileView:
     speed: float
     course: float
     items: list[ProfileItem] = field(default_factory=list)
+    astern: bool = False            # båten går akterut
 
     def of(self, cls: type) -> list:
         return [i for i in self.items if isinstance(i, cls)]

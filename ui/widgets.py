@@ -5,7 +5,7 @@ from rich.table import Table
 from rich.text import Text
 from textual.widgets import RichLog, Static
 
-from sim.fmt import kn
+from sim.fmt import kn, kn_dir
 from sim.game import StatusSnapshot
 from sim.geo import fmt_course
 from sim.profile import ProfileView
@@ -80,8 +80,8 @@ class StatusBar(Static):
               f"{s.ordered_depth:.0f}" if "depth" in s.changing else None, " m")
         field("KURS", fmt_course(s.course),
               fmt_course(s.ordered_course) if "course" in s.changing else None)
-        field("FART", f"{s.speed:.1f}".replace(".", ","),
-              kn(s.ordered_speed) if "speed" in s.changing else None, " kn")
+        field("FART", ("back " if s.astern and s.speed > 0 else "") + f"{s.speed:.1f}".replace(".", ","),
+              kn_dir(s.ordered_speed, s.ordered_astern) if "speed" in s.changing else None, " kn")
         t.append(" TID ", style="dim")
         t.append(_clock(s.clock), style="bold")
         t.append("  │")

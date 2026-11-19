@@ -21,7 +21,7 @@ from textual.widgets import Input
 
 from sim.events import GameEnded, ReportDelivered, TimeScaleChanged
 from sim.game import Game
-from sim.fmt import fmt_course, kn
+from sim.fmt import fmt_course, kn, kn_dir
 from sim.scenario import SCENARIOS, build_scenario
 from sim.truthlog import TruthLog
 
@@ -338,7 +338,7 @@ class SubApp(App):
         st = self.game.world.own.state
         log.add_system(self.game.clock_str(),
                        f"Du har befälet. Ubåten går kurs {fmt_course(st.course)}, "
-                       f"fart {kn(st.speed)} knop, djup {st.depth:.0f} meter.")
+                       f"fart {kn_dir(st.speed, st.astern)} knop, djup {st.depth:.0f} meter.")
         log.add_system(self.game.clock_str(), "Skriv hjälp för en lista över order. Besättningens förslag godkänns med ja, avslås med nej.")
         if self.sound is not None and self.sound.enabled and self.sound.speaks_russian:
             log.add_system(self.game.clock_str(), "Besättningen talar ryska, loggen är på svenska. "
