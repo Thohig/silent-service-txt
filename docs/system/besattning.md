@@ -139,3 +139,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `pitch`/`plane_load` till statusraden: centralens djuproder står ute med lasten (`PLANE_HOLD_DEG` 15° vid
   full last, tung ⇒ uppåt) och libellen visar lutningen (`PITCH_SPAN_DEG` 5°). Ett lutande skrov i
   genomskärningen provades men blev svårläst med rak text.
+  Sjön suger (`_heave_advice`, V3 2026-11-19): trimmaren ser djupmätaren slå i takt med sjön
+  (`OwnShip.heave_amp_m`, egna instrument) och räknar om utslaget till det beordrade djupet på väg upp
+  (`heave_depth_f`). Blir marginalen mellan kölen och 13 m (`BROACH_DEPTH_M`, tornet i ytan) under 1 m föreslår
+  han minsta fart upp till 7 kn som räcker (`heave_speed_f`), annars `djup 25` (`trim.heave`, larmförslag, god,
+  spärr 10 min). Panelen TRIM visar "Sjön suger: djupet slår N m" från 0,5 m, varning när tornet är nära
+  ytan. Bryter tornet ändå ytan larmar centralen (`broach`, via maskins larmkö).

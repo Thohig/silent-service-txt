@@ -12,6 +12,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   fart σ 3 kn; felen dras om var 60:e s per föremål (bilden fladdrar inte), och då får plottet en
   observation (`source="brygga"`). Egen slumpström (`game.rng_for("bridge")`).
   Ropar ut nytt eller > 5 min ur sikte; flyg i sikte eller jagare < 3 nm ⇒ förslag `djup 60`.
+  Sjögången (2026-11-19): vågtopparna (`WAVE_M`) skymmer fartyg (`detectable`, `visible_part`) och händelser,
+  avståndets och kursens σ × `sea_sigma_f` (+10 % per steg över Beaufort 3); utkiken säger `bridge.sea` när
+  vädret ändrat sjön (se `docs/system/hav.md`). Händelserna ses med `stations/lookout.visible_events`, som
+  periskopet delar, och ger plottet `EventSighted` (blyertsmärke där det syntes).
   Sonar skriver inte över en bättre klassning (utkikens GOD) med sämre.
   Vyn (`ui/bridge.py`, `ui/bridge_render.py`, `brygga`): 120° synfält åt `view_rel` relativt fören (← → 15°,
   mellanslag förut; `+` kikaren: periskopets okular med 7° mot blicken, `-` ögat igen), himmel (moln/stjärnor), horisont, sjö med vågor fasta i världen som driver med tiden,

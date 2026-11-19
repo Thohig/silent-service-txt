@@ -19,7 +19,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   ledpunkten; en jagar i taget (`Convoy.hunter`), den andra bara om datumet ligger < 1,5 nm från
   konvojen. Konvojens brus skymmer ubåten (`masking_noise(sides=...)`). Ubåt 1 nm från konvojens väg,
   3 kn: hittas i 8 av 8 frön på 50 och 150 m, ~25 min efter start (2–4 nm), ett anfall, sedan går
-  konvojen vidare och eskorten släpper.
+  konvojen vidare och eskorten släpper. (Siffran är från Beaufort 4; sedan 2026-11-19 går konvojen i 5,
+  4–6 med vädret: eskorternas ping −3 dB, deras radar och utkik mot masterna ×0,35, havsbruset +5 dB, och
+  periskopdjupet kräver ~6 kn; se `docs/system/hav.md` och `kalibrering/README.md`.)
 - **Konvoj i plottet** (`zigzag.py`, kunskap): vid varje målmanöver sparar plottet benets sista
   lösning ≥ osäker (`ContactTrack.legs`, `turns`). Baskurs = viktad rak linje genom benlägena
   (σ läge + 0,8 nm sicksack), farten = median av benens fart längs baskursen; kvalitet ur σ och
@@ -109,6 +111,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `sänd rapport` medan senaste svepet hörde flyget nära, och inte periskopdjup inom `AIR_QUIET_S` (2 min)
   efter; drev flyget ned oss under fönstret föreslår den periskopdjup igen efter 2 min
   (`radio.suggest.air_clear`), om minst `AIR_LEFT_S` (2½ min) av fönstret är kvar.
+  Sjöklotter (`environment.radar_clutter_f`): radarns räckvidd mot masterna ×0,5 vid Beaufort 4, ×0,25 vid 6;
+  mot ett torn som brutit ytan (`OwnShip.broached`) som mot en ubåt i ytläge.
 - **Fiendens torpeder** (`weapons.py`, D1): `launch_enemy_torpedo` skjuter en Mk 37 (`MK37`: 26 kn, 5 nm,
   145 dB) med side "enemy". Den söker mot oss och våra skenmål (`_seek_enemy`): passivt mot det som låter
   mest i konen (40°), aktivt inom 0,4 nm och ±50 m i höjd (`ACTIVE_DEPTH_M`), där skrovet ekar 15 dB och
