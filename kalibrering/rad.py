@@ -59,6 +59,11 @@ def run(args):
             last_council[0] = g.now
             g.command("kärnvapenråd")
         if council.armed() and fire_asked[0] < 2:
+            st = g.world.own.state
+            if st.ordered_depth > 90 or st.depth > 100 or st.speed > 12:
+                if st.ordered_depth > 90:
+                    g.command("djup 90, fart 6")        # upp till skjutdjup (≤ 100 m, ≤ 12 kn)
+                continue
             k = g.knowledge
             targets = [t for t in k.tracks.values() if t.threat and t.solution is not None
                        and t.solution.quality >= Quality.OSAKER]
@@ -66,6 +71,12 @@ def run(args):
                 t = min(targets, key=lambda t: t.solution.range_nm)
                 g.command(f"eld tub 7 mot {t.designation}")   # första: frågan; andra: skottet
                 fire_asked[0] += 1
+            else:                                   # ingen lösning: mot närmaste hotets bäring
+                held = [t for t in k.tracks.values() if t.threat and t.last_bearing is not None]
+                if held:
+                    b = round(held[-1].last_bearing) % 360
+                    g.command(f"eld tub 7 kurs {b:03d}")
+                    fire_asked[0] += 1
     m = g.world.mission
     councils = m.get("councils", [])
     return {

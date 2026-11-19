@@ -25,6 +25,9 @@ Inget just nu.
   storleken i hög (20); vattenpelaren som stiger och faller; konvojen i Beaufort 5 (trimmarens förslag
   om fart, tornet som bryter ytan, periskopet som sköljs över, sonarens havsbrus när vädret slår om);
   det ryska talet för de nya replikerna (Milena).
+- Kärnvapenrådet (2026-11-19): `kärnvapenråd` i jagad och kuba med en T-5 laddad (`ladda tub 7 T-5`),
+  replikerna och ordningen (zampoliten, starpom, torpedrummets besked), panelen VAPEN, slutet `nuclear`
+  och rådet i slutrapporten; sonarens nya ord om sjunkbomberna ("eller skarpa långt bort").
 
 ## Utreda
 

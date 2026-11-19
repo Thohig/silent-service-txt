@@ -46,13 +46,40 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   ("jagarna rapporterar kontakt till varandra", larm). Kvalitet ur hur mycket som hördes: två
   sändare eller fler god, en osäker, ingen dålig. `InterceptHeard` ⇒ `Knowledge.intercept`. Vid
   tystnad på antenndjup föreslår radiomannen avlyssning högst var 30:e min (`idle_proposals`).
-- **Villkorat tillstånd för T-5** (R5): ett telegram med flaggan `nuclear_condition` "real_charges"
-  (jagad: "ENDAST OM NI ANGRIPS MED SKARPA SJUNKBOMBER") ger tillstånd först när en skarp sjunkbomb
-  detonerat efter telegrammet (`mission["real_charges"]` mot `nuclear_condition_base`, satt när
-  telegrammet togs emot; signalbomber räknas inte). Uppfyllt: torpedrummet frågar en gång
-  (`torp.nuclear_confirm`, larm) och skjuter på upprepad order inom en minut; aldrig i salva, och
-  avfyring föreslås som förut aldrig som ja-order. Zampolitens samtycke (kärnvapenbeslutet) är
-  inte byggt.
+- **Kärnvapenrådet** (KV1–KV8, 2026-11-19; förebild B-59 den 27 okt 1962). Kärnladdningen (T-5) skjuts
+  bara med tre nycklar: kaptenens, zampolitens och starpoms. Ersätter det villkorade tillståndet (R5).
+  - **Ordern som kunskap** (KV1): `Scenario.nuclear_order` (forbidden, order_only, conditional, authorized) och
+    `at_war`, och telegrammens flaggor `nuclear`/`war`, publiceras som `NuclearOrderRead` (radion: ordern vid
+    start, telegrammen när de tas emot) ⇒ `Knowledge.nuclear_order()`, `at_war()`. Kuba, jagad, sundet och
+    arktis: order_only ("vapen endast på order från Moskva"); jagads andra telegram: conditional; konvoj och
+    duell: forbidden och krig; övningen: forbidden.
+  - **Bombernas klassning** (KV2): sonaren hör bara den mottagna nivån (`TransientHeard.rl`, aldrig sanningens
+    `practice`). Signalladdning 195 dB, skarp 230 dB vid källan, så en signalladdning nära låter som en skarp
+    5–6 nm bort. Starkare än en signalladdning kan låta på 50 m (+4 dB) ⇒ skarp, säker; med plottets avstånd
+    till jagaren (lösning ≥ osäker) det närmaste av de två, kvalitet ur hur mycket avståndets σ ger i dB
+    (< 4/9/17 ⇒ säker/god/osäker); utan avstånd "troligen signal, eller skarpa långt bort", osäker. Maskin
+    känner bomberna: skador ⇒ skarp, säker, skadat skrov; kraftig tryckvåg ⇒ skarp, säker; avlägsen ⇒ skarp,
+    god, inte nära; små smällar ⇒ signal, god. Allt som `ChargeHeard` ⇒ `Knowledge.charges`. Kalibreringen
+    oförändrad (`kontroll.py` kuba, kuba-kort, jagad, jagad-kort, konvoj-kort, konvoj-mot: som baslinjen).
+  - **Krigsbedömningen** (KV3, `sim/war.py`, kunskap): ordern, krig, skarpt angrepp de senaste 30 min nära oss
+    (för villkoret bara efter telegrammet) med den bästa bedömningens kvalitet, skadat skrov, och om staben kan
+    nås (inte medan vi är jagade, angripna de senaste 10 min eller med en hotkontakt < 3 nm).
+  - **Rösterna** (fasta regler, ingen slump): förbud ⇒ båda nej; tillstånd ⇒ båda ja. Zampoliten: ja med
+    uppfyllt villkor eller utan order vid skarpt angrepp med minst god kvalitet. Starpom (Archipovs plats):
+    villkoret bara med säker kvalitet; utan order bara om angreppet är säkert, staben avskuren och skrovet
+    skadat (B-59-regeln); annars nej, och han föreslår `djup 150` eller `sänd kort rapport` (aldrig att skjuta).
+  - **Rådet** (KV4, `stations/council.py`, `NuclearCouncil`, roll `Role.ZAMPOLIT`, Gromov, kapten 3:e rang):
+    `kärnvapenråd` (även `förbered kärnladdningen`) kräver T-5 i en tub. Zampoliten och starpom svarar efter
+    30 s med bedömningen och skälen; torpedrummet ger beskedet 10 s senare. Tre nycklar ⇒ skarp i 10 min
+    (`ARM_S`). Samma läge hålls inte igen inom 5 min (`council.again`). Systemtavlans panel VAPEN visar
+    "Kärnladdning: säkrad / rådet samlas / nycklar 3/3, skarp N min".
+  - **Torpedrummet** (KV5): T-5 utan nycklar ⇒ "kärnladdningen kräver kärnvapenråd"; med nycklar frågar det
+    en gång (`torp.nuclear_confirm`, larm) och skjuter på upprepad order, aldrig i salva; efter skottet är
+    nycklarna tillbaka. `nuclear_authorized`/`nuclear_condition` i `World.mission` är borta.
+  - **Slutet** (KV6): målet `NuclearFired` (alla scenarier, `Game` lägger till det, prövas först och slutar 30 s
+    efter detonationen, före sänkt-målen) ger utfallet `nuclear`. Slutrapporten (`goals.council_summary`,
+    `ui/widgets.council_rows`) visar varje råd: vad zampoliten och starpom sa, vad de trodde och sanningen
+    (skarpa och signalladdningar inom 600 m den sista halvtimmen, `mission["charge_log"]`).
 - **Starpom** (`stations/starpom.py`, `FirstOfficer`, `Role.XO`, Sokolov, kapten 3:e rang): `starpom har befälet`
   ⇒ kaptenen i hytten; starpom svarar på förslag via `Station.on_suggestion` (Game frågar stationerna efter
   leverans; sant = beslutat) och ger ordern med `game.command(order, by="starpom")` (`OrderIssued.by`, räknas

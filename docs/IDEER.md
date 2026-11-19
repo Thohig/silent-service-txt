@@ -28,16 +28,14 @@ stationer som plugin).
 
 Favoriter först:
 
-1. **Kärnvapenbeslutet** (B-59/Archipov): skarp T-5 kräver tre officerares samtycke (kapten,
-   zampolit, starpom). Zampoliten är förberedd i `events.py` men obyggd.
-2. **Kampanjen «Октябрь 1962»** (skissad 2026-11-16, "avvakta"), se nedan.
+1. **Kampanjen «Октябрь 1962»** (skissad 2026-11-16, "avvakta"), se nedan.
 
 Övrigt:
 - Order som krockar med läget; reaktor av/batteri-scenario; osäkert neutralt mål.
 - Viskningar och skrovknak under jakt; "torped i vattnet"-nedräkning.
 - Slumpade kriser; jagarkaptener med personlighet; svårighet via besättningens kunskap.
 - Från radion: stabens svar som styr nästa uppdrag i en kampanj (`Headquarters.received` sparar det vi
-  rapporterat), zampolitens samtycke till T-5 (kärnvapenbeslutet).
+  rapporterat).
 
 ### Kampanjen «Октябрь 1962» (K1–K5)
 

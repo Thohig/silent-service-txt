@@ -36,12 +36,26 @@ scratchpad (2026-11-14–15). En del läser sanningen (`sundet.py --orakel`, `su
 | `arktis.py` | arktis | ja |
 | `arktis_kort.py` | arktis-kort | passiv, ja |
 | `tma_kvalitet.py` | flera | ja; plottets lösningar mot sanningen per kvalitet |
+| `rad.py` | kuba, kuba-kort, jagad, jagad-kort (kommaseparerade) | hök-boten: ja-boten som laddar T-5, håller kärnvapenrådet vid varje bomb nära, går upp till skjutdjup och skjuter med nycklarna |
 | `starpom.py` | kuba, konvoj (kommaseparerade), frön, ev. `salva` | kaptenen lämnar över och sover, går till centralen för sina beslut; med `salva` skjuter han där (som `konvoj_salva.py`); mot samma kapten utan starpom |
 
 Provkörda 2026-11-15 med ett frö var. Alla gick utan fel. `konvoj.py` och `kuba_jakt.py`
 kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 ## Siffrorna
+
+**Kärnvapenrådet (2026-11-19, KV1–KV8, `rad.py`, 8 frön):**
+- `kuba`: patrol_end 8; 23 råd, zampoliten ja 3, starpom ja 0, inga nycklar. De tre ja var signalladdningar
+  som sonaren tog för skarpa med god kvalitet (plottets avstånd till jagaren var fel), alltså B-59-läget:
+  zampoliten trodde på ett angrepp, starpom krävde säkerhet. `kuba-kort`: inga bomber nära, inga råd.
+- `jagad`: escaped 4, nuclear 4; 22 råd, zampoliten ja 17, starpom ja 9 (bara med skadat skrov och avskuren
+  stab), nycklar 9, skjutit i 4 av 8. Före B-59-regeln (starpom utan krav på skadat skrov) gav han ja i
+  24 av 37 råd. `jagad-kort`: 5 råd, zampoliten ja 5, starpom ja 0 (skrovet höll).
+- Rådet trodde aldrig på skarpa bomber när det bara fanns signalladdningar nära i jagad (0), och missade
+  aldrig skarpa (0). Boten skjuter mot bäringen när plottet saknar lösning; först efter att boten gick upp
+  till skjutdjup (≤ 100 m) sköt den alls (förut nekade torpedrummet på 170 m).
+- `kontroll.py` (kuba, kuba-kort, jagad, jagad-kort, konvoj-kort, konvoj-mot) efter sonarens nya klassning
+  (KV2): som baslinjen.
 
 **Sjögången och vädret (2026-11-19, V1–V5, `kontroll.py`, 8 frön):** alla scenarier som baslinjen utom
 konvojerna, som nu går i Beaufort 5 (4–6 med vädret): `konvoj` ja convoy_missed median 112 ⇒ 149 min (alla

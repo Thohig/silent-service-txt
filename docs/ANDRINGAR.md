@@ -3,6 +3,27 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-19 – kärnvapenbeslutet (KV1–KV8)
+
+Förebild B-59 den 27 oktober 1962. Tester i `tests/test_war_council.py` och `tests/test_nuclear_keys.py`.
+Detaljer i `docs/system/besattning.md` (Kärnvapenrådet).
+
+- **KV1 Ordern som kunskap.** Vad ordern och telegrammen säger om kärnladdningen (förbjuden, bara på order
+  från Moskva, villkorad, tillåten) och om kriget läses in som kunskap (`NuclearOrderRead`).
+- **KV2 Bomberna klassas ur datan.** Sonaren vet inte längre om en sjunkbomb är skarp: den hör bara hur
+  starkt det smäller. En signalladdning nära låter som en skarp långt bort; med plottets avstånd till
+  jagaren blir det ett omdöme med kvalitet. Maskin känner skador och tryckvågor. Kalibreringen oförändrad.
+- **KV3 Krigsbedömningen** (`sim/war.py`): skarpt angrepp med kvalitet, skadat skrov, om staben kan nås.
+- **KV4 Zampoliten och rådet** (`stations/council.py`): `kärnvapenråd`. Zampoliten (Gromov) och starpom röstar
+  efter fasta regler; tre nycklar ger en skarp kärnladdning i tio minuter. Starpom föreslår att gå undan.
+- **KV5 Torpedrummet** kräver nycklarna; det villkorade tillståndet (R5) är ersatt.
+- **KV6 Slutet:** en detonerad kärnladdning avslutar spelet (`nuclear`); slutrapporten visar vad rådet trodde
+  mot sanningen.
+- **KV7 B-59-regeln:** utan order från Moskva säger starpom ja bara om angreppet är säkert, staben avskuren
+  och skrovet skadat.
+- **KV8 Hök-boten** (`kalibrering/rad.py`): kuba inga nycklar (zampoliten ja 3 av 23 på signalladdningar som
+  togs för skarpa, starpom aldrig); jagad nycklar 9 av 22, kärnladdningen skjuten i 4 av 8; jagad-kort inga.
+
 ## 2026-11-19 – periskopets händelser, sjögångens verkan, vädret och siluetterna i braille
 
 Byggt i ordningen P1–P2, V1–V4, V5, SB1–SB3. Tester i `tests/test_periscope_events.py`,

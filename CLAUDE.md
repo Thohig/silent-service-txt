@@ -127,7 +127,7 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
 - `docs/system/hav.md`: Land skymmer, Ljuset, Is, Havsbotten, Strömmen, Sjögången, Vädret
 - `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden
 - `docs/system/besattning.md`: Radion och telegrammen, Rapporten till staben, Huvudstaben,
-  Slutrapportens samband, Radiospaning, Villkorat tillstånd för T-5, Starpom, Trim och flytkraft, Back i maskin,
+  Slutrapportens samband, Radiospaning, Kärnvapenrådet, Starpom, Trim och flytkraft, Back i maskin,
   Trimmaren
 - `docs/system/vyer.md`: Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
 - `docs/system/granssnitt.md`: Huvudmenyn, Ljud
