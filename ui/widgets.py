@@ -217,6 +217,7 @@ class ReportLog(RichLog):
         if summary.get("nuclear"):
             rows.append(("Kärnladdning", "använd"))
         rows += radio_rows(summary.get("radio"))
+        rows += council_rows(summary.get("council"))
         for k, v in rows:
             line = Text("  ")
             line.append(f"{k}: ", style="dim")
@@ -255,6 +256,22 @@ def radio_rows(r: dict | None) -> list[tuple[str, str]]:
         rows.append(("Rapporterade kontakter", f"{r['contacts_reported']}, läget fel "
                      f"{r['contact_pos_err_nm']:.1f} sjömil, kursen fel "
                      f"{r['contact_course_err']:.0f}° (median)".replace(".", ",")))
+    return rows
+
+
+def council_rows(councils: list[dict] | None) -> list[tuple[str, str]]:
+    """Slutrapportens rader om kärnvapenrådet (`goals.council_summary`): vad zampoliten och starpom
+    sa, vad de trodde och vad sjunkbomberna nära oss verkligen var."""
+    rows = []
+    for c in councils or []:
+        keys = 1 + c["zampolit"] + c["starpom"]
+        said = (f"zampoliten {'ja' if c['zampolit'] else 'nej'}, "
+                f"starpom {'ja' if c['starpom'] else 'nej'} ({keys} av 3 nycklar)")
+        believed = ("trodde: skarpt angrepp" if c["believed_attacked"] else "trodde: inget skarpt angrepp")
+        truth = (f"sanningen: {c['real_near']} skarpa och {c['signal_near']} signalladdningar nära oss "
+                 "den sista halvtimmen")
+        rows.append((f"Kärnvapenrådet {c['clock']}" if "clock" in c else "Kärnvapenrådet",
+                     f"{said}; {believed} ({c['quality']}); {truth}"))
     return rows
 
 

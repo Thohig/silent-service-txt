@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from .. import phrases
 from ..chart import LAYER_RAY, Mark, Ray, Track
 from ..crew import Role
-from ..events import OwnSoundMade, OwnTorpedoHeard, SoundHeard
+from ..events import CouncilHeld, OwnSoundMade, OwnTorpedoHeard, SoundHeard
 from ..fmt import fmt_course, nm
 from ..geo import angle_diff
 from .. import russian as R
@@ -402,6 +402,18 @@ class TorpedoRoom(Station):
         super().attach(bus)
         bus.subscribe(SoundHeard, self._on_sound)
         bus.subscribe(OwnTorpedoHeard, self._on_own_torpedo)
+        bus.subscribe(CouncilHeld, self._note_council)
+
+    def _note_council(self, e: CouncilHeld) -> None:
+        """Sanningen bakom rådets bedömning, till slutrapporten (`goals.council_summary`)."""
+        from ..goals import COUNCIL_NEAR_M, COUNCIL_TRUTH_S
+        log = [c for c in self.world.mission.get("charge_log", [])
+               if e.t - c[0] <= COUNCIL_TRUTH_S and c[2] <= COUNCIL_NEAR_M]
+        self.world.mission.setdefault("councils", []).append({
+            "t": e.t, "clock": self.game.clock_str(e.t)[:5], "zampolit": e.zampolit, "starpom": e.starpom, "order": e.order,
+            "believed_attacked": e.attacked, "quality": e.attacked_q.label,
+            "real_near": sum(1 for c in log if not c[1]),
+            "signal_near": sum(1 for c in log if c[1])})
 
 
     # --- eldledning --------------------------------------------------------------

@@ -33,6 +33,23 @@ class Goal:
 
 
 @dataclass
+class NuclearFired(Goal):
+    """Kärnladdningen har detonerat: spelet slutar (utfallet `nuclear`) efter `delay_s`, före
+    sänkt-målen (de väntar 45 s), så att det är detta och inget annat som blir utfallet. Alla
+    scenarier har det (`Game` lägger till det)."""
+    delay_s: int = 30
+    RANK: ClassVar[int] = 0
+
+    def check(self, world: World) -> bool:
+        t = world.mission.get("nuclear_t")
+        if t is None:
+            return False
+        if world.time - t >= self.delay_s:
+            world.end("nuclear")
+        return True
+
+
+@dataclass
 class StrikeGoal(Goal):
     """Anfall: sänkt minst ett mål och ingen jägare har oss `clear_s` efter senaste
     sänkningen; eller alla mål har passerat och ligger `miss_nm` bort utan att något sänkts."""
@@ -203,3 +220,14 @@ def report_summary(world: World, windows: list[int], window_len: int) -> dict:
                                if contacts else None),
         "contacts_reported": len({c["designation"] for c in contacts}),
     }
+
+
+COUNCIL_TRUTH_S = 30 * 60      # sjunkbomberna så långt tillbaka jämförs med rådets bedömning
+COUNCIL_NEAR_M = 600           # och så nära oss
+
+
+def council_summary(world: World) -> list[dict]:
+    """Kärnvapenrådet i slutrapporten (sanning): varje råd med vad zampoliten och starpom sa,
+    det de trodde (skarpt angrepp eller inte) och vad sjunkbomberna nära oss verkligen var
+    (`mission["councils"]`, antecknat av torpedrummet när rådet hölls)."""
+    return list(world.mission.get("councils", []))

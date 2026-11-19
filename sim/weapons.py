@@ -140,6 +140,7 @@ def _step_charges(world: World, dt: int) -> None:
             world.mission["real_charges"] = world.mission.get("real_charges", 0) + 1
         horiz_m = distance(c.x, c.y, own.state.x, own.state.y) * NM_IN_M
         dist_m = math.hypot(horiz_m, c.depth - own.state.depth)
+        world.mission.setdefault("charge_log", []).append((world.time, c.practice, round(dist_m)))
         own.apply_explosion(dist_m, c.practice, world.rng)
     world.charges = remaining
 
@@ -273,6 +274,7 @@ def _detonate(world: World, t: Torpedo, target: Vessel | None) -> None:
         world.emit(Transient("explosion", ts.x, ts.y, ts.depth, acoustics.EXPLOSION_NUCLEAR,
                              t.id, world.time))
         world.mission["nuclear_used"] = True
+        world.mission.setdefault("nuclear_t", world.time)
         for v in world.contacts:
             if v.side != "own" and v.is_ship and not v.sunk and \
                     distance(ts.x, ts.y, v.state.x, v.state.y) <= t.spec.kill_radius_nm:

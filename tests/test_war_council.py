@@ -264,3 +264,33 @@ def test_council_speech_is_cyrillic():
     g, reports = _council_game()
     for r in _hold(g, reports):
         assert r.speech and not any("a" <= ch.lower() <= "z" for ch in r.speech), r.type
+
+
+# --- KV6: slutet och slutrapporten -----------------------------------------------------
+def test_council_is_noted_with_the_truth_for_the_final_report():
+    from sim.goals import council_summary
+    g, reports = _council_game()
+    st = g.world.own.state
+    g.world.mission.setdefault("charge_log", []).extend([(g.now, True, 150), (g.now, False, 5000)])
+    _hold(g, reports)
+    c = council_summary(g.world)
+    assert len(c) == 1 and c[0]["signal_near"] == 1 and c[0]["real_near"] == 0
+    assert c[0]["zampolit"] is False and c[0]["clock"]
+    from ui.widgets import council_rows
+    rows = council_rows(c)
+    assert "1 av 3 nycklar" in rows[0][1] and "1 signalladdningar" in rows[0][1]
+
+
+def test_nuclear_detonation_ends_the_game_as_nuclear():
+    from sim.events import GameEnded
+    g, reports = _council_game()
+    ended = []
+    g.bus.subscribe(GameEnded, ended.append)
+    g.world.mission["nuclear_used"] = True
+    g.world.mission["nuclear_t"] = g.now
+    for _ in range(40):
+        g.tick()
+        if g.over:
+            break
+    assert ended and ended[0].outcome == "nuclear"
+    assert ended[0].summary["nuclear"] and "kärnladdning" in ended[0].summary["text"]

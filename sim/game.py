@@ -43,7 +43,7 @@ from .ownship import PERISCOPE_DEPTH
 from .reports import Quality, Report, ReportQueue
 from .scenario import Scenario
 from .stations import DEFAULT_STATIONS, NavigationStation, SonarRoom, Station
-from .goals import report_summary
+from .goals import NuclearFired, council_summary, report_summary
 from .truthlog import TruthLog
 
 S = TypeVar("S", bound=Station)
@@ -127,6 +127,8 @@ OUTCOME_TEXT = {
     "neutral_sunk": "K-114 har sänkt ett civilt fartyg. Patrullen avbryts; befälhavaren kallas "
                     "hem för att stå till svars.",
     "quit": "Kaptenen har avbrutit patrullen. K-114 lämnar Kvadrat 7 i förtid.",
+    "nuclear": "K-114 har avfyrat en kärnladdning. Eldklotet syntes på många sjömils håll. Vad som "
+               "händer nu avgörs inte längre till sjöss: det som skulle förhindras har börjat.",
 }
 
 
@@ -147,6 +149,8 @@ class Game:
         self._rngs: dict[str, random.Random] = {}
         self.scenario = scenario
         self.world = scenario.world
+        if self.world.goal(NuclearFired) is None:   # i alla scenarier: kärnladdningen avslutar
+            self.world.goals.append(NuclearFired())
         env = self.world.env
         if env.weather is not None:          # vädret: egen slumpström (sim/weather.py)
             env.weather.rng = self.rng_for("weather")
@@ -467,6 +471,7 @@ class Game:
             "session": self.logbook.report(self.now, self.knowledge),
             "radio": report_summary(self.world, list(self.scenario.radio_windows),
                                     self.scenario.radio_window_len),
+            "council": council_summary(self.world),
         }
         self.log(f"SLUT {summary}")
         self.bus.publish(GameEnded(self.now, o["outcome"], summary))
