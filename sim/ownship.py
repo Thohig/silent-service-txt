@@ -285,7 +285,7 @@ class OwnShip(Vessel):
             hit = rng.sample(COMPONENTS, 2)
             for c in hit:
                 s.health[c] = max(0.0, s.health[c] - 0.7)
-            self.alert("damage", severity="svåra", components=hit, leak=True)
+            self.alert("damage", severity="svåra", components=hit, leak=True, cause="charge")
             if rng.random() < 0.8:
                 self.scram("tryckvåg")
         elif dist_m < 60:
@@ -295,7 +295,7 @@ class OwnShip(Vessel):
             leak = rng.random() < 0.5
             if leak:
                 s.leak_rate += 0.5
-            self.alert("damage", severity="lätta", components=hit, leak=leak)
+            self.alert("damage", severity="lätta", components=hit, leak=leak, cause="charge")
             if rng.random() < 0.3:
                 self.scram("tryckvåg")
         elif dist_m < 150:

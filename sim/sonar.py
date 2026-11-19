@@ -73,7 +73,7 @@ class TransientHeard:
     bearing: float
     se: float
     designation: str | None   # om källan är en känd kontakt
-    practice: bool = False
+    rl: float = 0.0           # mottagen nivå (dB): vad hydrofonen mätte, utan källans storlek
     own_weapon: bool = False  # ljudet kom från en egen torped
 
 
@@ -340,7 +340,8 @@ class SonarStation:
         for tr in world.transients:
             if tr.source_id == world.own.id:
                 continue
-            se = tr.level - world.tl_to_own(tr.x, tr.y, tr.depth) - noise - dt
+            rl = tr.level - world.tl_to_own(tr.x, tr.y, tr.depth)
+            se = rl - noise - dt
             if se <= 0:
                 continue
             true_b = bearing_to(o.x, o.y, tr.x, tr.y)
@@ -353,7 +354,7 @@ class SonarStation:
                 own_t.ended = True
                 out.append(OwnTorpedo(own_t.no, "detonated", heard_b, se))
             out.append(TransientHeard(tr.kind, heard_b, se,
-                                      desig if track and track.held else None, tr.practice,
+                                      desig if track and track.held else None, rl,
                                       own_weapon=own_t is not None))
             # en ping ger en skarp bäring på en känd kontakt
             if tr.kind == "ping" and track is not None and track.held and desig:

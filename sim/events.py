@@ -163,6 +163,17 @@ class SoundHeard(Event):
 
 
 @dataclass(frozen=True)
+class ChargeHeard(Event):
+    """En sjunkbomb (eller annan detonation) som sonaren hörde eller maskin kände, som besättningen
+    bedömde den: skarp eller signalladdning, med kvalitet, och om den var nära oss."""
+    real: bool
+    quality: Quality
+    near: bool
+    source: str             # "sonar" eller "maskin"
+    bearing: float | None = None
+
+
+@dataclass(frozen=True)
 class OwnSoundMade(Event):
     """Egen båt gav ifrån sig ett ljud som hela besättningen hör: ping, launch, blow."""
     kind: str

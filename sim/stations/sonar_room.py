@@ -6,12 +6,13 @@ plottlaget och torpedrummet lyssnar utan att känna till sonaren.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from .. import acoustics, phrases
 from ..crew import Role
 from ..entities import Transient
-from ..events import (BearingObserved, ClassificationChanged, ContactDetected, HuntSigns,
+from ..events import (BearingObserved, ChargeHeard, ClassificationChanged, ContactDetected, HuntSigns,
                       ContactLost, OwnSoundMade, OwnTorpedoHeard, SoundHeard)
 from ..fmt import fmt_course, nm
 from .. import russian as R
@@ -85,6 +86,18 @@ def _src(d: dict) -> str:
     return f" från {d['designation']}" if d.get("designation") else ""
 
 
+# Sjunkbombernas klassning (KV2): sonaren hör bara den mottagna nivån. En signalladdning ger
+# 195 dB vid källan, en skarp 230: en signalladdning nära låter som en skarp flera sjömil bort.
+# Starkare än en signalladdning kan låta (närmast CHARGE_MIN_M) är skarpt, säkert. Annars avgör
+# avståndet till den som fällde den (plottets lösning), med kvalitet ur avståndets osäkerhet;
+# utan avstånd: "troligen signalladdningar, eller skarpa långt bort", osäker.
+CHARGE_SIGNAL_DB = acoustics.EXPLOSION_PRACTICE
+CHARGE_REAL_DB = acoustics.EXPLOSION_REAL
+CHARGE_MIN_M = 50.0
+CHARGE_MARGIN_DB = 4.0
+CHARGE_TL_SIGMA_Q = (4.0, 9.0, 17.0)     # osäkerheten i dB under detta: säker, god, osäker
+NEAR_SE = 110                            # så starkt: nära
+
 AMBIENT_EVERY_S = 60        # havsbruset läses av så här ofta
 AMBIENT_REPORT_DB = 2.0     # så stor ändring säger sonaren till om
 
@@ -112,9 +125,11 @@ PHRASES = {
     "sonar.splash": lambda d: f"Kapten, sonar! Plask i vattnet, bäring {fmt_course(d['bearing'])}"
     + (", nära!" if d.get("near") else ".") + " Sjunkbomber!",
     "sonar.explosion": lambda d: (
-        f"Små detonationer i bäring {fmt_course(d['bearing'])}. Troligen signalsjunkbomber."
+        (f"Små detonationer i bäring {fmt_course(d['bearing'])}. Troligen signalsjunkbomber"
+         + (", eller skarpa långt bort." if d.get("quality", 3) <= Quality.OSAKER else "."))
         if d.get("practice") else
-        f"Detonation i bäring {fmt_course(d['bearing'])}" + (", mycket nära!" if d.get("near") else "!")),
+        f"Detonation i bäring {fmt_course(d['bearing'])}" + (", mycket nära!" if d.get("near") else "!")
+        + (" Skarpa laddningar." if d.get("quality", 0) >= Quality.GOD else "")),
     "sonar.nuclear": lambda d: f"Kapten! Enorm detonation i bäring {fmt_course(d['bearing'])}. "
     "Hela hydrofonen är mättad.",
     "sonar.uwt": lambda d: f"Undervattenstelefon i bäring {fmt_course(d['bearing'])}. Morse, "
@@ -182,6 +197,7 @@ RU_PHRASES = {
     + (", близко!" if d.get("near") else ".") + " Глубинные бомбы!",
     "sonar.explosion": lambda d: (
         f"Слабые взрывы, пеленг {R.course(d['bearing'])}. Видимо, сигнальные заряды."
+        + (" Или боевые, далеко." if d.get("quality", 3) <= Quality.OSAKER else "")
         if d.get("practice") else
         f"Взрыв, пеленг {R.course(d['bearing'])}" + (", очень близко!" if d.get("near") else "!")),
     "sonar.nuclear": lambda d: f"{R.CAPTAIN}! Мощнейший взрыв, пеленг {R.course(d['bearing'])}. "
@@ -487,6 +503,26 @@ class SonarRoom(IncomingMixin, Station):
         self._last_sound[key] = self.now
         return True
 
+    def classify_charge(self, ev: TransientHeard) -> tuple[bool, Quality]:
+        """Skarp eller signalladdning ur den mottagna nivån och vad plottet vet om avståndet
+        till den som fällde den. (skarp, kvalitet)."""
+        signal_max = CHARGE_SIGNAL_DB - 20 * math.log10(CHARGE_MIN_M) + CHARGE_MARGIN_DB
+        if ev.rl >= signal_max:
+            return True, Quality.SAKER
+        tr = self.game.knowledge.track(ev.designation) if ev.designation else None
+        sol = tr.solution if tr is not None else None
+        if sol is not None and sol.quality >= Quality.OSAKER:
+            r_m = max(sol.range_nm * 1852.0, CHARGE_MIN_M)
+            s_m = sol.range_sigma * 1852.0
+            tl = 20 * math.log10(r_m)
+            real = abs(ev.rl - (CHARGE_REAL_DB - tl)) < abs(ev.rl - (CHARGE_SIGNAL_DB - tl))
+            spread = 20 * math.log10((r_m + s_m) / max(r_m - s_m, CHARGE_MIN_M))
+            a, b, c = CHARGE_TL_SIGMA_Q
+            q = Quality.SAKER if spread < a else Quality.GOD if spread < b else \
+                Quality.OSAKER if spread < c else Quality.DALIG
+            return real, q
+        return False, Quality.OSAKER
+
     def _on_sound(self, ev: TransientHeard) -> None:
         bus = self.game.bus
         d = {"bearing": ev.bearing, "designation": ev.designation}
@@ -550,9 +586,15 @@ class SonarRoom(IncomingMixin, Station):
                     self.say("sonar.nuclear", d, kind="contact", alarm=True)
             elif ev.own_weapon:
                 pass                    # torpedrummet rapporterar sina egna träffar
-            elif self._dedupe("explosion", 10):
-                self.say("sonar.explosion", {**d, "practice": ev.practice, "near": ev.se > 110},
-                         kind="contact", alarm=not ev.practice)
+            else:
+                real, q = self.classify_charge(ev)
+                practice = not real
+                near = ev.se > NEAR_SE
+                bus.publish(ChargeHeard(self.now, real, q, near, "sonar", ev.bearing))
+                if self._dedupe("explosion", 10):
+                    self.say("sonar.explosion", {**d, "practice": practice, "near": near,
+                                                 "quality": q.value}, kind="contact",
+                             alarm=not practice, quality=q)
         elif ev.kind == "buoy":
             if self._dedupe("buoy", 300):
                 self.say("sonar.buoy", d, kind="contact", alarm=True)
@@ -576,7 +618,9 @@ class SonarRoom(IncomingMixin, Station):
             if self._dedupe(f"breakup{ev.designation}", 60):
                 # brytningsljudet följer på detonationen; rapportera det efter den
                 self.say("sonar.breakup", d, kind="contact", alarm=True, extra_delay=6)
-        bus.publish(SoundHeard(self.now, ev.kind, ev.bearing, ev.designation, ev.practice, detail,
+        practice = ev.kind == "explosion" and not ev.own_weapon and ev.se <= 160 and \
+            not self.classify_charge(ev)[0]
+        bus.publish(SoundHeard(self.now, ev.kind, ev.bearing, ev.designation, practice, detail,
                                se=ev.se))
 
     def _evasive_depth(self, cooldown: int = 300) -> None:

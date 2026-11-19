@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .events import (AirRadarHeard, BearingObserved, InterceptHeard, BridgeSighted, ClassificationChanged, ContactDetected,
+from .events import (AirRadarHeard, BearingObserved, ChargeHeard, InterceptHeard, BridgeSighted, ClassificationChanged, ContactDetected,
                      ConvoyAssessed, ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound,
                      PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported,
                      ListeningExercise, NuclearOrderRead, TelegramReceived, TorpedoExercise, TorpedoInWater)
@@ -121,6 +121,7 @@ class Knowledge:
     order_tasks: frozenset[str] = frozenset()   # vad ordern kräver (Scenario.tasks)
     # vad ordern och telegrammen säger om kärnladdningen och kriget: (tid, nuclear, war, källa)
     nuclear_orders: list[tuple[int, str | None, bool | None, str]] = field(default_factory=list)
+    charges: list[ChargeHeard] = field(default_factory=list)   # sjunkbomberna som besättningen bedömt dem
 
     def attach(self, bus: EventBus) -> None:
         bus.subscribe(ContactDetected, self._on_detected)
@@ -131,6 +132,7 @@ class Knowledge:
         bus.subscribe(OpeningNotFound, self._on_opening_not_found)
         bus.subscribe(PositionReported, self._on_position)
         bus.subscribe(TelegramReceived, self.telegrams.append)
+        bus.subscribe(ChargeHeard, self.charges.append)
         bus.subscribe(NuclearOrderRead,
                       lambda e: self.nuclear_orders.append((e.t, e.nuclear, e.war, e.source)))
         bus.subscribe(HuntSigns, self._on_hunt)

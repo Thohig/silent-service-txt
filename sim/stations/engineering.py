@@ -5,7 +5,8 @@ from dataclasses import dataclass
 
 from .. import acoustics, phrases
 from ..crew import Role
-from ..events import OwnSoundMade
+from ..events import ChargeHeard, OwnSoundMade
+from ..reports import Quality
 from ..fmt import fmt_course, kn, nm
 from .. import russian as R
 from ..russian import ru
@@ -629,6 +630,23 @@ class EngineeringStation(Station):
             self.suggest("smoke_search", "eng.smoke_no_opening", {"smoke": s.smoke},
                          order="fart 5, djup 60", cooldown=900, alarm=alarm)
 
+    def _charge_felt(self, type: str, data: dict) -> None:
+        """Det maskin känner av sjunkbomberna (KV2): skador eller en kraftig tryckväg är en skarp
+        laddning nära, säkert; små smällar nära är signalladdningar (gott omdöme: man hör skillnad på
+        ett kilo och hundrafemtio); en avlägsen detonation är skarp men inte nära oss."""
+        if type == "damage" and data.get("cause") == "charge":
+            felt = (True, Quality.SAKER, True)
+        elif type == "shock":
+            if data.get("practice"):
+                felt = (False, Quality.GOD, data.get("strength") == "kraftig")
+            elif data.get("strength") == "kraftig":
+                felt = (True, Quality.SAKER, True)
+            else:
+                felt = (True, Quality.GOD, False)
+        else:
+            return
+        self.game.bus.publish(ChargeHeard(self.now, *felt, "maskin"))
+
     def update(self) -> None:
         own, s = self.own, self.own.sys
         while s.alerts:
@@ -642,6 +660,7 @@ class EngineeringStation(Station):
                              "fire") or (type == "smoke" and data["level"] >= 0.7) or \
                 (type == "battery" and data["level"] <= 0.1)
             self.say(type, data, kind="info", alarm=alarm)
+            self._charge_felt(type, data)
             hard = type == "shock" and data.get("strength") == "kraftig" and not data.get("practice")
             if (type in INSPECT_ALERTS or hard) and self._inspect_t is None:
                 self._inspect_t = self.now + INSPECT_AFTER_S
