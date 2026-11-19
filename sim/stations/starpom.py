@@ -463,7 +463,8 @@ class FirstOfficer(Station):
         if "rapport" in self.game.knowledge.order_tasks and radio is not None and \
                 radio.needs_mast() and report.role != Role.NAVIGATOR.value and any(
                     isinstance(o, SettleOnBottom) or
-                    isinstance(o, SetDepth) and o.depth > ANTENNA_DEPTH for o in parts):
+                    isinstance(o, SetDepth) and o.depth > (radio.up_depth() or ANTENNA_DEPTH)
+                    for o in parts):
             return {"why": "report"}
         return None
 

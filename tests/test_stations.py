@@ -79,12 +79,12 @@ def test_periscope_needs_periscope_depth_and_gives_range():
 
 
 @pytest.mark.slow
-def test_radio_message_needs_antenna_depth():
+def test_radio_message_needs_antenna_depth_or_the_cable():
     g, reports = _game()
     w0 = g.scenario.radio_windows[0]
     _run(g, w0 + 1300)                       # djupt hela fönstret
     assert "radio.missed" in _types(reports)
-    assert "radio.prewarn" in _types(reports)
+    assert "radio.prewarn_vlf" in _types(reports)          # långvågen: flytkabeln
     missed = next(r for r in reports if r.type == "radio.missed")
     nxt = g.clock_str(g.scenario.radio_windows[1])[:5]
     assert missed.data["next"] == nxt and f"kl {nxt}" in missed.text   # sänds om vid nästa

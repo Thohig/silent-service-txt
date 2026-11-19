@@ -1,8 +1,9 @@
 """Radio: sambandstillfällen med huvudstaben och rapportsändning.
 
 Staben sänder vid sambandstillfällena enligt schemat; det vi missar sänds om vid nästa.
-Mottagning kräver antenndjup. Sändning (kortvåg) kräver periskopdjup och kan pejlas av
-fienden.
+Mottagning: på antenndjup med masten (en minut), eller på djupet på långvåg med flytkabeln
+(högst VLF_DEPTH meter och VLF_SPEED knop, fem minuter; kabeln flyter inte under is).
+Sändning (kortvåg) kräver periskopdjup och kan pejlas av fienden.
 """
 from __future__ import annotations
 
@@ -45,6 +46,11 @@ INTERCEPT_AGAIN_S = 1800     # radiomannen föreslår en ny avlyssning högst s�
 INTERCEPT_HUNT_S = 600       # jagarna har haft kontakt så nyss: deras trafik är livlig
 LISTEN_S = 20                # så länge radiomannen letar upp Moskva på kortvåg
 RADIO_VAK_MAX_M = 2500        # öppningar längre bort hinner vi inte till
+VLF_DEPTH = 50.0             # flytkabeln: djupare än så räcker den inte till ytan
+VLF_SPEED = 5.0              # fortare än så dras kabeln under
+VLF_UP_DEPTH = 40            # radiomannen föreslår det här djupet för långvågen
+VLF_SLOW_KN = 3              # och den här farten
+VLF_RECEIVE_S = 300          # långvågen är långsam: så länge tar mottagningen
 
 
 @dataclass(frozen=True)
@@ -112,8 +118,15 @@ def _intercept_ru(d: dict) -> str:
 PHRASES = {
     "radio.prewarn": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}. "
     f"Vi behöver antenndjup, {ANTENNA_DEPTH:.0f} meter eller grundare.",
+    "radio.prewarn_vlf": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}. Vi kan ta emot "
+    f"på långvåg med flytkabeln, högst {VLF_DEPTH:.0f} meter och högst {VLF_SPEED:.0f} knop; det tar "
+    f"cirka {VLF_RECEIVE_S // 60} minuter." + (f" Föreslår {d['what']}." if d.get("what") else ""),
     "radio.window_open": lambda d: "Sambandstillfället har börjat. Vi lyssnar.",
-    "radio.message": lambda d: f"Kapten, radio. Radiogram nummer {d['telegram']} från huvudstaben.",
+    "radio.cable.out": lambda d: f"Flytkabeln ute, vi tar emot på långvåg, cirka {d['minutes']} minuter.",
+    "radio.cable.fast": lambda d: "Kapten, radio. Flytkabeln dras under i den här farten, vi tappar "
+    f"långvågen. Föreslår fart {VLF_SLOW_KN}.",
+    "radio.message": lambda d: f"Kapten, radio. Radiogram nummer {d['telegram']} från huvudstaben"
+    + (", på långvåg." if d.get("via") == "vlf" else "."),
     "radio.nothing": lambda d: "Sambandstillfälle: inga nya meddelanden till oss.",
     "radio.missed": lambda d: "Kapten, vi missade sambandstillfället. " + (
         f"Staben sänder om radiogrammen vid nästa, kl {d['next']}." if d.get("next") else
@@ -138,7 +151,8 @@ PHRASES = {
     "radio.intercept": _intercept_sv,
     "radio.suggest.intercept": lambda d: "Kapten, radio. Vi har antennen uppe. Föreslår att vi "
     "avlyssnar den amerikanska trafiken en minut, så vet vi om flyget och jagarna är i närheten.",
-    "radio.ice": lambda d: "Kapten, radio. Antennen är under isen, vi får ingen mottagning. "
+    "radio.ice": lambda d: "Kapten, radio. Antennen och flytkabeln kommer inte upp genom isen, vi får "
+    "ingen mottagning. "
     "Vi behöver öppet vatten ovanför.",
     "radio.suggest.report": lambda d: "Kapten, radio. Sambandstillfället är öppet och huvudstaben "
     "väntar på vår rapport. " + (
@@ -149,11 +163,11 @@ PHRASES = {
          f"pejlar oss är {d['risk']}.") if d["now"] else
         "Vi måste upp på periskopdjup för att sända. Föreslår periskopdjup."),
     "radio.wait": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}, men plottet har "
-    f"{d['designation']} på {nm(d['range'])} sjömil. På antenndjup ligger vi över skiktet och hörs. "
+    f"{d['designation']} på {nm(d['range'])} sjömil. Där uppe ligger vi över skiktet och hörs. "
     "Föreslår att vi väntar på djupet tills den gått längre bort.",
     "radio.clear": lambda d: f"Kapten, radio. Plottet har nu {d['designation']} på {nm(d['range'])} "
     "sjömil" + (f", och sambandstillfället stänger kl {d['close']}" if d.get("close") else "")
-    + ". Föreslår antenndjup.",
+    + f". Föreslår {d.get('what', 'antenndjup')}.",
     "radio.listen": lambda d: "Lyssnar på kortvåg efter Moskva.",
     "radio.listen.lost": lambda d: "Tappade Moskva, antennen kom under ytan.",
     "radio.moscow": lambda d: f"Kapten, radio. Radio Moskva hörs, remsa nummer {d['telegram']}.",
@@ -181,15 +195,23 @@ RU_PHRASES = {
        else "Полыней не отмечено, нужно искать чистую воду."),
     "radio.opening_now": lambda d: f"{R.CAPTAIN}, радист. Над нами {R.ice_kind(d['kind'])}, а сеанс связи в "
     f"{d['clock']} ещё не прошёл. Предлагаю остановиться здесь.",
-    "radio.ice": lambda d: f"{R.CAPTAIN}, радист. Антенна подо льдом, приёма нет. "
+    "radio.ice": lambda d: f"{R.CAPTAIN}, радист. Антенны подо льдом, приёма нет. "
     "Нужна чистая вода над нами.",
     "radio.status": lambda d: (f"Следующий сеанс связи в {d['next']}. " if d.get("next")
                                else "Сеансов связи больше не запланировано. ")
     + f"Принято радиограмм: {d['received']}.",
     "radio.prewarn": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}. Нужна глубина "
     f"под антенну, {R.count(ANTENNA_DEPTH, R.METER)} или меньше.",
+    "radio.prewarn_vlf": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}. Примем на "
+    "сверхдлинных волнах на плавающую антенну." + (
+        " Предлагаю " + " и ".join(w for w, on in (("подвсплыть", d.get("up")), ("сбавить ход", d.get("slow")))
+                                   if on) + "." if d.get("what") else ""),
     "radio.window_open": lambda d: "Сеанс связи начался. Слушаем.",
-    "radio.message": lambda d: f"{R.CAPTAIN}, радист. Радиограмма из Главного штаба.",
+    "radio.cable.out": lambda d: "Плавающая антенна выпущена, принимаем на сверхдлинных волнах.",
+    "radio.cable.fast": lambda d: f"{R.CAPTAIN}, радист. На этом ходу антенну притапливает. "
+    "Предлагаю сбавить ход.",
+    "radio.message": lambda d: f"{R.CAPTAIN}, радист. Радиограмма из Главного штаба"
+    + (" на сверхдлинных волнах." if d.get("via") == "vlf" else "."),
     "radio.nothing": lambda d: "Сеанс связи: новых радиограмм для нас нет.",
     "radio.missed": lambda d: f"{R.CAPTAIN}, мы пропустили сеанс связи. " + (
         f"Штаб повторит радиограммы в {d['next']}." if d.get("next") else
@@ -206,7 +228,7 @@ RU_PHRASES = {
     "radio.wait": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}, но "
     f"{R.contact(d['designation'])} в {R.dec(d['range'], R.MILE)}. Предлагаю ждать на глубине.",
     "radio.clear": lambda d: f"{R.CAPTAIN}, радист. {R.contact(d['designation']).capitalize()} теперь в "
-    f"{R.dec(d['range'], R.MILE)}. Предлагаю всплыть под антенну.",
+    f"{R.dec(d['range'], R.MILE)}. Предлагаю подвсплыть.",
     "radio.suggest.report": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи идёт, штаб ждёт донесения. "
     + ((f"Полное донесение около {R.count(d['seconds'], R.SECOND)}, риск пеленгации "
         f"{RISK_RU[d['risk']]}. Предлагаю короткое донесение, около "
@@ -267,6 +289,10 @@ class RadioStation(Station):
         self.received = 0                       # mottagningsnummer ombord
         self._intercept_until: int | None = None    # radiospaning pågår
         self._intercept_start = 0
+        self.cable = False                      # flytkabeln ute (långvåg)
+        self._vlf = 0                           # sekunder långvåg i detta fönster
+        self._cable_said: set[int] = set()
+        self._cable_fast: set[int] = set()
 
 
     def attach(self, bus) -> None:
@@ -415,10 +441,27 @@ class RadioStation(Station):
     def needs_mast(self) -> bool:
         """Behöver radion oss uppe: ett sambandstillfälle som inte är avklarat, eller en
         rapport som ordern kräver och som inte är sänd medan fönstret är öppet."""
+        return self.up_depth() is not None
+
+    def up_depth(self) -> float | None:
+        """Hur grunt radion behöver oss: antenndjup för rapporten som ordern kräver, annars
+        flytkabelns djup för ett sambandstillfälle som inte är avklarat; None om inget."""
+        if self.report_required and (self.window_pending() is not None or any(
+                w0 <= self.now < w0 + self.window_len and self._reported_t < w0 for w0 in self.windows)):
+            return ANTENNA_DEPTH
         if self.window_pending() is not None:
-            return True
-        return self.report_required and any(
-            w0 <= self.now < w0 + self.window_len and self._reported_t < w0 for w0 in self.windows)
+            return VLF_DEPTH
+        return None
+
+    def _up_order(self) -> tuple[str | None, dict]:
+        """Ordern som tar oss dit radion kan ta emot (beordrat djup och fart), och vad den
+        innehåller: antenndjup när ordern kräver rapport, annars långvågen med flytkabeln."""
+        st = self.own.state
+        if self.report_required:
+            return ("antenndjup" if st.ordered_depth > ANTENNA_DEPTH else None), {"up": True}
+        up, slow = st.ordered_depth > VLF_DEPTH, st.ordered_speed > VLF_SPEED
+        parts = ([f"djup {VLF_UP_DEPTH}"] if up else []) + ([f"fart {VLF_SLOW_KN}"] if slow else [])
+        return (" och ".join(parts) or None), {"up": up, "slow": slow}
 
     def _next_window_clock(self) -> str | None:
         """Nästa sambandstillfälle som inte börjat än (då sänder staben om det vi missat)."""
@@ -451,9 +494,15 @@ class RadioStation(Station):
                         return []
                     return [Proposal(3, f"idle_window{i}", "radio.prewarn_ice", "vak",
                                      {**d, **opening}, cooldown=900)]
-                return [Proposal(3, f"idle_window{i}", "radio.prewarn", "antenndjup",
-                                 d, cooldown=900)]
+                up, how = self._up_order()
+                if up is None:
+                    return []
+                return [Proposal(3, f"idle_window{i}", self._prewarn_type(), up,
+                                 {**d, **how, "what": up}, cooldown=900)]
         return []
+
+    def _prewarn_type(self) -> str:
+        return "radio.prewarn" if self.report_required else "radio.prewarn_vlf"
 
     def _broadcast(self) -> None:
         """Radiomannen har hittat Moskva (eller bara bärvågen)."""
@@ -540,33 +589,63 @@ class RadioStation(Station):
                                  cooldown=0)
                 elif ice:
                     self.say("radio.prewarn_ice", d)
-                elif st.depth > ANTENNA_DEPTH and (near := self._threat_near()) is not None:
+                elif (up := self._up_order())[0] is not None and \
+                        (near := self._threat_near()) is not None:
                     self.say("radio.wait", {**d, "designation": near[0], "range": near[1]})
                     self._waiting.add(i)
-                elif st.depth > ANTENNA_DEPTH:
-                    self.suggest(f"window{i}", "radio.prewarn", d, order="antenndjup", cooldown=0)
+                elif up[0] is not None:
+                    self.suggest(f"window{i}", self._prewarn_type(), {**d, **up[1], "what": up[0]},
+                                 order=up[0], cooldown=0)
                 else:
-                    self.say("radio.prewarn", d)
-            if i in self._waiting and st.depth > ANTENNA_DEPTH and self.now % 30 == 0:
+                    self.say(self._prewarn_type(), d)
+            if i in self._waiting and self._up_order()[0] is not None and self.now % 30 == 0:
                 self._clear_advice(i, w0)
             if w0 <= self.now < w0 + self.window_len:
                 if i not in self._opened:
                     self._opened.add(i)
-                    self._listen = 0
+                    self._listen = self._vlf = 0
                     self.say("radio.window_open")
-                if st.depth <= ANTENNA_DEPTH and not self.masts_free:
-                    if i not in self._ice_warned:
-                        self._ice_warned.add(i)
-                        self.say("radio.ice")
-                elif st.depth <= ANTENNA_DEPTH and self.own.sys.health["radio"] >= 0.3:
-                    self._listen += 1
-                    if self._listen >= RECEIVE_S:
-                        self._handled.add(i)
-                        self._deliver(upto=i)
+                self._receive(i)
             elif self.now >= w0 + self.window_len:
                 self._handled.add(i)
+                self.cable = False
                 if self._next_msg <= i and self._next_msg < len(self.messages):
                     self.say("radio.missed", {"next": self._next_window_clock()}, alarm=False)
+
+    def _receive(self, i: int) -> None:
+        """Sambandstillfället är öppet: masten på antenndjup, annars flytkabeln på långvåg."""
+        st = self.own.state
+        working = self.own.sys.health["radio"] >= 0.3
+        if st.depth <= VLF_DEPTH and not self.masts_free:
+            self.cable = False
+            if i not in self._ice_warned:
+                self._ice_warned.add(i)
+                self.say("radio.ice")
+        elif st.depth <= ANTENNA_DEPTH and working:
+            self.cable = False
+            self._listen += 1
+            if self._listen >= RECEIVE_S:
+                self._handled.add(i)
+                self._deliver(upto=i)
+        elif st.depth <= VLF_DEPTH and working:
+            if not self.cable:
+                self.cable = True
+                if i not in self._cable_said:
+                    self._cable_said.add(i)
+                    self.say("radio.cable.out", {"minutes": VLF_RECEIVE_S // 60})
+            if st.speed > VLF_SPEED + 0.1:
+                if i not in self._cable_fast:
+                    self._cable_fast.add(i)
+                    self.suggest(f"cable_fast{i}", "radio.cable.fast", {}, order=f"fart {VLF_SLOW_KN}",
+                                 cooldown=120)
+                return
+            self._vlf += 1
+            if self._vlf >= VLF_RECEIVE_S:
+                self._handled.add(i)
+                self.cable = False
+                self._deliver(upto=i, via="vlf")
+        else:
+            self.cable = False
 
     def _intercept(self) -> None:
         """Radiospaning (sensor): amerikansk flygradio, fartygens radiotrafik och om jagarna
@@ -639,7 +718,10 @@ class RadioStation(Station):
         far = self._far_threat()
         d = {"designation": far[0] if far else "kontakten", "range": far[1] if far else RADIO_SAFE_NM,
              "close": self.game.clock_str(w0 + self.window_len)[:5]}
-        self.suggest(f"clear{i}", "radio.clear", d, order="antenndjup", cooldown=0)
+        up, _ = self._up_order()
+        if up is None:
+            return
+        self.suggest(f"clear{i}", "radio.clear", {**d, "what": up}, order=up, cooldown=0)
 
     def _report_advice(self, w0: int) -> None:
         """Ordern kräver en rapport: föreslå periskopdjup och sedan sändningen, men inte
@@ -668,17 +750,17 @@ class RadioStation(Station):
                          {"minutes": round((self.now - k.air_close_t) / 60),
                           "close": self.game.clock_str(w0 + self.window_len)[:5]},
                          order="periskopdjup", cooldown=REPORT_SUGGEST_S)
-        elif st.depth <= ANTENNA_DEPTH + 0.5 and not air_recent and any(
+        elif st.depth <= VLF_DEPTH + 0.5 and not air_recent and any(
                 i in self._handled for i, w in enumerate(self.windows) if w == w0):
             self.suggest("report_depth", "radio.suggest.report", {"now": False},
                          order="periskopdjup", cooldown=REPORT_SUGGEST_S)
 
-    def _deliver(self, upto: int) -> None:
+    def _deliver(self, upto: int, via: str = "mast") -> None:
         any_msg = False
         while self._next_msg <= upto and self._next_msg < len(self.messages):
             msg = self.messages[self._next_msg]
             self._next_msg += 1
-            self._telegram(msg.text)
+            self._telegram(msg.text, via)
             if "nuclear" in msg.flags or "war" in msg.flags:
                 self.game.bus.publish(NuclearOrderRead(self.now, msg.flags.get("nuclear"),
                                                        msg.flags.get("war"),
@@ -691,15 +773,15 @@ class RadioStation(Station):
                 self.game.bus.publish(PositionReported(self.now, name, x, y, sigma, t_pos))
             any_msg = True
         for text in self.hq.outgoing():          # stabens svar på det vi sänt (eller inte sänt)
-            self._telegram(text)
+            self._telegram(text, via)
             any_msg = True
         if not any_msg:
             self.say("radio.nothing")
 
-    def _telegram(self, text: str) -> None:
+    def _telegram(self, text: str, via: str = "mast") -> None:
         self.delivered.append(text)
         self.received += 1
         self.game.bus.publish(TelegramReceived(self.now, text, "telegram", self.received))
-        self.say("radio.message", {"text": text, "telegram": self.received,
+        self.say("radio.message", {"text": text, "telegram": self.received, "via": via,
                                    "telegram_kind": "telegram", "read_aloud": text},
                  kind="info", alarm=True)
