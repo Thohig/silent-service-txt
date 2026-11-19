@@ -25,7 +25,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (`render_strip(window=...)`) och datarad om föremålet närmast blickens mitt (±12°). Utan bild säger
   vyn varför ur `StatusSnapshot.bridge` och djupet.
   Utkiken ser också land (`LandBearing` var 3:e grad, `seabed.shore_ranges`: strålar mot `seabed.depths` ≤ 0 ut till sikten,
-  på natten halva; avståndet ×(1 + σ 15 %) per minut), händelser bland `world.transients` varje tick
+  även på natten, då sikten är kortare; avståndet ×(1 + σ 15 %) per minut), händelser bland `world.transients` varje tick
   (`EVENT_KINDS`: `splash` i dagsljus, `column` = sjunkbomb, `hit` = torpedens explosion, natt bara
   blixt/eld inom 12 nm; synliga 6/10/60 s) och spår efter ångtorpeder (inte SET-53) inom 1,5 nm i
   dagsljus. Ropar ut land (en gång per 5 min), vattenpelare (övning eller skarpt) och träffar.
@@ -51,7 +51,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `Knowledge.periscope` om den är nyare. Samma fartyg utan ändring (kurs < 15°, fart ≤ 3 kn) inom 5 min
   efter förra utropet: `off.periscope.again`. Hålläge > 60 s med ett hot i plottet: vakthavande föreslår
   `periskop ned` (var 3:e min).
-  Land (`_observe_land`): samma strålar som bryggan (`seabed.shore_ranges`, ut till sikten, på natten halva;
+  Land (`_observe_land`): samma strålar som bryggan (`seabed.shore_ranges`, ut till sikten, även på natten;
   landet är högre än horisonten, så ögonhöjden spelar ingen roll), mätta när masten hissas och var 30:e s,
   men bara i de riktningar okularet sett under hissningen. Avståndet ×(1 + σ) en gång per hissning, σ efter
   förstoringen (`measure.range_rel`). `off.periscope.land` (närmaste bäring och avstånd) när land syns efter

@@ -39,7 +39,7 @@ from ..ice import ice_view
 from ..orders import DESIG, CommandSpec, Order, Unknown, desig
 from ..ownship import PERISCOPE_DEPTH
 from ..periscope import (EVENT_S, crest_m, sea_sigma_f, wave_height_m, sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
-                         LandBearing, NIGHT_LAND,
+                         LandBearing,
                          HIGH, LOW, OPTICS, Optic, detectable,
                          Judges, PeriscopePicture, SightedObject, angle_on_bow, aob_quality,
                          carried, lights, range_quality, visible_part)
@@ -532,7 +532,7 @@ class PeriscopeWatch(Station):
             self._ice_t = now
             self._ice = tuple(IceBearing(b, None if e is None else e * self.rng.uniform(0.85, 1.15), rd)
                               for b, e, rd in ice_view(world))
-        self._observe_land(day, vis)
+        self._observe_land(vis)
         self._observe_events(eye)
 
     def _observe_events(self, eye: float) -> None:
@@ -558,15 +558,14 @@ class PeriscopeWatch(Station):
                 self.say("off.periscope.hit", {"bearing": b, "range": r_meas, "nuclear": ev.nuclear},
                          kind="contact", alarm=True)
 
-    def _observe_land(self, day: bool, vis: float) -> None:
+    def _observe_land(self, vis: float) -> None:
         """Stranden i de riktningar okularet sett under hissningen (som bryggans, men bara där
         periskopet tittat). Avståndet bedöms med ögat: en bedömning per hissning."""
         now = self.now
         if now - self._shore_t >= LAND_EVERY_S:
             self._shore_t = now
             o = self.own.state
-            self._shore = dict(shore_ranges(self.world.env.seabed, o.x, o.y,
-                                            vis if day else vis * NIGHT_LAND))
+            self._shore = dict(shore_ranges(self.world.env.seabed, o.x, o.y, vis))
             self._land_by = {b: lb for b, lb in self._land_by.items() if b in self._shore}
         if not self._shore:
             self._land = tuple(self._land_by.values())

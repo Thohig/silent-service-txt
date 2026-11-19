@@ -3,6 +3,14 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-19 – land på hela nattsikten
+
+Landets kontur syntes på natten bara på halva sikten (`NIGHT_LAND = 0.5`), alltså ~1,25 nm. I Clyde, som
+spelas helt i mörker, såg periskopet och bryggan därför nästan aldrig land utom tätt intill stränderna i
+sunden. Nu syns landet ut till hela sikten även på natten (2,5 nm, längre i månsken), i både periskopet
+(`PeriscopeWatch._observe_land`) och på bryggan (`BridgeWatch._land`); konstanten är borta.
+Navigatörens fixar påverkas inte (fyrarna, inte landet).
+
 ## 2026-11-19 – sparsammare CI
 
 GitHub Actions-minuterna tog slut: `--slow` (10–20 min) kördes vid varje push på alla grenar, även för

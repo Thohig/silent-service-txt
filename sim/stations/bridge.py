@@ -25,7 +25,7 @@ from ..geo import bearing_to, distance, norm360, velocity
 from ..ice import ice_view
 from ..ownship import BRIDGE_CLEAR_S
 from ..seabed import shore_ranges
-from ..periscope import (EVENT_S, sea_sigma_f, wave_height_m, sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, NIGHT_LAND, IceBearing, Judgement, Judges, LandBearing,
+from ..periscope import (EVENT_S, sea_sigma_f, wave_height_m, sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, IceBearing, Judgement, Judges, LandBearing,
                          PeriscopePicture, SightedObject, angle_on_bow, aob_quality, lights,
                          detectable, range_quality, visible_part)
 from ..reports import Quality
@@ -237,7 +237,7 @@ class BridgeWatch(Station):
         objects += [o for _, o in self._events]
         self.game.bus.publish(BridgeSighted(now, PeriscopePicture(
             now, day, vis, self.own.state.course, "brygga", tuple(objects), None, self._ice(),
-            self._land(vis if day else vis * NIGHT_LAND), **sky_of(light),
+            self._land(vis), **sky_of(light),
             sea_state=world.env.sea_state)))
 
     # --- land, händelser och torpedspår ------------------------------------------------
