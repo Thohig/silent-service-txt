@@ -52,6 +52,15 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   men bara i de riktningar okularet sett under hissningen. Avståndet ×(1 + σ) en gång per hissning, σ efter
   förstoringen (`measure.range_rel`). `off.periscope.land` (närmaste bäring och avstånd) när land syns efter
   10 min utan; landet töms vid varje ny hissning (`_new_raising`).
+  Händelser (`_observe_events`, P1–P2 2026-11-19): plask, vattenpelare och träffar i okularet, samma regler
+  som bryggan (`stations/lookout.visible_events`, delad): plask bara i dagsljus, explosioner på natten som
+  blixt ut till 12 nm, och bara det som når över horisonten plus vågtopparna (`periscope.event_visible`,
+  höjder `EVENT_HEIGHT_M`: plask 5 m, pelare 25 m, träff 60 m; vågor `WAVE_M` efter Beaufort). Ögat 1,5 m
+  upp ser alltså ett plask på ~6 nm (färre i grov sjö) och en pelare på ~12 nm. Bäring och avstånd med
+  förstoringen man mäter med; syns `EVENT_S` (6/10/60 s) i bilden och ritas i okularet (`_draw_event`,
+  delad med bryggvyn). `off.periscope.column` (larm om skarpt, högst var 5:e min) och `off.periscope.hit`.
+  Både bryggan och periskopet publicerar `EventSighted`; plottet skriver ett blyertsmärke där det syntes
+  (✕ plask, ✱ pelare/träff, ○ övning).
 - **Periskopbilden** (`sim/periscope.py`): `Knowledge.periscope` håller den senaste bilden.
   Upptäckt (`detectable`): ett fartyg under horisonten (masttoppen, `HEIGHTS`) syns aldrig; annars om dess
   skenbara höjd över horisonten × förstoringen är minst `DETECT_ARCMIN` (1,5′). Med sikten 10 nm (alla

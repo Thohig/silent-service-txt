@@ -90,6 +90,17 @@ class PeriscopeSighted(Event):
 
 
 @dataclass(frozen=True)
+class EventSighted(Event):
+    """Utkiken (bryggan eller periskopet) såg ett plask, en vattenpelare eller en träff:
+    bäring och avstånd som de bedömdes. Plottet skriver ett blyertsmärke."""
+    kind: str           # splash, column, hit
+    bearing: float
+    range_nm: float
+    practice: bool = False
+    source: str = "brygga"
+
+
+@dataclass(frozen=True)
 class BridgeSighted(Event):
     """Utkikens bild från bryggan (eye "brygga"), varannan sekund medan bryggan är
     bemannad; None när bryggan utryms."""

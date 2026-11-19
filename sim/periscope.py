@@ -105,6 +105,27 @@ def detectable(kind: str, range_nm: float, eye_m: float, power: float) -> bool:
     return h > 0 and apparent_arcmin(h, range_nm) * power >= DETECT_ARCMIN
 
 
+# sjögången: signifikant våghöjd (m) per Beaufort 0–7 (öppet hav, utvecklad sjö, förenklat)
+WAVE_M = (0.0, 0.1, 0.3, 0.6, 1.0, 2.0, 3.0, 4.0)
+
+
+def wave_height_m(beaufort: int) -> float:
+    return WAVE_M[min(max(int(beaufort), 0), len(WAVE_M) - 1)]
+
+
+# händelser utkiken kan se: hur högt de når (m) och hur länge de syns (s). Ett plask från en
+# sonoboj eller en sjunkbomb i vattnet, en vattenpelare från en sjunkbomb, eld och rök från en träff
+EVENT_HEIGHT_M = {"splash": 5.0, "column": 25.0, "hit": 60.0}
+EVENT_S = {"splash": 6, "column": 10, "hit": 60}
+FLASH_NM = 12.0                # en explosion syns på natten så här långt (blixten)
+
+
+def event_visible(kind: str, range_nm: float, eye_m: float, wave_m: float = 0.0) -> bool:
+    """Syns händelsen över horisonten och vågorna? Det som når högre än horisonten skymmer
+    plus vågtopparna syns; ett lågt plask försvinner alltså fort med avståndet och i grov sjö."""
+    return EVENT_HEIGHT_M[kind] - hidden_height_m(range_nm, eye_m) > wave_m
+
+
 def aob_quality(sigma_deg: float) -> Quality:
     if sigma_deg <= 10:
         return Quality.GOD

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import math
 
 from ..chart import LAYER_MARK, LAYER_TRACK, Mark, Ray, Ring
-from ..events import (ContactDetected, ContactLost, ConvoyAssessed, OwnActionLogged, OwnSoundMade,
+from ..events import (ContactDetected, ContactLost, ConvoyAssessed, EventSighted, OwnActionLogged, OwnSoundMade,
                       SoundHeard)
 from ..crew import Role
 from ..fmt import fmt_course
@@ -129,6 +129,7 @@ class PlotTeam(Station):
         bus.subscribe(OwnActionLogged, lambda e: self._on_own(e.t, e.kind))
         bus.subscribe(ContactDetected, self._on_detected)
         bus.subscribe(ContactLost, self._on_lost)
+        bus.subscribe(EventSighted, self._on_event_sighted)
 
     def _on_detected(self, e: ContactDetected) -> None:
         """Första gången en kontakt hörs: dess beteckning vid bäringen."""
@@ -170,6 +171,20 @@ class PlotTeam(Station):
         self._pencil_last[key] = t
         x, y = self.game.own_position_estimate()
         self.pencil.append(PencilMark(t, kind, symbol, x, y, 0.0, False, key, word))
+
+    def _on_event_sighted(self, e: EventSighted) -> None:
+        """Plask eller vattenpelare som utkiken såg: märket där det syntes (bäring och bedömt
+        avstånd från där vi trodde att vi var), bättre än sonarens bäring."""
+        symbol = "○" if e.practice else PENCIL_SYMBOL["splash" if e.kind == "splash" else "explosion"]
+        kind = "splash" if e.kind == "splash" else "explosion"
+        key = f"seen:{symbol}:{round(e.bearing / PENCIL_SECTOR_DEG) % (360 // PENCIL_SECTOR_DEG)}"
+        if e.t - self._pencil_last.get(key, -10**9) < PENCIL_GAP_S[kind]:
+            return
+        self._pencil_last[key] = e.t
+        ox, oy = self.game.own_position_estimate()
+        b = math.radians(e.bearing)
+        dx, dy = e.range_nm * math.sin(b), e.range_nm * math.cos(b)
+        self.pencil.append(PencilMark(e.t, kind, symbol, ox + dx, oy + dy, 0.0, False, key))
 
     # --- blyertsmärken -----------------------------------------------------------
     def _on_sound(self, e: SoundHeard) -> None:

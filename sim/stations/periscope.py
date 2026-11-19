@@ -30,14 +30,15 @@ from .. import phrases
 from .. import russian as R
 from ..arctic import STATION_LIGHT_NM
 from ..crew import Role
-from ..events import (OwnActionLogged, BearingObserved, ClassificationChanged, ContactDetected, PeriscopeBlocked,
+from ..events import (OwnActionLogged, BearingObserved, ClassificationChanged, ContactDetected, EventSighted,
+                      PeriscopeBlocked,
                       PeriscopeSighted, PositionReported)
 from ..fmt import fmt_course, kn, nm
 from ..geo import angle_diff, norm360, velocity
 from ..ice import ice_view
 from ..orders import DESIG, CommandSpec, Order, Unknown, desig
 from ..ownship import PERISCOPE_DEPTH
-from ..periscope import (sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
+from ..periscope import (EVENT_S, sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
                          LandBearing, NIGHT_LAND,
                          HIGH, LOW, OPTICS, Optic, detectable,
                          Judges, PeriscopePicture, SightedObject, angle_on_bow, aob_quality,
@@ -46,6 +47,7 @@ from ..reports import Quality
 from ..seabed import shore_ranges
 from ..tma import BearingObs
 from .base import Station
+from .lookout import visible_events
 from .officer import PHOTO_TARGET_KIND, SIGHTED, OfficerStation, _view_object, mast_refusal
 from .sonar_room import SonarRoom
 
@@ -68,6 +70,8 @@ RECALL_COURSE_DEG = 15
 RECALL_SPEED_KN = 3
 MAST_WARN_S = 60             # masten uppe så länge med ett hot i plottet: föreslå periskop ned
 MAST_WARN_EVERY_S = 180
+COLUMN_RESIGHT_S = 300       # vattenpelare ropas ut högst så här ofta (en serie sjunkbomber)
+EVENT_LABEL = {"splash": "plask", "column": "vattenpelare", "hit": "explosion"}
 
 
 @dataclass(frozen=True)
@@ -157,6 +161,10 @@ PHRASES = {
     + f"{'Dagsljus' if d['day'] else 'Mörkt'}, sikt cirka {kn(d['visibility'])} sjömil.",
     "off.periscope.land": lambda d: f"Periskop: land i sikte, närmast i bäring "
     f"{fmt_course(d['bearing'])}, cirka {nm(d['range'])} sjömil.",
+    "off.periscope.column": lambda d: f"Periskop: vattenpelare i bäring {fmt_course(d['bearing'])}, "
+    f"cirka {nm(d['range'])} sjömil. Sjunkbomber" + (", övningsladdningar." if d["practice"] else "!"),
+    "off.periscope.hit": lambda d: f"Periskop: explosion i bäring {fmt_course(d['bearing'])}, cirka "
+    f"{nm(d['range'])} sjömil! " + ("Ett eldklot, kapten!" if d["nuclear"] else "Eld och rök."),
     "off.periscope.aircraft": lambda d: f"Periskop: flygplan i bäring {fmt_course(d['bearing'])}, "
     f"cirka {nm(d['range'])} sjömil, " + ("lågt över vattnet" if d["low"] else "på höjd")
     + ". Tvåmotorigt patrullplan.",
@@ -188,6 +196,10 @@ RU_PHRASES = {
     "off.binoculars.hold": lambda d: "Есть, держу бинокль.",
     "off.binoculars.down": lambda d: "Бинокль убран.",
     "off.binoculars.none": lambda d: "Горизонт чист.",
+    "off.periscope.column": lambda d: f"Перископ: столб воды, пеленг {R.course(d['bearing'])}. "
+    + ("Учебные бомбы." if d["practice"] else "Глубинные бомбы!"),
+    "off.periscope.hit": lambda d: f"Перископ: взрыв, пеленг {R.course(d['bearing'])}! "
+    + ("Огненный шар!" if d["nuclear"] else "Огонь и дым."),
     "off.periscope.aircraft": lambda d: f"Перископ: самолёт, пеленг {R.course(d['bearing'])}"
     + (", низко над водой!" if d["low"] else "."),
 }
@@ -235,6 +247,7 @@ class PeriscopeWatch(Station):
         self._judges = Judges(JUDGE_EVERY_S)
         self._last_call: dict[str, tuple[int, float, float]] = {}   # (t, kurs, fart) senast utropat
         self._land_seen_t = -10**9          # senast land syntes i okularet
+        self._column_t = -10**9             # senast en vattenpelare ropades ut
         self._new_raising()
 
 
@@ -290,6 +303,7 @@ class PeriscopeWatch(Station):
         self._shore: dict[float, float] = {}            # sann bäring -> avstånd (senaste mätning)
         self._shore_t = -10**9
         self._land_f: float | None = None               # avståndsbedömningens fel, en per hissning
+        self._events: list[tuple[int, SightedObject]] = []    # (syns till, händelsen)
 
     # --- order ------------------------------------------------------------------------
     def on_order(self, order: Order) -> None:
@@ -492,6 +506,30 @@ class PeriscopeWatch(Station):
             self._ice = tuple(IceBearing(b, None if e is None else e * self.rng.uniform(0.85, 1.15), rd)
                               for b, e, rd in ice_view(world))
         self._observe_land(day, vis)
+        self._observe_events(eye)
+
+    def _observe_events(self, eye: float) -> None:
+        """Plask, vattenpelare och träffar i okularet (`lookout.visible_events`): ögat 1,5 m
+        upp ser ett plask bara på några sjömil, en vattenpelare längre. Bäring och avstånd
+        bedöms med förstoringen man mäter med."""
+        now, m, g = self.now, self.measure, self.rng.gauss
+        for ev in visible_events(self.world, eye, self._looked):
+            b = norm360(ev.bearing + g(0, m.bearing_sigma))
+            r_sig = m.range_rel * ev.range_nm + m.range_abs
+            r_meas = max(0.02, ev.range_nm + g(0, r_sig))
+            detail = "kärnladdning" if ev.nuclear else ("övning" if ev.practice else "")
+            o = SightedObject(ev.kind, EVENT_LABEL[ev.kind], b, r_meas, range_quality(r_meas, r_sig),
+                              detail=detail, seen_t=now)
+            self._events.append((now + EVENT_S[ev.kind], o))
+            self.game.bus.publish(EventSighted(now, ev.kind, b, r_meas, ev.practice, "periskop"))
+            if ev.kind == "column" and now - self._column_t > COLUMN_RESIGHT_S:
+                self._column_t = now
+                self.say("off.periscope.column", {"bearing": b, "range": r_meas,
+                                                  "practice": ev.practice},
+                         kind="contact", alarm=not ev.practice)
+            elif ev.kind == "hit":
+                self.say("off.periscope.hit", {"bearing": b, "range": r_meas, "nuclear": ev.nuclear},
+                         kind="contact", alarm=True)
 
     def _observe_land(self, day: bool, vis: float) -> None:
         """Stranden i de riktningar okularet sett under hissningen (som bryggans, men bara där
@@ -649,6 +687,8 @@ class PeriscopeWatch(Station):
         world, now = self.world, self.now
         one_look = self.mode in ("sweep", "look")   # ett svep eller en titt är en bild
         objects = [replace(o, seen_t=now) if one_look else o for o in self._seen.values()]
+        self._events = [(until, o) for until, o in self._events if until >= now]
+        objects += [o for _, o in self._events]
         covered = self._covered
         objects += carried(self._before, now,
                            lambda b: int(norm360(round(b))) in covered, objects)

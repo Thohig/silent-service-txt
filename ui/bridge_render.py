@@ -21,7 +21,7 @@ from sim.fmt import fmt_course, nm
 from sim.geo import angle_diff, norm360
 from sim.periscope import EVENT_KINDS, PeriscopePicture, SightedObject
 
-from .periscope_render import (STYLE, _draw_ice, _draw_object, _Grid, _marker, data_line,
+from .periscope_render import (STYLE, _draw_event, _draw_ice, _draw_object, _Grid, _marker, data_line,
                                draw_land, draw_sky, object_key, phase_text, render_strip,
                                sea_factors, whitecap)
 from .placards import view_title
@@ -143,50 +143,6 @@ PARTIAL = " ▁▂▃▄▅▆▇█"
 def _land(g: _Grid, pic: PeriscopePicture, horizon: int, center: float, cols_per_deg: float,
           cx: float) -> None:
     draw_land(g, pic, horizon, center, cols_per_deg, cx)
-
-
-def _draw_event(g: _Grid, inside, o: SightedObject, x: float, horizon: int, t: int,
-                day: bool = True) -> None:
-    """Plask, vattenpelare, träff och torpedspår. På natten bara blixten och elden."""
-    def put(px: int, py: int, ch: str, st: str) -> None:
-        if 0 <= py < g.h and 0 <= px < g.w and inside[py][px] and ch != " ":
-            g.put(px, py, ch, st)
-
-    xi = round(x)
-    age = max(0, t - o.seen_t)
-    if o.kind == "splash":
-        for dx, ch in ((-1, "'"), (0, ","), (1, "'")):
-            put(xi + dx, horizon - 1, ch, STYLE["foam"])
-    elif o.kind == "column" and not day:
-        if age <= 2:
-            put(xi, horizon - 1, "*", STYLE["light_white"])
-    elif o.kind == "column":
-        small = o.detail == "övning"
-        rows = ([" . ", r"\|/", "|||"] if not small else [r"\|/", " | "])
-        fall = min(len(rows) - 1, age // 4)            # pelaren sjunker ihop
-        rows = rows[fall:]
-        for i, ln in enumerate(rows):
-            for j, ch in enumerate(ln):
-                put(xi - 1 + j, horizon - len(rows) + i, ch, STYLE["foam"])
-    elif o.kind == "hit":
-        big = o.detail == "kärnladdning"
-        flame = "▲▲▲▲▲" if big else "▲▲▲"
-        for j, ch in enumerate(flame):
-            put(xi - len(flame) // 2 + j, horizon - 1, ch, STYLE["fire"])
-        height = min(8 if big else 5, 2 + age // 6) if day else 0   # röken stiger
-        for k in range(2, height + 2):
-            drift = k // 2                              # och driver undan
-            w = 1 + k // 2 + (2 if big else 0)
-            for dx in range(-w, w + 1):
-                if (dx + k + t // 2) % 3:
-                    put(xi + drift + dx, horizon - k, "░" if k > 3 else "▒", STYLE["smoke"])
-    elif o.kind == "wake":
-        rows_below = g.h - horizon - 4
-        dy = min(max(1, round(0.6 / max(o.range_nm, 0.05))), max(1, rows_below))
-        length = 1 + round(6 * abs(math.sin(math.radians(o.aob or 90.0))))
-        step = -1 if (o.aob or 0) < 0 else 1
-        for k in range(length):
-            put(xi - step * k, horizon + dy, "=" if k else "◦", STYLE["foam"])
 
 
 def _foreground(g: _Grid, horizon: int, view_rel: float, cx: float, cols_per_deg: float,

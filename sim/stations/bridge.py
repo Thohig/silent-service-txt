@@ -19,19 +19,20 @@ from .. import russian as R
 from ..arctic import STATION_LIGHT_NM
 from ..crew import Role
 from ..events import (BearingObserved, BridgeSighted, ClassificationChanged, ContactDetected,
-                      PositionReported)
+                      EventSighted, PositionReported)
 from ..fmt import fmt_course, kn, nm
 from ..geo import bearing_to, distance, norm360, velocity
 from ..ice import ice_view
 from ..ownship import BRIDGE_CLEAR_S
 from ..seabed import shore_ranges
-from ..periscope import (sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, NIGHT_LAND, IceBearing, Judgement, Judges, LandBearing,
+from ..periscope import (EVENT_S, sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, NIGHT_LAND, IceBearing, Judgement, Judges, LandBearing,
                          PeriscopePicture, SightedObject, angle_on_bow, aob_quality, lights,
                          detectable, range_quality, visible_part)
 from ..reports import Quality
 from ..systems import INFO, OK, WARN, Gauge
 from ..tma import BearingObs
 from .base import Station
+from .lookout import visible_events
 from .officer import SIGHTED, _view_object
 from .sonar_room import SonarRoom
 
@@ -50,8 +51,6 @@ RESIGHT_S = 300              # ett föremål ur sikte så länge ropas ut igen n
 CLOSE_NM = 3.0               # en jagare så nära: föreslå att dyka
 DIVE_DEPTH = 60
 WAKE_NM = 1.5                # torpedspår syns i dagsljus så här långt
-FLASH_NM = 12.0              # en explosion syns på natten så här långt
-EVENT_S = {"splash": 6, "column": 10, "hit": 60}   # så länge en händelse syns
 
 PART_TEXT = {"helt": "", "överbyggnad": ", skrovet under horisonten",
              "mastoppar": ", bara mastopparna syns"}
@@ -264,38 +263,23 @@ class BridgeWatch(Station):
         return tuple(out)
 
     def _watch_events(self) -> bool:
-        """Plask, vattenpelare och träffar bland transienterna (hörbara i år, alltså
-        skedde de nyss). Sant om något nytt syntes."""
-        world, now = self.world, self.now
-        day, vis = world.env.daylight(now), world.env.visibility_nm(now)
-        torpedoes = {v.id: v for v in world.contacts if v.kind == "torpedo"}
+        """Plask, vattenpelare och träffar (`lookout.visible_events`). Sant om något nytt syntes."""
+        now = self.now
         new = False
-        for tr in world.transients:
-            if tr.kind not in ("splash", "explosion"):
-                continue
-            r = distance(world.own.state.x, world.own.state.y, tr.x, tr.y)
-            if tr.kind == "splash":
-                if not day or r > vis:
-                    continue
-                kind, label = "splash", "plask"
-            else:
-                if r > (vis if day else max(vis, FLASH_NM)):
-                    continue
-                t = torpedoes.get(tr.source_id)
-                kind = "hit" if t is not None else "column"
-                label = "explosion" if kind == "hit" else "vattenpelare"
-            b, r_meas = self._seen_at(tr.x, tr.y, None)
-            nuclear = kind == "hit" and t.spec.nuclear
-            detail = "kärnladdning" if nuclear else ("övning" if tr.practice else "")
-            o = SightedObject(kind, label, b, r_meas, range_quality(r_meas, RANGE_REL_SIGMA * r_meas),
+        for ev in visible_events(self.world, EYE_BRIDGE_M):
+            b, r_meas = self._seen_at(ev.x, ev.y, None)
+            label = {"splash": "plask", "column": "vattenpelare", "hit": "explosion"}[ev.kind]
+            detail = "kärnladdning" if ev.nuclear else ("övning" if ev.practice else "")
+            o = SightedObject(ev.kind, label, b, r_meas, range_quality(r_meas, RANGE_REL_SIGMA * r_meas),
                               detail=detail, seen_t=now)
-            self._events.append((now + EVENT_S[kind], o))
+            self._events.append((now + EVENT_S[ev.kind], o))
+            self.game.bus.publish(EventSighted(now, ev.kind, b, r_meas, ev.practice, "brygga"))
             new = True
-            if kind == "column" and self._call_out("column"):
-                self.say("bridge.column", {"bearing": b, "range": r_meas, "practice": tr.practice},
-                         kind="contact", alarm=not tr.practice)
-            elif kind == "hit":
-                self.say("bridge.hit", {"bearing": b, "range": r_meas, "nuclear": nuclear},
+            if ev.kind == "column" and self._call_out("column"):
+                self.say("bridge.column", {"bearing": b, "range": r_meas, "practice": ev.practice},
+                         kind="contact", alarm=not ev.practice)
+            elif ev.kind == "hit":
+                self.say("bridge.hit", {"bearing": b, "range": r_meas, "nuclear": ev.nuclear},
                          kind="contact", alarm=True)
         return new
 
