@@ -106,7 +106,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `Scenario.tasks`: patrull, rapport, anfall, foto, ut, station, övning; testat mot målen): anfall ⇒ `anfall S-x`.
   Han väger förslag mot ordern (`_objection`, fasta regler, inte vid larm eller jakt): nej (`xo.decline`) till
   styrorder från andra än navigatören medan navigatören anfaller eller följer, och djupare än radion behöver
-  (`RadioStation.up_depth`: antenndjup eller flytkabelns 50 m) när ordern kräver rapport. Med anfallsorder ropas kaptenen (fara) 2 min före
+  (`RadioStation.up_depth`: antenndjup eller flytkabelns 50 m) när ordern kräver rapport. Telefonorder (`phone_orders`, `_on_issued`: kaptenens order medan starpom har befälet, per sak
+  `SLOTS` djup/kurs/fart/framdrivning) ändrar han inte själv på förslag de första 10 minuterna (`PHONE_ORDER_S`):
+  telefonen ringer i stället (`phone_order`: "Sonar föreslår djup 150. Ni beordrade djup 50 klockan …"); larm och jakt går före. Med anfallsorder ropas kaptenen (fara) 2 min före
   navigatörens `attack_eta_t` och när ett klassat stort fartyg med färsk lösning ≥ osäker är < 3,5 nm
   (`_target_watch`); `nav.attack.arrived` är fara; radions förvarning ringer när ordern kräver rapport. Väckning (`_wake`): info = lampan (civil kontakt, `plot.maneuver`, ny kontakt),
   fråga = telefonen ringer (hotkontakt med lösning ≥ osäker, stort fartyg, konvoj, telegram, förslag utanför

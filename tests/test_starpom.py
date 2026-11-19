@@ -521,3 +521,52 @@ def test_cabin_wall_has_the_chart_and_the_clinometer_in_a_big_window():
     mid = "".join(ch for ch, _ in c.cells[1])
     assert mid.index("▼") > 5 and "12°" in "".join(ch for ch, _ in c.cells[2])
     assert render_cabin(replace(s, captain_at="cabin"), 0.0, 200, 55, g.chart())
+
+
+def test_starpom_rings_when_a_suggestion_goes_against_a_phone_order():
+    g, reports = _game()
+    g.command("starpom har befälet")
+    _run(g, 3)
+    g.command("djup 50")                          # per telefon
+    _run(g, 60)
+    g.say(Role.SONAR, "order.declined", {"order": "djup 150", "made_t": g.now}, kind="suggest")
+    _run(g, 12)
+    assert g.world.own.state.ordered_depth == 50
+    st = g.status()
+    assert st.phone == "ring" and g.active_suggestion() is not None
+    g.command("svara")
+    _run(g, 8)
+    call = [r for r in reports if r.type == "xo.call"][-1]
+    assert "djup 150" in call.text and "Ni beordrade djup 50" in call.text
+    # ett förslag om något annat beslutar han själv
+    g.say(Role.NAVIGATOR, "order.declined", {"order": "kurs 200", "made_t": g.now}, kind="suggest")
+    _run(g, 12)
+    assert g.world.own.state.ordered_course == 200
+
+
+def test_phone_order_binds_ten_minutes_and_never_alarms():
+    from sim.stations.starpom import PHONE_ORDER_S
+    g, reports = _game()
+    g.command("starpom har befälet")
+    _run(g, 3)
+    g.command("djup 50")
+    _run(g, 30)
+    g.say(Role.SONAR, "order.declined", {"order": "djup 160", "made_t": g.now}, kind="suggest",
+          alarm=True)
+    _run(g, 12)
+    assert g.world.own.state.ordered_depth == 160      # larmet går före
+    g.command("djup 60")
+    _run(g, PHONE_ORDER_S + 5)
+    g.say(Role.SONAR, "order.declined", {"order": "djup 140", "made_t": g.now}, kind="suggest")
+    _run(g, 12)
+    assert g.world.own.state.ordered_depth == 140      # telefonordern är gammal
+
+
+def test_orders_before_the_handover_are_not_phone_orders():
+    g, reports = _game()
+    g.command("djup 50")
+    g.command("starpom har befälet")
+    _run(g, 3)
+    g.say(Role.SONAR, "order.declined", {"order": "djup 150", "made_t": g.now}, kind="suggest")
+    _run(g, 12)
+    assert g.world.own.state.ordered_depth == 150

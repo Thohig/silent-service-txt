@@ -32,7 +32,7 @@ from .. import phrases
 from .. import russian as R
 from ..broadcasts import order_day
 from ..crew import Role
-from ..events import ReportDelivered
+from ..events import OrderIssued, ReportDelivered
 from ..fmt import clock, fmt_course, kn, nm
 from ..ownship import ANTENNA_DEPTH
 from ..orders import (REST_SCALE, CommandSpec, Order, SetTimeScale, Unknown,
@@ -60,6 +60,7 @@ SUMMON_S = 120          # så långt före skjutläget ropas kaptenen till centr
 SUMMON_RANGE_NM = 3.5   # anfallsorder: ett stort fartyg så nära enligt plottet ⇒ kaptenen hit
 TIME_WARN_S = 900       # tidsgränsen så här nära: väck kaptenen
 REPEAT_S = 600          # samma fråga ringer inte igen förrän efter så här länge
+PHONE_ORDER_S = 600     # en telefonorder så här färsk ändrar starpom inte på förslag: han ringer
 SLEEP_SCALE = 60
 
 # Det starpom får besluta om utan kaptenen. Allt annat väcker kaptenen.
@@ -136,6 +137,18 @@ STEERING: tuple[type[Order], ...] = (SetCourse, SteerTo, GoToWait, GoToStation, 
 
 DANGER_PREFIXES = ("bridge.column", "bridge.hit")
 
+# vad en order bestämmer över: ett förslag om samma sak går emot en färsk telefonorder
+SLOTS: tuple[tuple[str, tuple[type[Order], ...]], ...] = (
+    ("depth", (SetDepth, SettleOnBottom, Hover)),
+    ("course", STEERING),
+    ("speed", (SetSpeed,)),
+    ("propulsion", (SetPropulsion,)),
+)
+
+
+def order_slots(order: Order) -> set[str]:
+    return {name for name, kinds in SLOTS if isinstance(order, kinds)}
+
 
 def alarm_level(type_: str) -> str | None:
     if type_ in ALARM_LEVELS:
@@ -197,6 +210,9 @@ def reason_text(d: dict) -> str:
         return f"Sambandstillfälle klockan {d['clock']}. Ordern kräver rapporten."
     if k == "suggestion":
         return f"{d['who']} föreslår {d['proposed']}. Det beslutet är ert."
+    if k == "phone_order":
+        return (f"{d['who']} föreslår {d['proposed']}. Ni beordrade {d['ordered']} klockan "
+                f"{d['clock']}. Det beslutet är ert.")
     return ""
 
 
@@ -326,12 +342,21 @@ class FirstOfficer(Station):
         self._hunt_seen = False
         self._time_warned = False
         self._asked: dict[str, int] = {}    # fråga -> senast ringd
+        # kaptenens order per telefon medan starpom har befälet: sak -> (tid, ordertext)
+        self.phone_orders: dict[str, tuple[int, str]] = {}
         sc = getattr(game, "scenario", None)
         self.order_day = order_day(sc.secret_order) if sc and sc.secret_order else None
 
     def attach(self, bus) -> None:
         super().attach(bus)
         bus.subscribe(ReportDelivered, self._on_report)
+        bus.subscribe(OrderIssued, self._on_issued)
+
+    def _on_issued(self, e: OrderIssued) -> None:
+        """Kaptenens order per telefon: starpom ändrar dem inte själv på ett förslag."""
+        if self.in_command and e.by == "captain":
+            for slot in order_slots(e.order):
+                self.phone_orders[slot] = (e.t, e.text)
 
     # --- läget ------------------------------------------------------------------
     def status_fields(self) -> dict:
@@ -389,6 +414,7 @@ class FirstOfficer(Station):
                     return
                 self.in_command = True
                 self.captain_at = "cabin"
+                self.phone_orders = {}
                 self.decisions = []
                 self.pending = []
                 self.lamp = False
@@ -472,6 +498,19 @@ class FirstOfficer(Station):
             return {"why": "report"}
         return None
 
+    def _against_phone_order(self, report, order: str) -> dict | None:
+        """Går förslaget emot en order kaptenen gett per telefon de senaste tio minuterna?
+        Larm och jakttecken går före, som i _objection."""
+        if report.alarm or self.game.knowledge.hunted(self.now):
+            return None
+        for part in split_orders(order):
+            for slot in order_slots(self.game.registry.parse(part)):
+                if slot in self.phone_orders:
+                    t, text = self.phone_orders[slot]
+                    if self.now - t <= PHONE_ORDER_S and text.strip() != part.strip():
+                        return {"ordered": text, "clock": self.game.clock_str(t)[:5]}
+        return None
+
     def _nav(self) -> NavigationStation | None:
         try:
             return self.game.station(NavigationStation)
@@ -494,6 +533,10 @@ class FirstOfficer(Station):
                      kind="ack", extra_delay=-1)
             self.game.log(f"STARPOM avslår: {order!r} ({why})")
             return True
+        if in_mandate(self.game, order) and (ph := self._against_phone_order(report, order)):
+            self._wake("question", {"kind": "phone_order", "who": report.speaker.split(" (")[0],
+                                    "proposed": order, **ph})
+            return False
         if in_mandate(self.game, order):
             self.decisions.append((self.game.clock_str()[:5], order))
             self.say("xo.accept", {"who": report.speaker.split(" (")[0], "proposed": order},
@@ -527,7 +570,7 @@ class FirstOfficer(Station):
             return
         if level == "question":
             key = f"{reason['kind']}:{reason.get('type') or reason.get('proposed') or ''}"
-            if reason["kind"] in ("suggestion", "alarm"):
+            if reason["kind"] in ("suggestion", "alarm", "phone_order"):
                 if self.now - self._asked.get(key, -10**9) < REPEAT_S:
                     return
                 self._asked[key] = self.now
