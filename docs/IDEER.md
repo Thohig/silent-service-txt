@@ -23,6 +23,10 @@ Bara med det som behöver dem:
 
 - **Jagarkaptener med personlighet** (variation i fiendens beteende).
 - **Viskningar och skrovknak under jakt;** **"torped i vattnet"-nedräkning** (besättningen räknar).
+- **Starpom respekterar telefonorder** (2026-11-19): i dag kan ett nytt förslag inom mandatet ersätta en
+  order kaptenen gett per telefon (`on_suggestion` har ingen sådan invändning). Förslag: ett förslag som
+  går emot en telefonorder från de senaste 10 minuterna avgör han inte själv utan ringer ("Sonar föreslår
+  djup 150, ni beordrade 50"); larm och jakt undantagna.
 
 ## Scenarier
 
