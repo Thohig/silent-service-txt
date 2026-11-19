@@ -30,38 +30,16 @@ när något går fel, ger högst en ny order (helst ingen) och syns i de vyer so
 
 Bara med det som behöver dem:
 - **Luften** (syre, koldioxid, regenereringspatroner): slås ihop med koldioxiden som finns, i maskins
-  rapporter och på systemtavlan; betydelse först i kampanjen eller ett scenario med reaktorn av.
+  rapporter och på systemtavlan; betydelse först i ett scenario med reaktorn av.
 - **Omladdningen hörs:** omladdningen tar redan 5 minuter; det som saknas är att den slamrar (en transient
   jagaren kan höra).
 
 ## Spelidéer
 
-- **Kampanjen «Октябрь 1962»** ("avvakta"), smal, se nedan.
 - **Order som krockar med läget:** besättningen säger emot med skäl.
 - **Osäkert neutralt mål;** **jagarkaptener med personlighet** (variation i fiendens beteende).
 - **Viskningar och skrovknak under jakt;** **"torped i vattnet"-nedräkning** (besättningen räknar).
 - **Scenario med reaktorn av och batteri** (där luften får betydelse).
-
-### Kampanjen «Октябрь 1962» (K1–K5)
-
-En patrull 1–28 okt där scenarierna blir uppdrag med transiter emellan; starpom och hytten
-(byggda 2026-11-16) är förutsättningen. Smal: så lite som möjligt följer med mellan uppdragen.
-- **Förlopp:** avgång från Poljarnyj 1 okt (som övningens fjord), transit genom Norska havet och
-  GIUK-gapet (snabbspolad; väckning vid Neptune-flyg, kontakter, dygnets sambandstillfälle),
-  Atlanten där telegrammen styr (22 okt karantänen, 24 okt blockaden, sedan Kvadrat 7, Sundet eller
-  Konvojen efter datum och rapporter), slutet: hemfärd eller kriget 28 okt.
-- **Följer med mellan uppdragen** (JSON): torpeder och skenmål (omladdning bara i hemmahamn), skador
-  som bara delvis lagas till sjöss, datumet; luften bara om den byggs.
-- **Vädret:** prognosen i stabens telegram, sjögången per uppdrag ur årstiden (oktober i Nordatlanten).
-- **Staben styr:** stabens svar på det vi rapporterat väljer nästa uppdrag (`Headquarters.received`).
-- **Beslut i transiten:** turbin (fort men hörs) eller smygmotor, sända rapport vid
-  sambandstillfället (pejlbart), vidga eller snäva starpoms mandat inför natten.
-- **Kampanjkartan i sjökortet** (ingen egen vy): under transiten visar sjökortet Nordatlanten med vägen
-  enligt besticket (aldrig sanningen), telegrammens kvadrater och datumet.
-- **Slutet:** ДОНЕСЕНИЕ till staben med utfallet medalj, omplacering eller krigsrätt (upptäckt,
-  neutralt fartyg sänkt, sänt för ofta, kärnladdningen). Kärnvapenrådet finns (27 okt).
-- **Steg:** K1 kampanjtillstånd och sparning; K2 transit med snabbspolning och händelser; K3
-  telegrammen väljer uppdrag; K4 sjökortet i transiten; K5 slutbedömningen.
 
 ## Scenarier
 
