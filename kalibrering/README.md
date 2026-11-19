@@ -55,7 +55,7 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
   aldrig skarpa (0). Boten skjuter mot bäringen när plottet saknar lösning; först efter att boten gick upp
   till skjutdjup (≤ 100 m) sköt den alls (förut nekade torpedrummet på 170 m).
 - `kontroll.py` (kuba, kuba-kort, jagad, jagad-kort, konvoj-kort, konvoj-mot) efter sonarens nya klassning
-  (KV2): som baslinjen.
+  (KV2): som baslinjen; efter KV8 alla scenarier: som baslinjen.
 
 **Sjögången och vädret (2026-11-19, V1–V5, `kontroll.py`, 8 frön):** alla scenarier som baslinjen utom
 konvojerna, som nu går i Beaufort 5 (4–6 med vädret): `konvoj` ja convoy_missed median 112 ⇒ 149 min (alla
