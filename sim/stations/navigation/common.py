@@ -101,6 +101,8 @@ EXIT_THREAT_PENALTY_NM = 4.0
 EXIT_DEEP_M = 300           # grundare än så enligt kortet kan vi inte springa djupt (220 m) ...
 EXIT_SHALLOW_FACTOR = 1.0   # ... så den biten av vägen ut räknas så mycket längre
 EXIT_SAMPLE_NM = 0.2
+ASTERN_SLOW_KN = 2.0        # sakta back
+ASTERN_LOUD_KN = 8.0        # omkastning från så här hög fart hörs långt (navigatören säger det)
 SETTLE_SPEED = 1.0          # fart när vi går ned mot botten
 SETTLE_DESCEND_KN = 1.5     # gå ned först när farten är nere i detta
 SETTLE_EXTRA_M = 60         # sikta så här långt under kortets botten
@@ -144,6 +146,8 @@ class SetCourse(Order):
 @dataclass(frozen=True)
 class SetSpeed(Order):
     speed: float
+    astern: bool = False         # back i maskin
+    level: str | None = None     # "sakta", "halv", "full": navigatören räknar farten ur maskinen
     STANDING = True
 
 

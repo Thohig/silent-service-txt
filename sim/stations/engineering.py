@@ -203,8 +203,9 @@ PHRASES = {
     f"{d['range']} meter. Föreslår att vi går dit.",
     "eng.smoke_no_opening": lambda d: f"Kapten, maskin. Röken är {_smoke_word(d['smoke'])} och vi "
     "måste ventilera, men vi har ingen öppning i isen. Vi måste hitta öppet vatten.",
-    "eng.suggest.cavitation": lambda d: f"Kapten, maskin. Vi kaviterar, vi hörs långt. "
-    f"Föreslår fart {kn(d['speed'])} knop.",
+    "eng.suggest.cavitation": lambda d: f"Kapten, maskin. Propellern kaviterar akterut, den tål "
+    f"mindre bakåt, vi hörs långt. Föreslår back {kn(d['speed'])} knop." if d.get("astern") else
+    f"Kapten, maskin. Vi kaviterar, vi hörs långt. Föreslår fart {kn(d['speed'])} knop.",
     "eng.suggest.restart": lambda d: "Kapten, maskin. Föreslår omstart av reaktorn.",
     "eng.suggest.blow": lambda d: f"Kapten, maskin! Vi tar in vatten och sjunker, "
     f"{d['flooding']:.0f} ton ombord. Föreslår nödblåsning!",
@@ -363,7 +364,8 @@ RU_PHRASES = {
     + "Машина остановлена, насосы на малых оборотах.",
     "vent.done": lambda d: f"{R.CAPTAIN}, воздух снова чистый. Вентиляция закрыта.",
     "eng.suggest.cavitation": lambda d: f"{R.CAPTAIN}, пульт. Кавитируем, нас слышно далеко. "
-    f"Предлагаю ход {R.count(d['speed'], R.KNOT)}.",
+    + (f"Предлагаю задний ход {R.count(d['speed'], R.KNOT)}." if d.get("astern") else
+       f"Предлагаю ход {R.count(d['speed'], R.KNOT)}."),
     "eng.suggest.restart": lambda d: f"{R.CAPTAIN}, пульт. Предлагаю ввести реактор.",
     "eng.suggest.blow": lambda d: f"{R.CAPTAIN}, пульт! Принимаем воду и тонем, "
     f"{round(d['flooding'])} тонн внутри. Предлагаю аварийное продувание!",
@@ -537,11 +539,10 @@ class EngineeringStation(Station):
             out.append(Proposal(1, "idle_blow", "eng.suggest.blow", "nödblåsning",
                                 {"flooding": s.flooding}, cooldown=120))
         torpedo = self.game.knowledge.torpedo_alarm(self.now, window=TORPEDO_SPEED_S)
-        if st.speed > acoustics.cavitation_speed(st.depth) + 0.2 and not self.own.surfaced \
-                and not torpedo:
-            safe = max(3.0, int(acoustics.cavitation_speed(st.depth)))
-            out.append(Proposal(1, "idle_cavitation", "eng.suggest.cavitation", f"fart {safe}",
-                                {"speed": safe}, cooldown=600))
+        if (cav := self._cavitation_advice()) is not None and not torpedo:
+            order, data = cav
+            out.append(Proposal(1, "idle_cavitation", "eng.suggest.cavitation", order, data,
+                                cooldown=600))
         if s.reactor in ("scram", "off") and s.battery < 0.5:
             out.append(Proposal(1, "idle_restart", "eng.suggest.restart", "starta reaktorn"))
         hunted = self.game.knowledge.hunted(self.now)
@@ -552,6 +553,20 @@ class EngineeringStation(Station):
                 not self.own.surfaced and self.game.knowledge.threat_held():
             out.append(Proposal(2, "idle_creep", "eng.suggest.creep", "smygmotor"))
         return out
+
+    def _cavitation_advice(self) -> tuple[str, dict] | None:
+        """Vi kaviterar under vattnet: order och data för en fart som inte gör det. Inte medan
+        maskinen slår om (bromsningen river vattnet, det går över)."""
+        st = self.own.state
+        if self.own.surfaced or st.reversing:
+            return None
+        if st.speed <= acoustics.cavitation_speed(st.depth, st.astern) + 0.2:
+            return None
+        if st.astern:
+            safe = max(1, int(acoustics.cavitation_speed(st.depth, True)))
+            return f"back {safe}", {"speed": safe, "astern": True}
+        safe = max(3.0, int(acoustics.cavitation_speed(st.depth)))
+        return f"fart {safe}", {"speed": safe}
 
     def _sprint(self) -> tuple[str, dict] | None:
         """Upptäckta: djupt och så fort det går utan kavitation. None om vi redan gör det."""
@@ -635,10 +650,9 @@ class EngineeringStation(Station):
         # i ytläge hörs vi ändå som ett ytfartyg: kavitationen spelar ingen roll; med en torped
         # i vattnet är farten viktigare än ljudet
         torpedo = self.game.knowledge.torpedo_alarm(self.now, window=TORPEDO_SPEED_S)
-        if st.speed > acoustics.cavitation_speed(st.depth) + 0.2 and not own.surfaced and not torpedo:
-            safe = max(3.0, int(acoustics.cavitation_speed(st.depth)))
-            self.suggest("cavitation", "eng.suggest.cavitation", {"speed": safe},
-                         order=f"fart {safe}", cooldown=600)
+        if (cav := self._cavitation_advice()) is not None and not torpedo:
+            order, data = cav
+            self.suggest("cavitation", "eng.suggest.cavitation", data, order=order, cooldown=600)
         if s.reactor in ("scram", "off") and (s.battery < 0.5 or s.reactor == "scram"):
             self.suggest("restart", "eng.suggest.restart", order="starta reaktorn",
                          cooldown=900 if s.reactor == "scram" else 1800)

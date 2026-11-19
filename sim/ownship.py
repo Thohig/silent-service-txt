@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from . import acoustics, trim
-from .entities import Vessel
+from .entities import Transient, Vessel
 from .trim import TrimState
 
 if TYPE_CHECKING:
@@ -31,6 +31,11 @@ FLOOD_LOSS_T = 120.0          # ton vatten ombord = förlorad
 SCRAM_RATE_PER_H = 0.01       # spontana snabbstopp
 STEAM_LEAK_RATE_PER_H = 0.005
 REACTOR_START_S = 1200
+ASTERN_TURBINE_KN = 8.0       # högsta backfart på turbinen
+ASTERN_ELECTRIC_KN = 3.0      # och på smygmotorn
+BRAKE_KN_PER_S = 0.15         # inbromsning när maskinen går mot farten (stopp: 0,05)
+ASTERN_TURN = 1 / 3           # rodret tar dåligt när båten går akterut
+ASTERN_PLANES = 0.3           # djuprodrens bärförmåga akterut, andel
 REPAIR_S = 1200               # tid att reparera en komponent helt
 BRIDGE_MAN_S = 20             # luckan öppen och utkikarna uppe så här länge efter att vi kommit upp
 BRIDGE_CLEAR_S = 20           # bryggan utryms och luckan stängs innan vi kan dyka
@@ -84,6 +89,9 @@ class OwnShip(Vessel):
     def __init__(self, state, id: str = "OWN"):
         super().__init__(id=id, kind="submarine", state=state, side="own")
         self.sys = OwnSystems()
+        state.brake_accel = BRAKE_KN_PER_S
+        state.astern_turn = ASTERN_TURN
+        self._reversing = False          # maskinen slog mot farten förra sekunden
         if state.depth <= 1.0:
             self.sys.bridge = "manned"       # börjar i ytläge med folk på bryggan
 
@@ -103,6 +111,16 @@ class OwnShip(Vessel):
             return 5.0 * max(s.health["propulsion"], 0.3)
         v = 28.0 * max(s.health["propulsion"], 0.3)
         return min(v, 16.0) if s.steam_leak else v
+
+    def max_astern_speed(self) -> float:
+        """Högsta fart akterut: propellern ger mindre bakåt, en tredjedel ungefär."""
+        ahead = self.max_speed()
+        if ahead <= 0:
+            return 0.0
+        s = self.sys
+        if s.propulsion == "electric" or not self.power:
+            return ASTERN_ELECTRIC_KN * max(s.health["propulsion"], 0.3)
+        return min(ahead, ASTERN_TURBINE_KN * max(s.health["propulsion"], 0.3))
 
     def masts_up(self, now: int) -> bool:
         s = self.sys
@@ -149,7 +167,7 @@ class OwnShip(Vessel):
             if s.reactor in ("online", "starting"):
                 parts.append(120.0)           # reaktorns kylpumpar går alltid
         lvl = acoustics.power_sum(*parts) + 1.2 * speed
-        if speed > acoustics.cavitation_speed(self.state.depth):
+        if speed > acoustics.cavitation_speed(self.state.depth, self.state.prop_astern):
             lvl += 12.0
         if s.flooding > 0 or s.hull < 0.7:
             lvl += 2.0                        # skrammel från skador
@@ -246,7 +264,7 @@ class OwnShip(Vessel):
         t.step_pumps(dt, power)
         t.follow_order(st.depth, st.ordered_depth)
         t.weigh(st.depth, world.env, s.flooding)
-        cap = trim.plane_capacity(st.speed, s.health["planes"])
+        cap = trim.plane_capacity(st.speed, s.health["planes"]) * (ASTERN_PLANES if st.astern else 1.0)
         w = t.weight_t
         t.plane_load = max(-1.0, min(1.0, w / cap)) if cap > 0 else (0.0 if w == 0 else
                                                                      (1.0 if w > 0 else -1.0))
@@ -337,8 +355,16 @@ class OwnShip(Vessel):
 
         # fart begränsas av framdrivningen
         st.max_speed = self.max_speed()
-        if st.ordered_speed > st.max_speed:
-            st.ordered_speed = st.max_speed
+        limit = self.max_astern_speed() if st.ordered_astern else st.max_speed
+        if st.ordered_speed > limit:
+            st.ordered_speed = limit
+            if limit <= 0:
+                st.ordered_astern = False
+        if st.reversing and not self._reversing and st.speed >= acoustics.ASTERN_TRANSIENT_MIN_KN:
+            # omkastningen: propellern slår mot farten och river upp vattnet
+            world.emit(Transient("astern", st.x, st.y, st.depth, acoustics.astern_level(st.speed),
+                                 self.id, now))
+        self._reversing = st.reversing
 
         # luft
         regen = self.power or s.battery > 0.02
@@ -350,7 +376,8 @@ class OwnShip(Vessel):
                 self.alert("air", co2=s.co2)
 
         # djupstyrning: rodren behöver fart, barlasten verkar långsamt
-        st.depth_rate = min(2.0, max(0.2, (0.25 + 0.12 * st.speed) * max(s.health["planes"], 0.2)))
+        planes = max(s.health["planes"], 0.2) * (ASTERN_PLANES if st.astern else 1.0)
+        st.depth_rate = min(2.0, max(0.2, (0.25 + 0.12 * st.speed) * planes))
         self._bridge_step(now)
         if self.bridge_open:
             st.depth_rate = 0.0               # inte ned med luckan öppen (vi ligger redan uppe)

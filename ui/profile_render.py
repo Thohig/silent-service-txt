@@ -58,7 +58,7 @@ STYLE = {
     "dim": "#4f6358",
 }
 # vilket ljud som vinner när två hamnar i samma kolumn
-EVENT_PRIO = {"explosion": 6, "breakup": 6, "splash": 5, "own_launch": 5, "own_blow": 5,
+EVENT_PRIO = {"explosion": 6, "breakup": 6, "splash": 5, "own_launch": 5, "own_blow": 5, "own_astern": 4,
               "buoy_ping": 4, "own_ping": 4, "own_decoy": 4, "practice": 3, "buoy": 3,
               "uwt": 2, "ping": 1}
 

@@ -29,6 +29,9 @@ WORDS: dict[str, Word] = {w.latin: w for w in (
     Word("Torpeda", "Торпеда", "torped (i vattnet)"),
     Word("Komandovanie prinjal", "Командование принял", "befälet övertaget (starpom tar vakten)"),
     Word("Komandovanie sdal", "Командование сдал", "befälet överlämnat (tillbaka till kaptenen)"),
+    Word("Malyj nazad", "Малый назад", "sakta back (maskinen går akterut)"),
+    Word("Srednij nazad", "Средний назад", "halv back"),
+    Word("Polnyj nazad", "Полный назад", "full back"),
     Word("Komandir, v tsentralnyj", "Командир, в центральный", "kaptenen till centralen"),
 )}
 

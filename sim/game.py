@@ -573,7 +573,7 @@ class Game:
             periscope_depth=s.depth <= PERISCOPE_DEPTH, masts_up=own.masts_up(self.now),
             radar_up=sy.radar_until > self.now, transmitting=sy.transmit_until > self.now,
             blowing=sy.blowing,
-            cavitating=s.speed > cavitation_speed(s.depth),
+            cavitating=s.speed > cavitation_speed(s.depth, s.prop_astern),
             suggestion=sug[0] if sug else None, over=self.over,
             sea_noise=sea_noise, under_ice=under_ice,
             fire=sy.fire, smoke=sy.smoke, ventilating=sy.ventilating, on_bottom=sy.on_bottom,

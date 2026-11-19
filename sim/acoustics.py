@@ -61,9 +61,21 @@ def hull_sonar_self_noise(speed: float) -> float:
     return 55.0 + 1.5 * max(speed, 0.0)
 
 
-def cavitation_speed(depth: float) -> float:
-    """Fart (knop) över vilken propellern kaviterar. Ökar med djupet."""
-    return 6.0 + max(depth, 0.0) / 25.0
+ASTERN_TRANSIENT_MIN_KN = 2.0   # omkastning i lägre fart hörs inte särskilt
+ASTERN_CAVITATION = 0.5     # propellern går bakåt: kaviterar vid halva farten
+
+
+def astern_level(speed: float) -> float:
+    """Källnivå (dB) när maskinen slår om mot farten: propellern river upp vattnet,
+    starkare ju fortare vi gick. 12 kn ≈ en torpedutskjutning, 20 kn mer än nödblåsning."""
+    return 120.0 + 2.5 * speed
+
+
+def cavitation_speed(depth: float, astern: bool = False) -> float:
+    """Fart (knop) över vilken propellern kaviterar. Ökar med djupet. Akterut går
+    propellern med fel sida mot vattnet och kaviterar vid halva farten."""
+    v = 6.0 + max(depth, 0.0) / 25.0
+    return v * ASTERN_CAVITATION if astern else v
 
 
 def transmission_loss(range_nm: float, depth_a: float | None = None,

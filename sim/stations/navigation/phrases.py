@@ -31,11 +31,74 @@ def _att_path(d: dict) -> str:
     return f"{what} kurs {fmt_course(d['target_course'])}"
 
 
+_LEVEL = {"sakta": ("Malyj nazad", "sakta back"), "halv": ("Srednij nazad", "halv back"),
+          "full": ("Polnyj nazad", "full back")}
+_LEVEL_RU = {"sakta": "Малый назад", "halv": "Средний назад", "full": "Полный назад"}
+
+
+def _speed_ack(d: dict) -> str:
+    if d.get("astern"):
+        if d.get("level"):
+            word, sv = _LEVEL[d["level"]]
+            txt = f"{ru('Jest')}, {ru(word)}, {sv}, {kn(d['speed'])} knop."
+        else:
+            txt = f"{ru('Jest')}, back i maskin, {kn(d['speed'])} knop."
+        if d.get("from_ahead"):
+            txt += f" Maskinen slår om, vi bromsar från {kn(d['from_ahead'])} knop framåt."
+        return txt + (" Omkastningen hörs långt." if d.get("loud") else "")
+    if d["speed"] == 0:
+        return f"{ru('Jest')}, stopp i maskin."
+    txt = f"{ru('Jest')}, fart {kn(d['speed'])} knop."
+    if d.get("from_astern"):
+        txt += " Maskinen slår om till framåt."
+    return txt + (" Omkastningen hörs långt." if d.get("loud") else "")
+
+
+def _limit(d: dict) -> str:
+    match d["what"]:
+        case "speed":
+            return f"Kapten, högsta fart just nu är {kn(d['limit'])} knop."
+        case "astern" if d["limit"] <= 0:
+            return "Kapten, maskinen kan inte gå back nu, vi har ingen kraft."
+        case "astern":
+            return f"Kapten, största backfart just nu är {kn(d['limit'])} knop."
+        case "astern_zero":
+            return "Kapten, back i noll knop är stopp. Säg back och farten, eller stopp."
+    return f"Kapten, största djup är {d['limit']:.0f} meter."
+
+
+def _ru_speed_ack(d: dict) -> str:
+    if d.get("astern"):
+        txt = (f"Есть, {_LEVEL_RU[d['level']].lower()}." if d.get("level")
+               else f"Есть, задний ход, {R.dec(d['speed'], R.KNOT)}.")
+        if d.get("from_ahead"):
+            txt += " Реверс, гасим ход."
+        return txt + (" Реверс слышно далеко." if d.get("loud") else "")
+    if d["speed"] == 0:
+        return "Есть, стоп машина."
+    txt = f"Есть, ход {R.dec(d['speed'], R.KNOT)}."
+    if d.get("from_astern"):
+        txt += " Реверс, вперёд."
+    return txt + (" Реверс слышно далеко." if d.get("loud") else "")
+
+
+def _ru_limit(d: dict) -> str:
+    match d["what"]:
+        case "speed":
+            return f"{R.CAPTAIN}, предельный ход сейчас {R.dec(d['limit'], R.KNOT)}."
+        case "astern" if d["limit"] <= 0:
+            return f"{R.CAPTAIN}, задний ход дать не можем, нет мощности."
+        case "astern":
+            return f"{R.CAPTAIN}, предельный задний ход сейчас {R.dec(d['limit'], R.KNOT)}."
+        case "astern_zero":
+            return f"{R.CAPTAIN}, задний ход ноль — это стоп."
+    return f"{R.CAPTAIN}, предельная глубина {R.count(d['limit'], R.METER)}."
+
+
 PHRASES = {
     "nav.course.ack": lambda d: f"{ru('Jest')}, kurs {fmt_course(d['course'])}."
     + (" Vi ligger på den." if d.get("already") else ""),
-    "nav.speed.ack": lambda d: f"{ru('Jest')}, stopp i maskin." if d["speed"] == 0
-    else f"{ru('Jest')}, fart {kn(d['speed'])} knop.",
+    "nav.speed.ack": _speed_ack,
     "nav.depth.ack": lambda d: (f"{ru('Jest')}, upp till ytan." if d["depth"] == 0 else
                                 f"{ru('Jest')}, djup {d['depth']:.0f} meter.")
     + (" Det är under provdjup, kapten." if d.get("below_test") else "")
@@ -137,11 +200,13 @@ PHRASES = {
     "men vi flyter: kortet ligger fel här, och stranden är nära. Närmaste vatten på kortet i kurs "
     f"{fmt_course(d['course'])}, {nm(d['dist'])} sjömil. Föreslår kurs {fmt_course(d['course'])}.",
     "nav.course.done": lambda d: f"Kapten, kurs {fmt_course(d['course'])} påkommen.",
-    "nav.speed.done": lambda d: f"Fart {kn(d['speed'])} knop uppnådd.",
+    "nav.speed.done": lambda d: f"Back {kn(d['speed'])} knop, kapten, vi går akterut."
+    if d.get("astern") else f"Fart {kn(d['speed'])} knop uppnådd.",
+    "nav.speed.stopped": lambda d: "Båten står stilla, kapten. Nu går vi akterut." if d["astern"]
+    else "Båten står stilla, kapten. Nu går vi framåt.",
     "nav.depth.done": lambda d: "Vi är i ytläge, kapten." if d["depth"] < 1
     else f"Djup {d['depth']:.0f} meter, kapten.",
-    "nav.limit": lambda d: f"Kapten, högsta fart just nu är {kn(d['limit'])} knop."
-    if d["what"] == "speed" else f"Kapten, största djup är {d['limit']:.0f} meter.",
+    "nav.limit": _limit,
     "nav.fairway": lambda d: f"{ru('Jest')}, följer farleden ut, kurs {fmt_course(d['course'])}. "
     f"{d['legs']} ben, {nm(d['dist'])} sjömil. Vi håller styrbords sida.",
     "nav.fairway.leg": lambda d: f"Girpunkt i farleden, ny kurs {fmt_course(d['course'])}."
@@ -411,18 +476,19 @@ RU_PHRASES = {
     f"станции, ход пять узлов на {R.count(d['depth'], R.METER)}.",
     "nav.course.ack": lambda d: f"Есть, курс {R.course(d['course'])}."
     + (" Уже на курсе." if d.get("already") else ""),
-    "nav.speed.ack": lambda d: "Есть, стоп машина." if d["speed"] == 0
-    else f"Есть, ход {R.dec(d['speed'], R.KNOT)}.",
+    "nav.speed.ack": _ru_speed_ack,
     "nav.depth.ack": _ru_depth_ack,
     "nav.suggest.chart_land": lambda d: f"{R.CAPTAIN}, штурман! По карте мы на берегу, но мы на плаву: "
     "карта здесь врёт, берег рядом. Ближайшая вода по карте курсом "
     f"{R.course(d['course'])}, {R.dec(d['dist'], R.MILE)}. Предлагаю курс {R.course(d['course'])}.",
     "nav.course.done": lambda d: f"{R.CAPTAIN}, легли на курс {R.course(d['course'])}.",
-    "nav.speed.done": lambda d: f"Ход {R.dec(d['speed'], R.KNOT)}.",
+    "nav.speed.done": lambda d: f"Задний ход {R.dec(d['speed'], R.KNOT)}." if d.get("astern")
+    else f"Ход {R.dec(d['speed'], R.KNOT)}.",
+    "nav.speed.stopped": lambda d: "Лодка остановилась. Идём назад." if d["astern"]
+    else "Лодка остановилась. Идём вперёд.",
     "nav.depth.done": lambda d: "Мы в надводном положении, товарищ командир." if d["depth"] < 1
     else f"Глубина {R.count(d['depth'], R.METER)}, товарищ командир.",
-    "nav.limit": lambda d: f"{R.CAPTAIN}, предельный ход сейчас {R.dec(d['limit'], R.KNOT)}."
-    if d["what"] == "speed" else f"{R.CAPTAIN}, предельная глубина {R.count(d['limit'], R.METER)}.",
+    "nav.limit": _ru_limit,
     "nav.settle.ack": lambda d: f"Есть, ложимся на грунт. Глубина около {R.count(d['depth'], R.METER)}. "
     "Ход один узел, погружаемся.",
     "nav.settle.already": lambda d: "Мы уже лежим на грунте, товарищ командир.",

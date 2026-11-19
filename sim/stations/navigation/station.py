@@ -11,6 +11,7 @@ import re
 from ... import acoustics
 from ...chart import LAYER_CONTOUR, LAYER_ICE, LAYER_OWN, LAYER_TRACK, Mark, Note, Ray, Ring, Track
 from ...crew import Role
+from ...events import OwnSoundMade
 from ...fmt import clock, fmt_course, kn, nm
 from ...geo import angle_diff, bearing_to, norm360, velocity
 from ...ice import SAIL_TOP_M
@@ -25,6 +26,8 @@ from ..base import Proposal, Station
 from .bottom import BottomMixin
 from .current import CurrentMixin, CurrentReport
 from .common import (
+    ASTERN_LOUD_KN,
+    ASTERN_SLOW_KN,
     ATTACK_STEP_S,
     BRIDGE_FIX_EVERY_S,
     DEPTH_LOG_INTERVAL_S,
@@ -84,6 +87,12 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         CommandSpec(rf"(?:kurs|k|styr)\s+{NUM}", _course, "kurs 090"),
         CommandSpec(rf"(?:fart|f)\s+{NUM}(?:\s*(?:knop|kn))?", lambda m: SetSpeed(num(m[1])), "fart 5"),
         CommandSpec(r"stopp|stoppa|stopp i maskin", lambda m: SetSpeed(0.0), "stopp"),
+        CommandSpec(rf"back(?: i maskin)?\s+{NUM}(?:\s*(?:knop|kn))?",
+                    lambda m: SetSpeed(num(m[1]), astern=True), "back 3"),
+        CommandSpec(r"(?:back|back i maskin|sakta back)",
+                    lambda m: SetSpeed(0.0, astern=True, level="sakta"), "sakta back"),
+        CommandSpec(r"halv back", lambda m: SetSpeed(0.0, astern=True, level="halv"), "halv back"),
+        CommandSpec(r"full back", lambda m: SetSpeed(0.0, astern=True, level="full"), "full back"),
         CommandSpec(rf"(?:djup|d)\s+{NUM}(?:\s*(?:m|meter))?",
                     lambda m: SetDepth(int(round(num(m[1])))), "djup 100"),
         CommandSpec(r"periskopdjup|pd", lambda m: SetDepth(int(PERISCOPE_DEPTH - 1)), "periskopdjup"),
@@ -150,6 +159,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         self._water = None                    # sjökortets vattenrutnät för vägsökning
         self._exit_cache: tuple[int, tuple | None, str | None] | None = None
         self._touching = False
+        self._was_reversing = False           # maskinen slog mot farten förra sekunden
         self._settle_aim = 0.0
         # djupprofilen: djupmätaren (t, djup) och ekolodets bottenlodningar
         self.depth_log: list[tuple[int, float]] = [(0, s.depth)]
@@ -188,10 +198,11 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         if abs(angle_diff(s.ordered_course, s.course)) >= 1:
             txt += f" ▸ {fmt_course(s.ordered_course)}"
         g("Kurs", txt, INFO)
-        txt = f"{kn(s.speed)} kn"
-        if abs(s.ordered_speed - s.speed) >= 0.1:
-            txt += f" ▸ {kn(s.ordered_speed)} kn"
-        cav = s.speed > acoustics.cavitation_speed(s.depth) + 0.2
+        back = lambda astern, v: f"back {kn(v)} kn" if astern and v > 0 else f"{kn(v)} kn"
+        txt = back(s.astern, s.speed)
+        if abs(s.ordered_speed - s.speed) >= 0.1 or s.reversing:
+            txt += f" ▸ {back(s.ordered_astern, s.ordered_speed)}"
+        cav = s.speed > acoustics.cavitation_speed(s.depth, s.prop_astern) + 0.2
         g("Fart", txt + (", kaviterar" if cav else ""), WARN if cav else INFO)
         sigma = self.uncertainty()
         g("Bestick", f"± {nm(sigma)} nm, fix {clock(self.game.start_clock + self.last_fix_t)[:5]}",
@@ -262,7 +273,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
             items.append(Mark(wp.x, wp.y, "⊕", "waypoint", f"{wp.name} ±{nm(ws)} nm"))
         items.append(Ring(self.est_x, self.est_y, sigma, "own"))
         if s.speed > 0.2:
-            items.append(Ray(self.est_x, self.est_y, s.course, s.speed * OWN_VECTOR_S / 3600,
+            items.append(Ray(self.est_x, self.est_y, s.track, s.speed * OWN_VECTOR_S / 3600,
                              "own_vector"))
         items.append(Mark(self.est_x, self.est_y, "@", "own", layer=LAYER_OWN))
         return items
@@ -309,7 +320,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
 
     def _dead_reckon(self) -> None:
         s = self.ship
-        vx, vy = velocity(s.course + self.gyro_err, s.speed * (1 + self.log_bias))
+        vx, vy = velocity(s.track + self.gyro_err, s.speed * (1 + self.log_bias))
         if self._tide_fix_t != self.last_fix_t:
             self._tide_fix_t, self._tide_sigma = self.last_fix_t, 0.0
         tide = self.game.knowledge.tide_table
@@ -344,12 +355,16 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                 self.course_set_t = self.now
                 s.order_course(c)
                 self._ack("course", {"course": c}, s.course == s.ordered_course)
-            case SetSpeed(speed=v):
+            case SetSpeed(speed=v, astern=astern, level=level):
                 self.vak = None
                 if isinstance(self.steer, Wait):
                     self.steer = None           # kaptenen tar över farten: vi håller inte läget
                 if isinstance(self.steer, Follow):
                     self.steer.hold_speed = False   # kaptenen sätter farten själv
+                if astern:
+                    self.steer = None           # inget styruppdrag går akterut
+                    self._order_astern(v, level)
+                    return
                 if v > 0:
                     self._lift()
                 limit = self.own.max_speed()
@@ -357,8 +372,14 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                     self.say("nav.limit", {"what": "speed", "limit": limit})
                     return
                 s.max_speed = limit             # turbinen kan just ha kopplats in på samma rad
+                was_astern = s.astern and s.speed > 0
                 s.order_speed(v)
-                self._ack("speed", {"speed": v}, s.speed == s.ordered_speed)
+                data = {"speed": v}
+                if was_astern and v > 0:
+                    data["from_astern"] = True
+                if self._reversal_heard():
+                    data["loud"] = True
+                self._ack("speed", data, s.speed == s.ordered_speed and not s.reversing)
             case SetDepth(depth=d):
                 self._lift()
                 if d > s.max_depth:
@@ -409,6 +430,40 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                 self._start_attack(d)
             case SettleOnBottom():
                 self._settle()
+
+    def _order_astern(self, v: float, level: str | None) -> None:
+        """Back i maskin: farten ur ordern, eller ur maskinens backfart (sakta, halv, full)."""
+        s = self.ship
+        limit = self.own.max_astern_speed()
+        if limit <= 0:
+            self.say("nav.limit", {"what": "astern", "limit": 0.0})
+            return
+        if level is not None:
+            v = {"sakta": min(ASTERN_SLOW_KN, limit), "halv": round(limit / 2),
+                 "full": limit}[level]
+            v = round(v, 1)
+        elif v <= 0:
+            self.say("nav.limit", {"what": "astern_zero", "limit": limit})
+            return
+        elif v > limit:
+            self.say("nav.limit", {"what": "astern", "limit": limit})
+            return
+        self._lift()
+        was_ahead = not s.astern and s.speed > 0
+        s.order_speed(v, astern=True)
+        loud = self._reversal_heard()
+        self._ack("speed", {"speed": v, "astern": True, "level": level, "loud": loud,
+                            "from_ahead": round(s.speed, 1) if was_ahead else 0.0},
+                  s.astern and s.speed == s.ordered_speed)
+
+    def _reversal_heard(self) -> bool:
+        """Maskinen slår om mot farten: omkastningen hörs. Besättningen vet det (plottet sätter
+        ett blyertsmärke, sonarn ett märke i vyn). Sant om det är i hög fart."""
+        s = self.ship
+        if not s.reversing or s.speed < acoustics.ASTERN_TRANSIENT_MIN_KN:
+            return False
+        self.game.bus.publish(OwnSoundMade(self.now, "astern"))
+        return s.speed >= ASTERN_LOUD_KN
 
     def _ack(self, what: str, data: dict, already: bool) -> None:
         self.say(f"nav.{what}.ack", {**data, "already": already}, kind="ack")
@@ -561,12 +616,19 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         self._steer_step(StationSteer)
         self._ice_advice()
         s = self.ship
+        reversing = s.reversing
+        if self._was_reversing and not reversing and s.ordered_speed > 0:
+            self.say("nav.speed.stopped", {"astern": s.astern})
+        self._was_reversing = reversing
         changing = s.changing()
         for what in list(self._pending):
             if what not in changing:
                 self._pending.discard(what)
                 value = {"course": s.course, "speed": s.speed, "depth": s.depth}[what]
-                self.say(f"nav.{what}.done", {what: value}, kind="done")
+                data = {what: value}
+                if what == "speed" and s.astern:
+                    data["astern"] = True
+                self.say(f"nav.{what}.done", data, kind="done")
 
         fixing = "fix" in self.tasks
         self._run_task("fix")
