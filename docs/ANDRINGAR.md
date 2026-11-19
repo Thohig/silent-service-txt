@@ -3,6 +3,16 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-19 – förslagen i hytten syns
+
+När starpom ringde om ett förslag utanför mandatet var det svårt att se vad man skulle ta ställning till:
+hyttens rapportrad hade två rader, och samtalet (ofta ett larm och förslaget i samma mening) klipptes så att
+förslaget, som kommer sist, inte syntes. `ja` medan det ringde verkställde förslaget men lät telefonen ringa,
+så ordonnansen knackade ändå. Nu har hytten en egen rad ovanför rapporterna (`ui/cabin_render.call_line`):
+RINGER blinkar medan telefonen ringer, och när kaptenen svarat står ERT BESLUT med vem som föreslår vad och
+ja/nej tills det är besvarat eller inaktuellt (`StatusSnapshot.decision` ur `FirstOfficer.asking`).
+Rapportraden är fyra rader. `ja`/`nej` medan det ringer lyfter luren först (`FirstOfficer.intercept`).
+
 ## 2026-11-19 – land på hela nattsikten
 
 Landets kontur syntes på natten bara på halva sikten (`NIGHT_LAND = 0.5`), alltså ~1,25 nm. I Clyde, som

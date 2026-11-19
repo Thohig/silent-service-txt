@@ -102,6 +102,39 @@ def test_suggestion_outside_mandate_rings_the_captain():
     assert g.status().phone is None
 
 
+def test_cabin_shows_the_decision_after_the_call_and_yes_while_ringing_answers_first():
+    from ui.cabin_render import call_line
+    g, reports = _game()
+    g.command("starpom har befälet")
+    _run(g, 3)
+    g.say(Role.RADIO, "order.declined", {"order": "sänd rapport", "made_t": g.now}, kind="suggest")
+    _run(g, 12)
+    st = g.status()
+    assert st.phone == "ring" and st.decision is None
+    assert "Enter svarar" in call_line(st, 0.0).plain
+    g.command("svara")
+    _run(g, 3)
+    st = g.status()
+    assert st.decision == "Radio föreslår sänd rapport"
+    line = call_line(st, 0.0).plain
+    assert "ERT BESLUT" in line and "sänd rapport" in line and "ja" in line and "nej" in line
+    g.command("nej")
+    _run(g, 2)
+    assert g.status().decision is None
+    # ja eller nej medan det ringer: kaptenen lyfter luren först och hör varför
+    g.say(Role.RADIO, "order.declined", {"order": "sänd rapport kort", "made_t": g.now},
+          kind="suggest")
+    _run(g, 12)
+    assert g.status().phone == "ring"
+    n = len([r for r in reports if r.type == "xo.call"])
+    g.command("nej")
+    _run(g, 3)
+    assert g.status().phone is None and g.status().door is None
+    assert len([r for r in reports if r.type == "xo.call"]) == n + 1
+    _run(g, ORDERLY_S + 5)
+    assert not any(r.type == "xo.orderly" for r in reports)
+
+
 def test_unanswered_call_brings_the_orderly():
     g, reports = _game()
     g.command("starpom har befälet")

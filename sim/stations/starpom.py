@@ -35,8 +35,8 @@ from ..crew import Role
 from ..events import OrderIssued, ReportDelivered
 from ..fmt import clock, fmt_course, kn, nm
 from ..ownship import ANTENNA_DEPTH
-from ..orders import (REST_SCALE, CommandSpec, Order, SetTimeScale, Unknown,
-                      split_orders)
+from ..orders import (REST_SCALE, AcceptSuggestion, CommandSpec, DeclineSuggestion, Order,
+                      SetTimeScale, Unknown, split_orders)
 from ..reports import Quality
 from ..russian import ru
 from .base import Station
@@ -333,6 +333,7 @@ class FirstOfficer(Station):
         self.ring_t: int | None = None      # telefonen ringer sedan
         self.orderly_t: int | None = None   # ordonnansen knackade
         self.pending: list[dict] = []       # det kaptenen ska få veta (orsaker)
+        self.asking: dict | None = None     # förslaget starpom senast bad kaptenen besluta om
         self.lamp = False
         self.decisions: list[tuple[str, str]] = []   # (klocka, order) sedan förra samtalet
         self.wake_at: int | None = None     # simtid
@@ -363,7 +364,17 @@ class FirstOfficer(Station):
         return {"command": "starpom" if self.in_command else "captain",
                 "captain_at": self.captain_at,
                 "phone": "ring" if self.ring_t is not None else "lamp" if self.lamp else None,
-                "sleeping": self.sleeping, "order_day": self.order_day, "door": self._door()}
+                "sleeping": self.sleeping, "order_day": self.order_day, "door": self._door(),
+                "decision": self._decision()}
+
+    def _decision(self) -> str | None:
+        """Förslaget som väntar på kaptenens ja eller nej sedan han svarat i telefonen."""
+        if not self.in_command or self.asking is None or self.ring_t is not None:
+            return None
+        sug = self.game.active_suggestion()
+        if sug is None or sug[0] != self.asking["proposed"]:
+            return None
+        return f"{self.asking['who']} föreslår {self.asking['proposed']}"
 
     def _door(self) -> str | None:
         """Hyttdörren: ordonnansen står utanför och knackar."""
@@ -404,6 +415,9 @@ class FirstOfficer(Station):
                 self.say("xo.time_refused")
                 return True
             self.sleeping = self.sleeping and order.scale > REST_SCALE
+        if isinstance(order, (AcceptSuggestion, DeclineSuggestion)) and self.in_command and \
+                self.ring_t is not None:
+            self._answer()                  # ja eller nej: kaptenen lyfter luren först
         return False
 
     def on_order(self, order: Order) -> None:
@@ -417,6 +431,7 @@ class FirstOfficer(Station):
                 self.phone_orders = {}
                 self.decisions = []
                 self.pending = []
+                self.asking = None
                 self.lamp = False
                 if self.wake_at is not None and self.wake_at <= self.now:
                     self.wake_at = None         # en väckningstid som redan passerat gäller inte
@@ -438,15 +453,14 @@ class FirstOfficer(Station):
                 d = self._situation()
                 d["decisions"] = list(self.decisions)
                 d["reasons"] = list(self.pending)
+                self._note_asking()
                 self._clear_calls()
                 self.say("xo.report", d)
             case AnswerPhone():
                 if not self.in_command:
                     self.say("xo.not_in_command")
                 elif self.pending:
-                    d = {"reasons": list(self.pending)}
-                    self._clear_calls()
-                    self.say("xo.call", d, extra_delay=-1)
+                    self._answer()
                 else:
                     self.say("xo.phone.silent")
             case Sleep():
@@ -469,6 +483,20 @@ class FirstOfficer(Station):
         kaptenen och sänker inte tiden. Frågor och fara sänker han själv (_wake)."""
         return self.in_command and self.captain_at == "cabin" and \
             alarm_level(report.type) in ("info", None)
+
+    def _answer(self) -> None:
+        """Kaptenen svarar: starpom säger varför han ringde."""
+        d = {"reasons": list(self.pending)}
+        self._note_asking()
+        self._clear_calls()
+        self.say("xo.call", d, extra_delay=-1)
+
+    def _note_asking(self) -> None:
+        """Det senaste förslaget i samtalet är det kaptenens ja eller nej gäller."""
+        for r in reversed(self.pending):
+            if r["kind"] in ("suggestion", "phone_order"):
+                self.asking = {"who": r["who"], "proposed": r["proposed"]}
+                return
 
     def _clear_calls(self) -> None:
         self.pending = []

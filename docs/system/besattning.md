@@ -130,7 +130,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   damm från rören när vi är jagade och dis av rök; dörren (`StatusSnapshot.door` ur starpom: `steps` fötter i
   ljusstrimman 4 s före ordonnansens knackning, `ajar` 12 s med honom i springan); mindre fönster den enkla bilden) öppnas
   av sig själv (`SubApp._follow_command`) och står först i Tab-ordningen; visar bara starpoms och telefonens
-  rapporter, Enter svarar. Ljudet i hytten (`ambience.muffled`, `audio.from_central`): båten ×0,55, mumlet
+  rapporter (fyra rader), Enter svarar. Raden ovanför (`call_line`) blinkar RINGER medan telefonen ringer och visar
+  sedan ERT BESLUT med förslaget starpom bad om (`StatusSnapshot.decision`, `FirstOfficer.asking`, så länge det är
+  det väntande förslaget); `ja`/`nej` medan det ringer lyfter luren först (`intercept`), så ordonnansen kommer inte. Ljudet i hytten (`ambience.muffled`, `audio.from_central`): båten ×0,55, mumlet
   svagt, inga hydrofonljud eller sväv, centralens repliker dämpade genom skottet (`muffled_voice`; utan mixern
   tysta), starpom i telefonen (`phone_voice`), larm hörs; telefonen `phone`, knackning
   `knock`. 8 frön (`kalibrering/starpom.py`, kaptenen lämnar över igen efter 10 min lugn): inga order utanför

@@ -135,6 +135,27 @@ def footer(s: StatusSnapshot) -> Text:
     return t
 
 
+def call_line(s: StatusSnapshot, now: float) -> Text:
+    """Raden ovanför rapporterna: telefonen ringer, eller förslaget som väntar på ert beslut."""
+    t = Text()
+    if s.command != "starpom":
+        return t
+    if s.phone == "ring":
+        bright = int(now * 2) % 2 == 0
+        t.append(" ☎ RINGER ", style="bold #15110c on #e0b030" if bright else "bold #e0b030 on #3a2a10")
+        t.append("  Snabbtelefonen från centralen – Enter svarar", style="bold #e0c070")
+    elif s.decision:
+        t.append(" ERT BESLUT ", style=PLATE_STYLE)
+        t.append(f"  {s.decision}. ", style="bold #e0e0a0")
+        t.append("ja", style="bold #a0e0a0")
+        t.append(" verkställer · ", style="#a09070")
+        t.append("nej", style="bold #e0a0a0")
+        t.append(" avslår", style="#a09070")
+    elif s.phone == "lamp":
+        t.append("  Lampan på snabbtelefonen lyser – lägesrapport ringer centralen", style="#c0a060")
+    return t
+
+
 # --- rummet sett från kudden ----------------------------------------------------------
 ROOM_MIN_W, ROOM_MIN_H = 64, 18
 EDGE = "#6a5a42 on #15110c"
