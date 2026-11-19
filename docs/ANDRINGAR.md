@@ -3,6 +3,23 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-19 – back i maskin (B1–B4)
+
+Tester i `tests/test_astern.py`. Detaljer i `docs/system/besattning.md` (Back i maskin).
+
+- **B1 Order och rörelse** (`sim/ship.py`, `sim/ownship.py`, navigatören). `back N`, `back`/`sakta back`,
+  `halv back`, `full back`. `ShipState.astern` med farten som belopp; maskinen slår om via stopp och bromsar
+  0,15 kn/s, backfart 8/3 kn, gir ⅓ och djuproder 30 % akterut. Besticket och fartvektorn följer `track`.
+  Ryska: Malyj/Srednij/Polnyj nazad.
+- **B2 Ljud.** Omkastningen är en transient (120 + 2,5·fart dB) som jagaren pejlar; propellern kaviterar
+  akterut vid halva farten och maskin föreslår `back N`; plottet och sonarn märker omkastningen.
+- **B3 Vyer.** Huvudraden, systemtavlan, ubåtsvyn, hytten och överlämnandet säger back; centralens logg
+  visar B och telegrafen har läget B.
+- **B4 Kollisioner och förslag.** Akterut tar propellern och akterrodren skadan; navigatören föreslår att
+  gå loss åt andra hållet efter ett tvärstopp mot is eller när vi står fast mot land, sedan en kurs bort
+  i 5 kn, och stopp när vi backar mot grunt vatten. Inte efter en grundstötning (båten kommer loss själv;
+  med back där gick jagad frö 2 förlorat). Fingeravtrycket (30 min, 2 frön, alla scenarier) oförändrat mot före ändringen.
+
 ## 2026-11-19 – radion (R1–R6)
 
 Byggd i ordningen R1+R2, R3, R4, R6, R5. Tester i `tests/test_dispatch.py`,

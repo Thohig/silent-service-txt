@@ -32,6 +32,10 @@ from .common import (
     SHOAL_LOOK_MIN_NM,
     SHOAL_MARGIN_M,
     SOUNDING_TRUST_S,
+    UNSTICK_AHEAD_KN,
+    UNSTICK_CLEAR_S,
+    UNSTICK_KN,
+    UNSTICK_WINDOW_S,
     WATER_LOOK_NM,
 )
 
@@ -78,8 +82,8 @@ class BottomMixin:
 
     # --- grunt vatten -------------------------------------------------------------
     def chart_ahead(self, course: float | None = None) -> tuple[float, float] | None:
-        """Grundaste kortdjup framåt längs kursen, med bestickets osäkerhet åt sidorna:
-        (djup, avstånd nm). None om kortet saknar djup."""
+        """Grundaste kortdjup framåt längs kursen (akterut när vi backar), med bestickets
+        osäkerhet åt sidorna: (djup, avstånd nm). None om kortet saknar djup."""
         chart = self.game.knowledge.bathymetry
         if chart is None:
             return None
@@ -87,7 +91,7 @@ class BottomMixin:
         reach = max(SHOAL_LOOK_MIN_NM, s.speed * SHOAL_LOOK_MIN / 60)
         dist = np.arange(0.0, reach + 0.05, 0.1)
         side = np.array([-sigma, 0.0, sigma])
-        b = math.radians(s.course if course is None else course)
+        b = math.radians(s.track if course is None else course)
         ux, uy = math.sin(b), math.cos(b)
         dd, ss = np.meshgrid(dist, side)
         xs = self.est_x + dd * ux + ss * uy
@@ -185,6 +189,45 @@ class BottomMixin:
                         {"depth": round(here[0], -1), "kind": here[1]},
                         quality=self._shoal_quality(), cooldown=1200)
 
+    def _unstick_watch(self) -> None:
+        """Fast mot land eller stoppade tvärt mot en isvägg: föreslå att gå loss åt andra
+        hållet, sakta (back om fören tog i, framåt om aktern gjorde det). Efter en grundstötning
+        behövs det inte: båten lyfts upp från botten och kommer loss av sig själv."""
+        s, sys = self.ship, self.own.sys
+        if sys.settle or sys.on_bottom or self.now % 5:
+            return
+        stop = sys.hull_stop
+        if s.astern and stop is not None and not stop[1] and stop[2] != "bottom" and \
+                not sys.bottom_contact and \
+                UNSTICK_CLEAR_S <= self.now - stop[0] <= 3 * UNSTICK_CLEAR_S:
+            # backat loss: fören är fri, gå framåt bort från grundet (en gir i fart framåt)
+            c = self._away_course()
+            self.suggest("unstuck", "nav.suggest.unstuck", {"course": c, "speed": UNSTICK_AHEAD_KN},
+                         order=f"kurs {fmt_course(c)}, fart {UNSTICK_AHEAD_KN:.0f}", cooldown=900)
+            return
+        if s.speed > 0.3:
+            return
+        pressed = sys.bottom_contact and s.ordered_speed > 0
+        recent = stop is not None and stop[2] == "ice" and self.now - stop[0] <= UNSTICK_WINDOW_S \
+            and s.ordered_speed == 0
+        if not (pressed or recent):
+            return
+        stern = s.ordered_astern if pressed else stop[1]
+        order = f"fart {UNSTICK_KN:.0f}" if stern else f"back {UNSTICK_KN:.0f}"
+        self.suggest("unstick", "nav.suggest.unstick",
+                     {"stern": stern, "speed": UNSTICK_KN, "ice": not pressed and self.under_ice()},
+                     order=order, cooldown=300)
+
+    def _away_course(self) -> float:
+        """Kursen bort från grundet: den med djupast vatten framåt på kortet, annars motsatt."""
+        s = self.ship
+        options = [(c, self.chart_ahead(c)) for c in
+                   (norm360(s.course + sgn * a) for a in LAND_TURNS for sgn in (1, -1))]
+        options = [(c, a[0]) for c, a in options if a is not None]
+        if not options:
+            return norm360(s.course + 180)
+        return max(options, key=lambda o: o[1])[0]
+
     def _shoal_quality(self) -> Quality:
         sigma = self.uncertainty()
         return Quality.GOD if sigma < 0.25 else Quality.OSAKER if sigma < 0.6 else Quality.DALIG
@@ -208,7 +251,8 @@ class BottomMixin:
             return                          # på väg upp, eller redan grunt nog
         minutes = dist * 60 / max(s.speed, 0.5)
         self.suggest("shoal", "nav.suggest.shoal",
-                     {"shoal": round(shoal, -1), "dist": dist, "depth": limit, "sounded": sounded},
+                     {"shoal": round(shoal, -1), "dist": dist, "depth": limit, "sounded": sounded,
+                      **({"astern": True} if s.astern else {})},
                      order=f"djup {limit:.0f}", cooldown=300,
                      quality=Quality.SAKER if sounded else self._shoal_quality(),
                      alarm=minutes < 3)
@@ -259,6 +303,13 @@ class BottomMixin:
         ahead = self.chart_ahead()
         if ahead is None or ahead[0] >= LAND_CLEAR_M:
             return False
+        if s.astern:
+            # vi backar mot land: en gir hjälper inte (rodret tar dåligt), stoppa
+            minutes = ahead[1] * 60 / max(s.speed, 0.5)
+            self.suggest("land_astern", "nav.suggest.land_astern",
+                         {"shoal": ahead[0], "dist": ahead[1]}, order="stopp", cooldown=120,
+                         quality=self._shoal_quality(), alarm=minutes < 4)
+            return True
         if self.goal == "fairway" and (p := self._fairway_point()) is not None and \
                 ahead[1] > distance(self.est_x, self.est_y, *p) + 0.1:
             return True                         # landet ligger bortom girpunkten i farleden

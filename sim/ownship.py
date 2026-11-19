@@ -63,6 +63,8 @@ class OwnSystems:
     ice_contact: bool = False        # ubåten ligger an mot isen ovanför
     bottom_contact: bool = False     # kölen tar i botten
     bottom_touch_t: int = 0          # senaste rapporten om kontakten
+    # senaste tvärstopp (t, akterut, vad): "ice" (isvägg), "bottom" (grundstötning), "pressed" (står fast)
+    hull_stop: tuple[int, bool, str] | None = None
     settle: bool = False             # order: lägg oss på botten
     on_bottom: bool = False          # ligger stilla på botten
     fire: bool = False               # brand ombord

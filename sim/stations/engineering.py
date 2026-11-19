@@ -153,12 +153,15 @@ PHRASES = {
     "leak_stopped": lambda d: "Läckan är tätad.",
     "hull.creak": lambda d: f"Skrovet knakar, kapten. {d['depth']:.0f} meter, under provdjup.",
     "damage": _damage,
-    "ice.collision": lambda d: f"{ru('Avarijnaja trevoga')}! Vi har gått in i isen! {d['severity'].capitalize()} skador"
+    "ice.collision": lambda d: f"{ru('Avarijnaja trevoga')}! "
+    + ("Vi har backat in i isen! " if d.get("astern") else "Vi har gått in i isen! ")
+    + f"{d['severity'].capitalize()} skador"
     + (": " + ", ".join(COMPONENT_LABEL[c] for c in d["components"]) if d["components"] else "")
     + (". Vatteninträngning, länsning pågår." if d.get("leak") else ".")
     + " Maskinen stoppad.",
-    "bottom.collision": lambda d: f"{ru('Avarijnaja trevoga')}! Vi har gått på grund med {d['where']}! "
-    f"{d['severity'].capitalize()} skador: " + ", ".join(COMPONENT_LABEL[c] for c in d["components"])
+    "bottom.collision": lambda d: f"{ru('Avarijnaja trevoga')}! "
+    + ("Vi har backat på grund! " if d.get("astern") else f"Vi har gått på grund med {d['where']}! ")
+    + f"{d['severity'].capitalize()} skador: " + ", ".join(COMPONENT_LABEL[c] for c in d["components"])
     + (". Vatteninträngning, länsning pågår." if d.get("leak") else ".")
     + f" Maskinen stoppad. Går upp till {d['back_to']} meter.",
     "bottom.settled": lambda d: f"Vi ligger stilla på botten på {d['depth']} meter, kapten. "
@@ -170,7 +173,7 @@ PHRASES = {
     "bottom.touch": lambda d: f"Vi tog i botten med {d['where']}, kapten. Låg fart, inga skador. "
     f"Går upp till {d['back_to']} meter.",
     "bottom.pressed": lambda d: f"Kapten, vi står fast med {d['where']} mot botten och kommer "
-    "inte framåt. Föreslår en annan kurs, bort från land.",
+    + ("inte akterut." if d.get("astern") else "inte framåt. Föreslår en annan kurs, bort från land."),
     "ice.touch": lambda d: "Vi tog i en isköl, kapten. Långsam fart, inga skador. Maskinen stoppad.",
     "ice.bump": lambda d: ("Vi stöter i isen ovanför, kapten. "
                            + ("Den är tunn, men vi har för hög fart för att bryta igenom. "
@@ -330,14 +333,18 @@ RU_PHRASES = {
     "hull.creak": lambda d: f"Корпус трещит, товарищ командир. {R.count(d['depth'], R.METER)}, "
     "ниже рабочей глубины.",
     "damage": lambda d: f"Аварийная тревога! {_ru_damage_list(d)}{_ru_leak(d)}",
-    "ice.collision": lambda d: f"Аварийная тревога! Мы ударились о лёд! {_ru_damage_list(d)}"
+    "ice.collision": lambda d: "Аварийная тревога! "
+    + ("Ударились кормой о лёд! " if d.get("astern") else "Мы ударились о лёд! ")
+    + f"{_ru_damage_list(d)}"
     f"{_ru_leak(d)} Машина остановлена.",
-    "bottom.collision": lambda d: f"Аварийная тревога! Мы сели на грунт! {_ru_damage_list(d)}"
+    "bottom.collision": lambda d: "Аварийная тревога! "
+    + ("Сели кормой на грунт! " if d.get("astern") else "Мы сели на грунт! ")
+    + f"{_ru_damage_list(d)}"
     f"{_ru_leak(d)} Машина остановлена. Всплываем на {R.count(d['back_to'], R.METER)}.",
     "bottom.touch": lambda d: f"Коснулись грунта, товарищ командир. Малый ход, повреждений нет. "
     f"Всплываем на {R.count(d['back_to'], R.METER)}.",
-    "bottom.pressed": lambda d: f"{R.CAPTAIN}, упёрлись в грунт, хода нет. Предлагаю "
-    "другой курс, от берега.",
+    "bottom.pressed": lambda d: f"{R.CAPTAIN}, упёрлись в грунт, хода нет."
+    + ("" if d.get("astern") else " Предлагаю другой курс, от берега."),
     "ice.touch": lambda d: "Коснулись ледового киля, товарищ командир. Малый ход, повреждений нет.",
     "shock": lambda d: ("Взрывы рядом, повреждений нет. Малые заряды." if d.get("practice")
                         else "Сильный гидроудар! Повреждений нет." if d["strength"] == "kraftig"

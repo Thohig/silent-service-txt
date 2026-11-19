@@ -105,6 +105,27 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (lodrätt, t.ex. genom en öppning i isen). Utjämningstanken −25 … +15 t (läckgränsen `TRIM_RESERVE_T` är
   dess 25 t) pumpas 1 t/min, för–akter 0,5 t/min (±8 t); pumparna hörs (`PUMP_LEVEL` 121 dB, ~+1,7 dB på
   smygmotorn, inget bredvid turbinen). Lutningen 0,6° per ton framåtlast.
+- **Back i maskin** (2026-11-19; sanning i `sim/ship.py` och `sim/ownship.py`, order hos navigatören):
+  `back N`, `back`/`sakta back` (2 kn), `halv back` (halva backfarten), `full back`; `fart N` går framåt
+  igen och `stopp` stoppar. `ShipState.speed` är alltid farten genom vattnet (≥ 0) och `astern` riktningen,
+  så allt som läser farten som belopp (buller, rodrens last, skador) fungerar som förut; `track` är
+  riktningen båten rör sig i (kursen + 180° akterut) och används av rörelsen, besticket, egna fartvektorn och
+  navigatörens blick framåt (`chart_ahead`). Maskinen slår om via stopp: mot farten bromsar den
+  `BRAKE_KN_PER_S` 0,15 kn/s (stopp 0,05), sedan accelererar den åt andra hållet (`reversing`, `prop_astern`).
+  Backfart `max_astern_speed`: 8 kn på turbinen, 3 på smygmotorn, gånger framdrivningens hälsa. Akterut girar
+  båten med en tredjedel (`ASTERN_TURN`) och djuprodren bär 30 % (`ASTERN_PLANES`), så djupet hålls mest med
+  trimmen. Omkastning från ≥ 2 kn är en transient (`Transient("astern")`, `acoustics.astern_level` 120 +
+  2,5·fart dB: 12 kn ≈ en torpedutskjutning) som jagare pejlar till ett datum (σ 0,3 nm) som en ping,
+  amerikanska ubåten och hamnens hydrofoner hör som annat eget ljud. Propellern kaviterar akterut vid halva
+  farten (`cavitation_speed(djup, astern)`), och maskin föreslår då `back N`. Navigatören säger "Omkastningen
+  hörs långt" från ≥ 8 kn och publicerar `OwnSoundMade("astern")` (plottets blyertsmärke ◂, sonarvyns märke).
+  Går vi akterut in i is eller botten tar propellern och akterrodren skadan (`hull_stop` = (t, akterut, vad)).
+  Efter ett tvärstopp mot en isvägg, eller när vi står fast mot land, föreslår navigatören att gå loss åt
+  andra hållet (`back 2` om fören tog i, `fart 2` om aktern) och efter 90 s back en kurs bort med fart 5
+  (`nav.suggest.unstuck`, kursen med djupast vatten på kortet). Efter en grundstötning föreslås ingen back:
+  båten lyfts från botten och kommer loss själv (med back gick ett frö i jagad förlorat);
+  backar vi mot grunt vatten föreslår han stopp i stället för en gir (`nav.suggest.land_astern`). Fingeravtrycket
+  är oförändrat så länge ingen backar. Tester: `tests/test_astern.py`.
 - **Trimmaren** (`stations/trim.py`, `TrimStation`, `Role.TRIM`, Zajtsev, mitjman, vid trimposten i centralen,
   трюмный): bedömningen `est` ± σ ur det han vet (pumpat och skjutet exakt, läckan ±10 %, kompressionen,
   0,02 t²/m för okänt djupberoende, 0,0005 t²/s åldring) och rodret och driften var 10:e s (Kalman,

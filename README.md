@@ -58,7 +58,7 @@ ut: väntetiden fördubblas för varje obesvarad gång (larm undantagna).
 
 | Område | Order |
 |---|---|
-| Manöver | `kurs 090` · `fart 5` · `stopp` · `djup 100` · `periskopdjup` · `antenndjup` · `ytläge` |
+| Manöver | `kurs 090` · `fart 5` · `stopp` · `back 3` · `sakta back` · `halv back` · `full back` · `djup 100` · `periskopdjup` · `antenndjup` · `ytläge` |
 | Förslag | `ja` · `nej` · `förslag` · `förslag sonar` (maskin, plott, navigatör, torped, radio, vakthavande, starpom) · `annat förslag` |
 | Tid | `tid 1` `tid 2` `tid 5` `tid 10` (faller till 1× vid larm); `tid 30` `tid 60` bara när starpom har befälet |
 | Starpom | `starpom har befälet` (kaptenen går till hytten) · `jag har befälet` (till centralen, 40 s utan order) · `lägesrapport` (ring centralen) · `svara` (eller Enter i hytten när det ringer) · `sov` (60× tills starpom väcker) · `väck mig 04:30`. Order per telefon verkställs och starpom behåller befälet |
@@ -88,7 +88,8 @@ en del säger de vilken, och resten verkställs ändå.
 | System | Spelmässig betydelse |
 |---|---|
 | Reaktor, turbin, smygmotor, batteri | Fart mot ljud. Kylpumparna brusar alltid; att stänga reaktorn ger tystnad men tömmer batteriet. Snabbstopp kan inträffa. |
-| Kavitation | Över en viss fart (högre på djupet) hörs ubåten långt. |
+| Kavitation | Över en viss fart (högre på djupet) hörs ubåten långt. Akterut kaviterar propellern vid halva farten. |
+| Back i maskin | `back 3` eller `sakta`/`halv`/`full back`. Maskinen slår om via stopp och bromsar tre gånger så hårt som `stopp`; omkastningen i hög fart hörs långt och kan ge jagaren ett datum. Backfarten är högst 8 kn på turbinen och 3 på smygmotorn, rodret tar dåligt akterut och djuprodren bär lite. Står vi fast mot en isvägg eller mot land föreslår navigatören att backa loss. |
 | Språngskikt (60 m, Kuba) | Skyddar mot jagarens sonar, men vi hör också sämre genom det. |
 | Roder, barlast, skrov | Djupändring kräver fart. Under provdjup (300 m) knakar skrovet; 450 m krossar det. |
 | Trim och flytkraft | Djupet, språngskiktet, isens smältvatten, torpederna och läckor gör båten tung eller lätt. I fart bär djuprodret det; i smygfart driver en otrimmad båt mot ytan eller djupet. Trimmaren trimmar själv på turbinen men ber först på smygmotorn, eftersom pumparna hörs. Ubåtsvyn visar tankarna och panelen TRIM; i centralen står djuprodret ute med lasten och libellen visar lutningen. |

@@ -127,7 +127,8 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
 - `docs/system/hav.md`: Land skymmer, Ljuset, Is, Havsbotten, Strömmen
 - `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden
 - `docs/system/besattning.md`: Radion och telegrammen, Rapporten till staben, Huvudstaben,
-  Slutrapportens samband, Radiospaning, Villkorat tillstånd för T-5, Starpom, Trim och flytkraft, Trimmaren
+  Slutrapportens samband, Radiospaning, Villkorat tillstånd för T-5, Starpom, Trim och flytkraft, Back i maskin,
+  Trimmaren
 - `docs/system/vyer.md`: Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
 - `docs/system/granssnitt.md`: Huvudmenyn, Ljud
 
@@ -164,6 +165,8 @@ för in varje färdigt steg där.
   18 % ⇒ 0); alla scenarier grova 4,8 % ⇒ 3,9 %, > 3σ 7,9 % ⇒ 6,0 %. Det som är kvar är mest girar de senaste minuterna som plottet inte hunnit se. Mätskriptet: `kalibrering/tma_kvalitet.py`.
 - Radion: rapporten 6 s + 4 s per femsiffergrupp (kort ~22 s); fiendens pejlnät pejlar aldrig under
   10 s, alltid över 25 s, σ = 1,5 nm · √(30 s / längd), 0,7–3 nm (`DF_*` i `enemy.py`).
+- Back i maskin: broms 0,15 kn/s mot farten, backfart 8 kn (turbin) / 3 kn (smygmotor), gir ⅓ och
+  djuproder 30 % akterut, omkastning 120 + 2,5·fart dB från ≥ 2 kn, kavitation akterut vid halva farten.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m, torpedavfyring ≤ 100 m och ≤ 12 kn.
 - Fiendens torped Mk 37: 26 kn, 5 nm, 145 dB, söker passivt i 40° och aktivt inom 0,4 nm och ±50 m i höjd;
   skenmålet 135 dB och bubbelekot starkare än skrovet; en träff är förlusten. Vi går 28 kn på turbinen.

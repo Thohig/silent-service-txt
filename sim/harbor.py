@@ -145,7 +145,7 @@ class Net:
         side = 1 if py > self.y else -1
         o.x, o.y = cx, self.y + side * 0.005
         self._prev = (o.x, o.y)
-        o.speed = o.ordered_speed = 0.0
+        o.halt()
         if not self.caught:
             self.caught = True
             s = own.sys

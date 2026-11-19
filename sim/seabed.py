@@ -574,7 +574,7 @@ def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
     if sys.settle and speed <= TOUCH_MAX_KN:
         # avsiktligt: vi lägger oss på botten och ligger kvar
         st.depth = st.ordered_depth = floor
-        st.speed = st.ordered_speed = 0.0
+        st.halt()
         sys.on_bottom = sys.bottom_contact = True
         kind = seabed.bottom_type(st.x, st.y)
         if kind == "klippa":
@@ -584,9 +584,10 @@ def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
     if sys.bottom_contact:
         # båten trycker mot land: den står still, loggen visar ingen fart genom vattnet
         st.speed = 0.0
+        sys.hull_stop = (world.time, st.ordered_astern, "pressed")
         if world.time - sys.bottom_touch_t >= PRESSED_REPEAT_S:
             sys.bottom_touch_t = world.time
-            own.alert("bottom.pressed", where=where)
+            own.alert("bottom.pressed", where=where, **({"astern": True} if st.ordered_astern else {}))
         return
     sys.bottom_contact = True
     if speed <= TOUCH_MAX_KN:
@@ -595,11 +596,16 @@ def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
         sys.bottom_touch_t = world.time
         return
     sys.bottom_touch_t = world.time
-    st.speed = st.ordered_speed = 0.0
+    astern = st.astern
+    st.halt()
+    sys.hull_stop = (world.time, astern, "bottom")
     world.mission.setdefault("grounded_t", world.time)
     sys.hull -= 0.015 * speed
-    hit = ["sonar"] if where == "förskeppet" else ["planes"] if where == "akterskeppet" \
-        else [world.rng.choice(["sonar", "planes"])]
+    if astern:
+        hit = ["propulsion", "planes"]      # backat på grund: propellern och akterrodren
+    else:
+        hit = ["sonar"] if where == "förskeppet" else ["planes"] if where == "akterskeppet" \
+            else [world.rng.choice(["sonar", "planes"])]
     if speed > 8:
         hit.append(world.rng.choice(["propulsion", "tubes"]))
     for c in hit:
@@ -607,8 +613,9 @@ def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
     leak = speed > LEAK_KN
     if leak:
         sys.leak_rate += 0.08 * speed
+    data = {"astern": True} if astern else {}
     own.alert("bottom.collision", severity="svåra" if speed > 8 else "lätta", where=where,
-              components=hit, leak=leak, back_to=round(st.ordered_depth))
+              components=hit, leak=leak, back_to=round(st.ordered_depth), **data)
 
 
 # --- fix mot botten (kunskap: kortet mot egna lodningar) ------------------------------

@@ -165,3 +165,67 @@ def test_status_and_systems_show_astern():
     assert st.astern and st.ordered_astern
     fart = [i for i in g.systems().items if getattr(i, "label", "") == "Fart"]
     assert fart and fart[0].text.startswith("back 3")
+
+
+def test_bow_stop_suggests_back_then_stop_when_clear():
+    g, said = _game()
+    s, sys = g.world.own.state, g.world.own.sys
+    g.command("djup 100")
+    _run(g, 100)
+    s.halt()
+    sys.hull_stop = (g.now, False, "ice")   # fören tog i en isvägg
+    _run(g, 30)
+    assert g.suggestion is not None and g.suggestion[0] == "back 2", g.suggestion
+    g.command("ja")
+    _run(g, 200)
+    assert s.astern
+    assert any("backat loss" in t for t in said)
+    assert g.suggestion is not None and g.suggestion[0].startswith("kurs ") \
+        and g.suggestion[0].endswith(", fart 5")
+
+
+def test_stern_stop_suggests_ahead():
+    g, said = _game()
+    s, sys = g.world.own.state, g.world.own.sys
+    g.command("djup 100")
+    _run(g, 100)
+    s.halt()
+    sys.hull_stop = (g.now, True, "ice")
+    _run(g, 30)
+    assert g.suggestion is not None and g.suggestion[0] == "fart 2"
+    assert any("Aktern ligger an" in t for t in said)
+
+
+def test_grounding_needs_no_back():
+    g, _ = _game()
+    s, sys = g.world.own.state, g.world.own.sys
+    g.command("djup 100")
+    _run(g, 100)
+    s.halt()
+    sys.hull_stop = (g.now, False, "bottom")
+    _run(g, 30)
+    assert g.suggestion is None or "back" not in g.suggestion[0]
+
+
+def test_ice_collision_astern_hits_propeller():
+    import sim.ice as ice_mod
+    from sim.ice import ice_contact
+    g, _ = _game()
+    own = g.world.own
+    st = own.state
+    st.depth = st.ordered_depth = 50.0
+    st.speed, st.astern, st.ordered_speed, st.ordered_astern = 5.0, True, 5.0, True
+    calls = iter([-1.0, -1.0, 1.0])          # nu: kontakt; djupet före här: kontakt; förra läget: fritt
+    orig = ice_mod.clearance
+    ice_mod.clearance = lambda *a, **k: next(calls)
+    g.world.env.ice = object()
+    try:
+        ice_contact(g.world, (st.x, st.y, st.depth, st.course))
+    finally:
+        ice_mod.clearance = orig
+        g.world.env.ice = None
+    assert st.speed == 0 and not st.astern
+    assert own.sys.health["propulsion"] < 1.0 and own.sys.health["sonar"] == 1.0
+    kind, data = own.sys.alerts[-1]
+    assert kind == "ice.collision" and data["astern"]
+    assert own.sys.hull_stop[1] is True

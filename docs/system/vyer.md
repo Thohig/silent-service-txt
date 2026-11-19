@@ -65,7 +65,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   loggvyn (`mirror`); skriv aldrig loggrader med `write`. Bilden ritas i widgetens storlek (`Geometry`:
   mätarna växer med höjden). Från 100 × 22 (`BIG`, `Geometry.slots`) är väggarna instrument i braille
   (`ui/canvas.py`: `Braille` 2 × 4 prickar per ruta, stil efter prioritet; `ui/instruments.py`: `Dial`,
-  `draw_dial`): gyro, sidroder (±35°), telegraf (handtag = beordrad fart, gul visare = maskinens svar),
+  `draw_dial`): gyro, sidroder (±35°), telegraf (handtag = beordrad fart, gul visare = maskinens svar,
+  läget B längst till vänster = back),
   djup 0–500 m med prov- och krosszon, bäringsrepeatern på gyrots ring (`repeater`: plottets hållna kontakter
   med `StatusSnapshot.contact_bearings` ur kunskapen, numret i beteckningen i slagets färg `CONTACT_STYLE`, hot
   överst; bara i stora bilden), fart 0–30 kn med kavitationszonen (6 + djup/25), klocka, djuproder

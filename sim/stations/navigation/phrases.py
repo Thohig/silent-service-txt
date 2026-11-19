@@ -144,7 +144,8 @@ PHRASES = {
     "nav.suggest.shoal": lambda d: "Kapten, navigatören. "
     + (f"Ekolodet visade {d['shoal']:.0f} meter till botten här" if d.get("sounded") else
        f"Sjökortet visar {d['shoal']:.0f} meter "
-       + ("här" if d["dist"] < 0.15 else f"inom {nm(d['dist'])} sjömil framåt"))
+       + ("här" if d["dist"] < 0.15 else f"inom {nm(d['dist'])} sjömil "
+          + ("akterut" if d.get("astern") else "framåt")))
     + f". Föreslår djup {d['depth']:.0f}.",
     "nav.follow": lambda d: f"Följer {d['designation']} i kölvattnet, kurs "
     f"{fmt_course(d['course'])}" + (f", fart {d['speed']} knop" if d.get("speed") else
@@ -196,6 +197,16 @@ PHRASES = {
     + ("Land" if d["shoal"] <= 0 else f"Bara {d['shoal']:.0f} meter vatten")
     + (" här enligt kortet" if d["dist"] < 0.15 else f" inom {nm(d['dist'])} sjömil framåt")
     + f". Föreslår kurs {fmt_course(d['course'])}.",
+    "nav.suggest.land_astern": lambda d: "Kapten, navigatören! "
+    + ("Land" if d["shoal"] <= 0 else f"Bara {d['shoal']:.0f} meter vatten")
+    + (" här enligt kortet" if d["dist"] < 0.15 else f" inom {nm(d['dist'])} sjömil akter om oss")
+    + ", och vi backar. Föreslår stopp i maskin.",
+    "nav.suggest.unstick": lambda d: "Kapten, navigatören. "
+    + ("Aktern" if d["stern"] else "Fören") + (" ligger an mot isen" if d["ice"] else " ligger an")
+    + ". Föreslår " + (f"fart {kn(d['speed'])} knop framåt" if d["stern"]
+                       else f"sakta back, {kn(d['speed'])} knop") + ", så kommer vi loss.",
+    "nav.suggest.unstuck": lambda d: "Kapten, navigatören. Vi har backat loss, fören är fri. "
+    f"Föreslår kurs {fmt_course(d['course'])}, fart {kn(d['speed'])} knop, bort från grundet.",
     "nav.suggest.chart_land": lambda d: "Kapten, navigatören! Kortet visar land där besticket står, "
     "men vi flyter: kortet ligger fel här, och stranden är nära. Närmaste vatten på kortet i kurs "
     f"{fmt_course(d['course'])}, {nm(d['dist'])} sjömil. Föreslår kurs {fmt_course(d['course'])}.",
@@ -367,7 +378,8 @@ def _ru_depth_ack(d: dict) -> str:
 
 
 def _ru_ahead(d: dict) -> str:
-    return "здесь" if d["dist"] < 0.15 else f"в {R.dec(d['dist'], R.MILE)} впереди"
+    return "здесь" if d["dist"] < 0.15 else f"в {R.dec(d['dist'], R.MILE)} " \
+        + ("за кормой" if d.get("astern") else "впереди")
 
 
 _NAV = f"{R.CAPTAIN}, штурман."
@@ -523,6 +535,16 @@ RU_PHRASES = {
     + (f"Эхолот показал {R.count(d['shoal'], R.METER)} до грунта" if d.get("sounded") else
        f"По карте {R.count(d['shoal'], R.METER)} {_ru_ahead(d)}")
     + f". Предлагаю глубину {R.count(d['depth'], R.METER)}.",
+    "nav.suggest.land_astern": lambda d: f"{R.CAPTAIN}, штурман! "
+    + ("Земля" if d["shoal"] <= 0 else f"Всего {R.count(d['shoal'], R.METER)} воды")
+    + " за кормой по карте, а мы идём назад. Предлагаю стоп машина.",
+    "nav.suggest.unstick": lambda d: f"{R.CAPTAIN}, штурман. "
+    + ("Упёрлись кормой" if d["stern"] else "Упёрлись носом")
+    + (" в лёд" if d["ice"] else "") + ". Предлагаю "
+    + (f"ход {R.dec(d['speed'], R.KNOT)} вперёд" if d["stern"]
+       else f"малый назад, {R.dec(d['speed'], R.KNOT)}") + ", отойдём.",
+    "nav.suggest.unstuck": lambda d: f"{R.CAPTAIN}, штурман. Отошли, нос свободен. "
+    f"Предлагаю курс {R.course(d['course'])}, ход {R.dec(d['speed'], R.KNOT)}, уходим от мели.",
     "nav.suggest.land": lambda d: f"{R.CAPTAIN}, штурман! "
     + ("Земля" if d["shoal"] <= 0 else f"Всего {R.count(d['shoal'], R.METER)} воды")
     + f" {_ru_ahead(d)} по карте. Предлагаю курс {R.course(d['course'])}.",

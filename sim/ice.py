@@ -250,20 +250,25 @@ def ice_contact(world: World, prev: tuple[float, float, float], dt: int = 1) -> 
         clearance(ice, px, py, st.course, pdepth) >= 0
     if sideways:
         # rakt in i en isköl
-        speed = st.speed
+        speed, astern = st.speed, st.astern
         st.x, st.y, st.depth = px, py, pdepth
-        st.speed = 0.0
-        st.ordered_speed = 0.0
+        st.halt()
+        sys.hull_stop = (world.time, astern, "ice")
         if speed > 1.5:
             sys.hull -= 0.012 * speed
-            hit = ["sonar"] if speed < 6 else ["sonar", world.rng.choice(["periscope", "planes"])]
+            if astern:
+                # akterut: propellern och akterrodren tar stöten
+                hit = ["propulsion"] if speed < 6 else ["propulsion", "planes"]
+            else:
+                hit = ["sonar"] if speed < 6 else ["sonar", world.rng.choice(["periscope", "planes"])]
             for c in hit:
                 sys.health[c] = max(0.0, sys.health[c] - 0.06 * speed)
             leak = speed > 6
             if leak:
                 sys.leak_rate += 0.05 * speed
+            data = {"astern": True} if astern else {}
             own.alert("ice.collision", severity="svåra" if speed > 6 else "lätta",
-                      components=hit, leak=leak)
+                      components=hit, leak=leak, **data)
         else:
             own.alert("ice.touch")
         return

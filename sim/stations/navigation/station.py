@@ -611,6 +611,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         self._sound_ice()
         self._run_task("bfix")
         self._settle_watch()
+        self._unstick_watch()
         self._shoal_watch()
         self._steer_to_opening()
         self._steer_step(StationSteer)
