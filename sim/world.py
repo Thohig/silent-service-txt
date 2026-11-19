@@ -1,7 +1,7 @@
 """Sanningen: världens exakta tillstånd. Spelaren ser aldrig detta direkt.
 
 Ett tick:
-  1. transienter/emissioner från förra steget blir hörbara nu
+  1. transienter/emissioner från förra steget blir hörbara nu; vädret (`weather.py`) sätter sjögången
   2. alla fartyg rör sig (plus ström); isen driver och ubåten kan stöta i den
   3. egen ubåts system (reaktor, batteri, läckor, skrov)
   4. vapen (torpeder, sjunkbomber, skenmål)
@@ -89,6 +89,8 @@ class World:
         o = self.own.state
         prev = (o.x, o.y, o.depth, o.course)
         env = self.env
+        if env.weather is not None:
+            env.weather.step(env, self.time)    # sjögången (sim/weather.py)
         ice = env.ice
         for v in [self.own, *self.contacts]:
             if v.sunk or isinstance(v, Torpedo):

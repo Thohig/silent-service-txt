@@ -148,6 +148,8 @@ class Game:
         self.scenario = scenario
         self.world = scenario.world
         env = self.world.env
+        if env.weather is not None:          # vädret: egen slumpström (sim/weather.py)
+            env.weather.rng = self.rng_for("weather")
         if env.date is None:                 # datumet ur orderns DATUM-rad (solen och månen)
             day = order_day(scenario.secret_order or "")
             env.date = (1962, 10, day) if day else None

@@ -85,7 +85,13 @@ def _src(d: dict) -> str:
     return f" från {d['designation']}" if d.get("designation") else ""
 
 
+AMBIENT_EVERY_S = 60        # havsbruset läses av så här ofta
+AMBIENT_REPORT_DB = 2.0     # så stor ändring säger sonaren till om
+
 PHRASES = {
+    "sonar.ambient": lambda d: f"Kapten, sonar. Havsbruset har {'ökat' if d['db'] > 0 else 'minskat'} "
+    f"cirka {abs(d['db']):.0f} dB. " + ("Vi hör sämre, kontakterna hörs kortare." if d["db"] > 0
+                                        else "Vi hör längre nu."),
     "sonar.new_contact": lambda d: f"{ru('Tovarisjtj komandir')}, sonar! Ny kontakt i bäring {fmt_course(d['bearing'])}. "
     f"Betecknas {d['designation']}. {d['classification'][:1].upper()}{d['classification'][1:]}.",
     "sonar.classified": lambda d: f"{d['designation']} klassas som {d['classification']}.",
@@ -148,6 +154,8 @@ def _ru_cap(s: str) -> str:
 
 
 RU_PHRASES = {
+    "sonar.ambient": lambda d: f"{R.CAPTAIN}, акустик. Шумы моря "
+    + ("усилились, слышимость хуже." if d["db"] > 0 else "ослабли, слышимость лучше."),
     "sonar.active.refused": lambda d: f"{R.CAPTAIN}, акустик. Выполнить не могу.",
     "sonar.new_contact": lambda d: f"{R.CAPTAIN}, акустик! Новый контакт, пеленг "
     f"{R.course(d['bearing'])}, {R.contact(d['designation'])}. "
@@ -223,6 +231,7 @@ class SonarRoom(IncomingMixin, Station):
         self.marks: list[HeardMark] = []           # för vattenfallet (med bäring)
         self.lost: list[LostMark] = []
         self.own_marks: list[OwnMark] = []
+        self._ambient: float | None = None         # havsbruset sonaren senast sagt (dB)
 
     def attach(self, bus) -> None:
         super().attach(bus)
@@ -355,8 +364,22 @@ class SonarRoom(IncomingMixin, Station):
             self.say("sonar.active.echo", e, kind="contact", quality=Quality.SAKER)
 
     # --- löpande -----------------------------------------------------------------
+    def _ambient_watch(self) -> None:
+        """Havsbruset i hydrofonerna (vädret): sonaren säger till när det ändrats märkbart.
+        Inte under isen (där är det isens brus, som ändras med platsen)."""
+        if self.world.env.ice is not None:
+            return
+        n = self.world.background_at_own()
+        if self._ambient is None:
+            self._ambient = n
+        elif abs(n - self._ambient) >= AMBIENT_REPORT_DB:
+            self.say("sonar.ambient", {"db": n - self._ambient})
+            self._ambient = n
+
     def update(self) -> None:
         bus = self.game.bus
+        if self.now % AMBIENT_EVERY_S == 0:
+            self._ambient_watch()
         own_xy = self.game.own_position_estimate()
         for ev in self.sensor.update(self.world, own_xy):
             match ev:

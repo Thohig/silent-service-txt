@@ -18,6 +18,7 @@ from .geo import NM_IN_M, angle_diff, velocity
 from .sky import julian_day, moon_phase, moon_position, sun_position
 
 if TYPE_CHECKING:
+    from .weather import Weather
     from .seabed import Seabed
     from .ice import IceField
 
@@ -294,6 +295,7 @@ class Environment:
     # (sjörök), vågtopparna som skymmer och periskopdjupet (se docs/system/hav.md). Kan ändras
     # under spelet med `weather` (World sätter den varje tick).
     sea_state: int = 3
+    weather: Weather | None = None     # sjögången som ändras (sim/weather.py), annars fast
 
     def bottom_at(self, x: float, y: float) -> float:
         """Bottendjupet (m) på platsen. Sanning: bara ekolodet frågar."""

@@ -113,3 +113,11 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   - Periskopet sköljs över (`periscope.crest_m`): vågtoppen (0,8 × våghöjden) når över ögat (1,5 m plus
     sjöns sug) en del av tiden; de sekunderna ser okularet inget. Vid 5 ~10 %, vid 6 ~30 % av tiden.
     `off.periscope.washed` en gång per hissning.
+- **Vädret** (`sim/weather.py`, `Environment.weather`; V5 2026-11-19): sjögången ändras ett steg i taget,
+  högst var 30–60:e minut, mot prognosen (`trend`: från vilken tid vilken sjögång) med sannolikheten 0,6,
+  bort 0,1; vid prognosen ett steg åt vardera hållet 0,2. Inom `lo`–`hi`. Egen slumpström
+  (`Game.rng_for("weather")`); `World.tick` sätter sjögången först. Kuba 3 → 4 efter 2 h (2–5), konvoj 5
+  (4–6); övriga scenarier har fast sjö. Prognosen står i ordern (`VÄDER:`), sanningen kan avvika.
+  Besättningen märker det med sina instrument: bryggan (`bridge.sea`), periskopet vid nästa titt
+  (`off.periscope.sea`), sonaren när havsbruset ändrats ≥ 2 dB (`sonar.ambient`, läses var 60:e s, inte
+  under isen) och trimmaren när djupmätaren börjar slå (Sjögången ovan).

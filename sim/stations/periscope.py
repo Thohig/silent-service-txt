@@ -48,6 +48,7 @@ from ..seabed import shore_ranges
 from ..tma import BearingObs
 from .base import Station
 from .lookout import visible_events
+from .bridge import sea_words
 from .officer import PHOTO_TARGET_KIND, SIGHTED, OfficerStation, _view_object, mast_refusal
 from .sonar_room import SonarRoom
 
@@ -165,6 +166,8 @@ PHRASES = {
     f"cirka {nm(d['range'])} sjömil. Sjunkbomber" + (", övningsladdningar." if d["practice"] else "!"),
     "off.periscope.hit": lambda d: f"Periskop: explosion i bäring {fmt_course(d['bearing'])}, cirka "
     f"{nm(d['range'])} sjömil! " + ("Ett eldklot, kapten!" if d["nuclear"] else "Eld och rök."),
+    "off.periscope.sea": lambda d: f"Periskop: sjön har {'ökat' if d['up'] else 'mojnat'} sedan förra "
+    f"titten. {sea_words(d['sea'])}.",
     "off.periscope.washed": lambda d: "Sjön sköljer över periskopet, kapten. Bilden kommer och går.",
     "off.periscope.aircraft": lambda d: f"Periskop: flygplan i bäring {fmt_course(d['bearing'])}, "
     f"cirka {nm(d['range'])} sjömil, " + ("lågt över vattnet" if d["low"] else "på höjd")
@@ -201,6 +204,8 @@ RU_PHRASES = {
     + ("Учебные бомбы." if d["practice"] else "Глубинные бомбы!"),
     "off.periscope.hit": lambda d: f"Перископ: взрыв, пеленг {R.course(d['bearing'])}! "
     + ("Огненный шар!" if d["nuclear"] else "Огонь и дым."),
+    "off.periscope.sea": lambda d: f"Перископ: волнение {'усилилось' if d['up'] else 'стихло'}, "
+    f"{R.count(d['sea'], ('балл', 'балла', 'баллов'))}.",
     "off.periscope.washed": lambda d: f"{R.CAPTAIN}, перископ захлёстывает волной.",
     "off.periscope.aircraft": lambda d: f"Перископ: самолёт, пеленг {R.course(d['bearing'])}"
     + (", низко над водой!" if d["low"] else "."),
@@ -249,6 +254,7 @@ class PeriscopeWatch(Station):
         self._judges = Judges(JUDGE_EVERY_S)
         self._last_call: dict[str, tuple[int, float, float]] = {}   # (t, kurs, fart) senast utropat
         self._land_seen_t = -10**9          # senast land syntes i okularet
+        self._sea_seen = self.world.env.sea_state   # sjögången man såg senast (vid start: känd)
         self._column_t = -10**9             # senast en vattenpelare ropades ut
         self._new_raising()
 
@@ -430,6 +436,10 @@ class PeriscopeWatch(Station):
                 self.say("off.periscope.washed", kind="info")
         else:
             self._observe()
+            sea = self.world.env.sea_state  # sjön ändrats sedan förra titten (vädret)
+            if sea != self._sea_seen:
+                self.say("off.periscope.sea", {"sea": sea, "up": sea > self._sea_seen})
+                self._sea_seen = sea
         self._step()
 
     def _washed(self) -> bool:

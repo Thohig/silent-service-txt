@@ -90,6 +90,7 @@ def sea_words(beaufort: int) -> str:
 PHRASES = {
     "bridge.manned": lambda d: "Luckan öppen, utkikarna på bryggan."
                                + (f" {sea_words(d['sea'])}." if "sea" in d else ""),
+    "bridge.sea": lambda d: f"Bryggan: sjön {'ökar' if d['up'] else 'mojnar'}. {sea_words(d['sea'])}.",
     "bridge.clearing": lambda d: f"Utrym bryggan! Alla man ned, luckan stängs. "
     f"Cirka {d['seconds']} sekunder.",
     "bridge.shut": lambda d: "Bryggan utrymd, tornluckan stängd. Klart att dyka.",
@@ -120,6 +121,8 @@ RU_PHRASES = {
     "bridge.manned": lambda d: "Рубочный люк открыт, сигнальщики на мостике."
                                + (f" Волнение {R.count(d['sea'], ('балл', 'балла', 'баллов'))}."
                                   if "sea" in d else ""),
+    "bridge.sea": lambda d: f"Мостик: волнение {'усиливается' if d['up'] else 'стихает'}, "
+    f"{R.count(d['sea'], ('балл', 'балла', 'баллов'))}.",
     "bridge.clearing": lambda d: "Все вниз! Задраить рубочный люк!",
     "bridge.shut": lambda d: "Рубочный люк задраен, мостик пуст. К погружению готовы.",
     "bridge.contact": _contact_ru,
@@ -151,6 +154,7 @@ class BridgeWatch(Station):
         self._ice_f: tuple[int, list[float]] = (-10**9, [])
         self._land_f: tuple[int, float] = (-10**9, 1.0)
         self._events: list[tuple[int, SightedObject]] = []    # (syns till, händelsen)
+        self._sea_said: int | None = None   # sjögången utkiken senast sagt
 
 
     def update(self) -> None:
@@ -161,6 +165,10 @@ class BridgeWatch(Station):
         new = self._watch_events()
         if new or self.now % LOOK_EVERY_S == 0:
             self._look()
+        sea = self.world.env.sea_state       # utkiken ser sjön ändras (vädret)
+        if self._sea_said is not None and sea != self._sea_said:
+            self.say("bridge.sea", {"sea": sea, "up": sea > self._sea_said})
+        self._sea_said = sea
 
     # --- luckan ---------------------------------------------------------------------
     def _watch_hatch(self) -> None:
@@ -169,7 +177,8 @@ class BridgeWatch(Station):
             return
         prev, self._hatch = self._hatch, b
         if b == "manned":
-            self.say("bridge.manned", {"sea": self.world.env.sea_state})
+            self._sea_said = self.world.env.sea_state
+            self.say("bridge.manned", {"sea": self._sea_said})
         elif b == "clearing":
             self.game.bus.publish(BridgeSighted(self.now, None))
             self.say("bridge.clearing", {"seconds": BRIDGE_CLEAR_S}, kind="ack")
