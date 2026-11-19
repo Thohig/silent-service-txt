@@ -3,6 +3,14 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-19 – sparsammare CI
+
+GitHub Actions-minuterna tog slut: `--slow` (10–20 min) kördes vid varje push på alla grenar, även för
+ändringar i `.md`. Nu (`.github/workflows/tester.yml`): push bara till `main` och då bara de snabba testerna,
+`--slow` vid pull request och manuellt (`workflow_dispatch`), `paths-ignore` för `**.md` och `docs/**`,
+`timeout-minutes` 30. Lokalt: `uv run pytest -q` före varje commit, `--slow` före större steg (CLAUDE.md).
+Kalibreringsbaslinjen sparad om med clyde och clyde-in (`kontroll.py`, `MAX_H` 10 h).
+
 ## 2026-11-19 – «Клайд»: Firth of Clyde (N2–N6)
 
 Nytt scenario `clyde` och kort variant `clyde-in` (menyn efter sundet). Natten till 20 oktober 1962: in
