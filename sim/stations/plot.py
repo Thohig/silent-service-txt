@@ -36,6 +36,13 @@ BEARING_LINE_NM = 12.0          # bäringslinjer på kortet
 VECTOR_S = 360                  # fartvektor på kortet: sex minuters gång
 FADE_S = 300                    # äldre bäringar ritas bleka
 MANEUVER_REPEAT_S = 300         # säg "har ändrat kurs" högst så här ofta per kontakt
+HUNTER_AFTER_S = 600            # jagade så länge: plottet säger vad det vet om jagarens sätt
+HUNTER_LONG_S = 1500            # ... och igen när jakten hållit på så här länge
+HUNTER_PING_WINDOW_S = 300      # pingtakten ur bäringarna från hans pingar så här långt bakåt
+HUNTER_FAST_KN = 20             # så fort: han hör oss dåligt
+HUNTER_SLOW_KN = 12             # så sakta: han lyssnar
+HUNTER_PING_TIGHT_S = 10
+HUNTER_PING_SPARSE_S = 20
 FORGET_S = 1800                 # tappade kontakter: bäringen tas bort efter så här länge
 CONVOY_TURN_REPEAT_S = 180      # "konvojen girar" högst så här ofta
 CONVOY_POINT_AGE_S = 300        # en lösning så gammal räknas inte i grupperingen
@@ -117,6 +124,8 @@ class PlotTeam(Station):
         super().__init__(game)
         self._last_suggest: dict[str, int] = {}
         self._maneuver_said: dict[str, int] = {}
+        self._hunt_since: int | None = None
+        self._hunter_said: dict[str, int] = {}     # beteckning -> vad som sagts (1, 2) denna jakt
         self._look_checked: dict[str, int] = {}     # senaste periskoptitt prövad mot lösningen
         self._convoy_turn_said = -10**9
         self._convoy_quality: Quality | None = None
@@ -410,7 +419,52 @@ class PlotTeam(Station):
         return self.game.clock_str(t)[:5]
 
     # --- löpande arbete -------------------------------------------------------
+    # --- jagarens sätt (J2): bara det plottet och sonar har ------------------------------
+    def _hunter_watch(self) -> None:
+        k, now = self.game.knowledge, self.now
+        if not k.hunted(now):
+            self._hunt_since = None
+            self._hunter_said = {}
+            return
+        if self._hunt_since is None:
+            self._hunt_since = now
+        dur = now - self._hunt_since
+        if dur < HUNTER_AFTER_S:
+            return
+        stage = 2 if dur >= HUNTER_LONG_S else 1
+        for tr in sorted(k.tracks.values(), key=lambda t: t.first_t):
+            if not (tr.held and tr.threat and tr.warship and "jagare" in tr.classification) or \
+                    self._hunter_said.get(tr.designation, 0) >= stage:
+                continue
+            if (found := self.hunter_data(tr, dur)) is None:
+                continue
+            d, q = found
+            self._hunter_said[tr.designation] = stage
+            self.say("plot.hunter", d, kind="solution", quality=q)
+
+    def hunter_data(self, tr: ContactTrack, dur: int) -> tuple[dict, Quality] | None:
+        """Fart ur lösningen (minst osäker), pingtakten ur bäringarna från hans pingar och hur
+        länge jakten pågått. Ingen fart och ingen takt: inget att säga."""
+        d: dict = {"designation": tr.designation, "minutes": dur // 60,
+                   "long": dur >= HUNTER_LONG_S}
+        q = Quality.SAKER
+        sol = tr.solution
+        if sol is not None and sol.quality >= Quality.OSAKER and self.now - sol.t <= 180:
+            d["speed"] = round(sol.speed)
+            q = min(q, sol.quality)
+        pings = sorted(o.t for o in tr.observations
+                       if o.source == "ping" and o.t >= self.now - HUNTER_PING_WINDOW_S)
+        gaps = sorted(b - a for a, b in zip(pings, pings[1:]) if b > a)
+        if len(gaps) >= 3:
+            d["ping_s"] = gaps[len(gaps) // 2]
+            q = min(q, Quality.GOD)
+        if "speed" not in d and "ping_s" not in d:
+            return None
+        return d, q
+
     def update(self) -> None:
+        if self.now % PLOT_INTERVAL == 0:
+            self._hunter_watch()
         if self.now % PLOT_INTERVAL:
             return
         for tr in self.game.knowledge.tracks.values():
@@ -687,7 +741,39 @@ def _ru_leg(s: int | None) -> str:
     return f" Противолодочный зигзаг, галс около {R.count(round(s / 60), R.MINUTE)}." if s else ""
 
 
+def _hunter(d: dict) -> str:
+    out = [f"Kapten, plottet. Om jagaren {d['designation']}:"]
+    v = d.get("speed")
+    if v is not None:
+        if v >= HUNTER_FAST_KN:
+            out.append(f"han går fort, cirka {v} knop. I den farten hör han oss dåligt.")
+        elif v <= HUNTER_SLOW_KN:
+            out.append(f"han går sakta, cirka {v} knop, och lyssnar. Håll tyst.")
+        else:
+            out.append(f"han går cirka {v} knop.")
+    p = d.get("ping_s")
+    if p is not None:
+        word = "tätt" if p <= HUNTER_PING_TIGHT_S else "glest" if p >= HUNTER_PING_SPARSE_S else "jämnt"
+        out.append(f"Han pingar {word}, var {p}:e sekund.")
+    if d.get("long"):
+        out.append(f"Han har jagat oss i {d['minutes']} minuter och ger inte upp.")
+    return " ".join(out)
+
+
+def _ru_hunter(d: dict) -> str:
+    from .. import russian as R
+    out = [f"Товарищ командир, планшет. {R.contact(d['designation']).capitalize()}:"]
+    if d.get("speed") is not None:
+        out.append(f"ход около {R.count(d['speed'], R.KNOT)}.")
+    if d.get("ping_s") is not None:
+        out.append(f"Посылки через {R.count(d['ping_s'], R.SECOND)}.")
+    if d.get("long"):
+        out.append(f"Преследует нас {R.count(d['minutes'], R.MINUTE)}, не отстаёт.")
+    return " ".join(out)
+
+
 PHRASES = {
+    "plot.hunter": _hunter,
     "plot.convoy.found": lambda d: (
         f"Kapten, plottet! {', '.join(d['members'])} går tillsammans, samma kurs och fart. "
         f"Det är en konvoj" + (f" med {d['escorts']} jagare som eskort" if d["escorts"] else "")
@@ -698,6 +784,7 @@ PHRASES = {
     + _leg_text(d.get("mean_leg_s")),
 }
 RU_PHRASES = {
+    "plot.hunter": _ru_hunter,
     "plot.convoy.found": lambda d: "Товарищ командир, планшет! Цели идут вместе, одним курсом. "
     "Это конвой" + (" с охранением" if d["escorts"] else "") + ".",
     "plot.convoy.turn": lambda d: "Товарищ командир, планшет. Конвой повернул, новый галс. "

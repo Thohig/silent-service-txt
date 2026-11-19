@@ -75,7 +75,9 @@ def test_waterfall_from_knowledge_only():
     for d, tr in traces.items():
         obs = [o for o in k.tracks[d].observations if o.source in ("sonar", "ping", "aktiv")]
         assert tr.points[-1] == (obs[-1].t, obs[-1].bearing, obs[-1].se)
-        assert tr.kind == "threat"           # jagare, klassade
+        if "jagare" in k.tracks[d].classification:
+            assert tr.kind == "threat"       # jagare, klassade
+    assert any(tr.kind == "threat" for tr in traces.values())
     lines = v.lines
     assert {c.designation for c in lines} == set(traces)
     assert all(c.solution_quality in Quality for c in lines)

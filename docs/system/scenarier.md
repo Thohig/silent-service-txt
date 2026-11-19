@@ -101,6 +101,14 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   8 frön: första förslag efter ~67 s; ja-boten klar på 41–53 min i 7, tiden ute i 1 (torpeden hoppas
   över); bot som skjuter klar på 22–52 min, träff i 3 (omkört 2026-11-15; förut 35–51, 25–37 och
   träff i 1); passiv kapten: tiden ute.
+- **Jagarkaptenerna** (`enemy.py`, `Temperament`, J1–J2): varje `DestroyerAI` (och eskort) har ett
+  temperament ur en egen ström (`draw_temperament`, drar inte ur jagarens): metodisk (som förut), envis
+  (söker i 10 kn, girar var 90:e s, håller ett gammalt datum 30 min i stället för 15) eller ivrig (stänger i
+  27 kn, söker i 16, pingar var 0,8:e gång, går in redan när datumet är 0,5 nm, ger upp efter 10 min).
+  Hamnens patrullbåtar är alla metodiska (`DRAW_TEMPERAMENT`). Spelaren märker det genom plottet
+  (`PlotTeam._hunter_watch`, kunskap): efter 10 min jakt säger plottet jagarens fart (lösning ≥ osäker, färsk)
+  och pingtakt (mediangapet mellan hans pingar de senaste 5 min: tätt ≤ 10 s, glest ≥ 20 s), och efter 25 min
+  att han inte ger upp. Under jakt är lösningen oftast för dålig för farten; pingtakten finns nästan alltid.
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen

@@ -159,6 +159,7 @@ class PatrolBoatAI(DestroyerAI):
     """Liten ubåtsjaktbåt vid inloppet."""
     PING_LEVEL = 196.0       # liten båt, gammal sonar: ~0,6 nm under skiktet
     SPEED_CLOSE = 18
+    DRAW_TEMPERAMENT = False
     SPEED_SEARCH = 9
     SPEED_OPEN = 14
     SPEED_ATTACK = 11

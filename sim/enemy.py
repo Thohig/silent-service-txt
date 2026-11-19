@@ -26,6 +26,11 @@ datumet ligger så långt utanför dess område.
 
 Jagare i samma grupp (`partners`) delar sina fix över radio: en partner
 utan bättre bild får datumet med större osäkerhet.
+
+Varje jagarkapten har ett temperament (`Temperament`): metodisk (som förut), envis
+(söker längre och saktare, lyssnar bättre) eller ivrig (stänger och söker fort, hör sämre,
+anfaller på sämre datum och ger upp tidigare). Det dras ur en egen ström, så att jagarens
+övriga slump inte flyttas. Ubåten får veta det bara genom vad besättningen hör (plottet).
 """
 from __future__ import annotations
 
@@ -69,6 +74,32 @@ SHARED_SIGMA_NM = 0.4       # ett fix från en annan jagare, med navigationsfel 
 MOON_GLITTER_F = 1.5        # plymen i månglittret: så mycket lättare att se
 
 
+@dataclass(frozen=True)
+class Temperament:
+    """Jagarkaptenens sätt att jaga, som avvikelser från fartygets egna värden."""
+    name: str
+    close_add: float = 0.0      # kn till SPEED_CLOSE
+    search_add: float = 0.0     # kn till SPEED_SEARCH
+    ping_mult: float = 1.0      # pingintervallen gånger detta
+    timeout_mult: float = 1.0   # DATUM_TIMEOUT gånger detta: så länge han söker på ett gammalt datum
+    turn_s: int = 120           # sökgirarna kring datumet
+    attack_sigma: float = 0.3   # datumet så här säkert (nm): han går in och fäller
+
+
+TEMPERAMENTS = {
+    "metodisk": Temperament("metodisk"),
+    "envis": Temperament("envis", search_add=-2.0, timeout_mult=2.0, turn_s=90),
+    "ivrig": Temperament("ivrig", close_add=5.0, search_add=4.0, ping_mult=0.8,
+                         timeout_mult=0.67, attack_sigma=0.5),
+}
+
+
+def draw_temperament(rng: random.Random) -> Temperament:
+    """Ett temperament ur fartygets ström utan att dra ur den (egen ström ur dess tillstånd)."""
+    own = random.Random(repr(rng.getstate()[1][:8]))
+    return TEMPERAMENTS[own.choice(sorted(TEMPERAMENTS))]
+
+
 @dataclass
 class Datum:
     x: float
@@ -98,12 +129,17 @@ class DestroyerAI:
     MAST_NM = 4.0           # utkik och radar ser periskop och master så här långt
     MAST_P = 0.03           # sannolikhet per sekund att de upptäcks inom det
 
+    DRAW_TEMPERAMENT = True     # hamnens patrullbåtar är alla lika (sundets kalibrering)
+
     def __init__(self, vessel: Vessel, rng: random.Random, area: float = 20.0,
                  patrol_speed: float = 15.0, escalate_after: int | None = None,
                  leash_nm: float | None = None,
-                 box: tuple[float, float, float, float] | None = None):
+                 box: tuple[float, float, float, float] | None = None,
+                 temperament: Temperament | None = None):
         self.vessel = vessel
         self.rng = rng
+        self.temper = temperament or (draw_temperament(rng) if self.DRAW_TEMPERAMENT
+                                      else TEMPERAMENTS["metodisk"])
         self.area = area
         # patrullområdet (x0, y0, x1, y1); kvadraten om inget annat sägs
         self.box = box if box is not None else (0.0, 0.0, area, area)
@@ -237,7 +273,7 @@ class DestroyerAI:
                 continue
             if hostile:
                 self.roe = "lethal"
-            if tr.kind in ("ping", "launch", "echosounder", "astern", "reload"):
+            if tr.kind in ("ping", "launch", "echosounder", "astern", "reload", "creak"):
                 self._datum_from_bearing(world, tr.x, tr.y, 0.25 if tr.kind == "ping" else 0.3,
                                          depth_guess=max(20.0, tr.depth + self.rng.gauss(0, 40)))
 
@@ -310,7 +346,8 @@ class DestroyerAI:
         s = self.vessel.state
         now = world.time
         world.emit(Transient("ping", s.x, s.y, 5.0, self.PING_LEVEL, self.vessel.id, now))
-        self.next_ping = now + self.PING_INTERVAL[self.state] + self.rng.randint(0, 3)
+        self.next_ping = now + round(self.PING_INTERVAL[self.state] * self.temper.ping_mult) \
+            + self.rng.randint(0, 3)
         echoes = []
         for tgt in [world.own, *[d for d in world.contacts if isinstance(d, Decoy)]]:
             if tgt.sunk or self._in_dead_zone(tgt):
@@ -387,7 +424,7 @@ class DestroyerAI:
         if self._beyond_leash(now):
             self.datum = None               # utanför vår sektor: släpp jakten
             self.state = "patrol"
-        if self.datum is not None and now - self.datum.t > DATUM_TIMEOUT:
+        if self.datum is not None and now - self.datum.t > DATUM_TIMEOUT * self.temper.timeout_mult:
             self.datum = None
             self.state = "patrol"
 
@@ -396,18 +433,18 @@ class DestroyerAI:
             self.state = "prosecute"
 
         if self.state == "prosecute":
-            if fresh and self.datum.sigma < 0.3:
+            if fresh and self.datum.sigma < self.temper.attack_sigma:
                 self.state = "attack"
             else:
                 px, py = self.datum.predict(now)
                 d = distance(s.x, s.y, px, py)
                 if d > 1.0:
-                    s.order_speed(self.SPEED_CLOSE)
+                    s.order_speed(self.SPEED_CLOSE + self.temper.close_add)
                     s.order_course(bearing_to(s.x, s.y, px, py))
                 else:
-                    s.order_speed(self.SPEED_SEARCH)
+                    s.order_speed(self.SPEED_SEARCH + self.temper.search_add)
                     if now >= self.next_search_turn:
-                        self.next_search_turn = now + 120
+                        self.next_search_turn = now + self.temper.turn_s
                         s.order_course(norm360(s.course + 90))
                 return
 
