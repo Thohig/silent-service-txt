@@ -96,29 +96,29 @@
     "lost": 3
    },
    "minuter": {
-    "escaped": 47,
-    "lost": 64
+    "escaped": 35,
+    "lost": 74
    }
   }
  },
  "jagad-kort": {
   "passiv": {
    "utfall": {
-    "lost": 4,
-    "patrol_end": 4
+    "lost": 3,
+    "patrol_end": 5
    },
    "minuter": {
-    "lost": 24,
+    "lost": 19,
     "patrol_end": 30
    }
   },
   "ja": {
    "utfall": {
-    "escaped": 5,
-    "patrol_end": 3
+    "escaped": 6,
+    "patrol_end": 2
    },
    "minuter": {
-    "escaped": 21,
+    "escaped": 22,
     "patrol_end": 30
    }
   }
@@ -190,31 +190,31 @@
   },
   "ja": {
    "utfall": {
-    "convoy_missed": 8
+    "convoy_missed": 7,
+    "patrol_end": 1
    },
    "minuter": {
-    "convoy_missed": 158
+    "convoy_missed": 123,
+    "patrol_end": 240
    }
   }
  },
  "konvoj-kort": {
   "passiv": {
    "utfall": {
-    "convoy_missed": 1,
-    "patrol_end": 7
+    "patrol_end": 8
    },
    "minuter": {
-    "convoy_missed": 78,
     "patrol_end": 80
    }
   },
   "ja": {
    "utfall": {
-    "convoy_missed": 2,
-    "patrol_end": 6
+    "convoy_missed": 1,
+    "patrol_end": 7
    },
    "minuter": {
-    "convoy_missed": 76,
+    "convoy_missed": 75,
     "patrol_end": 80
    }
   }
@@ -243,7 +243,7 @@
    },
    "minuter": {
     "convoy_attacked": 27,
-    "convoy_missed": 28,
+    "convoy_missed": 27,
     "neutral_sunk": 6,
     "patrol_end": 33
    }
@@ -302,7 +302,7 @@
     "patrol_end": 6
    },
    "minuter": {
-    "escaped": 122,
+    "escaped": 113,
     "patrol_end": 240
    }
   }
@@ -320,12 +320,52 @@
   },
   "ja": {
    "utfall": {
-    "lost": 5,
-    "patrol_end": 3
+    "lost": 4,
+    "patrol_end": 4
    },
    "minuter": {
-    "lost": 32,
+    "lost": 30,
     "patrol_end": 43
+   }
+  }
+ },
+ "clyde": {
+  "passiv": {
+   "utfall": {
+    "grounded": 8
+   },
+   "minuter": {
+    "grounded": 134
+   }
+  },
+  "ja": {
+   "utfall": {
+    "clyde_done": 3,
+    "record_missed": 5
+   },
+   "minuter": {
+    "clyde_done": 419,
+    "record_missed": 433
+   }
+  }
+ },
+ "clyde-in": {
+  "passiv": {
+   "utfall": {
+    "patrol_end": 8
+   },
+   "minuter": {
+    "patrol_end": 48
+   }
+  },
+  "ja": {
+   "utfall": {
+    "patrol_end": 5,
+    "recorded": 3
+   },
+   "minuter": {
+    "patrol_end": 48,
+    "recorded": 29
    }
   }
  }
