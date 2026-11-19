@@ -124,6 +124,12 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   skenmål, smygmotor, tvärs och nytt djup. Djupet räknas från där vi var när torpeden hördes (där den
   söker), 80 m därifrån, och gäller tills nästa torped. Sedan bäringen och dess drift var 20:e s (står
   den still kommer den mot oss, förslaget upprepas om inget väntar). Den torped som hörs starkast styr.
+  Nedräkning (T1, `eta_estimate`): när bäringen står still räknar sonar tiden tills torpeden är framme ur
+  hur fort den mottagna nivån stiger (`IncomingTorpedo.level`, avläst med σ 0,7 dB): τ = 8,7 dB / (dB/s),
+  minsta kvadrat över 40 s, oberoende av farten vid sfärisk spridning. Kvaliteten ur lutningens σ med ett
+  modellfel på 20 % (`ETA_MODEL_REL`; torpeden går inte rakt mot oss), 10/25/50 %; över 2 min högst
+  osäker, över 4 min sägs ingen tid. Under 90 s ropas den var 10:e s. Mot sanningen (kuba/arktis, 8 frön,
+  4 lägen): god inom 30 % eller 10 s i 83–92 %, osäker i 59–79 %.
   `Knowledge.torpedo_alarm` och `doors_t` håller maskinens sprint- och kavitationsförslag borta.
 - **US-ubåten i krig** (`arctic.py`, `SubmarineAI.roe = "attack"`, D2): håller 2,5 nm (`ATTACK_NM`) i 8 kn,
   medlar pejlingarna senaste minuten (σ/√n), räknar vår kurs och fart ur dem, öppnar torpedrören

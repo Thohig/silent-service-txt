@@ -110,6 +110,7 @@ class IncomingTorpedo:
     kind: str
     bearing: float | None
     se: float = 0.0
+    level: float | None = None    # mottagen nivå (dB) vid hydrofonerna, utan vårt eget brus
 
 
 SonarEvent = (Detection | Lost | ClassificationUpdate | BearingObs | TransientHeard | OwnTorpedo
@@ -300,6 +301,12 @@ class SonarStation:
                 out.append(OwnTorpedo(tr.no, "lost", tr.last_bearing))
         return out
 
+    @staticmethod
+    def _received(world: World, v: Vessel) -> float:
+        """Nivån torpedljudet når hydrofonerna med (operatören läser den ur förstärkningen,
+        oberoende av vårt eget brus)."""
+        return v.radiated_level(world.env) - world.tl_to_own(v.state.x, v.state.y, v.depth)
+
     def _enemy_torpedo(self, world: World, v: Vessel) -> list[SonarEvent]:
         """En fientlig torped: hörs genast (inget att klassa), bäring tätt, tappad när den tystnat."""
         tr = self._incoming.get(v.id)
@@ -318,11 +325,12 @@ class SonarStation:
                     tr.no = self._incoming_count
                 tr.last_obs_t = world.time
                 tr.last_bearing = self._noisy_bearing(world, v, se)
-                return [IncomingTorpedo(tr.no, "new", tr.last_bearing, se)]
+                return [IncomingTorpedo(tr.no, "new", tr.last_bearing, se, self._received(world, v))]
             if world.time - tr.last_obs_t >= OBS_INTERVAL:
                 tr.last_obs_t = world.time
                 tr.last_bearing = self._noisy_bearing(world, v, se)
-                out.append(IncomingTorpedo(tr.no, "bearing", tr.last_bearing, se))
+                out.append(IncomingTorpedo(tr.no, "bearing", tr.last_bearing, se,
+                                           self._received(world, v)))
         else:
             tr.silent_for += 1
             if tr.held and tr.silent_for >= INCOMING_LOSE_AFTER:
