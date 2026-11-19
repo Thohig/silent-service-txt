@@ -44,7 +44,7 @@ RADIO_MESSAGES = [
     RadioMessage("FRÅN HUVUDSTABEN. RAPPORTERA OBSERVERADE FARTYGSRÖRELSER "
                  "VID FÖRSTA MÖJLIGA SAMBANDSTILLFÄLLE.", {"report_requested": True}),
     RadioMessage("FRÅN HUVUDSTABEN. INGEN ÄNDRING. VAPENANVÄNDNING EJ AUKTORISERAD.",
-                 {"nuclear_authorized": False}),
+                 {"nuclear_authorized": False, "nuclear": "order_only"}),
 ]
 
 KUBA_TRAFFIC = TrafficDef(lanes=(

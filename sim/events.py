@@ -219,6 +219,16 @@ class TelegramReceived(Event):
 
 
 @dataclass(frozen=True)
+class NuclearOrderRead(Event):
+    """Vad ordern eller ett telegram säger om kärnladdningen och om kriget (kunskap: det besättningen
+    läst). nuclear: forbidden (uttryckligt förbud), order_only (bara på order från Moskva),
+    conditional (om vi angrips med skarpa sjunkbomber), authorized; None = säger inget om det."""
+    nuclear: str | None
+    war: bool | None
+    source: str             # "ordern" eller "telegram N"
+
+
+@dataclass(frozen=True)
 class InterceptHeard(Event):
     """Radiospaning: vad radiomannen hörde av den amerikanska trafiken."""
     air: int                # flygplan vars radio hördes

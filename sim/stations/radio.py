@@ -15,7 +15,7 @@ from ..entities import Emission
 from ..broadcasts import broadcasts_for, order_day
 from ..dispatch import SentReport, compose, report_text
 from ..headquarters import Headquarters
-from ..events import (Handover, InterceptHeard, OwnActionLogged, OwnTorpedoHeard, PhotoTaken, PositionReported,
+from ..events import (Handover, InterceptHeard, NuclearOrderRead, OwnActionLogged, OwnTorpedoHeard, PhotoTaken, PositionReported,
                       ReportTransmitted, TelegramReceived)
 from ..fmt import fmt_course, nm
 from ..geo import angle_diff, distance
@@ -240,6 +240,7 @@ class RadioStation(Station):
         self.messages = list(sc.radio_messages) if sc else []
         self.delivered: list[str] = []
         self._next_msg = 0
+        self._orders_read = False
         self._listen = 0
         self._handled: set[int] = set()
         self._prewarned: set[int] = set()
@@ -462,6 +463,11 @@ class RadioStation(Station):
             self.say("radio.moscow.silent", strip, kind="info")
 
     def update(self) -> None:
+        if not self._orders_read:            # ordern läst vid start: vad den säger om kärnladdningen
+            self._orders_read = True
+            sc = self.game.scenario
+            self.game.bus.publish(NuclearOrderRead(self.now, getattr(sc, "nuclear_order", "order_only"),
+                                                   getattr(sc, "at_war", False), "ordern"))
         st = self.own.state
         if self._listen_until is not None:
             if st.depth > ANTENNA_DEPTH + 1 or not self.masts_free:
@@ -665,6 +671,10 @@ class RadioStation(Station):
             msg = self.messages[self._next_msg]
             self._next_msg += 1
             self._telegram(msg.text)
+            if "nuclear" in msg.flags or "war" in msg.flags:
+                self.game.bus.publish(NuclearOrderRead(self.now, msg.flags.get("nuclear"),
+                                                       msg.flags.get("war"),
+                                                       f"telegram {self.received}"))
             self.world.mission.update(msg.flags)
             if msg.flags.get("report_requested"):
                 self.hq.request_report()

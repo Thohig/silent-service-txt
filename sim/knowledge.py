@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from .events import (AirRadarHeard, BearingObserved, InterceptHeard, BridgeSighted, ClassificationChanged, ContactDetected,
                      ConvoyAssessed, ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound,
                      PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported,
-                     ListeningExercise, TelegramReceived, TorpedoExercise, TorpedoInWater)
+                     ListeningExercise, NuclearOrderRead, TelegramReceived, TorpedoExercise, TorpedoInWater)
 from .icemap import IceMap
 from .periscope import PeriscopePicture
 from .seabed import Seabed
@@ -119,6 +119,8 @@ class Knowledge:
     convoy: ConvoyEstimate | None = None   # plottets bild av en konvoj
     telegrams: list[TelegramReceived] = field(default_factory=list)   # det radion tagit emot
     order_tasks: frozenset[str] = frozenset()   # vad ordern kräver (Scenario.tasks)
+    # vad ordern och telegrammen säger om kärnladdningen och kriget: (tid, nuclear, war, källa)
+    nuclear_orders: list[tuple[int, str | None, bool | None, str]] = field(default_factory=list)
 
     def attach(self, bus: EventBus) -> None:
         bus.subscribe(ContactDetected, self._on_detected)
@@ -129,6 +131,8 @@ class Knowledge:
         bus.subscribe(OpeningNotFound, self._on_opening_not_found)
         bus.subscribe(PositionReported, self._on_position)
         bus.subscribe(TelegramReceived, self.telegrams.append)
+        bus.subscribe(NuclearOrderRead,
+                      lambda e: self.nuclear_orders.append((e.t, e.nuclear, e.war, e.source)))
         bus.subscribe(HuntSigns, self._on_hunt)
         bus.subscribe(TorpedoInWater, self._on_torpedo)
         bus.subscribe(PhotoTaken, self._on_photo)
@@ -146,6 +150,21 @@ class Knowledge:
         self.air_radar = (e.t, e.strength)
         if e.strength in AIR_CLOSE:
             self.air_close_t = e.t
+
+    def nuclear_order(self) -> tuple[str, int, str]:
+        """Den senaste ordern om kärnladdningen: (nuclear, tid, källa). Utan något läst gäller
+        order_only (marinens grundregel: bara på order från Moskva)."""
+        for t, nuclear, _war, source in reversed(self.nuclear_orders):
+            if nuclear is not None:
+                return nuclear, t, source
+        return "order_only", 0, "ordern"
+
+    def at_war(self) -> tuple[bool, int | None, str | None]:
+        """Om ordern eller ett telegram sagt att det är krig: (krig, tid, källa)."""
+        for t, _nuclear, war, source in reversed(self.nuclear_orders):
+            if war is not None:
+                return war, t, source
+        return False, None, None
 
     def air_close_now(self) -> bool:
         """Hörde radarvarnaren flygradar nära i sitt senaste svep (det gäller bara på periskopdjup)?"""

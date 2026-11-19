@@ -43,7 +43,8 @@ HUNTED_RADIO = [
                  "UBÅTAR I FLERA KVADRATER. LÄMNA KVADRAT 7. FÖRBLI OUPPTÄCKT."),
     RadioMessage("FRÅN HUVUDSTABEN. KÄRNVAPEN FÅR ANVÄNDAS ENDAST OM NI ANGRIPS MED SKARPA "
                  "SJUNKBOMBER. SIGNALSJUNKBOMBER ÄR INGET ANGREPP.",
-                 {"nuclear_authorized": False, "nuclear_condition": "real_charges"}),
+                 {"nuclear_authorized": False, "nuclear_condition": "real_charges",
+                  "nuclear": "conditional"}),
 ]
 
 # Flyget kommer tidigare: jagarna har kallat på det.

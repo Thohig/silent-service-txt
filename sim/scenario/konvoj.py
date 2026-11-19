@@ -45,7 +45,8 @@ SLUT
 
 CONVOY_RADIO = [
     RadioMessage("FRÅN HUVUDSTABEN. KONVOJEN HAR SETTS AV SPANINGSFLYG. INGEN ÄNDRING I ORDERN."),
-    RadioMessage("FRÅN HUVUDSTABEN. KÄRNVAPEN FÅR INTE ANVÄNDAS.", {"nuclear_authorized": False}),
+    RadioMessage("FRÅN HUVUDSTABEN. KÄRNVAPEN FÅR INTE ANVÄNDAS.",
+                 {"nuclear_authorized": False, "nuclear": "forbidden", "war": True}),
 ]
 
 
@@ -90,6 +91,7 @@ def convoy_scenario(rng: random.Random, run_in_nm: tuple[float, float] = (16.0, 
     return Scenario(world, _crew(), order, start_clock,
                     radio_windows=windows, radio_messages=list(CONVOY_RADIO),
                     chart_seabed=chart, area_name="kvadrat 12", tasks=("anfall",),
+                    nuclear_order="forbidden", at_war=True,
                     outcome_text={
                         "convoy_attacked": "K-114 har sänkt fartyg ur konvojen och brutit kontakten. "
                                            "Bakom er brinner det på horisonten.",

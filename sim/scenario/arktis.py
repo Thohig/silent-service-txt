@@ -93,7 +93,7 @@ def arctic_scenario(rng: random.Random, short: bool = False) -> Scenario:
                      "ISEN DRIVER. TA ER DIT OCH GÅ UPP.",
                      waypoint=(STATION_NAME, px, py, 0.6, t_sig)),
         RadioMessage("FRÅN HUVUDSTABEN. AMERIKANSK ATOMUBÅT TROLIGEN PÅ VÄG MOT NORD-7. "
-                     "FÖRBLI OUPPTÄCKT. VAPENANVÄNDNING EJ AUKTORISERAD."),
+                     "FÖRBLI OUPPTÄCKT. VAPENANVÄNDNING EJ AUKTORISERAD.", {"nuclear": "order_only"}),
         RadioMessage("FRÅN HUVUDSTABEN. INGEN ÄNDRING. RAPPORTERA NÄR NI NÅTT NORD-7.",
                      {"nuclear_authorized": False}),
     ]

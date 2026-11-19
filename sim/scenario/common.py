@@ -65,6 +65,9 @@ class Scenario:
     # vad ordern kräver, så som besättningen förstår den (Knowledge.order_tasks):
     # patrull, rapport, anfall, foto, ut, station, övning. Aldrig ur World.goals.
     tasks: tuple[str, ...] = ("patrull",)
+    # vad ordern säger om kärnladdningen (NuclearOrderRead.nuclear) och om det är krig
+    nuclear_order: str = "order_only"
+    at_war: bool = False
 
 
 

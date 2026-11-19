@@ -111,7 +111,8 @@ def duel_scenario(rng: random.Random, short: bool = False) -> Scenario:
                               dir=_compass(bearing_to(x, y, ix, iy)))
     messages = [
         RadioMessage("FRÅN HUVUDSTABEN. KRIGSTILLSTÅND KVARSTÅR. AMERIKANSK UBÅT VID T-3 HAR "
-                     "SÄNKT B-75 I NORD-2. SÄNK DEN.", {"nuclear_authorized": False}),
+                     "SÄNKT B-75 I NORD-2. SÄNK DEN.",
+                     {"nuclear_authorized": False, "nuclear": "forbidden", "war": True}),
     ]
     windows = [] if short else [(c - start_clock) for c in (4 * 3600, 6 * 3600)]
     known = [(ISLAND_NAME, ix + rng.gauss(0, 0.5), iy + rng.gauss(0, 0.5), 1.0, 0)]
@@ -124,7 +125,7 @@ def duel_scenario(rng: random.Random, short: bool = False) -> Scenario:
     return Scenario(world, _crew(), order, start_clock, chart_seabed=chart,
                     radio_windows=windows, radio_messages=messages, known_positions=known,
                     area_name="område Nord-3", escape_margin_nm=ESCAPE_MARGIN_NM,
-                    tasks=("ut",),
+                    tasks=("ut",), nuclear_order="forbidden", at_war=True,
                     outcome_text={
                         "sank": "Brytljuden från den amerikanska ubåten tystnar under isen. "
                                 "K-114 har vunnit duellen i Nord-3.",

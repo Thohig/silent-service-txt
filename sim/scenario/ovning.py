@@ -113,7 +113,7 @@ def training_scenario(rng: random.Random) -> Scenario:
                     tide_table=tide.table_copy(random.Random(rng.random())),
                     area_name="Kolafjorden", fairway=fairway, fairway_to=TRAINING_AREA,
                     training=TRAINING_STEPS, training_area=TRAINING_AREA, no_dive_in_fjord=True,
-                    armament=TRAINING_ARMAMENT, tasks=("övning",),
+                    armament=TRAINING_ARMAMENT, tasks=("övning",), nuclear_order="forbidden",
                     outcome_text={
                         "training_done": "Övningsprogrammet är genomfört. K-114 ligger i "
                                          "ytläge i övningsområdet och anmäler till staben i "
