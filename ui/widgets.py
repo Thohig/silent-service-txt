@@ -170,7 +170,9 @@ class ReportLog(RichLog):
         elif r.kind == "suggest":
             line.append("» ", style="bold #f0c674")
         line.append(f"{r.speaker}: ", style=ROLE_STYLE.get(r.role, "bold"))
-        line.append(r.text, style="bold" if r.alarm else "#f0c674" if r.kind == "suggest" else "")
+        hushed = r.data.get("hushed")      # tystnad i båten: lågt
+        line.append(r.text, style="bold" if r.alarm else "#f0c674" if r.kind == "suggest" else
+                    "italic #9a9a9a" if hushed else "")
         if r.quality is not None:
             line.append(f"  [{r.quality.label}]", style=QUALITY_STYLE[r.quality])
         self.emit(line)

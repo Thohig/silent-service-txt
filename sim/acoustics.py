@@ -45,6 +45,7 @@ BLOW_LEVEL = 165.0
 BUOY_SPLASH_LEVEL = 135.0     # en sonoboj slår i vattnet
 BUOY_PING_LEVEL = 205.0       # aktiv sonoboj
 RELOAD_LEVEL = 145.0          # omladdning: torpeden går in i tuben, bakluckan stängs
+CREAK_LEVEL = 132.0           # skrovet knakar vid snabb djupändring (kompressionen)
 RELOAD_QUIET_DB = 12.0        # försiktig omladdning (smygmotor, jagade)
 
 

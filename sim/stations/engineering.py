@@ -94,6 +94,7 @@ ORDINAL = {1: "första", 2: "andra", 3: "tredje", 4: "fjärde", 5: "femte", 6: "
 INSPECT_NOTE = {"BRAND": "brand", "skada": "skador", "lågt": "batteriet lågt"}
 INSPECT_AFTER_S = 60         # avdelningarna rapporterar så här länge efter haverilarmet
 INSPECT_ALERTS = ("damage", "ice.collision", "bottom.collision", "fire")
+GROAN_SAY_S = 180       # skrovknaket under jakt sägs högst så här ofta
 
 
 def _ordinals(nos: list[int]) -> str:
@@ -154,6 +155,8 @@ PHRASES = {
     "broach": lambda d: "Kapten, centralen! Sjön drog upp oss, tornet bröt ytan!",
     "leak_stopped": lambda d: "Läckan är tätad.",
     "hull.creak": lambda d: f"Skrovet knakar, kapten. {d['depth']:.0f} meter, under provdjup.",
+    "hull.groan": lambda d: "Skrovet knakar när vi går " + ("ned" if d.get("down") else "upp")
+    + ", kapten. Det hörs i vattnet. Långsammare djupändring, i låg fart, knakar inte.",
     "damage": _damage,
     "ice.collision": lambda d: f"{ru('Avarijnaja trevoga')}! "
     + ("Vi har backat in i isen! " if d.get("astern") else "Vi har gått in i isen! ")
@@ -333,6 +336,7 @@ RU_PHRASES = {
     "surfaced": lambda d: "Мы в надводном положении!",
     "broach": lambda d: f"{R.CAPTAIN}, центральный! Волной подняло, рубка показалась!",
     "leak_stopped": lambda d: "Течь заделана.",
+    "hull.groan": lambda d: f"{R.CAPTAIN}, корпус трещит. Нас слышно. Глубину менять медленнее.",
     "hull.creak": lambda d: f"Корпус трещит, товарищ командир. {R.count(d['depth'], R.METER)}, "
     "ниже рабочей глубины.",
     "damage": lambda d: f"Аварийная тревога! {_ru_damage_list(d)}{_ru_leak(d)}",
@@ -411,6 +415,7 @@ class EngineeringStation(Station):
     def __init__(self, game):
         super().__init__(game)
         self._last_shock = -10**9
+        self._last_groan = -10**9
         self._inspect_t: int | None = None     # avdelningarna rapporterar då
 
 
@@ -656,6 +661,12 @@ class EngineeringStation(Station):
                 if self.now - self._last_shock < 15:
                     continue
                 self._last_shock = self.now
+            if type == "hull.groan":
+                # knaket hörs alltid ombord; maskin säger det bara när någon kan lyssna
+                if not self.game.knowledge.hunted(self.now) or \
+                        self.now - self._last_groan < GROAN_SAY_S:
+                    continue
+                self._last_groan = self.now
             alarm = type in ("reactor.scram", "damage", "surfaced", "broach", "ice.collision", "ice.bump",
                              "bottom.collision", "bottom.touch", "bottom.pressed", "net.caught",
                              "fire") or (type == "smoke" and data["level"] >= 0.7) or \

@@ -47,7 +47,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (`Ambience.oneshot`, märkt `("tal", n)` för repliken): talet renderas i en egen tråd (30–70 ms till ljud,
   rösterna värms vid start) och kan få effekt (`speech_effect`): `phone` för stationerna utanför centralen
   (`REMOTE_ROLES`: sonar, torped, maskin, radio) och starpom i hyttens telefon, `muffled` för centralen hörd
-  från hytten (låg prioritet, släpps efter 4 s).
+  från hytten (låg prioritet, släpps efter 4 s), `hushed` i tystnaden (`Report.data["hushed"]`, vakthavandes
+  rapportfilter: lågt, det skarpa bortfiltrerat, förstärkning 0,5; i loggboken kursivt grått; larm ropas ändå).
   Bakgrundsljud (`ui/ambience.py`): `ambient_targets(status, tracks)` ur `StatusSnapshot`
   (inkl. `sea_noise`, `fire`, `smoke`, `ventilating`) och hållna kontaktspår; `Ambience`
   mixar sömlösa slingor i en sounddevice-ström. Kontaktljudet följer klassificeringen.

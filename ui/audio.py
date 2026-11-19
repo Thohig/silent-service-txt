@@ -489,7 +489,7 @@ def stereo(mono: np.ndarray, pan: float) -> np.ndarray:
 # Stationer utanför centralen hörs genom högtalartelefonen ("Kashtan"); starpom ringer till
 # hytten. I hytten hörs centralen dämpad genom skottet: man hör att någon talar, inte vad.
 REMOTE_ROLES = ("sonar", "torpedo", "engineer", "radio")
-EFFECT_GAIN = {"phone": 0.9, "muffled": 0.35}
+EFFECT_GAIN = {"phone": 0.9, "muffled": 0.35, "hushed": 0.5}
 
 
 def _filtered(x: np.ndarray, gain_of_f) -> np.ndarray:
@@ -515,7 +515,15 @@ def muffled_voice(x: np.ndarray) -> np.ndarray:
     return _norm(y, 0.6)
 
 
+def hushed_voice(x: np.ndarray) -> np.ndarray:
+    """Tystnad i båten: lågt och nära, det skarpa bortfiltrerat."""
+    y = _filtered(x, lambda f: 1 / (1 + (f / 2200) ** 2))
+    return _norm(y, 0.5)
+
+
 def apply_effect(x: np.ndarray, effect: str | None, seed: int = 0) -> np.ndarray:
+    if effect == "hushed":
+        return hushed_voice(x)
     if effect == "phone":
         return phone_voice(x, seed)
     if effect == "muffled":
@@ -534,6 +542,8 @@ def speech_effect(r: Report, status) -> str | None:
         if r.role == "starpom":
             return "phone"
         return "muffled" if from_central(r, status) else None
+    if r.data.get("hushed"):
+        return "hushed"
     return "phone" if r.role in REMOTE_ROLES else None
 
 

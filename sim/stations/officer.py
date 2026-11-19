@@ -56,6 +56,8 @@ CONVOY_LOOK_S = 240        # konvojen känd: en kort titt mot den så här ofta 
 FIRE_LOOK_NM = 3.5         # ett stort fartyg så nära enligt plottet: snart skjutläge
 FIRE_LOOK_S = 90           # ... då en titt före skottet om förra titten på det är så här gammal
 CONVOY_STEP_S = 30
+HUSH_SPEED_KN = 6          # tystnad i båten: jagade och högst så här fort (eller smygmotorn)
+HUSH_LIFT_S = 60           # tystnaden hävs när det varit lugnt eller fort så här länge
 ESCORT_CLOSE_NM = 3.0      # en jagare så nära: föreslå inte att gå upp
 ESM_STRONG_S = 300         # mycket stark radar så nyligen: föreslå inte att gå upp
 
@@ -164,6 +166,9 @@ BATTLE_CALM_S = 1800        # så länge utan jakttecken innan nytt stridslarm
 BATTLE_DELAY_S = 6          # vakthavande ropar efter sonars rapport
 
 PHRASES = {
+    "off.hush": lambda d: "Tystnad i båten. Inga verktyg, inga luckor, bara det nödvändiga. "
+    "Rapporterna lågt.",
+    "off.hush.end": lambda d: "Tystnaden hävd. Normal gång i båten.",
     "off.briefing": _briefing,
     "off.situation": lambda d: " ".join([
         f"Kapten, vakthavande. Djup {d['depth']:.0f} meter, kurs {fmt_course(d['course'])}, "
@@ -258,6 +263,8 @@ def _none_ru(d: dict) -> str:
 
 
 RU_PHRASES = {
+    "off.hush": lambda d: "Тишина в отсеках! Доклады вполголоса.",
+    "off.hush.end": lambda d: "Режим тишины отменён.",
     "off.refused": lambda d: f"{_OFF} Выполнить не могу.",
     "off.esm": lambda d: f"Станция предупреждения: радар, пеленг {R.course(d['bearing'])}, "
     f"сигнал {STRENGTH_RU[d['strength']]}."
@@ -324,11 +331,42 @@ class OfficerStation(Station):
         self._next_esm = 0
         self._idle_t = -10**9       # senaste initiativ (eller försök) vid tystnad
         self._hunt_seen = -10**9    # senaste jakttecken vakthavande har tagit ställning till
+        self.hushed = False         # tystnad i båten: jagade och vi smyger
+        self._hush_off_t: int | None = None
 
 
     def attach(self, bus) -> None:
         super().attach(bus)
         bus.subscribe(Handover, self._on_handover)
+        self.game.queue.filters.append(self._hush_filter)
+
+    # --- tystnad i båten -----------------------------------------------------------
+    def _quiet_wanted(self) -> bool:
+        """Jagade och vi smyger (smygmotorn eller låg fart, under ytan): då viskar man."""
+        own = self.own
+        return self.game.knowledge.hunted(self.now) and not own.surfaced and \
+            own.state.depth > 20 and (own.sys.propulsion == "electric" or own.state.speed <= HUSH_SPEED_KN)
+
+    def _hush_watch(self) -> None:
+        if self._quiet_wanted():
+            self._hush_off_t = None
+            if not self.hushed:
+                self.say("off.hush", kind="info")     # sägs innan filtret slår till: lågt men tydligt
+                self.hushed = True
+        elif self.hushed:
+            # hävs när läget hållit i sig en stund, så att en kort fartökning inte väcker båten
+            if self._hush_off_t is None:
+                self._hush_off_t = self.now
+            elif self.now - self._hush_off_t >= HUSH_LIFT_S:
+                self.hushed = False
+                self._hush_off_t = None
+                self.say("off.hush.end", kind="info")
+
+    def _hush_filter(self, r):
+        """Rapportfilter: i tystnaden talar besättningen lågt (larm ropas ändå)."""
+        if self.hushed and not r.alarm and r.kind != "system" and r.role:
+            r.data["hushed"] = True
+        return r
 
     # --- överlämnandet efter vakten före kaptenen ---------------------------------
     def _on_handover(self, e: Handover) -> None:
@@ -643,6 +681,7 @@ class OfficerStation(Station):
         world, st, rng = self.world, self.own.state, self.rng
         self._idle_watch()
         self._battle_watch()
+        self._hush_watch()
         if self.now % CONVOY_STEP_S == 0:
             self._convoy_watch()
         if self.photo_done_t is not None and self.now >= self.photo_done_t:

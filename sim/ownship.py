@@ -19,6 +19,9 @@ if TYPE_CHECKING:
     from .world import World
 
 TEST_DEPTH = 300.0
+GROAN_MIN_DEPTH = 80.0     # skrovknak vid snabb djupändring: bara så här djupt
+GROAN_RATE_MPS = 1.0       # ... och fortare än så (≈ 6 kn och uppåt med rodren)
+GROAN_STEP_M = 25.0        # ett knak per så många meter
 CRUSH_DEPTH = 450.0
 PERISCOPE_DEPTH = 18.0
 ANTENNA_DEPTH = 30.0
@@ -98,6 +101,7 @@ class OwnSystems:
     alerts: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
     _battery_warned: set = field(default_factory=set)
     _last_creak: int = -10**9
+    _groan_ref: float | None = None  # djupet vid förra knaket (kompressionen) under snabb djupändring
 
 
 def heave_speed_f(speed: float) -> float:
@@ -118,12 +122,29 @@ class OwnShip(Vessel):
         state.brake_accel = BRAKE_KN_PER_S
         state.astern_turn = ASTERN_TURN
         self._reversing = False          # maskinen slog mot farten förra sekunden
+        self._prev_depth: float | None = None   # djupet förra sekunden (skrovknaket)
         self.heave_amp_m = 0.0           # sjöns sug: utslaget just nu (djupmätaren visar det)
         self.heave_m = 0.0               # och hur högt sjön drar oss denna sekund
         if state.depth <= 1.0:
             self.sys.bridge = "manned"       # börjar i ytläge med folk på bryggan
 
     # ------------------------------------------------------------------ hjälp
+    def _groan_step(self, world, st, s, now: int, dt: float) -> None:
+        """Skrovet knakar var GROAN_STEP_M under en djupändring fortare än GROAN_RATE_MPS
+        nedanför GROAN_MIN_DEPTH (stålet trycks ihop eller släpper). Långsamt knakar det inte."""
+        rate = abs(st.depth - self._prev_depth) / dt if self._prev_depth is not None and dt > 0 else 0.0
+        self._prev_depth = st.depth
+        if st.depth < GROAN_MIN_DEPTH or rate < GROAN_RATE_MPS:
+            s._groan_ref = st.depth
+            return
+        if s._groan_ref is None:
+            s._groan_ref = st.depth
+        if abs(st.depth - s._groan_ref) >= GROAN_STEP_M:
+            down = st.depth > s._groan_ref
+            s._groan_ref = st.depth
+            world.emit(Transient("creak", st.x, st.y, st.depth, acoustics.CREAK_LEVEL, self.id, now))
+            self.alert("hull.groan", depth=st.depth, down=down)
+
     def alert(self, type: str, **data: Any) -> None:
         self.sys.alerts.append((type, data))
 
@@ -449,7 +470,8 @@ class OwnShip(Vessel):
         self._trim_step(world, dt, regen)
         self._heave_step(world)
 
-        # skrov
+        # skrov: snabb djupändring på djupet knakar (kompressionen), och det hörs i vattnet
+        self._groan_step(world, st, s, now, dt)
         if st.depth > TEST_DEPTH:
             s.hull -= (st.depth - TEST_DEPTH) / 100.0 * 0.0015 * dt
             if now - s._last_creak >= 60:
