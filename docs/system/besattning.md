@@ -13,6 +13,24 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (masten fri, radion hel) ⇒ efter `LISTEN_S` (20 s) säger radiomannen en sändning för orderns datum
   (`order_day` ur `DATUM:`-raden, `broadcasts_for`); bara stämning, aldrig information. Den 28 okt bara
   bärvåg. Ljudet `shortwave` (menyns ratt och brus) före rösten.
+- **Sambandstillfällena och långvågen** (L1–L4, 2026-11-19; `stations/radio.py`): staben sänder vid
+  scenariots sambandstillfällen (`Scenario.radio_windows`, 20 min, kuba-kort 15). Det vi missar sänds om
+  vid nästa (`radio.missed` säger när: `_next_window_clock`); efter sista tillfället når det oss inte.
+  Mottagning (`_receive`): på antenndjup (≤ 30 m) med masten på 60 s (`RECEIVE_S`), eller på djupet på
+  långvåg med flytkabeln, ≤ 50 m (`VLF_DEPTH`) och ≤ 5 kn (`VLF_SPEED`), på 300 s (`VLF_RECEIVE_S`).
+  Radiomannen sköter kabeln själv (`radio.cable.out`, `RadioStation.cable`); fortare dras den under och
+  mottagningen står still (`radio.cable.fast`, förslag `fart 3`); under is flyter den inte (`radio.ice`).
+  Förvarningen `radio.prewarn_vlf` föreslår `djup 40` och/eller `fart 3` (det som behövs, `_up_order`) i
+  stället för antenndjup; går vi beordrat fortare än 5 kn (följer, anfaller) föreslås antenndjup, eftersom
+  masten tar emot i vilken fart som helst; kräver ordern en rapport (`report_required`) gäller antenndjup
+  som förut (`radio.prewarn`). `up_depth()` säger hur grunt radion behöver oss (30 eller 50 m); sonar föreslår inte
+  skiktet och starpom säger nej till djupare under tiden. Långvågens kvalitet (`_vlf_quality`, fasta
+  regler): mörker, fart ≤ 3 kn och djup ≤ 40 m ger var sitt plus, två ⇒ hel; annars stympad: remsan
+  med nummer "?" och oläsbara grupper (`garble`, 45 % ░, `rng_for("radio")`), `radio.garbled` en gång per
+  fönster med skälen och förslag om djup och fart; radion lyssnar vidare och tar emot hela vid nästa
+  försök (masten på antenndjup alltid hel). Stympat verkställs inte (flaggor, positioner). Vyerna:
+  djupprofilen visar flytkabelns djup (nivån `┄ flytkabel`) medan ett tillfälle väntar och kabeln (`╎`,
+  `profile.Cable`) när den är ute; systemtavlan "kabeln ute, n min kvar"; loggen "på långvåg".
 - **Rapporten till staben** (`sim/dispatch.py`, kunskap; R1–R2 2026-11-19): `sänd rapport` (allt),
   `sänd kort rapport` (eget läge och det som hänt), `sänd rapport S-3` (en kontakt). Radiomannen sätter
   ihop `SentReport` ur kunskapen: bestick med σ, kontakter med lösning ≥ osäker (hot först, högst 5;
@@ -87,8 +105,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   aktiv sonar, radar, foto) plus det ordern lägger till (`ORDER_MANDATE` efter `Knowledge.order_tasks`, ur
   `Scenario.tasks`: patrull, rapport, anfall, foto, ut, station, övning; testat mot målen): anfall ⇒ `anfall S-x`.
   Han väger förslag mot ordern (`_objection`, fasta regler, inte vid larm eller jakt): nej (`xo.decline`) till
-  styrorder från andra än navigatören medan navigatören anfaller eller följer, och djupare än antenndjup när
-  ordern kräver rapport och radion behöver masten. Med anfallsorder ropas kaptenen (fara) 2 min före
+  styrorder från andra än navigatören medan navigatören anfaller eller följer, och djupare än radion behöver
+  (`RadioStation.up_depth`: antenndjup eller flytkabelns 50 m) när ordern kräver rapport. Med anfallsorder ropas kaptenen (fara) 2 min före
   navigatörens `attack_eta_t` och när ett klassat stort fartyg med färsk lösning ≥ osäker är < 3,5 nm
   (`_target_watch`); `nav.attack.arrived` är fara; radions förvarning ringer när ordern kräver rapport. Väckning (`_wake`): info = lampan (civil kontakt, `plot.maneuver`, ny kontakt),
   fråga = telefonen ringer (hotkontakt med lösning ≥ osäker, stort fartyg, konvoj, telegram, förslag utanför

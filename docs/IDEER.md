@@ -9,10 +9,9 @@ CLAUDE.md.
 Realismen ligger hos besättningen: ett nytt system hörs i besättningens rapporter och förslag och märks
 när något går fel, ger högst en ny order (helst ingen) och syns i de vyer som finns (inga nya vyer).
 
-## Nya system (i den ordningen)
+## Nya system
 
-1. **Långvåg och sambandsschema.** Telegram tas emot på djupet med släpantenn vid fasta tider, långsamt;
-   det vi sänder kräver fortfarande antenndjup. Syns i loggen, radiopanelen och djupprofilen (antennen).
+Inga just nu (långvågen byggd 2026-11-19).
 
 Bara med det som behöver dem:
 - **Luften** (syre, koldioxid, regenereringspatroner): slås ihop med koldioxiden som finns, i maskins

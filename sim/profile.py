@@ -66,12 +66,17 @@ class HeardEvent:
 
 
 @dataclass(frozen=True)
+class Cable:
+    """Radions flytkabel ute (långvåg): från tornet upp till ytan."""
+
+
+@dataclass(frozen=True)
 class ProfileNote:
     text: str
     quality: Quality | None = None
 
 
-ProfileItem = Level | DepthTrace | BottomSounding | ChartBottom | IceSounding | HeardEvent | ProfileNote
+ProfileItem = Level | DepthTrace | BottomSounding | ChartBottom | IceSounding | HeardEvent | Cable | ProfileNote
 
 
 @dataclass
@@ -92,6 +97,10 @@ class ProfileView:
     @property
     def notes(self) -> list[ProfileNote]:
         return self.of(ProfileNote)
+
+    @property
+    def cable(self) -> bool:
+        return bool(self.of(Cable))
 
     @property
     def levels(self) -> list[Level]:

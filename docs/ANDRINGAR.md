@@ -3,6 +3,27 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-19 – långvågen och sambandsschemat (L1–L4)
+
+Telegrammen kan tas emot på djupet. Tester i `tests/test_radio_vlf.py`, detaljer i
+`docs/system/besattning.md` (Sambandstillfällena och långvågen).
+
+- **L1 Schemat:** ett missat sambandstillfälle säger när staben sänder om (nästa tillfälle); efter det
+  sista når det oss inte.
+- **L2 Flytkabeln:** på långvåg tar radion emot på ≤ 50 m och ≤ 5 kn på fem minuter (masten på antenndjup
+  fortfarande en minut). Radiomannen sköter kabeln, föreslår djup 40 och fart 3 (antenndjup när vi går fort
+  eller ordern kräver rapport), och säger till när farten drar kabeln under. Ingen kabel under is. Ingen ny
+  order.
+- **L3 Kvaliteten:** hel eller stympad ur mörker, fart ≤ 3 kn och djup ≤ 40 m (två av tre). Stympat visas
+  som remsa med oläsbara grupper; radion föreslår djup och fart och lyssnar vidare.
+- **L4 Vyerna:** djupprofilen visar flytkabelns djup och kabeln när den är ute, systemtavlan kabelns tid
+  kvar, loggen "på långvåg".
+- **Kalibrering:** `kontroll.py` som baslinjen utom jagad ja: escaped 6 ⇒ 5, lost 2 ⇒ 3 (frö 2: förvarningen
+  under jakten gav en annan förslagsföljd; ±1); `baslinje.json` sparad efter långvågen. `kalibrering/langvag.py` (ja-boten, 8 frön): kuba tar nu emot
+  på långvåg (9 radiogram, 4 stympade, förut 10 med masten), sundet 8 med masten och 2 på långvåg (förut 8),
+  arktis och duell oförändrade (is respektive masten). Konvoj 1 mot 3: andra förslag tar båten djupare
+  under fönstret; utfallen lika.
+
 ## 2026-11-19 – kaptenen är i centralen direkt
 
 `jag har befälet`, högtalarens rop vid fara och starpoms rop före skjutläget ger kaptenen befälet och

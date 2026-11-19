@@ -27,6 +27,7 @@ from ..icemap import thickness_words
 from ..orders import DESIG, CommandSpec, Order, desig
 from ..reports import Quality
 from ..ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH
+from ..profile import Cable, Level
 from ..systems import INFO, OK, WARN, Gauge
 from .base import Proposal, Station
 from .navigation import NavigationStation
@@ -142,7 +143,9 @@ PHRASES = {
     f"Vi behöver antenndjup, {ANTENNA_DEPTH:.0f} meter eller grundare.",
     "radio.prewarn_vlf": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}. Vi kan ta emot "
     f"på långvåg med flytkabeln, högst {VLF_DEPTH:.0f} meter och högst {VLF_SPEED:.0f} knop; det tar "
-    f"cirka {VLF_RECEIVE_S // 60} minuter." + (f" Föreslår {d['what']}." if d.get("what") else ""),
+    f"cirka {VLF_RECEIVE_S // 60} minuter." + (
+        " I den här farten dras kabeln under, så föreslår antenndjup: masten tar emot på en minut."
+        if d.get("mast") else f" Föreslår {d['what']}." if d.get("what") else ""),
     "radio.window_open": lambda d: "Sambandstillfället har börjat. Vi lyssnar.",
     "radio.cable.out": lambda d: f"Flytkabeln ute, vi tar emot på långvåg, cirka {d['minutes']} minuter.",
     "radio.cable.fast": lambda d: "Kapten, radio. Flytkabeln dras under i den här farten, vi tappar "
@@ -455,16 +458,32 @@ class RadioStation(Station):
                                WARN))
         i = self.window_pending()
         if i is not None and self.windows[i] <= self.now:
-            got = self._listen >= RECEIVE_S
-            items.append(Gauge("SAMBAND", "Samband", "öppet nu, " + (
-                "mottaget" if got else "lyssnar" if self._listen else f"antenndjup ≤ {ANTENNA_DEPTH:.0f} m"),
-                OK if self._listen else WARN))
+            if self._listen:
+                what = "lyssnar på masten"
+            elif self.cable:
+                left = max(1, round((VLF_RECEIVE_S - self._vlf) / 60))
+                what = f"långvåg, kabeln ute, {left} min kvar"
+            elif self.report_required:
+                what = f"antenndjup ≤ {ANTENNA_DEPTH:.0f} m"
+            else:
+                what = f"kabeln: ≤ {VLF_DEPTH:.0f} m och ≤ {VLF_SPEED:.0f} kn"
+            items.append(Gauge("SAMBAND", "Samband", "öppet nu, " + what,
+                               OK if self._listen or self.cable else WARN))
         else:
             nxt = next((w for w in self.windows if w + self.window_len > self.now), None)
             items.append(Gauge("SAMBAND", "Nästa samband",
                                self.game.clock_str(nxt)[:5] if nxt is not None else "inget planerat",
                                WARN if i is not None else INFO))
         items.append(Gauge("SAMBAND", "Mottaget", f"{len(self.delivered)} meddelanden", INFO))
+        return items
+
+    def profile_items(self) -> list:
+        """Flytkabelns djup medan ett sambandstillfälle väntar, och kabeln när den är ute."""
+        items: list = []
+        if self.window_pending() is not None and not self.report_required:
+            items.append(Level(VLF_DEPTH, "flytkabel", "cable", "┄"))
+        if self.cable:
+            items.append(Cable())
         return items
 
     def needs_mast(self) -> bool:
@@ -488,6 +507,8 @@ class RadioStation(Station):
         st = self.own.state
         if self.report_required:
             return ("antenndjup" if st.ordered_depth > ANTENNA_DEPTH else None), {"up": True}
+        if st.ordered_speed > VLF_SPEED:        # vi går fort (följer, anfaller): masten i stället
+            return ("antenndjup" if st.ordered_depth > ANTENNA_DEPTH else None), {"up": True, "mast": True}
         up, slow = st.ordered_depth > VLF_DEPTH, st.ordered_speed > VLF_SPEED
         parts = ([f"djup {VLF_UP_DEPTH}"] if up else []) + ([f"fart {VLF_SLOW_KN}"] if slow else [])
         return (" och ".join(parts) or None), {"up": up, "slow": slow}

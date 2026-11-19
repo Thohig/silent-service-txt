@@ -38,6 +38,7 @@ scratchpad (2026-11-14–15). En del läser sanningen (`sundet.py --orakel`, `su
 | `tma_kvalitet.py` | flera | ja; plottets lösningar mot sanningen per kvalitet |
 | `rad.py` | kuba, kuba-kort, jagad, jagad-kort (kommaseparerade) | hök-boten: ja-boten som laddar T-5, håller kärnvapenrådet vid varje bomb nära, går upp till skjutdjup och skjuter med nycklarna |
 | `starpom.py` | kuba, konvoj (kommaseparerade), frön, ev. `salva` | kaptenen lämnar över och sover, går till centralen för sina beslut; med `salva` skjuter han där (som `konvoj_salva.py`); mot samma kapten utan starpom |
+| `langvag.py` | scenarier (kommaseparerade), frön | ja-boten; radiogram med masten och på långvåg, stympade och missade sambandstillfällen |
 
 Provkörda 2026-11-15 med ett frö var. Alla gick utan fel. `konvoj.py` och `kuba_jakt.py`
 kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
@@ -110,6 +111,7 @@ håller ≥ 5 m vatten (testat 4 frön i sundet och fjorden, minst ~10 m).
 | `ovning.py` | 8 training_done (103–120 min), ingen grundstötning, bestickfel 0,04–0,26 nm | – |
 | `ovning_lyssna.py` | lyssning 7–25 min; plottets lösning stämmer i 5, fel i 2 | – |
 | `ovning_torped.py ovning` / `ovning-kort` | träff 2 / 3 | – |
+| `langvag.py kuba,jagad,konvoj,duell,sundet,arktis` (2026-11-19) | radiogram mast/långvåg/stympat: kuba 0/9/4, jagad 0/0/0, konvoj 1/0/0, duell 6/0/0, sundet 8/2/0, arktis 14/0/0; utfall som ja-boten | före långvågen (bara masten): kuba 10, jagad 1, konvoj 3, duell 6, sundet 8, arktis 14 |
 | `starpom.py kuba,konvoj` (kaptenen i centralen direkt, 2026-11-19) | utfall som ja-boten; kuba 2–10 ringningar, 0–2 fara; konvoj 1–9, 1–4 | kuba 2–13, 0–2; konvoj 1–17, 1–4 (med gången 40 s) |
 | `starpom.py konvoj,konvoj-kort salva` | konvoj 0 sänkt; konvoj-kort 1 anfallen, 1 neutral sänkt (frö 4) | konvoj 1 sänkt (ja-boten 2); konvoj-kort 0, 1 neutral (med gången) |
 | `tma_kvalitet.py` (god/säker) | grova 3,9 %, > 3σ 6,0 % (sundet säker grova 0) | 6,9 %, 10,4 % före q för sicksack; 4,8 %, 7,9 % före golvet för σ |

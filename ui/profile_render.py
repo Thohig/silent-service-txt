@@ -38,6 +38,7 @@ STYLE = {
     "ordered": "yellow",
     "surface": "#5f87af",
     "periscope": "#4f6f60",
+    "cable": "#a08a5a",
     "layer": "#5fafaf",
     "test": "#b0a050",
     "crush": "#b05050",
@@ -64,7 +65,7 @@ EVENT_PRIO = {"explosion": 6, "breakup": 6, "splash": 5, "own_launch": 5, "own_b
 
 LEGEND = [
     ("▬▶", "own", "vi nu"), ("⠤⠤", "trace", "vårt djup"), ("┆", "ordered", "beordrat"),
-    ("⠄⠠", "layer", "språngskikt"), ("▓", "bottom", "ekolod"), ("⠒⠒", "chart_bottom", "sjökortets djup"),
+    ("╎", "cable", "flytkabel"), ("⠄⠠", "layer", "språngskikt"), ("▓", "bottom", "ekolod"), ("⠒⠒", "chart_bottom", "sjökortets djup"),
     ("█", "ice_thick", "is"),
     ("≈", "ice_open", "öppet vatten"),
     None, ("Sonar hörde:", "dim", ""), ("◦", "heard_ping", "ping"), ("↓", "heard_splash", "plask"),
@@ -287,6 +288,10 @@ def render_profile(view: ProfileView, width: int, height: int,
             g.put(cols - 1, rr, "┆", STYLE["ordered"])
         g.put(cols - 1, r_ord, arrow, STYLE["ordered"])
         right[r_ord] = Text(f" {arrow} {view.ordered_depth:.0f} m", style=STYLE["ordered"])
+    if view.cable and r_now > 0:                   # flytkabeln från tornet till ytan
+        for rr in range(0, r_now):
+            g.put(cols - 4, rr, "╎", STYLE["cable"])
+        right[0] = Text(" flytkabel", style=STYLE["cable"])
     g.text(cols - 3, r_now, "▬▬▶", STYLE["own"])
     right[r_now] = Text(f" ◀ {view.depth:.0f} m", style=STYLE["own"])
 

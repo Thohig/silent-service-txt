@@ -92,12 +92,12 @@
   },
   "ja": {
    "utfall": {
-    "escaped": 6,
-    "lost": 2
+    "escaped": 5,
+    "lost": 3
    },
    "minuter": {
-    "escaped": 50,
-    "lost": 88
+    "escaped": 47,
+    "lost": 64
    }
   }
  },
@@ -193,7 +193,7 @@
     "convoy_missed": 8
    },
    "minuter": {
-    "convoy_missed": 149
+    "convoy_missed": 158
    }
   }
  },

@@ -61,12 +61,22 @@ def test_cable_is_dragged_under_at_speed():
 
 def test_too_deep_for_the_cable_gets_a_suggestion_to_come_up():
     g, reports = _game()
+    _at(g, 100, 4)
+    _window_in(g, 700)
+    _run(g, 120)
+    pre = [r for r in reports if r.type == "radio.prewarn_vlf"]
+    assert pre and pre[0].data["order"] == f"djup {VLF_UP_DEPTH}"
+    assert g.station(RadioStation).up_depth() == 50
+
+
+def test_fast_boat_gets_the_mast_instead():
+    """Vi följer eller anfaller i hög fart: antenndjup (masten i vilken fart som helst)."""
+    g, reports = _game()
     _at(g, 100, 8)
     _window_in(g, 700)
     _run(g, 120)
     pre = [r for r in reports if r.type == "radio.prewarn_vlf"]
-    assert pre and pre[0].data["order"] == f"djup {VLF_UP_DEPTH} och fart {VLF_SLOW_KN}"
-    assert g.station(RadioStation).up_depth() == 50
+    assert pre and pre[0].data["order"] == "antenndjup" and "masten" in pre[0].text
 
 
 def test_report_order_still_wants_the_mast():
@@ -128,3 +138,22 @@ def test_garble_keeps_the_length_and_loses_some_groups():
         out = garble(text, random.Random(seed))
         assert len(out) == len(text) and "░" in out
         assert out != "░" * len(text)
+
+
+# --- L4: vyerna --------------------------------------------------------------------------
+
+def test_profile_and_panel_show_the_cable():
+    from ui.profile_render import render_profile
+    g, reports = _game()
+    _at(g, 40, 3)
+    _window_in(g, 60)
+    _run(g, 5)
+    view = g.profile()
+    assert any(lv.label == "flytkabel" and lv.depth == 50 for lv in view.levels) and not view.cable
+    _run(g, 120)
+    view = g.profile()
+    assert view.cable
+    text = "\n".join(t.plain for t in render_profile(view, 100, 30))
+    assert "╎" in text and "flytkabel" in text
+    gauges = [i for i in g.systems().items if getattr(i, "label", "") == "Samband"]
+    assert gauges and "kabeln ute" in gauges[0].text
