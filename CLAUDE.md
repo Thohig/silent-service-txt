@@ -135,7 +135,8 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
 Avslagna förslag (föreslå inte igen): tal på Linux (piper/espeak-ng), animering på sjökortet, bilder i
 terminalen (Kitty/sixel) och webbklient, besättningsfigurer i centralen, reaktorpanel i centralen,
 däckskanon, fler vyer (t.ex. plottbord, eldledning, besättningslista, hydrologi: det nya ska synas i
-de vyer som finns), vakter och trötthet som system, scenarierna Haveri (K-19), Räddningen och
+de vyer som finns), vakter och trötthet som system, besättningen som människor (personligheter,
+moral; starpom räcker), scenarierna Haveri (K-19), Räddningen och
 Spaningen.
 
 Idéer som inte är beställda: `docs/IDEER.md`. Konkreta öppna uppgifter (köra om, prova för hand,

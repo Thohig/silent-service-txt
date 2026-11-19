@@ -30,10 +30,7 @@ Favoriter först:
 
 1. **Kärnvapenbeslutet** (B-59/Archipov): skarp T-5 kräver tre officerares samtycke (kapten,
    zampolit, starpom). Zampoliten är förberedd i `events.py` men obyggd.
-2. **Besättningen som människor:** trötthet och vaktskiften, personligheter (ängslig navigatör,
-   ivrig torpedofficer), moral som påverkar förslag, ibland fel klassning. Krokarna finns
-   (`effective_skill`, rapportfilter).
-3. **Kampanjen «Октябрь 1962»** (skissad 2026-11-16, "avvakta"), se nedan.
+2. **Kampanjen «Октябрь 1962»** (skissad 2026-11-16, "avvakta"), se nedan.
 
 Övrigt:
 - Order som krockar med läget; reaktor av/batteri-scenario; osäkert neutralt mål.
