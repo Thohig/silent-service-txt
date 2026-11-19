@@ -3,6 +3,17 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-19 – kaptenen är i centralen direkt
+
+`jag har befälet`, högtalarens rop vid fara och starpoms rop före skjutläget ger kaptenen befälet och
+lägesrapporten i samma tick. De 40 sekunderna i gången utan order (`WALK_S`, `captain_at == "walking"`,
+`xo.walking`, `Starpom.intercept` för gången) är borta, liksom hyttvyns bild av gången och dörrens läge
+`open`. Ropet före skjutläget kommer 2 min före (förut 2 min + gångtiden): kaptenen står i centralen lika
+tidigt som förut. Kod i `sim/stations/starpom.py` och `ui/cabin_render.py`, tester i `tests/test_starpom.py`.
+`kalibrering/starpom.py` (8 frön): utfallen som ja-boten (kuba 8 patrol_end, konvoj 8 convoy_missed);
+kuba 2–10 ringningar och 0–2 fara, konvoj 1–9 och 1–4. Med `salva`: konvoj 0 sänkt (förut 1), konvoj-kort
+1 anfallen och 1 neutral sänkt (förut 0 och 1), inom ±1.
+
 ## 2026-11-19 – kärnvapenbeslutet (KV1–KV8)
 
 Förebild B-59 den 27 oktober 1962. Tester i `tests/test_war_council.py` och `tests/test_nuclear_keys.py`.

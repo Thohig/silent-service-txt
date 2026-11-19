@@ -31,7 +31,6 @@ from .central_render import PALETTES
 from .placards import PLATE_STYLE
 
 MIN_W, MIN_H = 40, 14
-WALK_TOTAL_S = 40
 CABIN_RU = "КАЮТА КОМАНДИРА"
 
 BG = "on #15110c"
@@ -49,7 +48,6 @@ PHONE = "#7a7a6a on #15110c"
 LAMP_OFF = "#3a3020 on #15110c"
 LAMP_ON = "bold #ffaf00 on #15110c"
 LAMP_RING = "bold #ff5f5f on #15110c"
-FIGURE = "bold #e8dcc0 on #15110c"
 
 PAL = dict(PALETTES["normal"], ring="#8a7a5a", needle="bold #f0e6c8", label="#6a5c48",
            hub="#c8b890")
@@ -121,36 +119,6 @@ def _desk(c: Canvas, top: int, left: int, width: int) -> None:
     c.text(top + 2, left, "▀" * width, WOOD)
     c.text(top + 3, left + 1, "▌", WOOD_DARK)
     c.text(top + 3, left + width - 2, "▐", WOOD_DARK)
-
-
-def _walk(c: Canvas, w: int, h: int, s: StatusSnapshot, t: float) -> None:
-    """Gången från hytten och lejdaren upp till centralen; kaptenen på väg."""
-    mid = h // 2
-    left, right = 3, w - 4
-    c.text(mid - 2, left, "─" * (right - left), WALL)
-    c.text(mid + 2, left, "─" * (right - left), WALL)
-    c.text(mid - 1, left - 1, "▐", WOOD)
-    c.text(mid, left - 1, "▐", WOOD)
-    c.text(mid + 1, left - 1, "▐", WOOD)
-    c.text(mid + 3, left - 2, "hytten", DIM)
-    for x in range(left + 6, right - 6, 9):    # skott med dörrar
-        c.put(mid - 1, x, "╥", WALL)
-        c.put(mid + 1, x, "╨", WALL)
-    lad = right - 3
-    for r in range(1, mid + 2):                 # lejdaren upp till centralen
-        c.text(r, lad, "╫", WOOD)
-    c.text(1, lad - 6, "centralen", DIM)
-    frac = 1.0 - min(1.0, s.walk_s / WALK_TOTAL_S)
-    path = (lad - left - 2) + mid
-    pos = int(frac * path)
-    if pos <= lad - left - 2:
-        col, row = left + 1 + pos, mid
-    else:
-        col, row = lad, mid - (pos - (lad - left - 2))
-    stride = int(t * 4) % 2
-    c.put(row - 1 if row > 1 else row, col, "●", FIGURE)
-    c.put(row, col, "╫" if col == lad else ("╱" if stride else "╲"), FIGURE)
-    c.text(h - 2, 2, f"På väg till centralen, {s.walk_s} s.", FIGURE)
 
 
 def footer(s: StatusSnapshot) -> Text:
@@ -521,14 +489,14 @@ def _door(c: Canvas, g: _Room, state: str | None = None, t: float = 0.0) -> list
     """Dörren längst bort på styrbords skott, med ljus från gången under.
 
     `steps`: någon står utanför, fötternas skuggor i ljusstrimman. `ajar`: dörren på glänt
-    vid regeln, ordonnansen i springan. `open`: dörren uppslagen mot skottet, gången lyser in."""
+    vid regeln, ordonnansen i springan."""
     spans = _door_spans(g)
     if not spans:
         return spans
     n = len(spans)
-    gap = 0 if state not in ("ajar", "open") else (max(2, n // 3) if state == "ajar" else n - 1)
-    leaf = spans[: n - gap] if state != "open" else []
-    opening = spans[n - gap:] if state == "ajar" else (spans[1:] if state == "open" else [])
+    gap = max(2, n // 3) if state == "ajar" else 0
+    leaf = spans[: n - gap]
+    opening = spans[n - gap:]
     for col, r0, r1 in leaf:
         for r in range(r0, r1 + 1):
             c.put(r, col, "░", DOOR)
@@ -538,12 +506,6 @@ def _door(c: Canvas, g: _Room, state: str | None = None, t: float = 0.0) -> list
         for r in range(r0, r1 + 1):
             c.put(r, col, "▓" if r < r1 - (r1 - r0) // 4 else "▒", CORRIDOR)
         c.put(r0, col, "▁", DOOR_EDGE)
-    if state == "open":
-        col, r0, r1 = spans[0]
-        for r in range(r0, r1 + 1):                     # dörrbladet uppslaget, på kant
-            c.put(r, col, "█", WOOD_DARK)
-        mid = opening[len(opening) // 2]
-        c.put(mid[1] + 1, mid[0], "◓", CORRIDOR_DIM)    # lampan i gången
     if state == "ajar" and opening:
         col, r0, r1 = opening[len(opening) // 2]
         _figure(c, col, r0, r1)
@@ -572,16 +534,16 @@ def _door(c: Canvas, g: _Room, state: str | None = None, t: float = 0.0) -> list
 
 def _spill(c: Canvas, g: _Room, spans: list, state: str | None) -> None:
     """Ljuset från gången faller in på durken genom öppningen."""
-    if state not in ("ajar", "open") or not spans:
+    if state != "ajar" or not spans:
         return
     n = len(spans)
-    lit = spans[n - max(2, n // 3):] if state == "ajar" else spans[1:]
+    lit = spans[n - max(2, n // 3):]
     (ca, _, ra), (cb, _, rb) = lit[0], lit[-1]
     start = max(ra, rb) + 1
     for r in range(start, g.h):
         f = (r - start + 1) / max(1, g.h - start)
-        left = round(_lerp(ca, ca - (4 if state == "ajar" else 10), f))
-        right = round(_lerp(cb, min(g.w - 1, cb + (6 if state == "ajar" else 14)), f))
+        left = round(_lerp(ca, ca - 4, f))
+        right = round(_lerp(cb, min(g.w - 1, cb + 6), f))
         for col in range(left, right + 1):
             if 0 <= col < g.w and (c.blank(r, col) or 0x2800 <= ord(c.cells[r][col][0]) <= 0x28FF):
                 c.put(r, col, "░" if f > 0.5 else "▒", CORRIDOR_DIM)
@@ -685,9 +647,7 @@ def _light_at(g: _Room, s: StatusSnapshot, t: float, spots: dict):
     elif s.phone == "lamp":
         lamps.append((phone, 6.0, 0.5, (255, 175, 0), 0.35))
     if "door" in spots:                                 # gångens ljus genom dörren
-        open_ = getattr(s, "door", None) == "open"
-        lamps.append((spots["door"], 34.0 if open_ else 18.0, 0.7 if open_ else 0.4,
-                      (255, 228, 170), 0.3))
+        lamps.append((spots["door"], 18.0, 0.4, (255, 228, 170), 0.3))
     dim = 1.0 - 0.55 * _clip(s.smoke)
 
     def light(r: int, c: int) -> tuple[float, tuple[int, int, int] | None, float]:
@@ -777,8 +737,8 @@ def _room(c: Canvas, s: StatusSnapshot, t: float, chart=None) -> None:
     door = getattr(s, "door", None)
     spans = _door(c, g, door, t)
     spots = _far_wall(c, g, s, sway, chart)
-    if spans and door in ("ajar", "open"):
-        col, r0, r1 = spans[-1] if door == "ajar" else spans[len(spans) // 2]
+    if spans and door == "ajar":
+        col, r0, r1 = spans[-1]
         spots["door"] = ((r0 + r1) // 2, col)
     # taklampan mitt i rummet hänger i sin sladd och svänger
     lr = max(2, (1 + g.ft) // 2)
@@ -828,10 +788,6 @@ def render_cabin(s: StatusSnapshot, t: float, width: int, height: int,
     """chart: navigatörens kort (`Game.chart()`, kunskap) för kortet på väggen; utan det inget kort."""
     w, h = max(MIN_W, width), max(MIN_H, height)
     c = Canvas(w, h, BG)
-    if s.captain_at == "walking" and not (s.door == "open" and w >= ROOM_MIN_W and h >= ROOM_MIN_H):
-        _plate(c, w)
-        _walk(c, w, h, s, t)
-        return c.lines()[:height]
     if w >= ROOM_MIN_W and h >= ROOM_MIN_H:
         _room(c, s, t, chart)
     else:

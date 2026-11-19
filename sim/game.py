@@ -97,8 +97,7 @@ class StatusSnapshot:
     contact_kinds: tuple[str, ...] = ()   # slaget per hållen kontakt (sonar_view.KINDS)
     contact_bearings: tuple[float | None, ...] = ()   # plottets senaste bäring per hållen kontakt
     command: str = "captain"        # vem som har befälet: captain eller starpom
-    captain_at: str = "central"     # var kaptenen är: central, cabin (hytten) eller walking
-    walk_s: int = 0                 # sekunder kvar till centralen
+    captain_at: str = "central"     # var kaptenen är: central eller cabin (hytten)
     phone: str | None = None        # snabbtelefonen i hytten: lamp eller ring
     sleeping: bool = False          # kaptenen sover (snabbspolat tills han väcks)
     order_day: int | None = None    # orderns dag i oktober 1962 (almanackan i hytten)

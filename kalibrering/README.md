@@ -110,8 +110,8 @@ håller ≥ 5 m vatten (testat 4 frön i sundet och fjorden, minst ~10 m).
 | `ovning.py` | 8 training_done (103–120 min), ingen grundstötning, bestickfel 0,04–0,26 nm | – |
 | `ovning_lyssna.py` | lyssning 7–25 min; plottets lösning stämmer i 5, fel i 2 | – |
 | `ovning_torped.py ovning` / `ovning-kort` | träff 2 / 3 | – |
-| `starpom.py kuba,konvoj` | utfall som ja-boten; kuba 2–13 ringningar, 0–2 fara; konvoj 1–17, 1–4 | kuba 3–12, 0–2; konvoj 6–20, 0–4 |
-| `starpom.py konvoj,konvoj-kort salva` | konvoj 1 sänkt (ja-boten 2); konvoj-kort 0, 1 neutral sänkt (frö 4) | – |
+| `starpom.py kuba,konvoj` (kaptenen i centralen direkt, 2026-11-19) | utfall som ja-boten; kuba 2–10 ringningar, 0–2 fara; konvoj 1–9, 1–4 | kuba 2–13, 0–2; konvoj 1–17, 1–4 (med gången 40 s) |
+| `starpom.py konvoj,konvoj-kort salva` | konvoj 0 sänkt; konvoj-kort 1 anfallen, 1 neutral sänkt (frö 4) | konvoj 1 sänkt (ja-boten 2); konvoj-kort 0, 1 neutral (med gången) |
 | `tma_kvalitet.py` (god/säker) | grova 3,9 %, > 3σ 6,0 % (sundet säker grova 0) | 6,9 %, 10,4 % före q för sicksack; 4,8 %, 7,9 % före golvet för σ |
 | `kontroll.py` | som baslinjen efter golvet för σ (konvoj-kort ja uppdaterad efter q för sicksack) | – |
 | Efter radion R3–R6 (huvudstaben, slutrapporten, radiospaning, villkorat T-5; 2026-11-19) | som raden "Efter radion R1–R2", utom arktis ja: station_reached median 295 ⇒ 336 min (5 frön; omläggningarna under öppningarna). Ryska talet rent över alla scenarier (133 typer hörda). `baslinje.json` sparad efter detta | se raderna ovan |

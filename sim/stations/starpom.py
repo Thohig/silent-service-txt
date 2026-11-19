@@ -16,11 +16,11 @@ Väckning på tre nivåer:
   tidsgränsen nära, väckningstid). Tiden går till 1×. Svarar kaptenen inte inom
   ORDERLY_S kommer en ordonnans och knackar.
 - fara: larm eller jakttecken. Högtalaren ropar kaptenen till centralen, tiden går
-  till 1× och kaptenen kommer (WALK_S). Framme tar han befälet och får lägesrapport.
+  till 1× och kaptenen tar befälet direkt och får lägesrapport.
 
 Kaptenen kan också ringa (`lägesrapport`), ge order per telefon (starpom behåller
-befälet), sova (`sov`: 60× tills han väcks) och gå till centralen (`jag har befälet`).
-Medan han är på väg ges inga order.
+befälet), sova (`sov`: 60× tills han väcks) och gå till centralen (`jag har befälet`),
+där han har befälet direkt.
 """
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ from ..crew import Role
 from ..events import ReportDelivered
 from ..fmt import clock, fmt_course, kn, nm
 from ..ownship import ANTENNA_DEPTH
-from ..orders import (REST_SCALE, CommandSpec, Help, Order, SetTimeScale, Unknown,
+from ..orders import (REST_SCALE, CommandSpec, Order, SetTimeScale, Unknown,
                       split_orders)
 from ..reports import Quality
 from ..russian import ru
@@ -52,11 +52,9 @@ from .navigation.current import CurrentReport
 from .radio import RadioStation, RadioStatus
 from .torpedo_room import FiringSolution, LaunchDecoy, LoadTube, TorpedoStatus, TubeStatus
 
-WALK_S = 40             # från hytten till centralen (gången och lejdaren)
 ORDERLY_S = 20          # obesvarat samtal: ordonnansen knackar
 STEPS_S = 4             # så länge före knackningen hörs (syns) han utanför dörren
 AJAR_S = 12             # så länge står dörren på glänt medan han talar
-DOOR_OPEN_S = 4         # kaptenen öppnar dörren och går
 WATCH_S = 5             # så ofta starpom ser över läget
 SUMMON_S = 120          # så långt före skjutläget ropas kaptenen till centralen
 SUMMON_RANGE_NM = 3.5   # anfallsorder: ett stort fartyg så nära enligt plottet ⇒ kaptenen hit
@@ -254,8 +252,6 @@ PHRASES = {
     "xo.already": lambda d: "Kapten, jag har redan befälet.",
     "xo.captain_has": lambda d: "Kapten, ni har befälet.",
     "xo.not_in_command": lambda d: "Kapten, ni har befälet själv. Lämna över till mig först.",
-    "xo.walking": lambda d: f"Kaptenen är på väg till centralen, {d['s']} sekunder kvar.",
-    "xo.coming": lambda d: "Uppfattat, kapten. Vi väntar på er i centralen.",
     "xo.time_refused": lambda d: "Kapten, så fort går vakten bara när jag har befälet och ni vilar.",
     "xo.accept": lambda d: f"{d['who']} föreslår {d['proposed']}. Verkställ.",
     "xo.decline": lambda d: f"{d['who']} föreslår {d['proposed']}. Nej. {_why_not(d)}",
@@ -279,8 +275,6 @@ RU_PHRASES = {
     "xo.already": lambda d: f"{XO} Командование уже у меня.",
     "xo.captain_has": lambda d: f"{XO} Командование у вас.",
     "xo.not_in_command": lambda d: f"{XO} Командование у вас.",
-    "xo.walking": lambda d: "",
-    "xo.coming": lambda d: "Есть. Ждём вас в центральном.",
     "xo.time_refused": lambda d: f"{XO} Так быстро только когда вахту несу я.",
     "xo.accept": lambda d: "Добро. Исполнять.",
     "xo.decline": lambda d: "Нет. Отставить.",
@@ -318,8 +312,7 @@ class FirstOfficer(Station):
     def __init__(self, game):
         super().__init__(game)
         self.in_command = False
-        self.captain_at = "central"         # central, cabin, walking
-        self.walk_until = 0
+        self.captain_at = "central"         # central eller cabin
         self.sleeping = False
         self.ring_t: int | None = None      # telefonen ringer sedan
         self.orderly_t: int | None = None   # ordonnansen knackade
@@ -344,14 +337,11 @@ class FirstOfficer(Station):
     def status_fields(self) -> dict:
         return {"command": "starpom" if self.in_command else "captain",
                 "captain_at": self.captain_at,
-                "walk_s": max(0, self.walk_until - self.now) if self.captain_at == "walking" else 0,
                 "phone": "ring" if self.ring_t is not None else "lamp" if self.lamp else None,
                 "sleeping": self.sleeping, "order_day": self.order_day, "door": self._door()}
 
     def _door(self) -> str | None:
-        """Hyttdörren: kaptenen öppnar den när han går, ordonnansen står utanför och knackar."""
-        if self.captain_at == "walking":
-            return "open" if self.now - (self.walk_until - WALK_S) < DOOR_OPEN_S else None
+        """Hyttdörren: ordonnansen står utanför och knackar."""
         if self.captain_at != "cabin":
             return None
         if self.ring_t is not None and self.now - self.ring_t >= ORDERLY_S - STEPS_S:
@@ -384,9 +374,6 @@ class FirstOfficer(Station):
 
     # --- order -------------------------------------------------------------------
     def intercept(self, order: Order) -> bool:
-        if self.captain_at == "walking" and not isinstance(order, (Help, TakeBack)):
-            self.say("xo.walking", {"s": max(1, self.walk_until - self.now)}, kind="system")
-            return True
         if isinstance(order, SetTimeScale):
             if order.scale > REST_SCALE and not self.in_command:
                 self.say("xo.time_refused")
@@ -412,11 +399,8 @@ class FirstOfficer(Station):
             case TakeBack():
                 if not self.in_command:
                     self.say("xo.captain_has")
-                elif self.captain_at == "cabin":
-                    self._walk()
-                    self.say("xo.coming", kind="ack")
-                elif self.captain_at == "walking":
-                    self.say("xo.walking", {"s": max(1, self.walk_until - self.now)}, kind="system")
+                else:
+                    self._arrive()
             case CallCentral():
                 if not self.in_command:
                     self.say("xo.not_in_command")
@@ -460,13 +444,6 @@ class FirstOfficer(Station):
         self.pending = []
         self.ring_t = None
         self.lamp = False
-
-    def _walk(self) -> None:
-        self.captain_at = "walking"
-        self.walk_until = self.now + WALK_S
-        self.sleeping = False
-        self.ring_t = None                  # han har svarat genom att gå
-        self.game.set_time_scale(1, "kaptenen")
 
     # --- förslagen ---------------------------------------------------------------
     def _objection(self, report, order: str) -> dict | None:
@@ -551,8 +528,6 @@ class FirstOfficer(Station):
                 self._asked[key] = self.now
         self.pending.append(reason)
         self.game.log(f"STARPOM väcker ({level}): {reason}")
-        if self.captain_at == "walking":
-            return                          # han är på väg; får veta allt när han är framme
         if level == "info":
             self.lamp = True
             return
@@ -562,8 +537,7 @@ class FirstOfficer(Station):
             d = {"reasons": [reason]}
             self.pending.remove(reason)     # sagt i högtalaren; upprepas inte
             self.say("xo.danger", d, alarm=True, extra_delay=-1)
-            self.ring_t = None
-            self._walk()
+            self._arrive()
             return
         if self.ring_t is None:
             self.ring_t = self.now
@@ -604,7 +578,7 @@ class FirstOfficer(Station):
                 self._wake("question", {"kind": "telegram", "number": t.number})
         nav = self._nav()
         if nav is not None and nav.goal == "attack" and nav.attack_eta_t is not None and \
-                nav.attack_eta_t - now <= SUMMON_S + WALK_S and \
+                nav.attack_eta_t - now <= SUMMON_S and \
                 self._asked.get(f"attack:{nav.steer.designation}", -10**9) < now - REPEAT_S:
             self._asked[f"attack:{nav.steer.designation}"] = now
             self._wake("danger", {"kind": "attack", "designation": nav.steer.designation,
@@ -639,9 +613,6 @@ class FirstOfficer(Station):
 
     def update(self) -> None:
         if not self.in_command:
-            return
-        if self.captain_at == "walking" and self.now >= self.walk_until:
-            self._arrive()
             return
         if self.ring_t is not None and self.captain_at == "cabin" and \
                 self.now - self.ring_t >= ORDERLY_S:

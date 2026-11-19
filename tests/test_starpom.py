@@ -11,7 +11,7 @@ from sim.game import Game
 from sim.phrases import RU_PHRASES
 from sim.scenario import build_scenario, default_scenario
 from sim.stations import FirstOfficer
-from sim.stations.starpom import (ORDERLY_S, WALK_S, alarm_level, in_mandate,
+from sim.stations.starpom import (ORDERLY_S, alarm_level, in_mandate,
                                   mandate_for)
 from sim.stations.navigation.tasks import Attack
 from sim.stations.torpedo_room import FireTube, FireSalvo
@@ -34,23 +34,19 @@ def _xo(g) -> FirstOfficer:
     return g.station(FirstOfficer)
 
 
-def test_handover_and_back_with_walk_to_central():
+def test_handover_and_back_to_central_at_once():
     g, reports = _game()
     g.command("starpom har befälet")
     _run(g, 3)
     st = g.status()
     assert st.command == "starpom" and st.captain_at == "cabin"
     assert any(r.type == "xo.took" for r in reports)
-    g.command("jag har befälet")
-    assert g.status().captain_at == "walking"
-    g.command("djup 150")                       # på väg: inga order
-    _run(g, 6)
-    assert g.world.own.state.ordered_depth != 150
-    assert any(r.type == "xo.walking" for r in reports)
-    _run(g, WALK_S - 4)
+    g.command("jag har befälet")                # i centralen direkt, ordern går igenom
     st = g.status()
     assert st.command == "captain" and st.captain_at == "central"
-    _run(g, 3)
+    g.command("djup 150")
+    assert g.world.own.state.ordered_depth == 150
+    _run(g, 6)
     assert any(r.type == "xo.handback" for r in reports)
 
 
@@ -124,9 +120,9 @@ def test_danger_calls_captain_to_central():
     g.say(Role.SONAR, "sonar.splash", {"bearing": 10, "near": True}, alarm=True, kind="contact")
     _run(g, 12)
     assert any(r.type == "xo.danger" for r in reports)
-    assert g.status().captain_at == "walking" and g.time_scale == 1
-    _run(g, WALK_S)
-    assert g.status().command == "captain"
+    st = g.status()
+    assert st.captain_at == "central" and st.command == "captain" and g.time_scale == 1
+    assert any(r.type == "xo.handback" for r in reports)
 
 
 def test_alarm_levels():
@@ -226,7 +222,7 @@ def test_cabin_muffles_the_boat_and_hides_hydrophones():
     assert not from_central(sonar, SimpleNamespace(command="captain", captain_at="central"))
 
 
-def test_cabin_render_shows_phone_and_walk():
+def test_cabin_render_shows_phone():
     from dataclasses import replace
     from ui.cabin_render import render_cabin
     g, _ = _game()
@@ -237,9 +233,6 @@ def test_cabin_render_shows_phone_and_walk():
     assert len(rows) == 24 and all(len(r) == 100 for r in rows)
     text = "\n".join(rows)
     assert "КАЮТА КОМАНДИРА" in text and "КАШТАН" in text and "RING" in text
-    walk = replace(s, captain_at="walking", walk_s=20)
-    text = "\n".join(r.plain for r in render_cabin(walk, 0.0, 60, 16))
-    assert "På väg till centralen, 20 s" in text
     small = render_cabin(s, 0.0, 40, 14)
     assert len(small) == 14
     # stort fönster: rummet från kudden med dörren och ljuset från gången, filten och handen
@@ -272,9 +265,8 @@ def test_ui_cabin_opens_on_handover_and_closes_in_central(tmp_path):
             await pilot.press(*"tid 60", "enter")
             assert app.game.time_scale == 60
             await pilot.press(*"jag har befälet", "enter")
-            assert app.game.status().captain_at == "walking"
-            for _ in range(45):
-                app.game.tick()
+            assert app.game.status().captain_at == "central"
+            app.game.tick()
             await pilot.pause(0.3)
             assert app.game.status().command == "captain"
             assert not isinstance(app.screen, CabinScreen)
@@ -340,9 +332,9 @@ def test_captain_is_called_to_central_before_firing_position():
     nav.steer = Attack("S-2", eta_t=g.now + 600)  # långt kvar: han får sova
     _run(g, 10)
     assert g.status().captain_at == "cabin"
-    nav.steer.eta_t = g.now + 150                 # strax: högtalaren, han hinner fram
+    nav.steer.eta_t = g.now + 110                 # strax: högtalaren, han kommer
     _run(g, 10)
-    assert g.status().captain_at == "walking"
+    assert g.status().captain_at == "central"
     assert any(r.type == "xo.danger" and "skjutläge" in r.text for r in reports)
 
 
@@ -374,7 +366,7 @@ def test_big_ship_in_range_calls_captain_under_attack_orders_only():
         tr.solution = SimpleNamespace(quality=Quality.GOD, t=g.now, range_nm=3.0)
         g.knowledge.tracks["S-9"] = tr
         _run(g, 8)
-        assert (g.status().captain_at == "walking") == called, key
+        assert (g.status().captain_at == "central") == called, key
         assert any(r.type == "xo.danger" and "S-9" in r.text for r in reports) == called
 
 
@@ -444,11 +436,11 @@ def test_cabin_light_and_life():
         assert len(out) == 26 and all(len(r.plain) == 100 for r in out)
 
 
-def test_cabin_door_orderly_and_departure():
-    """H4: ordonnansen syns under dörren innan han knackar, står i dörren på glänt medan han
-    talar, och dörren står öppen när kaptenen går, innan gången visas."""
+def test_cabin_door_orderly():
+    """H4: ordonnansen syns under dörren innan han knackar och står i dörren på glänt medan han
+    talar."""
     from dataclasses import replace
-    from sim.stations.starpom import AJAR_S, DOOR_OPEN_S, STEPS_S
+    from sim.stations.starpom import AJAR_S, STEPS_S
     from ui.cabin_render import lids_of, render_cabin
     g, reports = _game()
     g.command("starpom har befälet")
@@ -468,19 +460,6 @@ def test_cabin_door_orderly_and_departure():
     closed = "\n".join(r.plain for r in render_cabin(replace(s, door=None), 0.0, 100, 26))
     assert "╼" in closed and "▓▓" not in closed.split("\n")[8]
     assert lids_of(replace(s, sleeping=True, door="steps"), 0.0) == 0.0
-    # kaptenen går: dörren öppen först, sedan gången
-    g.command("jag har befälet")
-    opened = []
-    for _ in range(DOOR_OPEN_S + 3):
-        opened.append(g.status().door)
-        st = g.status()
-        text = "\n".join(r.plain for r in render_cabin(st, 0.0, 100, 26))
-        assert ("På väg till centralen" in text) == (st.door != "open")
-        g.tick()
-    assert opened[:DOOR_OPEN_S] == ["open"] * DOOR_OPEN_S and opened[-1] is None
-    # för litet fönster för rummet: gången direkt
-    small = "\n".join(r.plain for r in render_cabin(replace(st, door="open"), 0.0, 60, 16))
-    assert "På väg till centralen" in small
 
 
 def test_info_alarm_does_not_break_the_captains_sleep():
@@ -510,7 +489,7 @@ def test_a_passed_wake_time_is_dropped_at_handover():
     assert not any(r.type in ("xo.ring", "xo.call") for r in reports)
 
 
-def test_phone_stops_ringing_when_the_captain_walks_and_a_second_take_back_is_answered():
+def test_phone_stops_ringing_when_the_captain_takes_back_and_a_second_take_back_is_answered():
     g, reports = _game()
     g.command("starpom har befälet")
     _run(g, 3)
@@ -521,7 +500,7 @@ def test_phone_stops_ringing_when_the_captain_walks_and_a_second_take_back_is_an
     assert g.status().phone != "ring"
     g.command("jag har befälet")
     _run(g, 10)
-    assert any(r.type == "xo.walking" for r in reports)
+    assert any(r.type == "xo.captain_has" for r in reports)
 
 
 def test_cabin_wall_has_the_chart_and_the_clinometer_in_a_big_window():

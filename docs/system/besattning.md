@@ -88,17 +88,17 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `Scenario.tasks`: patrull, rapport, anfall, foto, ut, station, övning; testat mot målen): anfall ⇒ `anfall S-x`.
   Han väger förslag mot ordern (`_objection`, fasta regler, inte vid larm eller jakt): nej (`xo.decline`) till
   styrorder från andra än navigatören medan navigatören anfaller eller följer, och djupare än antenndjup när
-  ordern kräver rapport och radion behöver masten. Med anfallsorder ropas kaptenen (fara) 2 min + gångtiden före
+  ordern kräver rapport och radion behöver masten. Med anfallsorder ropas kaptenen (fara) 2 min före
   navigatörens `attack_eta_t` och när ett klassat stort fartyg med färsk lösning ≥ osäker är < 3,5 nm
   (`_target_watch`); `nav.attack.arrived` är fara; radions förvarning ringer när ordern kräver rapport. Väckning (`_wake`): info = lampan (civil kontakt, `plot.maneuver`, ny kontakt),
   fråga = telefonen ringer (hotkontakt med lösning ≥ osäker, stort fartyg, konvoj, telegram, förslag utanför
   mandatet, tidsgränsen 15 min, `väck mig`, larm i `ALARM_LEVELS`; samma fråga högst var 10:e min; ordonnansen
-  efter 20 s), fara = högtalaren (`alarm_level` "danger": övriga larm, jakttecken) ⇒ 1× och kaptenen går (40 s,
-  `Station.intercept` stoppar hans order under tiden; telefonen tystnar när han går, och ett andra
-  `jag har befälet` på vägen ger `xo.walking`) och får lägesrapport (`xo.handback`, `officer.situation`).
+  efter 20 s), fara = högtalaren (`alarm_level` "danger": övriga larm, jakttecken) ⇒ 1× och kaptenen är i centralen direkt
+  (`_arrive`, samma tick som `jag har befälet`; ingen gång sedan 2026-11-19, telefonen tystnar) och får
+  lägesrapport (`xo.handback`, `officer.situation`).
   En väckningstid som passerat innan överlämnandet släpps vid överlämnandet.
   `tid 30`/`60` bara med starpom i befäl; `sov` ⇒ 60×, och larm som bara tänder lampan (info/None i
-  `ALARM_LEVELS`) sänker inte tiden (`keeps_time_scale`); frågor och fara sänker han själv i `_wake`. Status: `StatusSnapshot.command`, `captain_at`, `walk_s`,
+  `ALARM_LEVELS`) sänker inte tiden (`keeps_time_scale`); frågor och fara sänker han själv i `_wake`. Status: `StatusSnapshot.command`, `captain_at` (central/cabin),
   `phone`, `sleeping` (via `Station.status_fields`). Vyn `hytt` (`ui/cabin.py`, `ui/cabin_render.py`: från 64 × 18 sedd från kudden i perspektiv,
   dörren längst bort till höger, `_Room`; på skottet rivkalendern för orderns dag
   (`StatusSnapshot.order_day` via starpom, nästa blad vid midnatt), fotot av hans första ubåt, diplomet,
@@ -108,8 +108,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   nattlampan, telefonens sken gult/rött på skottet, rök dämpar), ögonlocken när han sover (`lids_of`, öppna när
   det ringer), andningen, taklampan och mössan svänger (`sway_of`: jagade, sjön nära ytan, krängning i gir),
   damm från rören när vi är jagade och dis av rök; dörren (`StatusSnapshot.door` ur starpom: `steps` fötter i
-  ljusstrimman 4 s före ordonnansens knackning, `ajar` 12 s med honom i springan, `open` de första 4 s när kaptenen
-  går, sedan gången); mindre fönster den enkla bilden) öppnas
+  ljusstrimman 4 s före ordonnansens knackning, `ajar` 12 s med honom i springan); mindre fönster den enkla bilden) öppnas
   av sig själv (`SubApp._follow_command`) och står först i Tab-ordningen; visar bara starpoms och telefonens
   rapporter, Enter svarar. Ljudet i hytten (`ambience.muffled`, `audio.from_central`): båten ×0,55, mumlet
   svagt, inga hydrofonljud eller sväv, centralens repliker dämpade genom skottet (`muffled_voice`; utan mixern
