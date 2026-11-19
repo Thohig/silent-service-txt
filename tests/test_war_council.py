@@ -112,3 +112,64 @@ def test_machine_feels_real_charges_close_and_small_ones():
     assert any(c.real and c.quality == Quality.SAKER and c.near for c in felt)
     assert any(not c.real for c in felt)
     assert g.knowledge.charges == heard
+
+
+# --- KV3: krigsbedömningen -------------------------------------------------------------
+from sim.war import assess, starpom_vote, zampolit_vote  # noqa: E402
+
+
+def _k_with(order="order_only", charges=(), war=False, now=1000):
+    from sim.knowledge import Knowledge
+    k = Knowledge()
+    k.nuclear_orders.append((0, order, war, "ordern"))
+    for t, real, q, near in charges:
+        k.charges.append(ChargeHeard(t, real, q, near, "sonar"))
+    return k
+
+
+def test_forbidden_is_never_lifted():
+    k = _k_with("forbidden", [(990, True, Quality.SAKER, True)])
+    a = assess(k, 1000)
+    assert a.attacked and not zampolit_vote(a).yes and not starpom_vote(a).yes
+
+
+def test_signal_charges_are_no_attack():
+    k = _k_with(charges=[(990, False, Quality.GOD, True)])
+    a = assess(k, 1000)
+    assert not a.attacked and a.signal_only
+    assert not zampolit_vote(a).yes and not starpom_vote(a).yes
+
+
+def test_real_attack_but_uncertain_splits_the_officers_and_starpom_suggests_away():
+    k = _k_with(charges=[(990, True, Quality.GOD, True)])
+    a = assess(k, 1000)
+    assert a.attacked and a.attacked_q == Quality.GOD
+    z, s = zampolit_vote(a), starpom_vote(a)
+    assert z.yes and not s.yes and s.suggest == "djup 150"
+
+
+def test_sure_attack_starpom_wants_to_ask_staff_unless_cut_off():
+    k = _k_with(charges=[(100, True, Quality.SAKER, True)])
+    a = assess(k, 1000)                       # angreppet 15 min sedan: vi kan gå upp
+    assert a.reach_staff and starpom_vote(a).why == "ask_staff"
+    k = _k_with(charges=[(990, True, Quality.SAKER, True)])
+    a = assess(k, 1000)                       # nyss: vi kan inte
+    assert not a.reach_staff and starpom_vote(a).yes and zampolit_vote(a).yes
+
+
+def test_conditional_order_counts_charges_after_the_telegram():
+    from sim.knowledge import Knowledge
+    k = Knowledge()
+    k.nuclear_orders.append((0, "order_only", False, "ordern"))
+    k.charges.append(ChargeHeard(500, True, Quality.SAKER, True, "maskin"))
+    k.nuclear_orders.append((600, "conditional", None, "telegram 2"))
+    a = assess(k, 700)
+    assert a.order == "conditional" and not a.attacked
+    k.charges.append(ChargeHeard(650, True, Quality.SAKER, True, "maskin"))
+    a = assess(k, 700)
+    assert a.attacked and zampolit_vote(a).yes and starpom_vote(a).yes
+
+
+def test_old_charges_do_not_count():
+    k = _k_with(charges=[(0, True, Quality.SAKER, True)], now=5000)
+    assert not assess(k, 5000).attacked
