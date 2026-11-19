@@ -204,7 +204,7 @@ ui/                  Textual
   boat.py            vyn Ubåten i helskärm (djupprofil och systemtavla)
   boat_render.py     vyns layout efter fönstret
   cabin.py           kaptenens hytt medan starpom har befälet
-  cabin_render.py    kojen, repeatrarna, Kasjtan-telefonen och gången till centralen
+  cabin_render.py    kojen, repeatrarna, Kasjtan-telefonen och dörren
   strips.py          telegramremsor i loggboken (ordern, staben, Radio Moskva, våra rapporter)
   profile_render.py  rastrering av djupprofilen och djupmätaren
   systems_render.py  genomskärning och paneler till tecken
