@@ -3,6 +3,41 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-19 – jagarkaptener med temperament (J1–J2)
+
+Jagarna jagar olika: en metodisk kapten som förut, en envis som söker saktare och längre (håller ett
+gammalt datum en halvtimme) och en ivrig som stänger i 27 knop, söker i 16 (hör sämre, hörs mer), går in
+på ett osäkrare datum och ger upp tidigare. Temperamentet dras ur en egen ström så att jagarens övriga
+slump står still; hamnens patrullbåtar är alla metodiska. Spelaren får veta det bara genom plottet: efter
+tio minuters jakt "Om jagaren S-1: han pingar tätt, var 8:e sekund" (och farten när lösningen räcker), efter
+25 minuter "Han har jagat oss i 25 minuter och ger inte upp." `enemy.py` (`Temperament`, `TEMPERAMENTS`,
+`draw_temperament`), `stations/plot.py` (`_hunter_watch`, `hunter_data`); tester i `tests/test_temperament.py`.
+Provkörning (ja-boten, jagad-kort/kuba-kort/konvoj-kort, 8 frön): plottet säger pingtakten i de flesta
+jakter; farten aldrig (lösningen på en jagare som jagar oss är dålig).
+
+## 2026-11-19 – tystnad i båten och skrovknak (H1)
+
+**Tystnad i båten:** när plottet tror att vi är jagade och vi smyger (smygmotorn eller högst 6 kn, under
+ytan) säger vakthavande "Tystnad i båten …", och sedan talar besättningen lågt: loggboken skriver
+rapporterna kursivt grått och talet blir lägre och dovare (effekten `hushed`). Larm ropas som förut.
+Tystnaden hävs när det varit lugnt eller fort i en minut. Ingen order. `stations/officer.py`
+(`_hush_watch`, `_hush_filter` i `ReportQueue.filters`), `ui/audio.py` (`hushed_voice`), `ui/widgets.py`.
+
+**Skrovknak:** en djupändring fortare än 1 m/s under 80 m (rodren i ungefär 6 kn och uppåt) knakar var
+25:e meter, en transient på 132 dB som jagaren kan höra rakt ovanför. Under jakt säger maskin det, högst
+var tredje minut: "Skrovet knakar när vi går ned, kapten. Det hörs i vattnet. Långsammare djupändring, i
+låg fart, knakar inte." `ownship.py` (`_groan_step`), `stations/engineering.py`. Tester i
+`tests/test_hush.py`.
+
+## 2026-11-19 – nedräkning för torped i vattnet (T1)
+
+När bäringen till en fientlig torped står still säger sonar hur länge det är kvar: "Torpeden bäring 045.
+Bäringen står still, den kommer mot oss! Framme om cirka 1 minut 20." Tiden räknas ur hur fort ljudet
+växer (nivån stiger 8,7 dB per gång avståndet halveras … τ = 8,7 / lutningen), med kvalitet ur
+spridningen i avläsningarna och ett modellfel på 20 %. Under 90 s ropas den var 10:e sekund; längre än 4
+minuter sägs ingen tid. `stations/incoming.py` (`eta_estimate`), `sonar.py` (`IncomingTorpedo.level`);
+tester i `tests/test_torpedo_countdown.py`. Mot sanningen: god inom 30 % eller 10 s i 83–92 % av fallen.
+
 ## 2026-11-19 – omladdningen hörs (O1)
 
 En omladdning slamrar två gånger: när torpeden körs in i tuben (30 s efter ordern) och när bakluckan

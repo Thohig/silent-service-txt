@@ -15,8 +15,7 @@ Inga just nu (långvågen byggd 2026-11-19, omladdningens slammer 2026-11-19).
 
 ## Spelidéer
 
-- **Jagarkaptener med personlighet** (variation i fiendens beteende).
-- **Viskningar och skrovknak under jakt;** **"torped i vattnet"-nedräkning** (besättningen räknar).
+Inga just nu (jagarkaptenerna, tystnaden, skrovknaket och nedräkningen byggda 2026-11-19).
 
 ## Scenarier
 
