@@ -11,21 +11,7 @@ när något går fel, ger högst en ny order (helst ingen) och syns i de vyer so
 
 ## Nya system (i den ordningen)
 
-1. **Batytermograf och akustisk prognos, med signalspaning av fiendens ping.** Besättningen mäter
-   temperaturen mot djupet och säger var skiktet ligger, hur starkt det är och hur långt vi hör jagaren och
-   den oss över och under skiktet, med kvalitet efter hur nyligen och nära man mätt; föreslår djup efter
-   det. Sanningen: skiktets djup och styrka varierar per plats och dag (ny kalibrering). Sonaren klassar
-   jagarens sonarläge ur pingarna (sök, kontakt, anfall) och om vi är inom dess räckvidd. Syns i
-   djupprofilen (skiktet som besättningen tror, med osäkerhet), sonarvyn och rapporterna; inget diagram
-   med ljudvägar.
-2. **Två reaktorer, två turbiner, två axlar.** Det största felet mot 627A. Märks bara när något händer:
-   snabbstopp eller skada på en sida ger halv fart och sämre gir, och maskin säger vad som gäller.
-   Turbogeneratorer och nöddiesel ingår bakom kulisserna (orsak och följd, inga reglage). Två rader i
-   systemtavlans maskinpanel; ingen reaktorpanel (avslagen).
-3. **Egenbrus.** Sonaren säger hur långt vi hörs ("cirka 3 sjömil i den här farten, under skiktet"), grovt
-   (osäker eller god), ur fart, maskin och skador; föremål som lossnat efter sjunkbomber skramlar tills de
-   lagats. Hör ihop med prognosen.
-4. **Långvåg och sambandsschema.** Telegram tas emot på djupet med släpantenn vid fasta tider, långsamt;
+1. **Långvåg och sambandsschema.** Telegram tas emot på djupet med släpantenn vid fasta tider, långsamt;
    det vi sänder kräver fortfarande antenndjup. Syns i loggen, radiopanelen och djupprofilen (antennen).
 
 Bara med det som behöver dem:
