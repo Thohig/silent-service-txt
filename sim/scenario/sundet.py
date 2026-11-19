@@ -39,7 +39,7 @@ SLUT
 STRAIT_RADIO = [
     RadioMessage("FRÅN HUVUDSTABEN. FLERA AMERIKANSKA FARTYG HAR ANLÄNT TILL GUANTÁNAMO. "
                  "BILDERNA ÄR AV STÖRSTA VIKT. FÖRBLI OUPPTÄCKT."),
-    RadioMessage("FRÅN HUVUDSTABEN. INGEN ÄNDRING.", {"nuclear_authorized": False}),
+    RadioMessage("FRÅN HUVUDSTABEN. INGEN ÄNDRING.", {"nuclear": "order_only"}),
 ]
 
 HARBOR_PATROL_SPEED = 6.0
@@ -120,7 +120,6 @@ def strait_scenario(rng: random.Random, short: bool = False, out: bool = False) 
     traffic.next_t[0] = rng.randint(45 * 60, 75 * 60)   # ett fartyg in genom grinden efter gryningen
     world.spawners.append(traffic)
 
-    world.mission["nuclear_authorized"] = False
     margin = 0.5
     escape = EscapeGoal(margin, "recon_done", requires_photo=int(Quality.GOD))
     if not short:

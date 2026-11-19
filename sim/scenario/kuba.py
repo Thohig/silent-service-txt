@@ -44,7 +44,7 @@ RADIO_MESSAGES = [
     RadioMessage("FRÅN HUVUDSTABEN. RAPPORTERA OBSERVERADE FARTYGSRÖRELSER "
                  "VID FÖRSTA MÖJLIGA SAMBANDSTILLFÄLLE.", {"report_requested": True}),
     RadioMessage("FRÅN HUVUDSTABEN. INGEN ÄNDRING. VAPENANVÄNDNING EJ AUKTORISERAD.",
-                 {"nuclear_authorized": False, "nuclear": "order_only"}),
+                 {"nuclear": "order_only"}),
 ]
 
 KUBA_TRAFFIC = TrafficDef(lanes=(
@@ -72,7 +72,6 @@ def default_scenario(rng: random.Random) -> Scenario:
     world = World(own=own, contacts=[dd], env=env, rng=random.Random(rng.random()),
                   patrol_end=int(3.5 * 3600))
     world.ais.append(DestroyerAI(dd, random.Random(rng.random()), area=world.size_nm))
-    world.mission["nuclear_authorized"] = False
     traffic = TrafficGenerator(KUBA_TRAFFIC, random.Random(rng.random()))
     traffic.populate(world)
     world.spawners.append(traffic)

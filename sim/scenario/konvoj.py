@@ -46,7 +46,7 @@ SLUT
 CONVOY_RADIO = [
     RadioMessage("FRÅN HUVUDSTABEN. KONVOJEN HAR SETTS AV SPANINGSFLYG. INGEN ÄNDRING I ORDERN."),
     RadioMessage("FRÅN HUVUDSTABEN. KÄRNVAPEN FÅR INTE ANVÄNDAS.",
-                 {"nuclear_authorized": False, "nuclear": "forbidden", "war": True}),
+                 {"nuclear": "forbidden", "war": True}),
 ]
 
 
@@ -71,7 +71,6 @@ def convoy_scenario(rng: random.Random, run_in_nm: tuple[float, float] = (16.0, 
     convoy = make_convoy(world, ConvoyDef(start=(cx, cy), base_course=base),
                          random.Random(rng.random()))
     make_escorts(world, convoy, random.Random(rng.random()))
-    world.mission["nuclear_authorized"] = False
     world.goals.append(StrikeGoal([v.id for v in convoy.vessels], "convoy_attacked",
                                   "convoy_missed", clear_s=600, miss_nm=8.0))
     traffic = TrafficGenerator(KUBA_TRAFFIC, random.Random(rng.random()))

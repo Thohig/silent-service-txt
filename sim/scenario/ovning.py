@@ -97,7 +97,6 @@ def training_scenario(rng: random.Random) -> Scenario:
 
     area_x = path[-1][0] + rng.choice((-1.0, 1.0)) * rng.uniform(*TRAINING_AREA_SIDE_NM)
     area_y = mouth_y + TRAINING_AREA_OUT_NM
-    world.mission["nuclear_authorized"] = False
     ship, ship_ai = make_exercise_ship(random.Random(rng.random()), (area_x, area_y),
                                        TRAINING_SHIP_R_NM)
     world.contacts.append(ship)

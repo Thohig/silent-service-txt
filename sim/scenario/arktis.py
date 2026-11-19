@@ -75,7 +75,6 @@ def arctic_scenario(rng: random.Random, short: bool = False) -> Scenario:
     world = World(own=own, contacts=[station, us], env=env, rng=random.Random(rng.random()),
                   patrol_end=6 * 3600)
     world.ais.append(SubmarineAI(us, random.Random(rng.random()), station))
-    world.mission["nuclear_authorized"] = False
     # i ytläge inom en och en halv sjömil kan en landstigningsgrupp gå över isen
     world.goals.append(SurfaceNearGoal(station.id, 1.5, "station_reached"))
 
@@ -95,7 +94,7 @@ def arctic_scenario(rng: random.Random, short: bool = False) -> Scenario:
         RadioMessage("FRÅN HUVUDSTABEN. AMERIKANSK ATOMUBÅT TROLIGEN PÅ VÄG MOT NORD-7. "
                      "FÖRBLI OUPPTÄCKT. VAPENANVÄNDNING EJ AUKTORISERAD.", {"nuclear": "order_only"}),
         RadioMessage("FRÅN HUVUDSTABEN. INGEN ÄNDRING. RAPPORTERA NÄR NI NÅTT NORD-7.",
-                     {"nuclear_authorized": False}),
+                     {"nuclear": "order_only"}),
     ]
     # brand i turbinrummet någon gång under första timmarna
     world.mission["fire_at"] = rng.randint(40 * 60, 110 * 60)

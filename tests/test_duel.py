@@ -17,7 +17,7 @@ def test_duellen_ar_registrerad_och_i_krig():
     assert ai.roe == "attack"
     assert sc.world.goal(EscapeGoal) is not None
     assert "KRIGSTILLSTÅND" in sc.secret_order
-    assert sc.world.mission["nuclear_authorized"] is False
+    assert sc.nuclear_order == "forbidden" and sc.at_war
 
 
 @pytest.mark.slow

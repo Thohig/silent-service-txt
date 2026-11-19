@@ -43,8 +43,7 @@ HUNTED_RADIO = [
                  "UBÅTAR I FLERA KVADRATER. LÄMNA KVADRAT 7. FÖRBLI OUPPTÄCKT."),
     RadioMessage("FRÅN HUVUDSTABEN. KÄRNVAPEN FÅR ANVÄNDAS ENDAST OM NI ANGRIPS MED SKARPA "
                  "SJUNKBOMBER. SIGNALSJUNKBOMBER ÄR INGET ANGREPP.",
-                 {"nuclear_authorized": False, "nuclear_condition": "real_charges",
-                  "nuclear": "conditional"}),
+                 {"nuclear": "conditional"}),
 ]
 
 # Flyget kommer tidigare: jagarna har kallat på det.
@@ -117,7 +116,6 @@ def hunted_scenario(rng: random.Random, short: bool = False) -> Scenario:
     ai1.start_hunt(x + rng.gauss(0, 0.05), y + rng.gauss(0, 0.05), 50.0, 0.08, contact=True)
     ai2.start_hunt(x + rng.gauss(0, 0.3), y + rng.gauss(0, 0.3), 50.0, 0.5)
     world.ais += [ai1, ai2]
-    world.mission["nuclear_authorized"] = False
     margin = 1.0
     world.goals.append(EscapeGoal(margin, "escaped"))
     traffic = TrafficGenerator(KUBA_TRAFFIC, random.Random(rng.random()))

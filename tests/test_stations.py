@@ -126,7 +126,7 @@ def test_torpedo_fire_needs_solution_and_nuclear_is_locked():
     g.command("eld tub 1 mot S-1")
     _run(g, 10)
     texts = [r.text for r in reports]
-    assert any("kärnladdningen kräver order från Moskva" in t for t in texts)
+    assert any("kärnladdningen kräver kärnvapenråd" in t for t in texts)
     assert any("ingen kontakt S-2" in t for t in texts)
     assert any(isinstance(v, Torpedo) for v in g.world.contacts)
     assert room.tubes[0].load is None

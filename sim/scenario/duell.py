@@ -104,7 +104,6 @@ def duel_scenario(rng: random.Random, short: bool = False) -> Scenario:
         ai.datums = [ai.datum]
         ai.next_fire = DUEL_SHORT_WARM_S + 120           # skjuter inte under vaktens minuter
     world.ais.append(ai)
-    world.mission["nuclear_authorized"] = False
     world.goals.append(EscapeGoal(ESCAPE_MARGIN_NM, "escaped"))
 
     order = DUEL_ORDER.format(dist=round(distance(x, y, ix, iy)),
@@ -112,7 +111,7 @@ def duel_scenario(rng: random.Random, short: bool = False) -> Scenario:
     messages = [
         RadioMessage("FRÅN HUVUDSTABEN. KRIGSTILLSTÅND KVARSTÅR. AMERIKANSK UBÅT VID T-3 HAR "
                      "SÄNKT B-75 I NORD-2. SÄNK DEN.",
-                     {"nuclear_authorized": False, "nuclear": "forbidden", "war": True}),
+                     {"nuclear": "forbidden", "war": True}),
     ]
     windows = [] if short else [(c - start_clock) for c in (4 * 3600, 6 * 3600)]
     known = [(ISLAND_NAME, ix + rng.gauss(0, 0.5), iy + rng.gauss(0, 0.5), 1.0, 0)]
