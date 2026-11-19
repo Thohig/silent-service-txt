@@ -1,9 +1,17 @@
-# Alla tester, även de långsamma (hela spel, statistik över frön), vid varje push och pull request.
+# Snabba tester vid push till main; alla tester (även --slow: hela spel, statistik över frön) vid
+# pull request och när de startas för hand. Ändringar som bara rör dokumentation kör inget.
 name: tester
 
 on:
   push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
   workflow_dispatch:
 
 concurrency:
@@ -13,7 +21,7 @@ concurrency:
 jobs:
   pytest:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -23,5 +31,9 @@ jobs:
         run: |
           uv python install 3.12
           uv sync --locked
+      - name: Snabba tester
+        if: github.event_name == 'push'
+        run: uv run pytest -q
       - name: Alla tester (även --slow)
+        if: github.event_name != 'push'
         run: uv run pytest -q --slow

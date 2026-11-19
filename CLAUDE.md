@@ -15,8 +15,8 @@ oktober 1962. Python 3.12, Textual, numpy, uv. Användaren kör macOS (Apple Sil
 uv run main.py [--seed N] [--scenario kuba] [--tyst]   # spela (utan --scenario: huvudmenyn)
 uv run --extra fonster fonster.py [samma flaggor]       # i eget fönster (textual-serve + pywebview, Dockikon)
 sh ikon/bygg-app.sh [mål]                              # bygg K-114.app (fönstret, en Dockikon)
-uv run pytest -q              # snabba tester, parallellt (~18 s på 4 kärnor)
-uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 4 kärnor); före commit
+uv run pytest -q              # snabba tester, parallellt (~18 s på 4 kärnor); före varje commit
+uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 4 kärnor); större steg
 ```
 
 ## Designprinciper (får inte brytas)
@@ -73,14 +73,14 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   för slutrapporten (`goals.report_summary`).
 - **Uppdragsmål** (`sim/goals.py`, sanning): scenariot lägger `Goal`-objekt i `World.goals`
   (`StrikeGoal`, `PhotoGoal`, `ReportGoal`, `SurfaceNearGoal`, `EscapeGoal`, `TrainingGoal`,
-  `GroundingFails`, `NoDiveInFjord`); `World._check_outcome` prövar dem i `RANK`-ordning, efter
+  `GroundingFails`, `NoDiveInFjord`, `RecordGoal`); `World._check_outcome` prövar dem i `RANK`-ordning, efter
   sänkt neutralt/alla fiender och före `forced`/`patrol_end`. `World.goal(cls)` hittar ett mål.
   `World.mission` håller bara det som hänt (sänkt, `best_photo`, `last_report_t`, `grounded_t`,
   räknare). Nytt mål = ny klass i `goals.py`, `World` ändras inte.
 - **Importgränser** vaktas av `tests/test_import_boundaries.py`: kunskapsmodulerna når aldrig
   sanningen (importer under `TYPE_CHECKING` räknas inte), `sim/` importerar aldrig Textual.
 - **Scenarier** bor i paketet `sim/scenario/`: en modul per scenario med sina korta varianter
-  (`kuba`, `arktis`, `duell`, `jagad`, `sundet`, `konvoj`, `ovning`), det delade i `common` (`Scenario`,
+  (`kuba`, `arktis`, `duell`, `jagad`, `sundet`, `clyde`, `konvoj`, `ovning`), det delade i `common` (`Scenario`,
   `Warmup`, platserna, `_crew`, registret). De registreras i `__init__.py` (`register(ScenarioDef(...))`,
   menyns ordning) och väljs i gränssnittets väljare eller med `--scenario`. Scenariot bär områdesnamn
   och sluttexter; `Game` ska inte känna till enskilda scenarier.
@@ -123,8 +123,10 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   prestationspåverkan; prenumeration på `ReportDelivered` för tal (`say`).
 
 Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där):
-- `docs/system/scenarier.md`: Civil trafik, Konvoj, Konvoj i plottet, Anfall, Övningen, Flyg
-- `docs/system/hav.md`: Land skymmer, Ljuset, Is, Havsbotten, Strömmen, Sjögången, Vädret
+- `docs/system/scenarier.md`: Civil trafik, Konvoj, Konvoj i plottet, Anfall, Övningen, Jagarkaptenerna,
+  Flyg, Fiendens torpeder (med nedräkningen), Clyde
+- `docs/system/hav.md`: Land skymmer, Ljuset, Molnen, Fyrarna, Firth of Clyde, Is, Havsbotten, Strömmen,
+  Sjögången, Vädret
 - `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden
 - `docs/system/besattning.md`: Radion och telegrammen, Rapporten till staben, Huvudstaben,
   Slutrapportens samband, Radiospaning, Kärnvapenrådet, Starpom, Trim och flytkraft, Back i maskin,
@@ -182,6 +184,8 @@ för in varje färdigt steg där.
   våghöjd i ≤ 2 kn), tornet bryter ytan med kölen grundare än 13 m. Kuba 3, konvoj 5, övning/sundet 2.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m, torpedavfyring ≤ 100 m och ≤ 12 kn.
   Långvåg med flytkabeln ≤ 50 m och ≤ 5 kn, 5 min; hel med två av mörker, ≤ 3 kn och ≤ 40 m.
+- Clyde: Polarisbåten 130 + 2·fart dB i ytläge; bandet 10 min med SE ≥ 8 dB (`stations/recording.py`);
+  fyrfix σ 0,1 (två) / 0,2 (en); moln ≥ 0,6 stänger stjärnfixen. Firth-bottnen i ett rutnät 0,05 nm.
 - Omladdning: två slammer à 145 dB (torpeden in, bakluckan stängs); på smygmotorn eller jagade laddar
   minören försiktigt, 8 min i stället för 5 och −12 dB. Jagaren hör slammret ~1,5 nm över skiktet i 5 kn.
 - Tystnad i båten: jagade och på smygmotorn eller ≤ 6 kn (`OfficerStation._hush_watch`, hävs efter 60 s).
@@ -203,8 +207,10 @@ för in varje färdigt steg där.
   flera seeds, inte ett enda lyckat frö.
 - Testerna körs parallellt (pytest-xdist, `-n auto` i pyproject; `-n0` för seriellt). Ett test som
   tar mer än ~1 s (hela spel, flera frön, uppvärmning, gränssnitt) märks `@pytest.mark.slow` och körs
-  bara med `--slow` (`tests/conftest.py`). Kör `--slow` före varje commit. GitHub Actions
-  (`.github/workflows/tester.yml`) kör `--slow` vid varje push. Scenariotestet hoppar över de korta
+  bara med `--slow` (`tests/conftest.py`). Kör `uv run pytest -q` lokalt före varje commit, och `--slow`
+  före större steg (nya system, kalibrering). GitHub Actions (`.github/workflows/tester.yml`) kör bara de
+  snabba testerna vid push till main och `--slow` vid pull request eller manuellt (`workflow_dispatch`);
+  ändringar som bara rör `.md` och `docs/` kör inget (Actions-minuterna räcker annars inte). Scenariotestet hoppar över de korta
   varianternas uppvärmning utan `--slow`.
 - Verifiera spelkänslan med en huvudlös genomspelning: skapa `Game`, prenumerera
   på `ReportDelivered`, skriv ut rapporter, kör `g.tick()` i en loop (gärna med
