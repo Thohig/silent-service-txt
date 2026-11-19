@@ -88,3 +88,43 @@ def test_no_cable_under_the_ice(monkeypatch):
     _run(g, 30 + VLF_RECEIVE_S + 10)
     assert any(r.type == "radio.ice" for r in reports)
     assert not radio.cable and not any(r.type == "radio.message" for r in reports)
+
+
+# --- L3: mottagningens kvalitet ---------------------------------------------------------
+
+def test_garbled_by_day_too_fast_and_too_deep_then_whole_after_the_fix():
+    g, reports = _game()
+    g.world.env.is_day = lambda t: True
+    _at(g, 45, 4.5)
+    radio = _window_in(g)
+    _run(g, 30 + VLF_RECEIVE_S + 5)
+    gb = [r for r in reports if r.type == "radio.garbled"]
+    assert gb and "░" in gb[0].data["text"] and gb[0].data["telegram"] == "?"
+    assert gb[0].data["order"] == f"djup {VLF_UP_DEPTH} och fart {VLF_SLOW_KN}"
+    assert "dagsljus" in gb[0].text and not any(r.type == "radio.message" for r in reports)
+    assert radio.cable                                          # lyssnar vidare
+    _at(g, 40, 3)
+    _run(g, VLF_RECEIVE_S + 5)
+    msgs = [r for r in reports if r.type == "radio.message"]
+    assert msgs and "░" not in msgs[0].data["text"]
+    assert len([r for r in reports if r.type == "radio.garbled"]) == 1   # sagt en gång per fönster
+
+
+def test_night_makes_up_for_depth():
+    for day, whole in ((True, False), (False, True)):
+        g, reports = _game()
+        g.world.env.is_day = lambda t, day=day: day
+        _at(g, 48, 3)
+        _window_in(g)
+        _run(g, 30 + VLF_RECEIVE_S + 5)
+        assert any(r.type == "radio.message" for r in reports) == whole, day
+        assert any(r.type == "radio.garbled" for r in reports) != whole, day
+
+
+def test_garble_keeps_the_length_and_loses_some_groups():
+    from sim.stations.radio import garble
+    text = "FRÅN HUVUDSTABEN. GÅ TILL KVADRAT 7 OCH INVÄNTA ORDER."
+    for seed in range(20):
+        out = garble(text, random.Random(seed))
+        assert len(out) == len(text) and "░" in out
+        assert out != "░" * len(text)

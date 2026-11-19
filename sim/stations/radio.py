@@ -3,6 +3,8 @@
 Staben sänder vid sambandstillfällena enligt schemat; det vi missar sänds om vid nästa.
 Mottagning: på antenndjup med masten (en minut), eller på djupet på långvåg med flytkabeln
 (högst VLF_DEPTH meter och VLF_SPEED knop, fem minuter; kabeln flyter inte under is).
+Långvågen kommer in hel eller stympad (`_vlf_quality`: mörker, låg fart och grunt hjälper);
+stympat visas med oläsbara grupper och radion lyssnar vidare på omsändningen.
 Sändning (kortvåg) kräver periskopdjup och kan pejlas av fienden.
 """
 from __future__ import annotations
@@ -16,7 +18,7 @@ from ..crew import Role
 from ..entities import Emission
 from ..broadcasts import broadcasts_for, order_day
 from ..dispatch import SentReport, compose, report_text
-from ..headquarters import Headquarters
+from ..headquarters import MAX_PER_WINDOW, Headquarters
 from ..events import (Handover, InterceptHeard, NuclearOrderRead, OwnActionLogged, OwnTorpedoHeard, PhotoTaken, PositionReported,
                       ReportTransmitted, TelegramReceived)
 from ..fmt import fmt_course, nm
@@ -51,6 +53,7 @@ VLF_SPEED = 5.0              # fortare än så dras kabeln under
 VLF_UP_DEPTH = 40            # radiomannen föreslår det här djupet för långvågen
 VLF_SLOW_KN = 3              # och den här farten
 VLF_RECEIVE_S = 300          # långvågen är långsam: så länge tar mottagningen
+GARBLE_P = 0.45              # stympad: så stor del av grupperna går förlorade
 
 
 @dataclass(frozen=True)
@@ -115,6 +118,25 @@ def _intercept_ru(d: dict) -> str:
     return f"{R.CAPTAIN}, радист. Радиоперехват: " + "; ".join(parts) + "."
 
 
+WHY_GARBLED = {"day": "dagsljus", "speed": f"farten över {VLF_SLOW_KN} knop",
+               "depth": f"djupare än {VLF_UP_DEPTH} meter"}
+
+
+def _why_garbled(why: list[str]) -> str:
+    words = [WHY_GARBLED[w] for w in why]
+    return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " och " + words[-1]
+
+
+def garble(text: str, rng) -> str:
+    """Stympad mottagning: en del av grupperna oläsbara (samma längd, ░)."""
+    words = text.split(" ")
+    idx = [i for i, w in enumerate(words) if sum(ch.isalnum() for ch in w) >= 2]
+    if not idx:
+        return text
+    lost = {i for i in idx if rng.random() < GARBLE_P} or {rng.choice(idx)}
+    return " ".join("░" * len(w) if i in lost else w for i, w in enumerate(words))
+
+
 PHRASES = {
     "radio.prewarn": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}. "
     f"Vi behöver antenndjup, {ANTENNA_DEPTH:.0f} meter eller grundare.",
@@ -125,6 +147,8 @@ PHRASES = {
     "radio.cable.out": lambda d: f"Flytkabeln ute, vi tar emot på långvåg, cirka {d['minutes']} minuter.",
     "radio.cable.fast": lambda d: "Kapten, radio. Flytkabeln dras under i den här farten, vi tappar "
     f"långvågen. Föreslår fart {VLF_SLOW_KN}.",
+    "radio.garbled": lambda d: "Kapten, radio. Långvågen kom in stympad, " + _why_garbled(d["why"])
+    + ". Vi lyssnar vidare på omsändningen." + (f" Föreslår {d['what']}." if d.get("what") else ""),
     "radio.message": lambda d: f"Kapten, radio. Radiogram nummer {d['telegram']} från huvudstaben"
     + (", på långvåg." if d.get("via") == "vlf" else "."),
     "radio.nothing": lambda d: "Sambandstillfälle: inga nya meddelanden till oss.",
@@ -210,6 +234,10 @@ RU_PHRASES = {
     "radio.cable.out": lambda d: "Плавающая антенна выпущена, принимаем на сверхдлинных волнах.",
     "radio.cable.fast": lambda d: f"{R.CAPTAIN}, радист. На этом ходу антенну притапливает. "
     "Предлагаю сбавить ход.",
+    "radio.garbled": lambda d: f"{R.CAPTAIN}, радист. Приём на сверхдлинных волнах искажён, "
+    "ждём повтора." + (" Предлагаю " + " и ".join(
+        w for w, on in (("подвсплыть", "depth" in d["why"]), ("сбавить ход", "speed" in d["why"])) if on)
+        + "." if d.get("what") else ""),
     "radio.message": lambda d: f"{R.CAPTAIN}, радист. Радиограмма из Главного штаба"
     + (" на сверхдлинных волнах." if d.get("via") == "vlf" else "."),
     "radio.nothing": lambda d: "Сеанс связи: новых радиограмм для нас нет.",
@@ -293,6 +321,7 @@ class RadioStation(Station):
         self._vlf = 0                           # sekunder långvåg i detta fönster
         self._cable_said: set[int] = set()
         self._cable_fast: set[int] = set()
+        self._garbled: set[int] = set()
 
 
     def attach(self, bus) -> None:
@@ -641,11 +670,47 @@ class RadioStation(Station):
                 return
             self._vlf += 1
             if self._vlf >= VLF_RECEIVE_S:
-                self._handled.add(i)
-                self.cable = False
-                self._deliver(upto=i, via="vlf")
+                why = self._vlf_quality()
+                pending = self._pending_texts(upto=i)
+                if not why or not pending:
+                    self._handled.add(i)
+                    self.cable = False
+                    self._deliver(upto=i, via="vlf")
+                else:
+                    self._vlf = 0               # stympat: lyssna på omsändningen
+                    if i not in self._garbled:
+                        self._garbled.add(i)
+                        self._say_garbled(pending[0], why)
         else:
             self.cable = False
+
+    def _vlf_quality(self) -> list[str]:
+        """Varför långvågen kommer in stympad (tom: hel). Mörkret, låg fart (kabeln flyter
+        i ytan) och litet djup (kabeln räcker) ger var sitt plus; två räcker."""
+        st = self.own.state
+        night = not self.world.env.is_day(self.now)
+        ok = {"day": night, "speed": st.speed <= VLF_SLOW_KN + 0.1,
+              "depth": st.depth <= VLF_UP_DEPTH + 0.5}
+        if sum(ok.values()) >= 2:
+            return []
+        return [k for k, v in ok.items() if not v]
+
+    def _pending_texts(self, upto: int) -> list[str]:
+        """Det staben sänder vid detta tillfälle: scenariots radiogram och stabens svar."""
+        out = [m.text for m in self.messages[self._next_msg:upto + 1]]
+        return out + self.hq.queue[:MAX_PER_WINDOW]
+
+    def _say_garbled(self, text: str, why: list[str]) -> None:
+        st = self.own.state
+        parts = ([f"djup {VLF_UP_DEPTH}"] if "depth" in why and st.ordered_depth > VLF_UP_DEPTH else []) \
+            + ([f"fart {VLF_SLOW_KN}"] if "speed" in why and st.ordered_speed > VLF_SLOW_KN else [])
+        what = " och ".join(parts) or None
+        d = {"why": why, "what": what, "telegram": "?", "telegram_kind": "telegram",
+             "text": garble(text, self.game.rng_for("radio"))}
+        if what:
+            self.suggest("garbled", "radio.garbled", d, order=what, cooldown=300)
+        else:
+            self.say("radio.garbled", d)
 
     def _intercept(self) -> None:
         """Radiospaning (sensor): amerikansk flygradio, fartygens radiotrafik och om jagarna
