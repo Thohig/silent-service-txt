@@ -136,8 +136,11 @@ Avslagna förslag (föreslå inte igen): tal på Linux (piper/espeak-ng), animer
 terminalen (Kitty/sixel) och webbklient, besättningsfigurer i centralen, reaktorpanel i centralen,
 däckskanon, fler vyer (t.ex. plottbord, eldledning, besättningslista, hydrologi: det nya ska synas i
 de vyer som finns), vakter och trötthet som system, besättningen som människor (personligheter,
-moral; starpom räcker), scenarierna Haveri (K-19), Räddningen och
-Spaningen.
+moral; starpom räcker), scenarierna Haveri (K-19), Räddningen, Spaningen och Avhopp, slumpade
+kriser, svårighet via besättningens kunskap, ljuskulor, undervattenstelefon i fler scenarier,
+primärkrets och strålningsdos, nödutrymning, huvudbarlast och hydraulik som system, tröghets- och
+radionavigering i Arktis. Riktlinje: realismen ligger hos besättningen (rapporter, förslag, fel som
+märks), högst en ny order per system, inga nya vyer (se `docs/IDEER.md`).
 
 Idéer som inte är beställda: `docs/IDEER.md`. Konkreta öppna uppgifter (köra om, prova för hand,
 utreda, beslut som väntar): `docs/TODO.md`. Stryk det som blir gjort där. Det som gjorts står i
