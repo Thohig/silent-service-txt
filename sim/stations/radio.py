@@ -1,7 +1,8 @@
 """Radio: sambandstillfällen med huvudstaben och rapportsändning.
 
-Mottagning (längstvåg) kräver antenndjup. Sändning (kortvåg) kräver
-periskopdjup och kan pejlas av fienden.
+Staben sänder vid sambandstillfällena enligt schemat; det vi missar sänds om vid nästa.
+Mottagning kräver antenndjup. Sändning (kortvåg) kräver periskopdjup och kan pejlas av
+fienden.
 """
 from __future__ import annotations
 
@@ -114,8 +115,9 @@ PHRASES = {
     "radio.window_open": lambda d: "Sambandstillfället har börjat. Vi lyssnar.",
     "radio.message": lambda d: f"Kapten, radio. Radiogram nummer {d['telegram']} från huvudstaben.",
     "radio.nothing": lambda d: "Sambandstillfälle: inga nya meddelanden till oss.",
-    "radio.missed": lambda d: "Kapten, vi missade sambandstillfället. Meddelanden kan ha gått förlorade "
-    "till nästa.",
+    "radio.missed": lambda d: "Kapten, vi missade sambandstillfället. " + (
+        f"Staben sänder om radiogrammen vid nästa, kl {d['next']}." if d.get("next") else
+        "Det finns inget fler inplanerat, så det staben sänt når oss inte."),
     "radio.refused": lambda d: f"Kapten, {d['reason']}.",
     "radio.sending": lambda d: f"Sänder {KIND_SV[d['kind']]} på kortvåg, {_groups(d['groups'])}, "
     f"cirka {d['seconds']} sekunder. Risken att de pejlar oss är {d['risk']}.",
@@ -189,8 +191,9 @@ RU_PHRASES = {
     "radio.window_open": lambda d: "Сеанс связи начался. Слушаем.",
     "radio.message": lambda d: f"{R.CAPTAIN}, радист. Радиограмма из Главного штаба.",
     "radio.nothing": lambda d: "Сеанс связи: новых радиограмм для нас нет.",
-    "radio.missed": lambda d: f"{R.CAPTAIN}, мы пропустили сеанс связи. Радиограммы могли "
-    "пропасть до следующего.",
+    "radio.missed": lambda d: f"{R.CAPTAIN}, мы пропустили сеанс связи. " + (
+        f"Штаб повторит радиограммы в {d['next']}." if d.get("next") else
+        "Сеансов больше нет, радиограммы до нас не дойдут."),
     "radio.listen": lambda d: "Есть, слушаем Москву на коротких волнах.",
     "radio.listen.lost": lambda d: "Москву потеряли, антенна ушла под воду.",
     "radio.moscow": lambda d: d["ru"],
@@ -417,6 +420,11 @@ class RadioStation(Station):
         return self.report_required and any(
             w0 <= self.now < w0 + self.window_len and self._reported_t < w0 for w0 in self.windows)
 
+    def _next_window_clock(self) -> str | None:
+        """Nästa sambandstillfälle som inte börjat än (då sänder staben om det vi missat)."""
+        nxt = next((w for w in self.windows if w > self.now), None)
+        return self.game.clock_str(nxt)[:5] if nxt is not None else None
+
     def window_pending(self) -> int | None:
         """Ett sambandstillfälle som snart börjar eller pågår och inte är avklarat."""
         for i, w0 in enumerate(self.windows):
@@ -558,7 +566,7 @@ class RadioStation(Station):
             elif self.now >= w0 + self.window_len:
                 self._handled.add(i)
                 if self._next_msg <= i and self._next_msg < len(self.messages):
-                    self.say("radio.missed", alarm=False)
+                    self.say("radio.missed", {"next": self._next_window_clock()}, alarm=False)
 
     def _intercept(self) -> None:
         """Radiospaning (sensor): amerikansk flygradio, fartygens radiotrafik och om jagarna

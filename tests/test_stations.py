@@ -85,6 +85,9 @@ def test_radio_message_needs_antenna_depth():
     _run(g, w0 + 1300)                       # djupt hela fönstret
     assert "radio.missed" in _types(reports)
     assert "radio.prewarn" in _types(reports)
+    missed = next(r for r in reports if r.type == "radio.missed")
+    nxt = g.clock_str(g.scenario.radio_windows[1])[:5]
+    assert missed.data["next"] == nxt and f"kl {nxt}" in missed.text   # sänds om vid nästa
 
     g, reports = _game()
     g.world.own.state.depth = 25
