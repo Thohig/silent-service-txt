@@ -8,8 +8,9 @@
 - om vi kan nå staben: inte medan vi är jagade, angripna nyss eller har en hotkontakt nära
 
 Officerarnas regler (`zampolit_vote`, `starpom_vote`) är fasta, ingen slump: zampoliten följer
-partilinjen och ordern, starpom (Archipovs plats på B-59) kräver säkerhet och att staben inte kan
-nås. Ett uttryckligt förbud häver ingen.
+partilinjen och ordern, starpom (Archipovs plats på B-59) kräver säkerhet; utan order från Moskva
+dessutom att staben inte kan nås och att bomberna skadat skrovet (B-59-ubåtarnas regel: bara om
+skrovet är skadat). Ett uttryckligt förbud häver ingen.
 """
 from __future__ import annotations
 
@@ -38,6 +39,7 @@ class WarAssessment:
     charges: int                # bedömda bomber nära oss i fönstret
     reach_staff: bool           # vi kan gå upp och fråga staben
     reach_why: str              # varför inte: hunted, attacked, threat (tomt om vi kan)
+    damaged: bool = False       # sjunkbomberna har skadat skrovet (maskin) i fönstret
 
 
 def assess(k: Knowledge, now: int) -> WarAssessment:
@@ -58,8 +60,9 @@ def assess(k: Knowledge, now: int) -> WarAssessment:
     threat = any(t.threat and t.solution is not None and t.solution.quality >= Quality.OSAKER
                  and t.solution.range_nm < THREAT_NEAR_NM for t in k.tracks.values())
     why = "hunted" if k.hunted(now) else "attacked" if recent else "threat" if threat else ""
+    damaged = any(c.damage for c in real)
     return WarAssessment(order, source, now - order_t, war, attacked, q,
-                         bool(near) and not real, len(near), not why, why)
+                         bool(near) and not real, len(near), not why, why, damaged)
 
 
 @dataclass(frozen=True)
@@ -98,4 +101,6 @@ def starpom_vote(a: WarAssessment) -> Vote:
         return Vote(False, "no_order" if not a.attacked else "attack_unsure", away)
     if a.reach_staff:
         return Vote(False, "ask_staff", ask)
+    if not a.damaged:                    # B-59: utan order bara om skrovet är skadat
+        return Vote(False, "not_damaged", away)
     return Vote(True, "attacked_cut_off")

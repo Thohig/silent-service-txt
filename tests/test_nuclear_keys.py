@@ -35,7 +35,8 @@ def _game(key="jagad"):
 
 def _keys(g):
     for i in range(3):
-        g.knowledge.charges.append(ChargeHeard(g.now - i, True, Quality.SAKER, True, "maskin"))
+        g.knowledge.charges.append(ChargeHeard(g.now - i, True, Quality.SAKER, True, "maskin",
+                                               damage=True))
     g.command("kärnvapenråd")
     for _ in range(GATHER_S + 5):
         g.tick()

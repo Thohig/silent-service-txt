@@ -27,6 +27,7 @@ from .base import Station
 GATHER_S = 30                # zampoliten och starpom kommer till centralen
 ARM_S = 600                  # nycklarna gäller så länge
 AGAIN_S = 300                # rådet hålls inte oftare om inget ändrats
+VERDICT_DELAY_S = 10         # torpedrummets besked kommer efter zampolitens och starpoms
 
 
 @dataclass(frozen=True)
@@ -70,7 +71,10 @@ STARPOM_WHY = {
     "attack_unsure": lambda d: f"Vi har ingen order, och vi vet inte säkert att det är skarpt: "
     f"{_charges(d)}.",
     "ask_staff": lambda d: f"Vi angrips skarpt, men vi kan nå staben. Moskva ska fråga, inte vi gissa.",
-    "attacked_cut_off": lambda d: f"Vi angrips skarpt, det är säkert, och vi kan inte nå staben.",
+    "attacked_cut_off": lambda d: "Vi angrips skarpt, det är säkert, skrovet är skadat och vi kan "
+    "inte nå staben.",
+    "not_damaged": lambda d: "Vi angrips skarpt och kan inte nå staben, men skrovet håller. Utan order "
+    "från Moskva skjuter vi inte. Vi kan fortfarande gå undan.",
 }
 REACH_TEXT = {"hunted": "de har kontakt med oss", "attacked": "vi angreps nyss",
               "threat": "en jagare är nära"}
@@ -116,7 +120,9 @@ RU_WHY = {
     "no_order": lambda d: f"Приказа из Москвы нет, {_ru_charges(d)}.",
     "attack_unsure": lambda d: "Приказа нет, и мы не уверены, что бомбы боевые.",
     "ask_staff": lambda d: "Нас атакуют, но со штабом можно связаться. Спросим Москву.",
-    "attacked_cut_off": lambda d: "Нас атакуют боевыми, связи со штабом нет.",
+    "attacked_cut_off": lambda d: "Нас атакуют боевыми, корпус повреждён, связи со штабом нет.",
+    "not_damaged": lambda d: "Нас атакуют, но корпус цел. Без приказа Москвы не стреляем. "
+    "Можем уйти.",
 }
 KEY_RU = {True: "Поворачиваю свой ключ.", False: "Свой ключ не поворачиваю."}
 RU_PHRASES = {
@@ -222,10 +228,10 @@ class NuclearCouncil(Station):
         if z.yes and s.yes:
             self.armed_until = self.now + ARM_S
             (tr or self).say("council.keys", {"tube": self.armed_tube, "minutes": ARM_S // 60},
-                             alarm=True)
+                             alarm=True, extra_delay=VERDICT_DELAY_S)
             return
         who = " och ".join(n for n, v in (("zampoliten", z), ("starpom", s)) if not v.yes)
-        (tr or self).say("council.refused", {"who": who})
+        (tr or self).say("council.refused", {"who": who}, extra_delay=VERDICT_DELAY_S)
         if not s.yes and s.suggest:
             from .starpom import FirstOfficer
             fo = self.game.station(FirstOfficer)

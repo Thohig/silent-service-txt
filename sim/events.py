@@ -171,6 +171,7 @@ class ChargeHeard(Event):
     near: bool
     source: str             # "sonar" eller "maskin"
     bearing: float | None = None
+    damage: bool = False    # maskin: bomben gav skador (skrovet skadat)
 
 
 @dataclass(frozen=True)

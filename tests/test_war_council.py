@@ -148,13 +148,17 @@ def test_real_attack_but_uncertain_splits_the_officers_and_starpom_suggests_away
     assert z.yes and not s.yes and s.suggest == "djup 150"
 
 
-def test_sure_attack_starpom_wants_to_ask_staff_unless_cut_off():
+def test_sure_attack_starpom_wants_to_ask_staff_unless_cut_off_and_damaged():
     k = _k_with(charges=[(100, True, Quality.SAKER, True)])
     a = assess(k, 1000)                       # angreppet 15 min sedan: vi kan gå upp
     assert a.reach_staff and starpom_vote(a).why == "ask_staff"
     k = _k_with(charges=[(990, True, Quality.SAKER, True)])
-    a = assess(k, 1000)                       # nyss: vi kan inte
-    assert not a.reach_staff and starpom_vote(a).yes and zampolit_vote(a).yes
+    a = assess(k, 1000)                       # nyss: vi kan inte, men skrovet håller
+    assert not a.reach_staff and not a.damaged
+    assert starpom_vote(a).why == "not_damaged" and not starpom_vote(a).yes and zampolit_vote(a).yes
+    k.charges.append(ChargeHeard(995, True, Quality.SAKER, True, "maskin", damage=True))
+    a = assess(k, 1000)
+    assert a.damaged and starpom_vote(a).yes
 
 
 def test_conditional_order_counts_charges_after_the_telegram():
@@ -226,9 +230,10 @@ def test_sure_attack_cut_off_turns_all_keys_for_a_while():
     g, reports = _council_game()
     k = g.knowledge
     for i in range(3):
-        k.charges.append(ChargeHeard(g.now - i, True, Quality.SAKER, True, "maskin"))
+        k.charges.append(ChargeHeard(g.now - i, True, Quality.SAKER, True, "maskin", damage=True))
     rs = _hold(g, reports)
     assert "council.keys" in _types(rs)
+    assert _types(rs).index("council.keys") > _types(rs).index("council.starpom")
     c = g.station(NuclearCouncil)
     assert c.armed()
     for _ in range(ARM_S + 5):

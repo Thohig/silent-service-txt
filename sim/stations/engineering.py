@@ -634,8 +634,9 @@ class EngineeringStation(Station):
         """Det maskin känner av sjunkbomberna (KV2): skador eller en kraftig tryckväg är en skarp
         laddning nära, säkert; små smällar nära är signalladdningar (gott omdöme: man hör skillnad på
         ett kilo och hundrafemtio); en avlägsen detonation är skarp men inte nära oss."""
+        damage = False
         if type == "damage" and data.get("cause") == "charge":
-            felt = (True, Quality.SAKER, True)
+            felt, damage = (True, Quality.SAKER, True), True
         elif type == "shock":
             if data.get("practice"):
                 felt = (False, Quality.GOD, data.get("strength") == "kraftig")
@@ -645,7 +646,7 @@ class EngineeringStation(Station):
                 felt = (True, Quality.GOD, False)
         else:
             return
-        self.game.bus.publish(ChargeHeard(self.now, *felt, "maskin"))
+        self.game.bus.publish(ChargeHeard(self.now, *felt, "maskin", damage=damage))
 
     def update(self) -> None:
         own, s = self.own, self.own.sys
