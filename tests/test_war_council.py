@@ -173,3 +173,94 @@ def test_conditional_order_counts_charges_after_the_telegram():
 def test_old_charges_do_not_count():
     k = _k_with(charges=[(0, True, Quality.SAKER, True)], now=5000)
     assert not assess(k, 5000).attacked
+
+
+# --- KV4: zampoliten och rådet ---------------------------------------------------------
+from sim.events import ReportDelivered  # noqa: E402
+from sim.stations.council import AGAIN_S, ARM_S, GATHER_S, NuclearCouncil  # noqa: E402
+from sim.stations.torpedo_room import TorpedoRoom  # noqa: E402
+
+
+def _council_game(key="kuba", seed=1):
+    g = _game(key, seed)
+    w = g.world
+    w.spawners.clear()
+    w.contacts = [v for v in w.contacts if v.side != "neutral"]
+    for ai in w.ais:
+        ai.can_force = False
+    reports = []
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    g.station(TorpedoRoom).tubes[0].load = "T-5"
+    g.tick()
+    return g, reports
+
+
+def _hold(g, reports):
+    n = len(reports)
+    g.command("kärnvapenråd")
+    for _ in range(GATHER_S + 20):
+        g.tick()
+    return [r for r in reports[n:] if r.type.startswith("council.")]
+
+
+def _types(rs):
+    return [r.type for r in rs]
+
+
+def test_no_order_and_no_attack_both_refuse_and_starpom_suggests_another_way():
+    g, reports = _council_game()
+    rs = _hold(g, reports)
+    assert {"council.zampolit", "council.starpom", "council.refused"} <= set(_types(rs))
+    z = next(r for r in rs if r.type == "council.zampolit")
+    s = next(r for r in rs if r.type == "council.starpom")
+    assert not z.data["yes"] and not s.data["yes"]
+    assert z.speaker == "Zampolit (Gromov)" and s.role == "starpom"
+    assert not g.station(NuclearCouncil).armed()
+    for _ in range(30):
+        g.tick()
+    sug = [r for r in reports if r.kind == "suggest" and r.type == "council.suggest"]
+    assert sug and "skjut" not in sug[-1].data["order"] and "salva" not in sug[-1].data["order"]
+
+
+def test_sure_attack_cut_off_turns_all_keys_for_a_while():
+    g, reports = _council_game()
+    k = g.knowledge
+    for i in range(3):
+        k.charges.append(ChargeHeard(g.now - i, True, Quality.SAKER, True, "maskin"))
+    rs = _hold(g, reports)
+    assert "council.keys" in _types(rs)
+    c = g.station(NuclearCouncil)
+    assert c.armed()
+    for _ in range(ARM_S + 5):
+        g.tick()
+    assert not c.armed()
+    assert "council.expired" in [r.type for r in reports]
+
+
+def test_council_is_not_held_again_unchanged_but_is_when_things_change():
+    g, reports = _council_game()
+    _hold(g, reports)
+    rs = _hold(g, reports)
+    assert _types(rs) == ["council.again"]
+    g.knowledge.charges.append(ChargeHeard(g.now, False, Quality.GOD, True, "sonar"))
+    rs = _hold(g, reports)
+    assert "council.zampolit" in _types(rs)
+    for _ in range(AGAIN_S):
+        g.tick()
+    rs = _hold(g, reports)
+    assert "council.zampolit" in _types(rs)
+
+
+def test_forbidden_order_in_the_convoy():
+    g, reports = _council_game("konvoj")
+    for i in range(3):
+        g.knowledge.charges.append(ChargeHeard(g.now - i, True, Quality.SAKER, True, "maskin"))
+    rs = _hold(g, reports)
+    assert "council.refused" in _types(rs)
+    assert all(not r.data["yes"] for r in rs if r.type in ("council.zampolit", "council.starpom"))
+
+
+def test_council_speech_is_cyrillic():
+    g, reports = _council_game()
+    for r in _hold(g, reports):
+        assert r.speech and not any("a" <= ch.lower() <= "z" for ch in r.speech), r.type

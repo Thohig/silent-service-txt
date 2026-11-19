@@ -174,6 +174,18 @@ class ChargeHeard(Event):
 
 
 @dataclass(frozen=True)
+class CouncilHeld(Event):
+    """Kärnvapenrådet har hållits: vad zampoliten och starpom sa och på vilken bedömning."""
+    zampolit: bool
+    starpom: bool
+    z_why: str
+    s_why: str
+    order: str
+    attacked: bool
+    attacked_q: Quality
+
+
+@dataclass(frozen=True)
 class OwnSoundMade(Event):
     """Egen båt gav ifrån sig ett ljud som hela besättningen hör: ping, launch, blow."""
     kind: str

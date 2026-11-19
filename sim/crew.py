@@ -21,6 +21,7 @@ class Role(StrEnum):
     RADIO = "radio"
     XO = "starpom"           # förste officer (старпом), tvåa i befälsordningen
     TRIM = "trim"            # trimmaren (трюмный) vid trimposten i centralen
+    ZAMPOLIT = "zampolit"    # politisk officer (замполит): en av de tre nycklarna till T-5
 
 
 ROLE_LABEL = {
@@ -33,6 +34,7 @@ ROLE_LABEL = {
     Role.RADIO: "Radio",
     Role.XO: "Starpom",
     Role.TRIM: "Trim",
+    Role.ZAMPOLIT: "Zampolit",
 }
 
 

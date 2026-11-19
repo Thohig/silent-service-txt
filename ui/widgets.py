@@ -32,6 +32,7 @@ ROLE_STYLE = {
     "radio": "bold #c6a0ff",
     "starpom": "bold #e0e0a0",
     "trim": "bold #6fb7a8",
+    "zampolit": "bold #d78787",
     "captain": "bold white",
 }
 
