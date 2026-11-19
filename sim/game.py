@@ -185,7 +185,8 @@ class Game:
                                    fairway=tuple(scenario.fairway),
                                    fairway_to=scenario.fairway_to,
                                    order_tasks=frozenset(scenario.tasks),
-                                   almanac=Almanac.of(self.world.env))
+                                   almanac=Almanac.of(self.world.env),
+                                   lights=tuple(scenario.light_list))
         self.knowledge.attach(self.bus)          # före stationerna, se events.py
 
         station_classes = stations if stations is not None else DEFAULT_STATIONS
@@ -258,6 +259,9 @@ class Game:
         """Har vi det vi kom för (t.ex. fotot), så att vägen ut är det som återstår?"""
         need = self.scenario.escape_requires_photo if self.scenario else None
         best = self.knowledge.best_photo
+        if self.scenario is not None and self.scenario.escape_requires_record and \
+                not self.knowledge.recorded:
+            return False
         return need is None or (best is not None and best >= need)
 
     def clock_str(self, sim_t: int | None = None) -> str:

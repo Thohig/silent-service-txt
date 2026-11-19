@@ -179,9 +179,12 @@ class BottomMixin:
     def _settle_proposal(self) -> Proposal | None:
         """Förslag att lägga oss på botten: hot hållet, grunt och mjukt enligt kortet."""
         sys = self.own.sys
-        if sys.settle or sys.on_bottom or not self.game.knowledge.threat_held() \
+        k = self.game.knowledge
+        if sys.settle or sys.on_bottom or not k.threat_held() \
                 or self.own.surfaced or self._dive_forbidden_here():
             return None
+        if "inspelning" in k.order_tasks and not k.hunted(self.now):
+            return None                 # vi ska höra målet, inte gömma oss för det
         here = self.bottom_here()
         if here is None or here[1] is None or here[1] == "klippa" or here[0] > SETTLE_SUGGEST_MAX_M:
             return None

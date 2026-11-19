@@ -30,6 +30,7 @@ scratchpad (2026-11-14–15). En del läser sanningen (`sundet.py --orakel`, `su
 | `sundet_folj.py` | sundet | grindtricket (`--följ` = besättningens verktyg) |
 | `sundet_in.py` | sundet-in | passiv, ja, grind |
 | `sundet_ut.py` | sundet-ut | passiv, ja, ut |
+| `clyde.py` | clyde, clyde-in | passiv, ja, verktyg (över skiktet, följ Polarisbåten) |
 | `konvoj.py` | konvoj | passiv, ja, attack |
 | `konvoj_salva.py` | konvoj, konvoj-kort | ja + salva mot stora fartyg |
 | `konvoj_mot.py` | konvoj-mot | passiv, ja, bort |
@@ -44,6 +45,21 @@ Provkörda 2026-11-15 med ett frö var. Alla gick utan fel. `konvoj.py` och `kub
 kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 ## Siffrorna
+
+**Clyde (2026-11-19, N2–N6, `clyde.py`, 8 frön; passiv / ja / verktyg = djup 40 och följ Polarisbåten):**
+- `clyde-in`: inspelad 0 / 4 / 4 av 8 (resten tiden ute; passiva får 1–9 min på bandet). Första förslag
+  eller kontakt efter överlämnandet ≤ 3 min i 6 av 8 (Little Cumbrae skymmer ibland Polarisbåten).
+  Inställt efter avståndet från farleden: 1,4–2,2 nm gav passiv 3, ja 4; 1,6–2,3 utan falska jakttecken
+  ja 7; 2,0–2,8 ja 2, verktyg 1; 1,9–2,6 valt. Sonars förslag (djup 40, kurs mot kontakten) är vad ja-boten
+  lever på; utan att navigatören föreslår botten och sonar skiktet under inspelningsordern föll ja till 2.
+- `clyde`: passiv på grund 8 (efter 2,1–3 h: kurs 010 upp på Arrans östkust); ja ut med bandet 3,
+  record_missed 5 (Polarisbåten passerade för långt bort); verktygsboten som ja. Besticksfel ≤ 0,35 nm.
+- Två patrullbåtar i nästan samma bäring gav sonar falska jakttecken (deras pingar tolkades som en
+  pingare med tät takt); de lyssnar nu i fred (`quiet_patrol`) och pingar först när de söker.
+- `kontroll.py` (ja-boten svarar efter 20 s): clyde passiv grounded 8, ja clyde_done 3 / record_missed 5;
+  clyde-in passiv 0, ja 3. Övriga scenarier som baslinjen utom jagad ja (undan 47 ⇒ 35 min, efter O1/H1/J1).
+  `MAX_H` 10 h (clyde); hela kontrollen ~9 min på 4 kärnor.
+- Prestanda: Firth-bottnen analytiskt 7 ms/tick, i rutnät 0,05 nm 2 ms (fel < 1 m för 99 % av punkterna).
 
 **Kärnvapenrådet (2026-11-19, KV1–KV8, `rad.py`, 8 frön):**
 - `kuba`: patrol_end 8; 23 råd, zampoliten ja 3, starpom ja 0, inga nycklar. De tre ja var signalladdningar

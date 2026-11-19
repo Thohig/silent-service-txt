@@ -16,6 +16,15 @@ from .arktis import (  # noqa: F401
     arctic_scenario,
     arctic_short_scenario,
 )
+from .clyde import (  # noqa: F401
+    CLYDE_IN_LIMIT_S,
+    CLYDE_IN_SIGMA_NM,
+    CLYDE_IN_WARM_S,
+    CLYDE_ORDER,
+    _clyde_watch_pilot,
+    clyde_in_scenario,
+    clyde_scenario,
+)
 from .common import (  # noqa: F401
     ARCTIC_PLACE,
     CONVOY_PLACE,
@@ -183,6 +192,17 @@ register(ScenarioDef(
     "Kort variant. Bilderna av ankarplatsen är tagna och ni ligger innanför nätet. Ett "
     "fartyg är på väg ut mot grinden. Ta er ut förbi patrullbåten med filmen.",
     strait_out_scenario, minutes=20))
+register(ScenarioDef(
+    "clyde", "«Клайд» – Firth of Clyde, 20 oktober 1962",
+    "In i Firth of Clyde i undervattensläge förbi Pladda och Arran mot Cumbraeöarna. Spela in en "
+    "amerikansk Polarisubåt som går ut från Holy Loch, och kom ut söder om Pladda före gryningen. "
+    "Tidvatten, moln och fyrar som bara syns ibland: navigeringen är motståndet.",
+    clyde_scenario))
+register(ScenarioDef(
+    "clyde-in", "«Клайд» – inspelningen, 20 oktober 1962",
+    "Kort variant. Ni ligger söder om Little Cumbrae utan fix sedan Pladda och tidvattnet vänder. "
+    "Polarisbåten är på väg ned genom firthen: kom nära nog för tio minuter gott ljud på bandet.",
+    clyde_in_scenario, minutes=40))
 register(ScenarioDef(
     "konvoj", "Konvojen, 28 oktober 1962",
     "Kriget har börjat. En eskorterad konvoj med trupper till Kuba sicksackar genom "

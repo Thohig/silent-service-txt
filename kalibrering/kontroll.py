@@ -28,7 +28,7 @@ from sim.game import Game
 from sim.scenario import SCENARIOS, build_scenario
 
 BASLINJE = _Path(__file__).with_name("baslinje.json")
-MAX_H = 8                  # längsta speltid (sundet 7 h)
+MAX_H = 10                 # längsta speltid (clyde 10 h, sundet 7 h)
 JA_EFTER_S = 20            # ja-boten svarar så här länge efter förslaget
 FLYTT_N = 2
 FLYTT_TID = 0.25

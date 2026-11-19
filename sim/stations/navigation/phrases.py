@@ -95,6 +95,13 @@ def _ru_limit(d: dict) -> str:
     return f"{R.CAPTAIN}, предельная глубина {R.count(d['limit'], R.METER)}."
 
 
+def _lights_fix(names: list[str]) -> str:
+    if len(names) == 1:
+        return (f"Bara {names[0]} syns. Bäring och avstånd ur kimningen, sämre än korsbäring, "
+                "under en minut.")
+    return f"Tar fix på fyrarna {' och '.join([', '.join(names[:-1]), names[-1]])}, under en minut."
+
+
 PHRASES = {
     "nav.course.ack": lambda d: f"{ru('Jest')}, kurs {fmt_course(d['course'])}."
     + (" Vi ligger på den." if d.get("already") else ""),
@@ -235,7 +242,8 @@ PHRASES = {
     + ", på styrbords sida. Jag tar fixar från bryggan under tiden.",
     "nav.suggest.fairway_to": lambda d: f"Kapten, {d['name'].lower()} ligger i "
     f"{fmt_course(d['course'])}, {nm(d['range'])} sjömil. Föreslår kurs mot {d['name'].lower()}.",
-    "nav.fix.start": lambda d: "Pejlar landmärken från bryggan, en halv minut." if d.get("bridge")
+    "nav.fix.start": lambda d: _lights_fix(d["lights"]) if d.get("lights") else
+    "Pejlar landmärken från bryggan, en halv minut." if d.get("bridge")
     and d.get("day") else "Pejlar fyrarna från bryggan, under en minut." if d.get("bridge") else
     ("Tar fix på landmärken, en halv minut." if d.get("coast") and
                                 d.get("day") else "Tar fix på fyrarna, under en minut."

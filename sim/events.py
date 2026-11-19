@@ -75,6 +75,12 @@ class AirRadarHeard(Event):
 
 
 @dataclass(frozen=True)
+class RecordingMade(Event):
+    """Sonar har en färdig inspelning av kontakten på band (Clyde)."""
+    designation: str
+
+
+@dataclass(frozen=True)
 class PhotoTaken(Event):
     """Periskopfoto av ett spaningsmål, med bildens kvalitet."""
     quality: Quality

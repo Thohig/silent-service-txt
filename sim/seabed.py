@@ -23,6 +23,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass, field, replace
+from functools import cached_property
 
 from typing import TYPE_CHECKING
 
@@ -185,9 +186,10 @@ class Coast:
                        bay_depth=self.bay_depth * rng.uniform(0.9, 1.1))
 
 
-def _polyline_coords(x, y, path: tuple[tuple[float, float], ...]):
+def _polyline_coords(x, y, path: tuple[tuple[float, float], ...], open_ends: bool = True):
     """(index, andel, avstånd) till närmaste segment av en linje; första och sista segmentet
-    förlängs ut i det oändliga (fjorden fortsätter utanför kortet och ut i mynningen)."""
+    förlängs ut i det oändliga (fjorden fortsätter utanför kortet och ut i mynningen), utom
+    med open_ends=False (en vik som tar slut)."""
     best_d = best_i = best_t = None
     n = len(path) - 1
     for i in range(n):
@@ -195,8 +197,8 @@ def _polyline_coords(x, y, path: tuple[tuple[float, float], ...]):
         dx, dy = bx - ax, by - ay
         L2 = dx * dx + dy * dy
         t = ((x - ax) * dx + (y - ay) * dy) / L2
-        lo = -np.inf if i == 0 else 0.0
-        hi = np.inf if i == n - 1 else 1.0
+        lo = -np.inf if i == 0 and open_ends else 0.0
+        hi = np.inf if i == n - 1 and open_ends else 1.0
         t = np.clip(t, lo, hi)
         d = np.hypot(x - (ax + t * dx), y - (ay + t * dy))
         if best_d is None:
@@ -265,7 +267,106 @@ class Fjord:
                        depth=tuple(dp * rng.uniform(0.9, 1.1) for dp in self.depth))
 
 
-Feature = Bank | Seamount | Ridge | Canyon | Coast | Fjord
+FIRTH_GRID_NM = 0.05            # Firth: rutnätets steg (bilinjärt däremellan)
+FIRTH_GRID_LO, FIRTH_GRID_HI = -2.0, 42.0
+
+
+@dataclass(frozen=True)
+class Firth:
+    """Innanhav med öar (Firth of Clyde): vatten bara i bassängerna, land runt om.
+
+    Varje bassäng är en mittlinje (söder → norr) med halva bredden och mittdjupet i varje punkt;
+    väggarna stupar brant (djup · (1 − u⁴)). Första bassängens södra ände går ut ur kortet (havet),
+    de andra är vikar som tar slut. Öarna är ellipser (x, y, rx, ry, vridning i grader) med brant
+    strand. Land får negativt djup; Seabed måste då ha min_depth under noll."""
+    basins: tuple[tuple[tuple[tuple[float, float], ...], tuple[float, ...], tuple[float, ...]], ...]
+    islands: tuple[tuple[float, float, float, float, float], ...] = ()
+    land_m: float = -10.0
+    beach_m_per_nm: float = 400.0       # öarnas strand: så brant ned från 8 m
+
+    def _along(self, k: int, x, y):
+        path, half_w, depth = self.basins[k]
+        # havet: första bassängens södra ände fortsätter ut ur kortet; vikarna tar slut
+        i, t, d = _polyline_south_open(x, y, path) if k == 0 else \
+            _polyline_coords(x, y, path, open_ends=False)
+        hw, dp = np.asarray(half_w), np.asarray(depth)
+        j = np.minimum(i + 1, len(path) - 1)
+        tc = np.clip(t, 0.0, 1.0)
+        return hw[i] + (hw[j] - hw[i]) * tc, dp[i] + (dp[j] - dp[i]) * tc, d
+
+    def water(self, x, y):
+        """Vattendjupet enligt bassängerna (land där ingen bassäng når)."""
+        out = np.full(np.broadcast(np.asarray(x, dtype=float), np.asarray(y, dtype=float)).shape,
+                      self.land_m)
+        for k in range(len(self.basins)):
+            hw, dp, a = self._along(k, x, y)
+            u = np.clip(a / hw, 0.0, 1.0)
+            out = np.maximum(out, np.where(a < hw, dp * (1 - u ** 4), self.land_m))
+        return out
+
+    def apply(self, x, y, d):
+        return np.minimum(np.maximum(d, self.land_m), self._field(x, y))
+
+    def _exact(self, x, y):
+        """Bassängerna och öarna utan grunddjupet (det minsta av dem gäller)."""
+        out = self.water(x, y)
+        for ix, iy, rx, ry, rot in self.islands:
+            c, s = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+            dx, dy = x - ix, y - iy
+            u, v = (dx * c - dy * s) / rx, (dx * s + dy * c) / ry
+            di = (np.hypot(u, v) - 1.0) * min(rx, ry)       # nm utanför stranden (ungefär)
+            out = np.where(di < 0, self.land_m, np.minimum(out, 8.0 + self.beach_m_per_nm * di))
+        return out
+
+    @cached_property
+    def _grid(self):
+        """_exact på ett rutnät (FIRTH_GRID_NM) över kortet, en gång: bilinjärt mellan punkterna.
+        Utanför rutnätet räknas det exakt."""
+        xs = np.arange(FIRTH_GRID_LO, FIRTH_GRID_HI + FIRTH_GRID_NM / 2, FIRTH_GRID_NM)
+        gx, gy = np.meshgrid(xs, xs)                    # [rad=y, kolumn=x]
+        return xs, self._exact(gx, gy)
+
+    def _field(self, x, y):
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
+        xs, z = self._grid
+        n = len(xs) - 1
+        fx = (x - FIRTH_GRID_LO) / FIRTH_GRID_NM
+        fy = (y - FIRTH_GRID_LO) / FIRTH_GRID_NM
+        inside = (fx >= 0) & (fx <= n) & (fy >= 0) & (fy <= n)
+        i = np.clip(np.floor(fx).astype(int), 0, n - 1)
+        j = np.clip(np.floor(fy).astype(int), 0, n - 1)
+        tx, ty = np.clip(fx - i, 0.0, 1.0), np.clip(fy - j, 0.0, 1.0)
+        v = (z[j, i] * (1 - tx) * (1 - ty) + z[j, i + 1] * tx * (1 - ty)
+             + z[j + 1, i] * (1 - tx) * ty + z[j + 1, i + 1] * tx * ty)
+        if np.all(inside):
+            return v
+        return np.where(inside, v, self._exact(x, y))
+
+    def moved(self, rng: random.Random, err_nm: float) -> Firth:
+        """Det brittiska kortet är noggrant: stränder och öar flyttade lite, djupen ±5 %."""
+        f = err_nm
+        basins = tuple((tuple((px + rng.gauss(0, f), py + rng.gauss(0, f)) for px, py in path),
+                        hw, tuple(dp * rng.uniform(0.95, 1.05) for dp in depth))
+                       for path, hw, depth in self.basins)
+        isl = tuple((ix + rng.gauss(0, f), iy + rng.gauss(0, f), rx, ry, rot)
+                    for ix, iy, rx, ry, rot in self.islands)
+        return replace(self, basins=basins, islands=isl)
+
+
+def _polyline_south_open(x, y, path):
+    """Som _polyline_coords, men bara första segmentet förlängs (söderut ut ur kortet)."""
+    i, t, d = _polyline_coords(x, y, path, open_ends=False)
+    (ax, ay), (bx, by) = path[0], path[1]
+    dx, dy = bx - ax, by - ay
+    L2 = dx * dx + dy * dy
+    t0 = np.minimum(((x - ax) * dx + (y - ay) * dy) / L2, 1.0)
+    d0 = np.hypot(x - (ax + t0 * dx), y - (ay + t0 * dy))
+    use = d0 < d
+    return np.where(use, 0, i), np.where(use, t0, t), np.where(use, d0, d)
+
+
+Feature = Bank | Seamount | Ridge | Canyon | Coast | Fjord | Firth
 
 
 @dataclass(frozen=True)
@@ -683,3 +784,70 @@ def match_soundings(chart: Seabed, points: list[tuple[float, float]], depths: li
     bearing = math.degrees(math.atan2(vx, vy)) % 180
     rms = math.sqrt((minor ** 2 + major ** 2) / 2)
     return BottomMatch(mx, my, rms, prior_sigma, minor, major, bearing, fit)
+
+
+# --- Firth of Clyde (Clyde-scenariot) --------------------------------------------------------
+@dataclass(frozen=True)
+class Lighthouse:
+    """En fyr i fyrlistan: läge (nm), lysvidd (nm) och karaktär (som fyrlistan säger den).
+    Samma post är sanningen (fyren lyser där) och kunskapen (navigatörens fyrlista)."""
+    name: str
+    x: float
+    y: float
+    range_nm: float
+    character: str = ""
+
+
+# Koordinater: nm österut och norrut från en punkt sydväst om Arran; Pladda ligger i (14, 4).
+# Ungefär som kortet (Admiralty 2131/2220), förenklat: Arran och Cumbraeöarna som ellipser,
+# Bute och Cowal som bassängens västra strand.
+CLYDE_SIZE_NM = 40.0
+CLYDE_LIGHTS = (
+    Lighthouse("Pladda", 14.1, 3.85, 17.0, "tre blixtar var 30:e sekund"),
+    Lighthouse("Holy Isle", 15.95, 9.25, 18.0, "två blixtar var 20:e sekund"),
+    Lighthouse("Lady Isle", 28.55, 9.95, 11.0, "fyra blixtar var 30:e sekund"),
+    Lighthouse("Little Cumbrae", 18.55, 17.25, 14.0, "blixt var 6:e sekund"),
+    Lighthouse("Toward Point", 18.4, 25.8, 18.0, "blixt var 10:e sekund"),
+    Lighthouse("Cloch Point", 23.75, 30.8, 8.0, "blixt var 3:e sekund"),
+)
+CLYDE_HOLY_LOCH = (20.4, 33.15)          # ankarplatsen vid depåfartyget
+CLYDE_PLADDA = (14.1, 3.85)
+
+
+def clyde_seabed(rng: random.Random) -> Seabed:
+    """Firth of Clyde från Pladda till Holy Loch (stiliserad): breda farvattnet mellan Arran och
+    Ayrshire (Arrandjupet ~150 m), förträngningen vid Cumbraeöarna (västra rännan ~3,5 nm,
+    Largs-rännan under 1 nm), sedan 3 nm brett förbi Toward och Dunoon, Holy Loch en grund vik
+    västerut. Djupen varierar lite med fröet."""
+    v = lambda d: d * rng.uniform(0.92, 1.08)          # noqa: E731
+    main = (((16.0, -8.0), (17.0, 4.0), (18.5, 10.6), (18.3, 16.6), (20.0, 21.6), (20.1, 25.8),
+             (22.3, 31.2), (23.6, 34.0)),
+            (15.0, 13.7, 11.2, 6.0, 2.6, 1.75, 1.55, 1.1),
+            (v(120), v(110), v(150), v(90), v(60), v(70), v(65), v(35)))
+    holy_loch = (((21.7, 32.25), (20.4, 33.15), (19.1, 33.75)), (0.35, 0.3, 0.2),
+                 (v(28), v(20), v(12)))
+    islands = (
+        (9.5, 12.5, 5.3, 8.6, 0.0),            # Arran
+        (14.1, 3.95, 0.12, 0.2, 0.0),          # Pladda
+        (15.6, 9.55, 0.45, 0.75, 10.0),        # Holy Isle
+        (28.6, 10.0, 0.12, 0.12, 0.0),         # Lady Isle
+        (19.0, 17.4, 0.45, 0.7, 20.0),         # Little Cumbrae
+        (20.9, 20.3, 0.85, 1.5, 0.0),          # Great Cumbrae
+    )
+    firth = Firth(basins=(main, holy_loch), islands=islands)
+    return Seabed(base=400.0, features=(firth,), rough=_rough(rng, 4, 0.03), min_depth=-30.0,
+                  contour_levels=FJORD_CONTOUR_LEVELS)
+
+
+def light_visible(seabed: Seabed, light: Lighthouse, x: float, y: float) -> bool:
+    """Syns fyren härifrån: inom lysvidden och inget land emellan (strandkanten vid fyren
+    räknas inte)? Sanning när sanningens botten frågas, navigatörens bedömning med kortets."""
+    d = math.hypot(x - light.x, y - light.y)
+    if d > light.range_nm:
+        return False
+    if d < 0.5:
+        return True
+    n = max(4, int(d / 0.1))
+    f = np.linspace(0.4 / d, 1.0 - 0.05 / d, n)
+    xs, ys = light.x + (x - light.x) * f, light.y + (y - light.y) * f
+    return bool((seabed.depths(xs, ys) > 0).all())

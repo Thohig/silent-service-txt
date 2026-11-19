@@ -50,6 +50,8 @@ class Scenario:
     # målet är att lämna området: så här långt utanför kanten räknas som ute (nm)
     escape_margin_nm: float | None = None
     escape_requires_photo: Quality | None = None   # utvägen räknas först med ett så bra foto
+    escape_requires_record: bool = False   # utvägen räknas först med en färdig inspelning
+    start_fix_sigma: float | None = None   # besticket vid start (nm), annars som efter en fix
     escape_y_below: float | None = None  # ute = söder om denna linje (i stället för kvadratens kant)
     warmup: Warmup | None = None         # kort variant: vakten före kaptenen (se Warmup)
     report_required: bool = False        # ordern kräver en rapport vid sambandstillfället
@@ -68,6 +70,8 @@ class Scenario:
     # vad ordern säger om kärnladdningen (NuclearOrderRead.nuclear) och om det är krig
     nuclear_order: str = "order_only"
     at_war: bool = False
+    # fyrlistan (seabed.Lighthouse) navigatören har; med den gäller fyrarna i nattfixen
+    light_list: tuple = ()
 
 
 

@@ -120,6 +120,22 @@ MOON_SIL_DEG = 35.0         # i månglittret syns siluetter så här nära måne
 MOON_SIL_LIGHT = 0.2        # månljus som krävs för siluetter i glittret
 MOON_FULL_ELEV = 25.0       # månen ger fullt ljus från denna höjd
 FALLBACK_TWILIGHT_DEG_H = 15.0   # utan plats: solen sjunker så här många grader per timme
+CLOUD_MOON_F = 0.85         # helt molntäcke släcker så mycket av månljuset
+CLOUD_STARS = 0.6           # så mycket moln: inga stjärnor eller måne att ta höjd på
+
+
+@dataclass(frozen=True)
+class Clouds:
+    """Molntäcket (sanning): `cover` 0–1, utom i uppklarningarna `breaks` (simtid från, till) då
+    det är `break_cover`. Skymmer månen (mörkare natt, färre siluetter) och stänger stjärnfixen."""
+    cover: float
+    breaks: tuple[tuple[int, int], ...] = ()
+    break_cover: float = 0.2
+
+    def at(self, sim_t: int) -> float:
+        if any(a <= sim_t < b for a, b in self.breaks):
+            return self.break_cover
+        return self.cover
 
 
 @dataclass(frozen=True)
@@ -133,6 +149,7 @@ class Light:
     waxing: bool = True
     day_vis: float = 10.0
     night_vis: float = 2.5
+    cloud: float = 0.0           # molntäcket 0–1 (Clouds): skymmer månen och stjärnorna
 
     @property
     def phase(self) -> str:
@@ -152,7 +169,8 @@ class Light:
         if self.moon_elev <= 0:
             return 0.0
         return self.moon_frac * min(1.0, math.sin(math.radians(self.moon_elev))
-                                    / math.sin(math.radians(MOON_FULL_ELEV)))
+                                    / math.sin(math.radians(MOON_FULL_ELEV))) \
+            * (1.0 - CLOUD_MOON_F * self.cloud)
 
     @property
     def level(self) -> float:
@@ -296,6 +314,11 @@ class Environment:
     # under spelet med `weather` (World sätter den varje tick).
     sea_state: int = 3
     weather: Weather | None = None     # sjögången som ändras (sim/weather.py), annars fast
+    clouds: Clouds | None = None       # molntäcket; utan det klar himmel
+    lights: tuple = ()                 # fyrarna som lyser (seabed.Lighthouse), Clyde
+
+    def cloud_at(self, sim_t: int) -> float:
+        return self.clouds.at(sim_t) if self.clouds is not None else 0.0
 
     def bottom_at(self, x: float, y: float) -> float:
         """Bottendjupet (m) på platsen. Sanning: bara ekolodet frågar."""
@@ -357,6 +380,8 @@ class Environment:
             out = Light(elev, az, **vis)
         else:
             out = light_at(self.lat, self.lon, self.jd(sim_t), **vis)
+        if self.clouds is not None:
+            out = replace(out, cloud=self.clouds.at(sim_t))
         if len(cache) > 4:
             cache.clear()
         cache[key] = out

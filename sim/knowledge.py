@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 from .events import (AirRadarHeard, BearingObserved, ChargeHeard, InterceptHeard, BridgeSighted, ClassificationChanged, ContactDetected,
                      ConvoyAssessed, ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound,
-                     PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported,
+                     PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported, RecordingMade,
                      ListeningExercise, NuclearOrderRead, TelegramReceived, TorpedoExercise, TorpedoInWater)
 from .icemap import IceMap
 from .periscope import PeriscopePicture
@@ -101,10 +101,12 @@ class Knowledge:
     bathymetry: Seabed | None = None     # det gamla sjökortets djupkurvor (inte sanningen)
     tide_table: TidalStream | None = None   # tidvattentabellen (förutsägelse, inte sanningen)
     almanac: Almanac | None = None          # sol och måne för platsen och datumet (D4)
+    lights: tuple = ()                      # fyrlistan (seabed.Lighthouse), Clyde
     # farleden enligt sjökortet (beräknade koordinater, i gångriktningen) och vart den leder
     fairway: tuple[tuple[float, float], ...] = ()
     fairway_to: str | None = None
     best_photo: Quality | None = None    # bästa spaningsfotot hittills
+    recorded: set = field(default_factory=set)   # kontakter sonar har en färdig inspelning av
     hunt_t: int = -10**9                 # senast sonar hörde att fienden har oss
     torpedo_t: int = -10**9              # senaste bäringen på en fientlig torped
     doors_t: int = -10**9                # senast sonar hörde fienden öppna torpedrören
@@ -138,6 +140,7 @@ class Knowledge:
         bus.subscribe(HuntSigns, self._on_hunt)
         bus.subscribe(TorpedoInWater, self._on_torpedo)
         bus.subscribe(PhotoTaken, self._on_photo)
+        bus.subscribe(RecordingMade, lambda e: self.recorded.add(e.designation))
         bus.subscribe(PeriscopeSighted, self._on_periscope)
         bus.subscribe(BridgeSighted, self._on_bridge)
         bus.subscribe(ConvoyAssessed, lambda e: setattr(self, "convoy", e.estimate))

@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import numpy as np
 
+from ...environment import CLOUD_STARS
 from ...events import OwnActionLogged
 from ...ownship import PERISCOPE_DEPTH
+from ...seabed import light_visible
 from .common import (
     BFIX_GAIN,
     BFIX_INTERVAL_S,
@@ -16,6 +18,8 @@ from .common import (
     FIX_TIME_S,
     LANDMARK_DAY_NM,
     LANDMARK_NIGHT_NM,
+    LIGHTS_FIX_SIGMA,
+    ONE_LIGHT_FIX_SIGMA,
     MOON_FIX_LIGHT,
     MOON_FIX_SIGMA,
     PERISCOPE_SEXTANT_F,
@@ -100,6 +104,9 @@ class FixMixin:
         if reason:
             self.say("nav.fix.refused", {"reason": reason})
             return
+        if self.game.knowledge.lights and not day:
+            self._start_light_fix()
+            return
         coast = self._land_in_sight(day)
         t = (COAST_FIX_S if day else COAST_FIX_NIGHT_S) if coast else FIX_TIME_S
         own.sys.periscope_until = max(own.sys.periscope_until, self.now + t)
@@ -107,11 +114,47 @@ class FixMixin:
         self.game.bus.publish(OwnActionLogged(self.now, "periscope"))   # ⊙ på kortet
         self.say("nav.fix.start", {"coast": coast, "day": day}, kind="ack")
 
+    def visible_lights(self) -> list:
+        """Fyrarna i fyrlistan som syns i periskopet just nu (lysvidd, land emellan). Sensor:
+        utkiken ser dem eller inte; vilken fyr det är säger karaktären (fyrlistan)."""
+        env = self.world.env
+        o = self.own.state
+        lit = {l.name for l in env.lights}
+        return [l for l in self.game.knowledge.lights if l.name in lit and
+                light_visible(env.seabed, l, o.x, o.y)]
+
+    def lights_expected(self) -> bool | None:
+        """Natt och fyrlista: borde någon fyr synas från besticket enligt kortet? None när det
+        inte gäller (dag, ingen fyrlista)."""
+        k = self.game.knowledge
+        if not k.lights or k.bathymetry is None or self.world.env.daylight(self.now):
+            return None
+        return any(light_visible(k.bathymetry, l, self.est_x, self.est_y) for l in k.lights)
+
+    def _start_light_fix(self) -> None:
+        """Natt med fyrlista: korsbäring på två fyrar, en fyr ger bäring och avstånd sämre, ingen
+        fyr i sikte ingen fix (stjärnor och måne är stjärnfixens sak)."""
+        own = self.own
+        seen = self.visible_lights()
+        if not seen:
+            self.say("nav.fix.refused", {"reason": "inga fyrar syns härifrån, land skymmer eller "
+                                                   "de är för långt bort", "why": "no_lights"})
+            return
+        sigma = LIGHTS_FIX_SIGMA if len(seen) >= 2 else ONE_LIGHT_FIX_SIGMA
+        own.sys.periscope_until = max(own.sys.periscope_until, self.now + COAST_FIX_NIGHT_S)
+        self.tasks["fix"] = PositionFix(self.now + COAST_FIX_NIGHT_S, coast=True, sigma=sigma)
+        self.game.bus.publish(OwnActionLogged(self.now, "periscope"))
+        self.say("nav.fix.start", {"coast": True, "day": False,
+                                   "lights": [l.name for l in seen[:3]]}, kind="ack")
+
     def _star_method(self, alm=None) -> tuple[str | None, float, str]:
-        """Vad himlen tillåter just nu, ur almanackan: (metod, σ, varför inte)."""
+        """Vad himlen tillåter just nu, ur almanackan: (metod, σ, varför inte). Moln (sett
+        uppåt i periskopet) stänger stjärnor och måne."""
         alm = alm or self.game.knowledge.almanac
         if alm is None:
             return None, 0.0, "ingen almanacka för området"
+        if self.world.env.cloud_at(self.now) >= CLOUD_STARS:
+            return None, 0.0, "molnen täcker himlen"
         lt = alm.light(self.now)
         if STAR_SUN_LOW <= lt.sun_elev <= STAR_SUN_HIGH:
             return "stjärnor", STAR_FIX_SIGMA, ""

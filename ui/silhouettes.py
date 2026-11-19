@@ -100,6 +100,17 @@ PROFILES: dict[str, Profile] = {
         Part("block", 0.80, 0.86, 5.0, 7.5, 0.4),
         _mast(0.63, 12.0, 25.0),
     )),
+    # Polarisbåt i ytläge: långt lågt däck, tornet förut med fenrodren, puckeln över robotschakten
+    "ssbn": Profile(116.0, 10.0, 0.05, (
+        Part("block", 0.62, 0.72, 1.5, 7.5, 0.8),
+        Part("block", 0.30, 0.58, 1.5, 2.6, 0.9),
+        _mast(0.68, 7.5, 10.0),
+    )),
+    # fiskebåt: liten, styrhytt akter, en mast förut
+    "fishing": Profile(22.0, 6.0, 0.3, (
+        Part("block", 0.15, 0.35, 2.0, 5.0, 0.7),
+        _mast(0.75, 2.0, 10.0),
+    )),
 }
 PROFILES["moored"] = PROFILES["merchant"]
 SMOKY = {"merchant", "moored", "transport", "tanker"}     # ångare: rök ur skorstenen

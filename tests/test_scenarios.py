@@ -37,8 +37,8 @@ def test_scenario_order_is_stable():
 @pytest.mark.parametrize("key", list(SCENARIOS))
 def test_order_tasks_match_the_goals(key):
     """Besättningens bild av ordern (Scenario.tasks) stämmer med sanningens mål."""
-    from sim.goals import (EscapeGoal, PhotoGoal, ReportGoal, StrikeGoal, SurfaceNearGoal,
-                           TrainingGoal)
+    from sim.goals import (EscapeGoal, PhotoGoal, RecordGoal, ReportGoal, StrikeGoal,
+                           SurfaceNearGoal, TrainingGoal)
     sc = build_scenario(key, random.Random(1))
     w = sc.world
     expected = set()
@@ -56,6 +56,8 @@ def test_order_tasks_match_the_goals(key):
         expected.add("station")
     if w.goal(TrainingGoal):
         expected.add("övning")
+    if w.goal(RecordGoal):
+        expected.add("inspelning")
     assert set(sc.tasks) == (expected or {"patrull"})
     g = Game(sc, seed=1, warm_up=False)
     assert g.knowledge.order_tasks == frozenset(sc.tasks)

@@ -33,6 +33,27 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   periskopet × 1,5 (krav som för fix), på bemannad brygga sextanten; annars nej med skäl. Föreslås i skymning
   och gryning när besticket > 0,25 nm. Vanlig `fix` i periskopet är oförändrad (σ 0,1 dygnet runt). Ja-boten
   i kuba, jagad och sundet: samma utfall före och efter D1–D4.
+- **Molnen** (`Environment.clouds`, `Clouds`; Clyde N2): molntäcket 0–1 (`cover`), utom i uppklarningarna
+  (`breaks`, simtid från–till, `break_cover` 0,2). `Light.cloud` släcker månljuset med 85 % vid helt täcke
+  (`CLOUD_MOON_F`: mörkare natt, färre siluetter, kortare nattsikt). Från 0,6 (`CLOUD_STARS`) säger navigatören
+  att molnen täcker himlen: ingen stjärn- eller månfix (`_star_method`, han ser uppåt i periskopet; almanackan
+  vet inget om moln). Utan `clouds` klar himmel som förut. Clyde: täcke 0,75–0,95 med en uppklarning på
+  10–25 min var 1,5–3:e timme.
+- **Fyrarna** (`seabed.Lighthouse`, `Environment.lights` = de som lyser, `Scenario.light_list` ⇒
+  `Knowledge.lights` = fyrlistan; Clyde N3): med fyrlista gäller fyrarna i nattfixen (`_start_light_fix`).
+  En fyr syns inom sin lysvidd om inget land ligger emellan (`light_visible`, prov var 0,1 nm, strandkanten
+  vid fyren räknas inte). Två eller fler i sikte: korsbäring σ 0,1 nm på 45 s; en: bäring och avstånd ur
+  kimningen σ 0,2; ingen: ingen fix ("inga fyrar syns härifrån"). Dagtid landmärken som förut. Navigatören
+  föreslår periskopfix på natten bara när kortet säger att någon fyr borde synas från besticket
+  (`lights_expected`), annars fix mot botten om botten är brant nog. Clyde: Pladda, Holy Isle, Lady Isle,
+  Little Cumbrae, Toward Point och Cloch Point.
+- **Firth of Clyde** (`seabed.Firth`, `clyde_seabed`; N4): vatten bara i bassängerna (mittlinje med halv
+  bredd och mittdjup per punkt, väggar som stupar som djup · (1 − u⁴)), land runt om; den första bassängens
+  södra ände går ut ur kortet. Öarna är ellipser med brant strand (8 m + 400 m/nm). Kortet (40 × 40 nm,
+  Pladda i (14; 4)): Arran som ellips, Arrandjupet ~150 m, västra rännan mellan Bute och Great Cumbrae
+  ~3,5 nm och 60–80 m, Largs-rännan öster om ön under 1 nm och 30–45 m, sedan ~3 nm brett förbi Toward
+  och Dunoon, Holy Loch en grund vik (10–28 m) västerut. Djupen ±8 % med fröet. Sjökortet (`chart_copy`,
+  0,1 nm) är det noggranna brittiska kortet: stränder och öar flyttade ~0,1 nm, djupen ±5 %.
 - **Is:** `ice.py` är sanning (bara isekolodet i `navigation/ice.py`, mastkontrollerna
   `masts_clear` och periskopets `ice_view` läser den); `icemap.py` är kunskap, byggd av `IceSounded` med
   beräknad position. Öppningars kvalitet = lägesosäkerhet (växer 8 m/min) mot

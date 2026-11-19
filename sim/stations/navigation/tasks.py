@@ -65,6 +65,7 @@ class PositionFix(NavTask):
     coast: bool                     # landmärken: snabbare och bättre
     quiet: bool = False             # navigatörens egen pejling från bryggan
     bridge: bool = False            # pejlskivan på bryggan, inte periskopet
+    sigma: float | None = None      # fyrarna på natten: fixens osäkerhet (annars efter coast)
 
     def abort(self, nav: NavigationStation) -> Abort | None:
         gone = nav.own.sys.bridge != "manned" if self.bridge \
@@ -78,11 +79,12 @@ class PositionFix(NavTask):
         if nav.now < self.done_t:
             return False
         s, rng = nav.ship, nav.rng
-        e = COAST_FIX_SIGMA if self.coast else 0.08
+        e = self.sigma if self.sigma is not None else COAST_FIX_SIGMA if self.coast else 0.08
         new_x, new_y = s.x + rng.gauss(0, e), s.y + rng.gauss(0, e)
         err = distance(nav.est_x, nav.est_y, new_x, new_y)
         b = bearing_to(nav.est_x, nav.est_y, new_x, new_y)
-        nav._apply_fix(new_x, new_y, COAST_FIX_SIGMA if self.coast else PERISCOPE_FIX_SIGMA)
+        nav._apply_fix(new_x, new_y, self.sigma if self.sigma is not None else
+                       COAST_FIX_SIGMA if self.coast else PERISCOPE_FIX_SIGMA)
         if not self.quiet or err >= BRIDGE_FIX_QUIET_NM:
             nav.say("nav.fix.done", {"error": err, "bearing": b})
         return True

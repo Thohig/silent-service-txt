@@ -140,6 +140,7 @@ class DestroyerAI:
         self.rng = rng
         self.temper = temperament or (draw_temperament(rng) if self.DRAW_TEMPERAMENT
                                       else TEMPERAMENTS["metodisk"])
+        self.quiet_patrol = False   # lyssnar bara i patrull (fred, Clyde): pingar först när den söker
         self.area = area
         # patrullområdet (x0, y0, x1, y1); kvadraten om inget annat sägs
         self.box = box if box is not None else (0.0, 0.0, area, area)
@@ -410,7 +411,7 @@ class DestroyerAI:
         self._masts(world)
         self._emissions(world)
         self._threats(world, noise)
-        if world.time >= self.next_ping:
+        if world.time >= self.next_ping and not (self.quiet_patrol and self.state == "patrol"):
             self._ping(world, noise)
         self._decide(world)
 

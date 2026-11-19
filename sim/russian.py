@@ -109,6 +109,14 @@ CLASS_RU = {
     "möjlig undervattenskontakt": "возможно, подводная цель",
     "trolig ubåt": "вероятно подводная лодка",
     "ubåt, atomdriven": "атомная подводная лодка",
+    "ytfartyg, en axel": "надводная цель, одновальная",
+    "ubåt i ytläge, en axel, trolig Polarisbåt": "подводная лодка в надводном положении, "
+    "одновальная, вероятно ракетоносец «Поларис»",
+    "Polarisubåt i ytläge, atomdriven, en axel": "атомный ракетоносец «Поларис» в надводном "
+    "положении, одновальный",
+    "ytfartyg, litet": "малая надводная цель",
+    "ytfartyg, diesel, trolig fiskebåt": "надводная цель, дизель, вероятно рыболовное судно",
+    "fiskebåt, diesel, en axel": "рыболовное судно, дизель, одновальное",
     "maskinbuller, stillaliggande": "шум механизмов, без хода",
     "dieselgenerator, trolig drivstation": "дизель-генератор, вероятно дрейфующая станция",
     "dieselgenerator, drivstation på isen": "дизель-генератор, дрейфующая станция на льду",

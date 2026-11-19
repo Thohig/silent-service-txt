@@ -3,6 +3,31 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-19 – «Клайд»: Firth of Clyde (N2–N6)
+
+Nytt scenario `clyde` och kort variant `clyde-in` (menyn efter sundet). Natten till 20 oktober 1962: in
+förbi Pladda, spela in en Polarisubåt som går ut från Holy Loch, ut söder om Pladda före gryningen.
+- **N2 molnen** (`environment.Clouds`, `Environment.clouds`, `Light.cloud`): täcket släcker månljuset och
+  stänger stjärn- och månfixen från 0,6 ("molnen täcker himlen"); uppklarningar 10–25 min.
+- **N3 fyrarna** (`seabed.Lighthouse`, `light_visible`, `Scenario.light_list` ⇒ `Knowledge.lights`,
+  `navigation/fixes.py` `_start_light_fix`, `lights_expected`): med fyrlista ger natten fix bara på fyrar som
+  syns (lysvidd, land emellan): två σ 0,1, en σ 0,2, ingen ingen. Navigatören föreslår periskopfix på natten
+  bara när kortet säger att en fyr borde synas. Fyrarna står på sjökortet (✶).
+- **N4 geografin** (`seabed.Firth`, `clyde_seabed`): bassänger med branta väggar, Arran och Cumbraeöarna
+  som ellipser, Holy Loch som vik; kortet med 0,1 nm fel. Bottnen räknas i ett rutnät (0,05 nm) en gång,
+  annars tog den 3/4 av tiden per tick (7 ⇒ 2 ms).
+- **N5 motståndet och målen** (`sim/clyde.py`, `scenario/clyde.py`, `goals.RecordGoal`,
+  `stations/recording.py`): Polarisbåten (`TransitAI`, ~150 dB i ytläge i 10 kn) går ut 00:30 ± 30 min;
+  sonarrummets bandspelare spelar in den (10 min med SE ≥ 8 dB, bara med ordern `inspelning`) och föreslår
+  djup 40 eller kurs mot den; inspelningen ⇒ `RecordingMade` ⇒ `Knowledge.recorded`. Hydrofonlinje och
+  patrullbåt i västra rännan, en patrullbåt vid Toward–Dunoon (lyssnar i fred, pingar när de söker,
+  `DestroyerAI.quiet_patrol`); Largs-rännan obevakad. Fiskebåtar (`FishingAI`), handelsfartyg och färjan
+  (`ClydeTraffic`). Ingen minering (fred). Under inspelningsordern föreslår varken navigatören botten eller
+  sonar skiktet om vi inte är jagade.
+- **N6 kort variant** `clyde-in`: 01:20, söder om Little Cumbrae 1,9–2,6 nm från farleden, besticket σ 1,0
+  (`Scenario.start_fix_sigma`), Polarisbåten 3–4 nm bort, tidvattnet vänder; 40 min.
+- **Kalibrering:** se `kalibrering/README.md` (Clyde). Tester i `tests/test_clyde.py`.
+
 ## 2026-11-19 – jagarkaptener med temperament (J1–J2)
 
 Jagarna jagar olika: en metodisk kapten som förut, en envis som söker saktare och längre (håller ett

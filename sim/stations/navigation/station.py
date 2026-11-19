@@ -139,6 +139,14 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         self.log_bias = rng.gauss(0, 0.01 + 0.02 * (1 - skill))
         self.last_fix_t = 0
         self.fix_sigma = PERISCOPE_FIX_SIGMA
+        sc = getattr(game, "scenario", None)
+        if sc is not None and sc.start_fix_sigma is not None:
+            # besticket vid start: så osäkert, och felet verkligt (egen ström, rör inte de andra)
+            r0 = game.rng_for("navigation:start")
+            self.fix_sigma = sc.start_fix_sigma
+            self.est_x += r0.gauss(0, sc.start_fix_sigma / 1.4)
+            self.est_y += r0.gauss(0, sc.start_fix_sigma / 1.4)
+            self.dr_track = [[(self.est_x, self.est_y)]]
         self._tide_fix_t, self._tide_sigma = 0, 0.0
         self._current_init()
         self.course_set_t = 0
@@ -267,6 +275,8 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
             q = o.quality(now)
             cx, cy = o.center
             items.append(Mark(cx, cy, "Ö", "opening", f"Ö{o.no} {q.label}", quality=q))
+        for light in self.game.knowledge.lights:        # fyrlistan: fyrarna på kortet
+            items.append(Mark(light.x, light.y, "✶", "light", light.name))
         for wp in self.game.knowledge.waypoints.values():
             ws = wp.sigma(now)
             items.append(Ring(wp.x, wp.y, ws, "waypoint"))
@@ -524,7 +534,8 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                 out.append(Proposal(4, "idle_fix_vak", "nav.suggest.fix_vak", "vak",
                                     {"sigma": sigma, **self.opening_data(o)},
                                     quality=o.quality(self.now)))
-        elif not held and sigma > IDLE_FIX_SIGMA_NM and "fix" not in self.tasks:
+        elif not held and sigma > IDLE_FIX_SIGMA_NM and "fix" not in self.tasks and \
+                self.lights_expected() is not False:
             if s.depth <= PERISCOPE_DEPTH and s.speed <= 7:
                 out.append(Proposal(4, "idle_fix_now", "nav.suggest.fix_now", "fix",
                                     {"sigma": sigma}, cooldown=900))
@@ -640,7 +651,14 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         self._run_task("starfix")
         self._star_watch()
         sigma = self.uncertainty()
-        if s.depth <= PERISCOPE_DEPTH and sigma > 0.8 and "fix" not in self.tasks \
+        no_lights = self.lights_expected() is False
+        if no_lights and sigma > 1.0 and s.depth > PERISCOPE_DEPTH and self._bfix_worthwhile():
+            # natt och ingen fyr att vänta sig enligt kortet: lodningarna i stället för en titt
+            self.suggest("bfix", "nav.suggest.bfix", {"sigma": sigma}, order="bottenfix",
+                         cooldown=1800)
+        elif no_lights:
+            pass
+        elif s.depth <= PERISCOPE_DEPTH and sigma > 0.8 and "fix" not in self.tasks \
                 and s.speed <= 7 and "depth" not in changing:
             self.suggest("fix_now", "nav.suggest.fix_now", {"sigma": sigma}, order="fix",
                          cooldown=900)

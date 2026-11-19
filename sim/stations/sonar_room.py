@@ -29,6 +29,7 @@ from ..sonar import (ClassificationUpdate, Detection, IncomingTorpedo, Lost, Own
 from ..tma import BearingObs
 from .base import Proposal, Station
 from .incoming import IncomingMixin
+from .recording import RecordingMixin
 
 BEARING_REPORT_DELTA = 5.0
 BEARING_REPORT_MAX_AGE = 300
@@ -228,7 +229,7 @@ RU_PHRASES = {
 phrases.register_ru(RU_PHRASES)
 
 
-class SonarRoom(IncomingMixin, Station):
+class SonarRoom(IncomingMixin, RecordingMixin, Station):
     REACHES_WORLD = True        # hydrofonerna och aktiv sonar (sensor)
     role = Role.SONAR
     COMMANDS = [
@@ -239,6 +240,7 @@ class SonarRoom(IncomingMixin, Station):
         super().__init__(game)
         self.sensor = SonarStation(self.member, game.rng_for("sonar"))
         self._incoming_init()
+        self._recording_init()
         self._last_called: dict[str, tuple[float, int]] = {}
         self._pings: dict[str, dict] = {}
         self._unknown_pingers = 0
@@ -392,10 +394,19 @@ class SonarRoom(IncomingMixin, Station):
             self.say("sonar.ambient", {"db": n - self._ambient})
             self._ambient = n
 
+    def _mark_recorded(self, designation: str) -> None:
+        """Inspelningen klar (recording.py): sanningens bokföring för uppdragsmålet, vilket
+        fartyg bandet har. Rapporterna nämner bara beteckningen."""
+        for v in self.world.contacts:
+            if self.sensor.designation_of(v.id) == designation:
+                self.world.mission.setdefault("recorded", []).append(v.id)
+                return
+
     def update(self) -> None:
         bus = self.game.bus
         if self.now % AMBIENT_EVERY_S == 0:
             self._ambient_watch()
+        self._recording_watch()
         own_xy = self.game.own_position_estimate()
         for ev in self.sensor.update(self.world, own_xy):
             match ev:
@@ -487,8 +498,14 @@ class SonarRoom(IncomingMixin, Station):
             return False
         return radio.needs_mast() and not self.game.knowledge.hunted(self.now)
 
+    def layer_depth(self) -> float | None:
+        """Språngskiktet som sonar mäter det (badytermografen)."""
+        return self.world.env.layer_depth
+
     def _suggest_layer(self) -> None:
         env, st = self.world.env, self.own.state
+        if "inspelning" in self.game.knowledge.order_tasks:
+            return                  # vi ska lyssna, inte gömma oss: under skiktet hörs målet sämre
         if env.layer_depth is not None and st.ordered_depth < env.layer_depth \
                 and not self._up_for_radio():
             d = self._below_layer(env.layer_depth)

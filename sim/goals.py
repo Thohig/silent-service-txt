@@ -96,6 +96,30 @@ class PhotoGoal(Goal):
 
 
 @dataclass
+class RecordGoal(Goal):
+    """Inspelning: sonar har spelat in målet länge nog med gott ljud (`mission["recorded"]`, ids
+    som sonarrummet antecknat). `outcome` None: inspelningen avslutar inte spelet (utvägen
+    kräver den i stället). Har målet passerat `miss_y` söderut utan inspelning: `miss_outcome`."""
+    target_id: str
+    outcome: str | None
+    miss_outcome: str
+    miss_y: float
+    RANK: ClassVar[int] = 25
+
+    def check(self, world: World) -> bool:
+        if self.target_id in world.mission.get("recorded", ()):
+            if self.outcome is not None:
+                world.end(self.outcome)
+                return True
+            return False
+        target = next((v for v in world.contacts if v.id == self.target_id), None)
+        if target is not None and target.state.y < self.miss_y:
+            world.end(self.miss_outcome)
+            return True
+        return False
+
+
+@dataclass
 class ReportGoal(Goal):
     """Rapport sänd inom sambandsfönstret och, när det stängt, ingen jägare som har oss.
     `contact_sigma_nm`: bara ett datum så skarpt räknas (en pejling av sändningen gör det inte)."""
@@ -185,11 +209,15 @@ class EscapeGoal(Goal):
     outcome: str
     requires_photo: int | None = None
     y_below: float | None = None
+    requires_record: str | None = None     # inte utan inspelningen av detta mål (RecordGoal)
     RANK: ClassVar[int] = 90
 
     def check(self, world: World) -> bool:
         if self.requires_photo is not None and \
                 world.mission.get("best_photo", -1) < self.requires_photo:
+            return False
+        if self.requires_record is not None and \
+                self.requires_record not in world.mission.get("recorded", ()):
             return False
         out = world.own.state.y < self.y_below if self.y_below is not None \
             else world._outside_area(self.margin_nm)

@@ -150,6 +150,26 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   pejlat oss och är 3–4 nm bort, vakten 3 min på smygmotor, vi nära södra kanten, 40 min. För att skjuta
   måste vi upp till ≤ 100 m. Siffrorna i `kalibrering/README.md` (`kalibrering/duell.py`).
 
+- **Clyde** (`clyde`, `clyde-in`, `scenario/clyde.py`, `sim/clyde.py`, N2–N6): 20 okt 1962, brittisk
+  sommartid. Lång: 21:30 öster om Pladda på 60 m; Polarisbåten (`TransitAI`, kind `ssbn`, 130 + 2·fart dB i
+  ytläge, alltså ~150 dB i 10 kn) lämnar depåfartyget i Holy Loch 00:30 ± 30 min, går 5 kn förbi Dunoon och
+  sedan 10 kn ned genom västra rännan (`POLARIS_ROUTE`) och ut förbi Pladda. Inspelningen (`RecordGoal`,
+  sonarrummets bandspelare `stations/recording.py`): 10 min med SE ≥ 8 dB över tröskeln ur sonarens egna
+  bäringar (över skiktet ≲ 1,8 nm, under skiktet hälften), bara när ordern kräver `inspelning`. Sonar säger
+  när bandet går, halvvägs, när ljudet blir för svagt och när det är klart, och föreslår djup 40 (över
+  skiktet) eller kurs mot kontakten i 5 kn; navigatören föreslår inte att lägga sig på botten och sonar inte
+  att gå under skiktet medan vi ska lyssna och inte är jagade. Klar inspelning ⇒ `RecordingMade` ⇒
+  `Knowledge.recorded` (vägen ut är det som återstår) och `mission["recorded"]`. Sedan ut söder om y = 2
+  (`EscapeGoal(requires_record="SSBN")`) före 07:30; Polarisbåten söder om y = −3 utan band ⇒
+  `record_missed`; grundstötning ⇒ `grounded`. Bevakningen: hydrofonlinje tvärs västra rännan norr om
+  Little Cumbrae (y = 19,3) och två patrullbåtar (metodiska), en där och en vid Toward–Dunoon;
+  Largs-rännan obevakad. Ingen minering (fred). Tre fiskebåtar (`FishingAI`, 128 + 1,5·fart dB) trålar
+  mellan Arran och Ayrshire; handelsfartyg till och från Greenock och färjan Wemyss Bay–Rothesay till 21:45
+  (`ClydeTraffic`). Tidvattnet sätter 355° (floden), 1,0–1,4 kn vid 60 m, starkare i grunda sund (upp till
+  ×1,5). Kort (`clyde-in`): 01:20, vakten 8 min på smygmotor norrut på 50 m (över skiktet), 1,9–2,6 nm
+  vid sidan av Polarisbåtens väg söder om Little Cumbrae, besticket σ 1,0 nm (`Scenario.start_fix_sigma`, felet
+  dras ur en egen ström), Polarisbåten 3–4 nm norr om oss, tidvattnet vänder 5–15 min efter
+  överlämnandet; målet är bara bandet (`recorded`), 40 min.
 - **Kärnvapenordern per scenario** (`Scenario.nuclear_order`, `at_war`; 2026-11-19): kuba, jagad, sundet och
   arktis "bara på order från Moskva" (rådet kan häva det vid skarpt angrepp, se Kärnvapenrådet i
   `docs/system/besattning.md`); jagads andra telegram villkorat (skarpa sjunkbomber); konvojen och duellen

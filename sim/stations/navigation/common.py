@@ -60,6 +60,9 @@ COAST_FIX_S = 30
 COAST_FIX_NIGHT_S = 45      # fyrar
 LANDMARK_DAY_NM = 8.0
 LANDMARK_NIGHT_NM = 5.0
+# Fyrarna (scenarier med fyrlista, Clyde): på natten bara fyrar som syns ger fix
+LIGHTS_FIX_SIGMA = 0.1      # två fyrar eller fler: korsbäring
+ONE_LIGHT_FIX_SIGMA = 0.2   # en fyr: bäring och avstånd ur kimningen
 LAND_MARK_STEP_NM = 0.25   # land på sjökortet: en prick per ruta
 LAND_CLEAR_M = 21          # grundare än så framåt: inte ens periskopdjup går, gir i stället
 LAND_TURNS = (30, 60, 90, 120, 150, 180)
