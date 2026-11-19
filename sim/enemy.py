@@ -237,7 +237,7 @@ class DestroyerAI:
                 continue
             if hostile:
                 self.roe = "lethal"
-            if tr.kind in ("ping", "launch", "echosounder", "astern"):
+            if tr.kind in ("ping", "launch", "echosounder", "astern", "reload"):
                 self._datum_from_bearing(world, tr.x, tr.y, 0.25 if tr.kind == "ping" else 0.3,
                                          depth_guess=max(20.0, tr.depth + self.rng.gauss(0, 40)))
 

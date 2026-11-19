@@ -3,6 +3,26 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-19 – omladdningen hörs (O1)
+
+En omladdning slamrar två gånger: när torpeden körs in i tuben (30 s efter ordern) och när bakluckan
+stängs. Slammret är en transient på 145 dB som jagaren hör och tar som datum, som omkastningen
+(`enemy.py`). På smygmotorn eller när vi är jagade laddar minören försiktigt utan order: åtta minuter i
+stället för fem och 12 dB svagare ("Vi tar det försiktigt, åtta minuter. Det slamrar ändå när torpeden går
+in."). Under jakt föreslår han inte omladdning självmant. Plottet och sonarvyn märker slammret som ett
+eget ljud (¤). `stations/torpedo_room.py` (`_clank`, `_load_quietly`, `RELOAD_QUIET_S`),
+`acoustics.RELOAD_LEVEL`; tester i `tests/test_reload_noise.py`. Kalibrering: med jagaren i 5 kn hörs
+slammret på 1 nm över skiktet men inte på 2 nm under; det försiktiga hörs inte på 1 nm.
+
+## 2026-11-19 – starpom respekterar telefonorder (S1)
+
+En order kaptenen ger per telefon medan starpom har befälet ändrar starpom inte själv på ett förslag de
+första tio minuterna: han ringer i stället ("Sonar föreslår djup 150. Ni beordrade djup 50 klockan
+03:12. Det beslutet är ert."). Larm och jakttecken går före som förut, och förslag om något annat
+(kurs när kaptenen beordrade djup) beslutar han själv. Order som gavs i centralen före överlämnandet
+räknas inte. `stations/starpom.py` (`phone_orders`, `SLOTS`, `_against_phone_order`, `PHONE_ORDER_S`);
+tester i `tests/test_starpom.py`.
+
 ## 2026-11-19 – färre order
 
 Hjälpen och ordlistan i menyn har färre order; de gamla formerna finns kvar som tysta synonymer

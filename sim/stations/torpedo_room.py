@@ -29,6 +29,8 @@ from ..firecontrol import intercept
 from ..orders import DESIG, NUM, AskContact, CommandSpec, Order, Unknown, desig, num
 from ..reports import Quality
 from ..systems import INFO, OK, WARN, Gauge, TubeRack
+from ..entities import Transient
+from .. import acoustics
 from ..weapons import TORPEDO_TYPES, launch_decoy, launch_torpedo
 from .base import Proposal, Station
 
@@ -42,6 +44,8 @@ SALVO_GAP_NM = 0.08     # torpederna i en salva går minst så här långt isär
 SALVO_GAP_MAX_NM = 0.25 # ... och högst så här (lägesfelet vid målet bestämmer)
 SALVO_STEP_DEG = (1.0, 10.0)
 RELOAD_S = 300
+RELOAD_QUIET_S = 480    # jagade eller på smygmotorn: minören laddar försiktigt
+RELOAD_CLANK_S = 30     # torpeden körs in i tuben så här länge efter ordern; sedan stängs bakluckan
 MAX_LAUNCH_DEPTH = 100         # 627A: tuberna sköt från ungefär 100 m
 MAX_LAUNCH_SPEED = 12
 RUN_REPORT_AFTER = 10       # s efter avfyring innan sonar bekräftar normal gång
@@ -124,6 +128,8 @@ class Tube:
     load: str | None = None
     loading: str | None = None
     ready_t: int = 0
+    quiet: bool = False           # försiktig omladdning: svagare slammer, längre tid
+    clanked: int = 0              # så många slammer som hörts av den här omladdningen
 
 
 @dataclass
@@ -227,7 +233,9 @@ PHRASES = {
     + (" Den målsökande torpeden söker själv efter giren." if d.get("homing") else ""),
     "torp.time": lambda d: f"Tid för torpeden från tub {d['tube']}"
     + (f" mot {d['designation']}" if d.get("designation") else "") + "!",
-    "torp.loading": lambda d: f"Laddar tub {d['tube']} med {d['type']}. Fem minuter.",
+    "torp.loading": lambda d: f"Laddar tub {d['tube']} med {d['type']}. "
+    + ("Vi tar det försiktigt, åtta minuter. Det slamrar ändå när torpeden går in." if d.get("quiet")
+       else "Fem minuter."),
     "torp.loaded": lambda d: f"Tub {d['tube']} laddad med {d['type']}.",
     "torp.status": _tubes,
     "torp.solution": _solution,
@@ -335,7 +343,7 @@ RU_PHRASES = {
     "torp.time": lambda d: f"Время торпеды из аппарата {d['tube']}"
     + (f" по {R.contact(d['designation'], True)}" if d.get("designation") else "") + "!",
     "torp.loading": lambda d: f"Есть, заряжаем аппарат {d['tube']}, {R.weapon(d['type'])}. "
-    "Пять минут.",
+    + ("Тихо, восемь минут." if d.get("quiet") else "Пять минут."),
     "torp.loaded": lambda d: f"{_ru_tube(d)} заряжен, {R.weapon(d['type'])}.",
     "torp.decoy": lambda d: f"Есть, имитатор выпущен. Осталось {d['left']}.",
     "torp.ready": lambda d: f"{R.CAPTAIN}, минёр. Есть решение по {R.contact(d['designation'], True)}: "
@@ -750,8 +758,22 @@ class TorpedoRoom(Station):
         else:
             self.inventory[typ] -= 1
             tube.loading = typ
-            tube.ready_t = self.now + RELOAD_S
-            self.say("torp.loading", {"tube": n, "type": typ}, kind="ack")
+            tube.quiet = self._load_quietly()
+            tube.clanked = 0
+            tube.ready_t = self.now + (RELOAD_QUIET_S if tube.quiet else RELOAD_S)
+            self.say("torp.loading", {"tube": n, "type": typ, "quiet": tube.quiet}, kind="ack")
+
+    def _load_quietly(self) -> bool:
+        """Minören laddar försiktigt när vi smyger eller är jagade (ingen order)."""
+        return self.own.sys.propulsion == "electric" or self.game.knowledge.hunted(self.now)
+
+    def _clank(self, tube: Tube) -> None:
+        """Torpeden går in i tuben, bakluckan stängs: metall mot metall som hörs i vattnet."""
+        tube.clanked += 1
+        o = self.own.state
+        level = acoustics.RELOAD_LEVEL - (acoustics.RELOAD_QUIET_DB if tube.quiet else 0.0)
+        self.world.emit(Transient("reload", o.x, o.y, o.depth, level, self.own.id, self.now))
+        self.game.bus.publish(OwnSoundMade(self.now, "reload"))
 
     def _preview(self, designation: str | None) -> None:
         if designation is None:
@@ -788,6 +810,12 @@ class TorpedoRoom(Station):
     # --- löpande -----------------------------------------------------------------
     def update(self) -> None:
         for t in self.tubes:
+            if t.loading:
+                total = RELOAD_QUIET_S if t.quiet else RELOAD_S
+                if t.clanked == 0 and self.now >= t.ready_t - total + RELOAD_CLANK_S:
+                    self._clank(t)
+                elif t.clanked == 1 and self.now >= t.ready_t:
+                    self._clank(t)
             if t.loading and self.now >= t.ready_t:
                 t.load, t.loading = t.loading, None
                 self.say("torp.loaded", {"tube": t.n, "type": t.load})
@@ -832,7 +860,7 @@ class TorpedoRoom(Station):
     def idle_proposals(self) -> list[Proposal]:
         # konventionella vapen; kärnladdningen laddas bara på uttrycklig order
         stock = [k for k in ("SET-53", "53-61") if self.inventory.get(k, 0) > 0]
-        if not stock:
+        if not stock or self.game.knowledge.hunted(self.now):   # slammer under jakt: inte självmant
             return []
         for t in self.tubes:
             if t.load is None and t.loading is None:

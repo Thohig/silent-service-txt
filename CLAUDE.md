@@ -182,6 +182,8 @@ för in varje färdigt steg där.
   våghöjd i ≤ 2 kn), tornet bryter ytan med kölen grundare än 13 m. Kuba 3, konvoj 5, övning/sundet 2.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m, torpedavfyring ≤ 100 m och ≤ 12 kn.
   Långvåg med flytkabeln ≤ 50 m och ≤ 5 kn, 5 min; hel med två av mörker, ≤ 3 kn och ≤ 40 m.
+- Omladdning: två slammer à 145 dB (torpeden in, bakluckan stängs); på smygmotorn eller jagade laddar
+  minören försiktigt, 8 min i stället för 5 och −12 dB. Jagaren hör slammret ~1,5 nm över skiktet i 5 kn.
 - Fiendens torped Mk 37: 26 kn, 5 nm, 145 dB, söker passivt i 40° och aktivt inom 0,4 nm och ±50 m i höjd;
   skenmålet 135 dB och bubbelekot starkare än skrovet; en träff är förlusten. Vi går 28 kn på turbinen.
 - Trim (`sim/trim.py`): kompression 1 t/100 m, skiktet bär 3 t, smältvatten 1 t, torped netto 0,6 t förut,
