@@ -30,16 +30,14 @@ när något går fel, ger högst en ny order (helst ingen) och syns i de vyer so
 
 Bara med det som behöver dem:
 - **Luften** (syre, koldioxid, regenereringspatroner): slås ihop med koldioxiden som finns, i maskins
-  rapporter och på systemtavlan; betydelse först i ett scenario med reaktorn av.
+  rapporter och på systemtavlan; betydelse först om något kräver det.
 - **Omladdningen hörs:** omladdningen tar redan 5 minuter; det som saknas är att den slamrar (en transient
   jagaren kan höra).
 
 ## Spelidéer
 
-- **Order som krockar med läget:** besättningen säger emot med skäl.
-- **Osäkert neutralt mål;** **jagarkaptener med personlighet** (variation i fiendens beteende).
+- **Jagarkaptener med personlighet** (variation i fiendens beteende).
 - **Viskningar och skrovknak under jakt;** **"torped i vattnet"-nedräkning** (besättningen räknar).
-- **Scenario med reaktorn av och batteri** (där luften får betydelse).
 
 ## Scenarier
 
