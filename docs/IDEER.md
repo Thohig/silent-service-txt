@@ -66,19 +66,12 @@ En patrull 1–28 okt där scenarierna blir uppdrag med transiter emellan; starp
 
 ## Scenarier
 
-- **Haveri** (K-19-inspirerat): läcka i primärkretsen vid start, fart ≤ 6 kn, strålning per
-  avdelning, jagare ovanför. Mål: hålla reservkylningen och nå bärgningsfartygets mötesplats
-  oupptäckt. Kräver reaktorstation (temperatur, kylning, strålning som sänker `effective_skill()`
-  som röken); systemtavlan blir huvudvy, med en reaktorpanel.
 - **Clyde** (`clyde`, skissat 2026-11-18): svår undervattensnavigering, se nedan.
-- **Räddningen:** havererad sovjetubåt.
-- **Spaningen:** spela in amerikanska ljud.
 
 ### «Клайд» – in i Firth of Clyde (`clyde`, skissat 2026-11-18)
 
 20 okt 1962: in i Firth of Clyde i undervattensläge förbi Arran och Bute till inloppet av Holy Loch
-(amerikanernas Polarisbas), spela in en Polarisubåt som går ut och kom ut oupptäckta före gryningen
-(knyter an till Spaningen). Till skillnad från Sundet (foto, farleden) är navigeringen motståndet:
+(amerikanernas Polarisbas), spela in en Polarisubåt som går ut och kom ut oupptäckta före gryningen. Till skillnad från Sundet (foto, farleden) är navigeringen motståndet:
 ~40 nm från Pladda till Holy Loch och samma väg ut, mest i sund på 1–3 nm med branta stränder.
 - **Varför det är svårt:** tidvattnet sätter 1–2 kn i sunden och vänder var 6:e timme; besticket räknar
   inte med strömmen och glider fortare än σ säger (ärligt fel som besättningen ska upptäcka). Varje

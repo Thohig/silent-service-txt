@@ -134,7 +134,7 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
 
 Avslagna förslag (föreslå inte igen): tal på Linux (piper/espeak-ng), animering på sjökortet, bilder i
 terminalen (Kitty/sixel) och webbklient, besättningsfigurer i centralen, reaktorpanel i centralen,
-däckskanon, plottbord som egen vy.
+däckskanon, plottbord som egen vy, scenarierna Haveri (K-19), Räddningen och Spaningen.
 
 Idéer som inte är beställda: `docs/IDEER.md`. Konkreta öppna uppgifter (köra om, prova för hand,
 utreda, beslut som väntar): `docs/TODO.md`. Stryk det som blir gjort där. Det som gjorts står i
