@@ -1,89 +1,28 @@
 # K-114 – idéer och förbättringar som inte är byggda
 
 Samlat 2026-11-15 ur tidigare samtal, uppdaterat 2026-11-19. Inget av detta är beställt; varje punkt
-väntar på kaptenens (användarens) beslut. Det som redan är byggt står i CLAUDE.md och README.md;
-konkreta öppna uppgifter (köra om, prova, utreda) i `docs/TODO.md`.
-
-## Öppna fel och osäkra siffror
-
-Flyttade till `docs/TODO.md` (2026-11-18).
+väntar på kaptenens (användarens) beslut. Det som redan är byggt står i CLAUDE.md, README.md,
+`docs/system/` och `docs/ANDRINGAR.md`; konkreta öppna uppgifter (köra om, prova, utreda) i
+`docs/TODO.md`.
 
 ## Arkitektur
 
 Grunden håller (sanning/kunskap isär, determinism, `sim/` utan Textual, rapporter som data,
-stationer som plugin). Gjort efter granskningarna 2026-11-15 och 2026-11-18: målobjekt (`goals.py`),
-kalibreringsbotarna i `kalibrering/`, importtestet, `navigation/` och `scenario/` som paket,
-navigatörens uppdrag (`NavTask`, `Steering`), stationernas väg till sanningen (`REACHES_WORLD`),
-slumpen per station (`rng_for`), kalibreringskontrollen (`kontroll.py`, `fingeravtryck.py`),
-vyerna en gång per läge och CLAUDE.md delad i `docs/system/`.
+stationer som plugin).
 
-Kvar:
-
-- **Talet bakom ett gränssnitt** (resonerat 2026-11-18). Det finns redan en spelare (`MacPlayer`,
-  `NullPlayer`, testernas `RecordingPlayer`); bundet till macOS är `say`/`afplay`, röstnamnen och
-  tre kopior av `say -v ?`. Steg:
-  ~~T1 rösterna på ett ställe~~ (byggt 2026-11-18: `ui/voices.py`, `MacSay`, röstlistan läses en gång);
-  ~~T2 talet och effektljuden genom mixern~~ (byggt 2026-11-18: `MixPlayer`, `MacSynth`, telefon och skott,
-  se `docs/system/granssnitt.md`). Underlaget:
-  hytten dämpar centralen i stället för att tysta den, telefonfilter för stationerna utanför
-  centralen, inga `afplay`-processer – det enda som märks på Mac, och det enda med risk (fördröjning);
-  fördröjningen uppmätt 2026-11-18: `say -o` tar 0,55–0,75 s per replik oavsett längd (mest uppstart
-  och röstladdning, samma som `say` i dag lär ha innan ljudet börjar); `NSSpeechSynthesizer` i processen
-  med rösten laddad 20–60 ms (första gången 0,1–0,4 s). T2 bör alltså rendera i processen (pyobjc-Cocoa
-  som beroende på macOS, en syntes per röst) och inte med `say -o`.
-  ~~T3 piper/espeak-ng för Linux~~ – struken 2026-11-18 (kaptenens beslut: macOS räcker). Föreslå inte igen.
+- **Talet renderat i processen.** Talet och effektljuden går genom mixern (`MixPlayer`, `MacSynth`, se
+  `docs/system/granssnitt.md`). Fördröjningen uppmätt 2026-11-18: `say -o` tar 0,55–0,75 s per replik
+  oavsett längd (mest uppstart och röstladdning); `NSSpeechSynthesizer` i processen med rösten laddad
+  20–60 ms (första gången 0,1–0,4 s). Att rendera i processen (pyobjc-Cocoa som beroende på macOS, en
+  syntes per röst) skulle ta bort fördröjningen.
 
 ## Gränssnitt och grafik
 
-Granskning 2026-11-15. Byggt sedan dess: braille i sjökort, profil, genomskärning, brygga och
-periskopets okular (2026-11-17), ubåtsvyn (djupprofil + systemtavla, 2026-11-16), plottlagets
-blyertsmärken på sjökortet (B1–B3, 2026-11-17; valt i stället för animering, se nedan),
-periskopets förstoring och bryggans kikare, hyttens kort och krängningsmätare, ubåtsvyns
-automatiska tidsskala (2026-11-18).
-
-~~**Sonarvy med vattenfall**~~ – byggd 2026-11-17 (S1–S5, se `docs/system/vyer.md`); rättad 2026-11-18
-(girmärken, relativ bäring). Lösningskurvan på från början och neutrala kontakter nedtonade
-(2026-11-18) i stället för ett läge med bara hot. Ej provkörd för hand i riktig terminal.
-
-~~**Snabba fixar**~~ – gjorda 2026-11-17 (F1–F5a): huvudradens kontakter hot först och i färg,
-sonarpanelen räknar, profilens band heter "sonar hörde", utkikens avstånd i periskopbilden,
-sjögång i bilden (`Environment.sea_state`).
-
-~~**Sjögångens verkan (F5b)**~~ – byggd 2026-11-19 (V1–V5, se `docs/system/hav.md`): havsbrus, jagarens
-ping, sjöklotter mot masterna, sikten, vågtopparna, sjön som suger båten mot ytan (tornet kan bryta ytan),
-periskopet som sköljs över, och vädret som ändras under uppdraget. Kvar som idé: väderprognos i stabens
-telegram i en kampanj, sjögången per uppdrag slumpad ur årstiden.
-
-**Framtidsspår med insats:**
-1. ~~Braille i sjökort, profil och brygga~~ – byggt 2026-11-17.
-2. ~~Animering i realtid på sjökortet~~ – ersatt av blyertsmärken (ett papperskort och
-   автопрокладчик är realistiskt; vidgade ringar, blixtar och mjuk förflyttning är det inte, och
-   en braillepunkt är 0,05 nm, så mjuk förflyttning syns inte). Föreslå inte igen.
-3. ~~Bilder i terminalen (Kitty/sixel) och webbklient~~ – strukna 2026-11-18 (kaptenens beslut).
-   Föreslå inte igen.
-
-### ~~Periskopets förstoring~~ (byggd 2026-11-18, Z1–Z4, se `docs/system/utkik.md`)
-
-Byggt: låg/hög förstoring med σ efter förstoringen, svep i låg och titt i hög, upptäckt efter
-vinkelstorlek och horisont, okularet efter förstoringen med stadimeterns streck, utkikens kikare 7×
-och kikaren i bryggvyn. ~~Siluetter i braille~~ byggda 2026-11-19 (SB1–SB3, `ui/silhouettes.py`).
-
-Periskopet ser land sedan 2026-11-18 och ~~händelser~~ (plask, vattenpelare, träffar) sedan 2026-11-19
-(P1–P2). Ingen däckskanon (627A hade ingen; föreslå inte).
-
-### Centralen, parkerade steg
-
-- ~~**C3 besättningen**~~ (figurer, pratbubblor) – struken 2026-11-18 (kaptenens beslut). Föreslå inte igen.
-- ~~**C4**~~ – byggd 2026-11-18: periskopokularet vrids (C4a), julgranen med alla öppningar (C4b),
-  bäringsrepeatern på gyrot (C4d). Reaktorpanelen (C4c) struken: systemtavlan visar redan samma; hör
-  till Haveri om primärkretsen modelleras.
-
-### Huvudmenyn
-
-- **M4 tjänsteblad:** spelade uppdrag med utfall, datum och frö sparade i fil mellan körningar.
-
-~~**Dockikonen**~~ – byggd 2026-11-18 som eget fönster (`fonster.py`, textual-serve + pywebview). Kvar om spelet
-ska delas: paketera till en fristående app (PyInstaller/Briefcase) och signera.
+- **Sjögången:** väderprognos i stabens telegram i en kampanj, och sjögången per uppdrag slumpad ur
+  årstiden.
+- **M4 tjänsteblad** (huvudmenyn): spelade uppdrag med utfall, datum och frö sparade i fil mellan körningar.
+- **Fristående app:** om spelet ska delas, paketera fönstret (`fonster.py`) till en fristående app
+  (PyInstaller/Briefcase) och signera.
 
 ## Spelidéer
 
@@ -100,6 +39,8 @@ Favoriter först:
 - Order som krockar med läget; reaktor av/batteri-scenario; osäkert neutralt mål.
 - Viskningar och skrovknak under jakt; "torped i vattnet"-nedräkning.
 - Slumpade kriser; jagarkaptener med personlighet; svårighet via besättningens kunskap.
+- Från radion: stabens svar som styr nästa uppdrag i en kampanj (`Headquarters.received` sparar det vi
+  rapporterat), zampolitens samtycke till T-5 (kärnvapenbeslutet).
 
 ### Kampanjen «Октябрь 1962» (K1–K5)
 
@@ -125,12 +66,10 @@ En patrull 1–28 okt där scenarierna blir uppdrag med transiter emellan; starp
 
 ## Scenarier
 
-- ~~**Duellen under isen**~~ – byggd 2026-11-18 (`duell`, `duell-kort`, D1–D4, se
-  `docs/system/scenarier.md`).
 - **Haveri** (K-19-inspirerat): läcka i primärkretsen vid start, fart ≤ 6 kn, strålning per
   avdelning, jagare ovanför. Mål: hålla reservkylningen och nå bärgningsfartygets mötesplats
   oupptäckt. Kräver reaktorstation (temperatur, kylning, strålning som sänker `effective_skill()`
-  som röken); systemtavlan blir huvudvy.
+  som röken); systemtavlan blir huvudvy, med en reaktorpanel.
 - **Clyde** (`clyde`, skissat 2026-11-18): svår undervattensnavigering, se nedan.
 - **Räddningen:** havererad sovjetubåt.
 - **Spaningen:** spela in amerikanska ljud.
@@ -146,10 +85,7 @@ En patrull 1–28 okt där scenarierna blir uppdrag med transiter emellan; starp
   periskopfix kostar (fiskebåtar, färjor, engelsk ubåtsjakt; landmärken bara i dagsljus eller fyrar).
   Bottenfixen är bra (noggrant brittiskt kort, brant botten) men tar 3 min i ≥ 2 kn. 40–150 m djupt:
   djupt gömmer men ger mindre marginal. Molnen i oktober stänger stjärnfixen.
-- **Steg:**
-  ~~N1~~ (byggt 2026-11-18, `navigation/current.py`, se `docs/system/hav.md`): navigatören räknar strömmen ur skillnaden mellan bestick och två fixar ("strömmen sätter 040,
-  1,2 knop, osäker", kvalitet ur fixarnas σ), lägger in den i besticket och föreslår kursrättelse;
-  tidvattentabellen i kunskapen (som almanackan), den verkliga strömmen avviker. Nyttig i alla scenarier.
+- **Steg** (N1, strömmen ur fixarna, är byggt: `navigation/current.py`, se `docs/system/hav.md`):
   N2 molntäcke i `Environment` (stänger stjärnfix, mörkare nätter; rör ljusets kalibrering lite).
   N3 fyrar som landmärken (Pladda, Little Cumbrae, Toward Point): fix σ 0,1 på natten om fyren syns
   och inte skyms av land.
@@ -164,8 +100,7 @@ En patrull 1–28 okt där scenarierna blir uppdrag med transiter emellan; starp
   strömmen okänd). Besättningen säger hur säkert läget är ("läget osäkert, 0,6 nm, sundet är 1,4
   brett"); navigatören föreslår vad som behövs, `_shoal_watch` varnar.
 - **Öppna frågor:** Holy Loch eller en påhittad bas (en påhittad norsk fjord vore mindre arbete i N4)?
-  N1 först och fristående (billigast, nytta i Sundet och Arktis)? Tidvattnet kraftigare än verkligheten
-  (Clyde mest 0,5–1,5 kn, starkast i Kilbrannan Sound)?
+  Tidvattnet kraftigare än verkligheten (Clyde mest 0,5–1,5 kn, starkast i Kilbrannan Sound)?
 
 ### Avhopp till västmakterna (`avhopp`, skissat 2026-11-16, "bra men avvakta")
 
@@ -176,7 +111,7 @@ konspiration, ensam kapten. Tre motståndare:
   ordern och sjunker med tiden: lojal → frågar → misstänker → agerar (osobisten sänder på antenndjup /
   myteri `mutiny`). Spelaren ser tecken; `förklara gyrofel/ubåtsjakt` vars trovärdighet räknas ur
   egna instrument (aldrig slump). Rapportfilterkroken.
-- **Staben/Norra flottan:** vet bara vad vi sänt (radions steg 2); missade sambandstillfällen ⇒
+- **Staben/Norra flottan:** vet bara vad vi sänt (huvudstaben); missade sambandstillfällen ⇒
   telegram, sedan SKR + Be-6 mot senast kända läge.
 - **Väst:** norska patrullbåtar, P-2 från Andøya skuggar. Signalera: undervattenstelefon (≤ 5 nm,
   sovjeter hör), signallampa från bryggan, klartext på nödfrekvens (pejlas). Tidigt eller sent;
@@ -186,35 +121,22 @@ konspiration, ensam kapten. Tre motståndare:
 - Kort variant `avhopp-ut`: 25 nm från Vardø, ett sambandstillfälle missat, SKR 8 nm bakom, 40 min.
 - Steg: A1 kust och mål, A2 staben, A3 zampolit och osobist, A4 väst och signalerna, A5 kort variant
   + 8 frön.
-- Öppna frågor: kaptenen eller en annan avhoppare; motivet (outsagt, personligt, vägrar T-5); staben
-  via radioomdesignen eller förenklad.
-
-## ~~Radion~~ (byggd 2026-11-19, R1–R6, se `docs/system/besattning.md`)
-
-Byggt: rapporter med innehåll ur kunskapen och sändningstid efter längd (R1), pejlrisk efter längd
-(R2), huvudstaben som bara vet vad vi sänt (R3), sambandet i slutrapporten (R4), villkorat tillstånd
-för T-5 i jagad (R5), radiospaning (R6). Kvar som idé: stabens svar som styr nästa uppdrag i en
-kampanj (`Headquarters.received` sparar det vi rapporterat), zampolitens samtycke till T-5
-(kärnvapenbeslutet).
+- Öppna frågor: kaptenen eller en annan avhoppare; motivet (outsagt, personligt, vägrar T-5).
 
 ## Nya system och vyer
 
-System: ~~trim och flytkraft~~ (byggt 2026-11-18, TR1–TR4, se `docs/system/besattning.md`), batytermograf och akustisk prognos,
-egenbrus, luft (O₂/CO₂, regenereringspatroner), vakter och trötthet, undervattenstelefon i fler
-scenarier, torpedomladdning, ljuskulor. (~~Astronavigering~~ byggd som stjärnfix 2026-11-17.)
+System: batytermograf och akustisk prognos, egenbrus, luft (O₂/CO₂, regenereringspatroner), vakter och
+trötthet, undervattenstelefon i fler scenarier, torpedomladdning, ljuskulor.
 
-Vyer: ~~sonarvattenfall~~ (byggt), eldledning, ~~trimtavla~~ (i ubåtsvyn: panelen TRIM och tankarna i
-genomskärningen, 2026-11-18), besättningslista, hydrologi.
-~~Plottbord~~ som egen vy strukits 2026-11-18: sjökortet är redan plottbordet. ~~Bäringslinjerna för ett
-markerat mål~~ byggda 2026-11-18 (solfjädern, `plot S-1`).
+Vyer: eldledning, besättningslista, hydrologi.
 
 ## Realismluckor mot Projekt 627A
 
 - Två reaktorer, två turbiner, två axlar.
 - Primärkrets och strålningsdos per avdelning.
-- ~~Trim~~ (byggt); huvudbarlasten bara som regel (ytläge, lodrät djupändring); turbogeneratorer och nöddiesel; hydraulik.
+- Huvudbarlasten bara som regel (ytläge, lodrät djupändring); turbogeneratorer och nöddiesel; hydraulik.
 - Syre och regenereringspatroner; vaktschema.
-- Tröghets- och radionavigering i Arktis (astronavigering finns: stjärnfix).
+- Tröghets- och radionavigering i Arktis.
 - Signalspaning av fiendens ping; sambandsschema och långvåg.
 - Minor; nödutrymning.
 
