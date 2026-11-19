@@ -136,3 +136,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   pejlat oss och är 3–4 nm bort, vakten 3 min på smygmotor, vi nära södra kanten, 40 min. För att skjuta
   måste vi upp till ≤ 100 m. Siffrorna i `kalibrering/README.md` (`kalibrering/duell.py`).
 
+- **Kärnvapenordern per scenario** (`Scenario.nuclear_order`, `at_war`; 2026-11-19): kuba, jagad, sundet och
+  arktis "bara på order från Moskva" (rådet kan häva det vid skarpt angrepp, se Kärnvapenrådet i
+  `docs/system/besattning.md`); jagads andra telegram villkorat (skarpa sjunkbomber); konvojen och duellen
+  förbjudet och krig; övningen förbjudet. T-5 finns i reserven (2) utom i övningen och måste laddas i en tub.

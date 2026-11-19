@@ -92,3 +92,6 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   de inte får plats), vyernas rubriker (`view_title`, `VIEW_RU`: svenskan först) och mässingsskylten
   ЦЕНТРАЛЬНЫЙ ПОСТ i centralens tak när det finns plats före stegen. Ny panel eller vy: lägg till där.
   Sjögången på tavlan: TRIM "Sjön suger" (trimmaren, se `docs/system/besattning.md`).
+  Kärnvapenrådet på tavlan: VAPEN "Kärnladdning" (säkrad / rådet samlas / nycklar 3/3, skarp N min), bara när
+  T-5 finns ombord (`stations/council.py`, se `docs/system/besattning.md`). Sonaren säger om sjunkbomberna
+  "troligen signalsjunkbomber, eller skarpa långt bort" när den inte kan avgöra (kvaliteten i loggen).
