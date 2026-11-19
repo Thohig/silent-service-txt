@@ -104,7 +104,6 @@ En patrull 1–28 okt där scenarierna blir uppdrag med transiter emellan; starp
 ## Gränssnitt
 
 - **M4 tjänsteblad** (huvudmenyn): spelade uppdrag med utfall, datum och frö sparade i fil mellan körningar.
-- **Fristående app:** om spelet ska delas, paketera fönstret (`fonster.py`) och signera.
 
 ## Historiska anmärkningar
 
