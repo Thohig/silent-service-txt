@@ -24,7 +24,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   vektorer, osäkerhetsringar streckade) ritas i braille i prickskiktet `ui/canvas.DotLayer` (prickkoordinater
   2 per kolumn, 4 per rad); märken, etiketter, rutnät och gräns är hela tecken; högst lager vinner per ruta.
   Solfjädern (`PlotTeam._fan_items`, stil `fan`): för det markerade målet (det kaptenen senast frågat om
-  med `plot S-1` eller `läge S-1`, `PlotTeam.marked`) plottets bäringar på nuvarande ben (sedan `tma_from_t`),
+  med `S-1`, `plot S-1` eller `läge S-1`, `PlotTeam.marked`) plottets bäringar på nuvarande ben (sedan `tma_from_t`),
   högst `FAN_LINES` (10), dragna från `own_x`/`own_y` där vi trodde att vi var; med en lösning ≥ osäker så
   långa som 1,4 × avståndet då. Nästan parallella linjer visar varför avståndet är osäkert. Nytt system ritar sig självt.
 - **Sonarvyn** (`sonar`, `vattenfall`; `sim/sonar_view.py`, `ui/sonar_render.py`, `ui/sonar.py`): vattenfallet,

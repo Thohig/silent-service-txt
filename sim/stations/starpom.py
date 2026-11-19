@@ -402,8 +402,12 @@ class FirstOfficer(Station):
                 else:
                     self._arrive()
             case CallCentral():
-                if not self.in_command:
-                    self.say("xo.not_in_command")
+                if not self.in_command:         # kaptenen är i centralen: vakthavande svarar
+                    from .officer import OfficerStation
+                    try:
+                        self.game.station(OfficerStation).situation_report()
+                    except KeyError:
+                        self.say("xo.not_in_command")
                     return
                 d = self._situation()
                 d["decisions"] = list(self.decisions)

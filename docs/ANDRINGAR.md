@@ -3,6 +3,29 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-19 – färre order
+
+Hjälpen och ordlistan i menyn har färre order; de gamla formerna finns kvar som tysta synonymer
+(`CommandSpec` utan hjälptext). Tester i `tests/test_simple_orders.py`.
+
+- **`S-1`** (bara beteckningen, `AskContact` i `sim/orders.py`): plottets lösning och solfjädern;
+  torpedrummet lägger till skjutlösningen när en tub är laddad och plottet har en lösning ≥ osäker (inte
+  civila). Ersätter `läge S-1`, `plot S-1` och `skjutlösning S-1` i hjälpen.
+- **`fix` väljer** (`_start_any_fix`): på periskopdjup eller i ytläge som förut (landmärken om land syns);
+  djupt nere fix mot botten när kortet har djup och botten är brant (`_bfix_possible`), annars ber
+  navigatören om periskopdjup. `stjärnfix` och `bottenfix` står inte i hjälpen; stjärnfixen föreslår
+  navigatören själv.
+- **`eld S-1`** (`FireAt`, `_pick_tube`): torpedrummet väljer den laddade tub som når, målsökande före raka
+  före övning, aldrig kärnladdningen (den kräver tubens nummer). Bekräftelsen för icke-örlogsfartyg och
+  varningen för neutrala i banan gäller som förut.
+- **`torped`** visar tuberna och, om några går, torpederna i vattnet (ersätter `tuber` och `torpeder`).
+- **`läget`** (vakthavande, `off.situation`): djup, kurs, fart, kontakter och besticket. `lägesrapport` när
+  kaptenen själv har befälet ger samma sak i stället för att starpom vägrar.
+- **Periskopet:** bara `periskop` och `periskop S-3`/`047` i hjälpen; upp, ned, vrid och förstoring med
+  tangenterna i periskopbilden. **Back:** `back 3`; telegrafens ord är synonymer. **Småsaker:** `ljud`
+  växlar, `radio moskva` i stället för `lyssna radio`, `sänd rapport S-3` och `förslag sonar` ur hjälpen.
+- **Kalibrering:** `kontroll.py` som baslinjen (besättningens förslag om `fix` ges på periskopdjup och går samma väg som förut).
+
 ## 2026-11-19 – långvågen och sambandsschemat (L1–L4)
 
 Telegrammen kan tas emot på djupet. Tester i `tests/test_radio_vlf.py`, detaljer i

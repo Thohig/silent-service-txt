@@ -66,6 +66,11 @@ class RadarSweep(Order):
 
 
 @dataclass(frozen=True)
+class Situation(Order):
+    """`läget`: vakthavande sammanfattar djup, kurs, fart, kontakter och besticket."""
+
+
+@dataclass(frozen=True)
 class Photograph(Order):
     pass
 
@@ -160,6 +165,9 @@ BATTLE_DELAY_S = 6          # vakthavande ropar efter sonars rapport
 
 PHRASES = {
     "off.briefing": _briefing,
+    "off.situation": lambda d: " ".join([
+        f"Kapten, vakthavande. Djup {d['depth']:.0f} meter, kurs {fmt_course(d['course'])}, "
+        f"fart {kn(d['speed'])} knop."] + situation(d)),
     "off.refused": lambda d: f"Kapten, {d['reason']}.",
     "off.battle_stations": lambda d: f"{ru('Boevaja trevoga')}! Stridslarm, alla man till "
     "stridsstationerna. Fienden har troligen kontakt med oss.",
@@ -281,6 +289,7 @@ RU_PHRASES = {
     "Предлагаю осмотреться в перископ.",
     "off.suggest.none": _none_ru,
     "off.briefing": _briefing_ru,
+    "off.situation": lambda d: f"{R.CAPTAIN}, вахтенный офицер. Докладываю обстановку.",
     "off.battle_stations": lambda d: "Боевая тревога! Боевая тревога! Противник, видимо, "
     "обнаружил нас.",
     "off.suggest.convoy_up": lambda d: f"{R.CAPTAIN}, вахтенный офицер. Слышим большие суда. "
@@ -301,6 +310,8 @@ class OfficerStation(Station):
     MAST_ORDERS = (RadarSweep, Photograph)
     COMMANDS = [
         CommandSpec(r"radar|radarsvep", lambda m: RadarSweep(), "radar"),
+        CommandSpec(r"läget|laget|hur är läget\??|hur ar laget\??|situationen", lambda m: Situation(),
+                    "läget (vakthavande sammanfattar)"),
         CommandSpec(r"foto|fotografera|ta bilder|ta foto|kamera", lambda m: Photograph(), "foto"),
     ]
 
@@ -322,6 +333,9 @@ class OfficerStation(Station):
     # --- överlämnandet efter vakten före kaptenen ---------------------------------
     def _on_handover(self, e: Handover) -> None:
         self.say("off.briefing", self.briefing_data(e.warm_s // 60))
+
+    def situation_report(self) -> None:
+        self.say("off.situation", self.briefing_data(0))
 
     def briefing_data(self, minutes: int) -> dict:
         """Läget ur kunskapen och egna instrument: konvoj, kontakter, besticket."""
@@ -375,6 +389,8 @@ class OfficerStation(Station):
         match order:
             case AskSuggestion(role=role, other=other):
                 self._answer_request(Role(role) if role else None, other)
+            case Situation():
+                self.situation_report()
             case Photograph():
                 if reason := self._check_mast("periskopet"):
                     self.say("off.refused", {"reason": reason})

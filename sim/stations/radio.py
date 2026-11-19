@@ -279,13 +279,13 @@ class RadioStation(Station):
         CommandSpec(r"(?:sänd |sand )?kort rapport|rapportera kort",
                     lambda m: SendReport("short"), "sänd kort rapport"),
         CommandSpec(rf"(?:sänd|sand) rapport (?:om )?{DESIG}|rapportera {DESIG}",
-                    lambda m: SendReport("contact", desig(m[1] or m[2])), "sänd rapport S-3"),
+                    lambda m: SendReport("contact", desig(m[1] or m[2]))),
         CommandSpec(r"sänd rapport|sand rapport|rapportera|sänd", lambda m: SendReport(), "sänd rapport"),
         CommandSpec(r"radio|meddelanden", lambda m: RadioStatus(), "radio"),
         CommandSpec(r"avlyssna|avlyssning|radiospaning|lyssna(?: på)? trafik(?:en)?",
                     lambda m: Intercept(), "avlyssna"),
         CommandSpec(r"lyssna(?: på)? (?:radio|moskva|radio moskva)|radio moskva|moskva",
-                    lambda m: ListenBroadcast(), "lyssna radio"),
+                    lambda m: ListenBroadcast(), "radio moskva"),
     ]
 
     def __init__(self, game):

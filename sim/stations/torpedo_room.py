@@ -26,7 +26,7 @@ from ..geo import angle_diff
 from .. import russian as R
 from ..russian import ru
 from ..firecontrol import intercept
-from ..orders import DESIG, NUM, CommandSpec, Order, Unknown, desig, num
+from ..orders import DESIG, NUM, AskContact, CommandSpec, Order, Unknown, desig, num
 from ..reports import Quality
 from ..systems import INFO, OK, WARN, Gauge, TubeRack
 from ..weapons import TORPEDO_TYPES, launch_decoy, launch_torpedo
@@ -65,6 +65,17 @@ class FireTube(Order):
     course: float | None = None
     offset: float = 0.0           # salva: vinkel från skjutlösningens kurs
     in_salvo: bool = False        # salvan varnar för sicksacken en gång för alla torpeder
+
+
+@dataclass(frozen=True)
+class FireAt(Order):
+    """Eld mot en kontakt: torpedrummet väljer tub (aldrig kärnladdningen)."""
+    designation: str
+
+
+@dataclass(frozen=True)
+class TorpedoReport(Order):
+    """Tuberna och, om några går, torpederna i vattnet."""
 
 
 @dataclass(frozen=True)
@@ -358,20 +369,22 @@ class TorpedoRoom(Station):
     REACHES_WORLD = True        # torpeder och skenmål i vattnet, uppdragets flaggor
     role = Role.TORPEDO
     COMMANDS = [
+        CommandSpec(rf"(?:eld|avfyra|fyr|skjut)\s+(?:mot\s+)?{DESIG}",
+                    lambda m: FireAt(desig(m[1])), "eld S-1 (torpedrummet väljer tub)"),
         CommandSpec(rf"(?:eld|avfyra|fyr|skjut)\s+tub\s+(\d)\s+(?:mot\s+)?{DESIG}",
-                    lambda m: FireTube(int(m[1]), designation=desig(m[2])), "eld tub 1 mot S-1"),
+                    lambda m: FireTube(int(m[1]), designation=desig(m[2]))),
         CommandSpec(rf"(?:eld|avfyra|fyr|skjut)\s+tub\s+(\d)\s+kurs\s+{NUM}",
                     lambda m: FireTube(int(m[1]), course=num(m[2]) % 360), "eld tub 1 kurs 045"),
         CommandSpec(r"ladda\s+tub\s+(\d)\s+(?:med\s+)?(\S+)", _load, "ladda tub 7 SET-53"),
-        CommandSpec(r"tuber|torpedrum", lambda m: TubeStatus(), "tuber"),
+        CommandSpec(r"torped|torpedrummet", lambda m: TorpedoReport(), "torped (tuberna och torpederna i vattnet)"),
+        CommandSpec(r"tuber|torpedrum", lambda m: TubeStatus()),
         CommandSpec(r"torpeder|torpedläge|torpedlage|torpeder i vattnet",
-                    lambda m: TorpedoStatus(), "torpeder"),
+                    lambda m: TorpedoStatus()),
         CommandSpec(rf"(?:skjutlösning|skjutlosning|eldlösning|eldlosning)(?:\s+{DESIG})?",
-                    lambda m: FiringSolution(desig(m[1])), "skjutlösning S-1"),
+                    lambda m: FiringSolution(desig(m[1]))),
         CommandSpec(rf"(?:eld|avfyra|fyr|skjut)\s+tub\s+(\d)\s*-\s*(\d)\s+(?:mot\s+)?{DESIG}",
                     lambda m: FireSalvo(desig(m[3]), tuple(range(min(int(m[1]), int(m[2])),
-                                                                 max(int(m[1]), int(m[2])) + 1))),
-                    "eld tub 1-3 mot S-1"),
+                                                                 max(int(m[1]), int(m[2])) + 1)))),
         CommandSpec(rf"salva\s+(?:mot\s+)?{DESIG}", lambda m: FireSalvo(desig(m[1])), "salva S-1"),
         CommandSpec(r"skenmål|skenmal|motmedel", lambda m: LaunchDecoy(), "skenmål"),
     ]
@@ -465,6 +478,14 @@ class TorpedoRoom(Station):
                 self._report_in_water()
             case FiringSolution(designation=d):
                 self._preview(d)
+            case FireAt(designation=d):
+                self._fire_at(d)
+            case TorpedoReport():
+                self.on_order(TubeStatus())
+                if self.in_water:
+                    self._report_in_water()
+            case AskContact(designation=d):
+                self._contact_asked(d)
             case LaunchDecoy():
                 if self.decoys <= 0:
                     self.say("torp.refused", {"reason": "skenmålen är slut"})
@@ -546,6 +567,42 @@ class TorpedoRoom(Station):
             elif self._aim(sol, tube.load) is None:
                 reason = f"{o.designation} är utom räckhåll för {TORPEDO_TYPES[tube.load].key}"
         return reason
+
+    def _pick_tube(self, designation: str) -> int | None:
+        """Tuben torpedrummet väljer mot kontakten: målsökande före raka före övning, den
+        första laddade som når; aldrig kärnladdningen (den kräver tubens nummer)."""
+        tr, sol = self._solution_for(designation)
+        order = {"SET-53": 0, "53-61": 1, "övning": 2}
+        best = None
+        for t in self.tubes:
+            if t.load is None or t.loading or t.load not in order or self._blocked(t.load):
+                continue
+            if self.own.sys.health["tubes"] < 0.5 and t.n <= 4:
+                continue
+            if sol is not None and self._aim(sol, t.load) is None:
+                continue
+            if best is None or order[t.load] < order[best.load]:
+                best = t
+        return best.n if best else None
+
+    def _fire_at(self, designation: str) -> None:
+        n = self._pick_tube(designation)
+        if n is None:
+            loaded = [t for t in self.tubes if t.load and not t.loading and t.load != "T-5"]
+            self.say("torp.refused", {"reason": "ingen laddad tub når " + designation if loaded
+                                      else "ingen tub är laddad"})
+            return
+        self._fire(FireTube(n, designation=designation))
+
+    def _contact_asked(self, designation: str) -> None:
+        """Kaptenen frågade om kontakten: skjutlösningen om vi har laddat och plottet har en
+        lösning (inte för civila)."""
+        if not any(t.load and not t.loading for t in self.tubes):
+            return
+        tr, sol = self._solution_for(designation)
+        if tr is None or sol is None or tr.civil or sol.quality < Quality.OSAKER:
+            return
+        self._preview(designation)
 
     def _fire(self, o: FireTube) -> bool:
         if reason := self._refusal(o):

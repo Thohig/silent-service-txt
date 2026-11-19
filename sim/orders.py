@@ -46,6 +46,13 @@ class Help(Order):
 
 
 @dataclass(frozen=True)
+class AskContact(Order):
+    """Kaptenen säger bara beteckningen (S-1): plottet ger lösningen och markerar solfjädern,
+    torpedrummet skjutlösningen om tuberna är laddade."""
+    designation: str
+
+
+@dataclass(frozen=True)
 class SetTimeScale(Order):
     scale: int
 
@@ -184,5 +191,5 @@ SUGGESTION_COMMANDS = [
     CommandSpec(r"(?:annat|nytt|nästa|nasta|fler)\s+(?:förslag|forslag)\s*\??",
                 lambda m: AskSuggestion(other=True), "annat förslag"),
     CommandSpec(r"(?:förslag|forslag)\s+(?:från\s+|fran\s+)?(\S+?)\s*\??",
-                _ask_station, "förslag sonar"),
+                _ask_station),
 ]

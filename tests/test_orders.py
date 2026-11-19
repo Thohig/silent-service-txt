@@ -36,8 +36,13 @@ def test_invalid_orders():
 
 def test_help_lists_every_station_command():
     h = reg.help_text()
-    for word in ("kurs 090", "fart 5", "djup 100", "tid 1|2|5|10", "läge S-1", "plot S-1"):
+    for word in ("kurs 090", "fart 5", "djup 100", "tid 1|2|5|10", "S-1 (", "eld S-1", "fix (",
+                 "torped (", "läget (", "radio moskva"):
         assert word in h
+    for gone in ("läge S-1", "plot S-1", "skjutlösning S-1", "stjärnfix", "bottenfix", "periskop upp",
+                 "förstoring", "sakta back", "full back", "· tuber ·", "eld tub 1 mot", "eld tub 1-3",
+                 "sänd rapport S-3", "förslag sonar", "lyssna radio"):
+        assert gone not in h, gone              # finns kvar som tysta synonymer
     assert "· hjälp." in h                       # hjälp registreras sist
     assert "Flera order på en rad" in h
 

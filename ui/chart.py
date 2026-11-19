@@ -30,7 +30,7 @@ LEGEND = [
     ("P", "pencil", "ping"), ("✕", "pencil", "plask"), ("✱", "pencil", "detonation"),
     ("↓", "pencil", "brytljud"), ("»", "pencil", "först hörd"), ("∅", "pencil", "tappad"),
     ("⊙", "pencil", "periskop"), ("R", "pencil", "rapport"), ("≋", "pencil", "skenmål"),
-    ("•", "torpedo", "egen torped"), ("╲", "fan", "bäringar (plot S-1)"),
+    ("•", "torpedo", "egen torped"), ("╲", "fan", "bäringar (S-1)"),
 ]
 
 LEGEND_SPLITS = (7, 15)           # andra raden: isen och osäkerheten; tredje: blyertsen

@@ -219,17 +219,18 @@ class PeriscopeWatch(Station):
     role = Role.OFFICER
     MAST_ORDERS = (PeriscopeLook,)
     COMMANDS = [
-        CommandSpec(r"periskop|titta", lambda m: PeriscopeLook(), "periskop"),
+        # resten (upp, ned, vrid, förstoring) sköts med tangenterna i periskopbilden
+        CommandSpec(r"periskop|titta", lambda m: PeriscopeLook(), "periskop (svep)"),
         CommandSpec(rf"(?:periskop|titta)\s+(?:mot\s+)?{DESIG}",
-                    lambda m: PeriscopeLook(target=desig(m[1])), "periskop S-3"),
+                    lambda m: PeriscopeLook(target=desig(m[1])), "periskop S-3 (eller 047: kort titt)"),
         CommandSpec(r"(?:periskop|titta)\s+(?:mot\s+|bäring\s+|baring\s+)?(\d{1,3})",
-                    lambda m: _bearing(m, lambda b: PeriscopeLook(bearing=b)), "periskop 047"),
+                    lambda m: _bearing(m, lambda b: PeriscopeLook(bearing=b))),
         CommandSpec(r"periskop upp|håll periskopet uppe|hall periskopet uppe",
-                    lambda m: PeriscopeHold(), "periskop upp"),
+                    lambda m: PeriscopeHold()),
         CommandSpec(r"periskop (?:ned|ner|in)|periskopet (?:ned|ner)|fäll periskopet|fall periskopet",
-                    lambda m: PeriscopeDown(), "periskop ned"),
+                    lambda m: PeriscopeDown()),
         CommandSpec(r"(?:förstoring|forstoring)\s+(hög|hog|låg|lag)",
-                    lambda m: PeriscopePower(_power(m[1])), "förstoring hög"),
+                    lambda m: PeriscopePower(_power(m[1]))),
         CommandSpec(r"(hög|hog|låg|lag)\s+(?:förstoring|forstoring)",
                     lambda m: PeriscopePower(_power(m[1]))),
         CommandSpec(rf"vrid periskop(?:et)?\s+(?:mot\s+)?{DESIG}",

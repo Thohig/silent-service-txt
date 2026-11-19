@@ -18,7 +18,7 @@ from .viewbase import ViewScreen
 from .widgets import ReportLog
 
 NO_TELEGRAMS = ("Inget mottaget än. Staben sänder vid sambandstillfällena (antenndjup); "
-                "Radio Moskva hörs med lyssna radio.")
+                "Radio Moskva hörs med radio moskva.")
 
 
 class FilteredLog(ReportLog):

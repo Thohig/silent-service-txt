@@ -9,7 +9,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `read_aloud`, som svenskt tal läser efter raden); loggboken skriver remsan under raden
   (`ui/strips.py`, `TelegramStrip`, bryts efter loggens bredd, högst `MAX_W`). Ordern är loggens första
   remsa (`SubApp._log_order`, kind "order"). `telegram` öppnar loggboken (`LogScreen(telegrams=True)`,
-  alla fönsterstorlekar) med bara remsorna; mellanslag växlar till hela loggen, `logg` likaså. Radio Moskva (`sim/broadcasts.py`): `lyssna radio` på antenndjup
+  alla fönsterstorlekar) med bara remsorna; mellanslag växlar till hela loggen, `logg` likaså. Radio Moskva (`sim/broadcasts.py`): `radio moskva` på antenndjup
   (masten fri, radion hel) ⇒ efter `LISTEN_S` (20 s) säger radiomannen en sändning för orderns datum
   (`order_day` ur `DATUM:`-raden, `broadcasts_for`); bara stämning, aldrig information. Den 28 okt bara
   bärvåg. Ljudet `shortwave` (menyns ratt och brus) före rösten.

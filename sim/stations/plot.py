@@ -13,7 +13,7 @@ from ..crew import Role
 from ..fmt import fmt_course
 from ..geo import angle_diff, norm360
 from ..knowledge import ContactTrack
-from ..orders import DESIG, CommandSpec, Order, desig
+from ..orders import DESIG, AskContact, CommandSpec, Order, desig
 from ..reports import Quality
 from ..sonar_view import (KEEP_S as SONAR_KEEP_S, SONAR_SOURCES, SolutionTrace, TargetTurn,
                           track_kind)
@@ -104,10 +104,12 @@ def solution_data(sol: Solution) -> dict:
 class PlotTeam(Station):
     role = Role.PLOT
     COMMANDS = [
+        CommandSpec(rf"{DESIG}\s*\??", lambda m: AskContact(desig(m[1])),
+                    "S-1 (lösningen, solfjädern på kortet och skjutlösningen)"),
         CommandSpec(rf"(?:läge|lage|lösning|losning)(?:\s+{DESIG})?",
-                    lambda m: QuerySolution(desig(m[1])), "läge S-1"),
+                    lambda m: QuerySolution(desig(m[1]))),
         CommandSpec(rf"(?:plot|plott|plotten)(?:\s+{DESIG})?",
-                    lambda m: ShowPlot(desig(m[1])), "plot S-1"),
+                    lambda m: ShowPlot(desig(m[1]))),
     ]
 
     def __init__(self, game):
@@ -236,7 +238,7 @@ class PlotTeam(Station):
     # --- order ------------------------------------------------------------------
     def on_order(self, order: Order) -> None:
         match order:
-            case QuerySolution(designation=d):
+            case QuerySolution(designation=d) | AskContact(designation=d):
                 self._answer_solution(d)
             case ShowPlot(designation=d):
                 self._answer_plot(d)

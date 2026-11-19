@@ -33,6 +33,24 @@ from .tasks import StarFix as StarFixTask
 class FixMixin:
     """Del av NavigationStation (station.py)."""
 
+    # --- `fix`: navigatören väljer -------------------------------------------------
+    def _start_any_fix(self) -> None:
+        """`fix`: bryggan eller periskopet (landmärken om land syns) när vi är uppe eller kan
+        komma upp; djupt nere fix mot botten om kortet har djup och botten är brant nog,
+        annars säger han att vi måste upp."""
+        s = self.ship
+        deep = s.depth > PERISCOPE_DEPTH + 1 and not self.own.surfaced
+        if deep and self._bfix_possible():
+            self._start_bottom_fix()
+        else:
+            self._start_fix()
+
+    def _bfix_possible(self) -> bool:
+        """Kan en fix mot botten säga något här (kort med djup, brant botten, inte på botten)?"""
+        chart = self.game.knowledge.bathymetry
+        return chart is not None and not self.own.sys.on_bottom and \
+            chart.slope(self.est_x, self.est_y) > BFIX_RELIEF_M_PER_NM
+
     # --- fix mot botten -----------------------------------------------------------
     def _start_bottom_fix(self) -> None:
         s = self.ship

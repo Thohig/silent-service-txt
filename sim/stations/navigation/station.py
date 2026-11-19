@@ -90,17 +90,17 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         CommandSpec(rf"back(?: i maskin)?\s+{NUM}(?:\s*(?:knop|kn))?",
                     lambda m: SetSpeed(num(m[1]), astern=True), "back 3"),
         CommandSpec(r"(?:back|back i maskin|sakta back)",
-                    lambda m: SetSpeed(0.0, astern=True, level="sakta"), "sakta back"),
-        CommandSpec(r"halv back", lambda m: SetSpeed(0.0, astern=True, level="halv"), "halv back"),
-        CommandSpec(r"full back", lambda m: SetSpeed(0.0, astern=True, level="full"), "full back"),
+                    lambda m: SetSpeed(0.0, astern=True, level="sakta")),
+        CommandSpec(r"halv back", lambda m: SetSpeed(0.0, astern=True, level="halv")),
+        CommandSpec(r"full back", lambda m: SetSpeed(0.0, astern=True, level="full")),
         CommandSpec(rf"(?:djup|d)\s+{NUM}(?:\s*(?:m|meter))?",
                     lambda m: SetDepth(int(round(num(m[1])))), "djup 100"),
         CommandSpec(r"periskopdjup|pd", lambda m: SetDepth(int(PERISCOPE_DEPTH - 1)), "periskopdjup"),
         CommandSpec(r"antenndjup", lambda m: SetDepth(int(ANTENNA_DEPTH - 2)), "antenndjup"),
         CommandSpec(r"ytläge|ytlage|upp till ytan|till ytan", lambda m: SetDepth(0), "ytläge"),
-        CommandSpec(r"fix|ta fix", lambda m: TakeFix(), "fix"),
-        CommandSpec(r"stjärnfix|stjarnfix|ta stjärnfix|astrofix|sextant", lambda m: StarFix(),
-                    "stjärnfix"),
+        CommandSpec(r"fix|ta fix", lambda m: TakeFix(),
+                    "fix (navigatören väljer: periskop, landmärken eller botten)"),
+        CommandSpec(r"stjärnfix|stjarnfix|ta stjärnfix|astrofix|sextant", lambda m: StarFix()),
         CommandSpec(r"position|var är vi\??|pos", lambda m: ReportPosition(), "position"),
         CommandSpec(r"ström|strom|strömmen|strommen", lambda m: CurrentReport(), "ström"),
         CommandSpec(r"ekolod|loda", lambda m: EchoSounder(), "ekolod"),
@@ -119,7 +119,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         CommandSpec(r"följ (s-?\d+)|folj (s-?\d+)",
                     lambda m: FollowContact(m.group(1) or m.group(2)), "följ S-1"),
         CommandSpec(r"(?:kurs|styr|gå|ga) mot (.+)", lambda m: SteerTo(m.group(1)), "kurs mot <plats>"),
-        CommandSpec(r"bottenfix|fix mot botten|djupfix|lodfix", lambda m: BottomFix(), "bottenfix"),
+        CommandSpec(r"bottenfix|fix mot botten|djupfix|lodfix", lambda m: BottomFix()),
         CommandSpec(r"(?:lägg oss på |lagg oss pa |lägg på |lagg pa |sätt oss på |satt oss pa |"
                     r"gå ned på |ga ned pa )?botten", lambda m: SettleOnBottom(), "botten"),
     ]
@@ -399,7 +399,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                     data["shoal"] = round(shoal[0], -1)
                 self._ack("depth", data, s.depth == s.ordered_depth)
             case TakeFix():
-                self._start_fix()
+                self._start_any_fix()
             case StarFix():
                 self._start_star_fix()
             case CurrentReport():
