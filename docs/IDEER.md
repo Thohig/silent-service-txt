@@ -57,12 +57,12 @@ En patrull 1–28 okt där scenarierna blir uppdrag med transiter emellan; starp
   vakthavande och plottet, kortare snabbspolning.
 - **Beslut i transiten:** turbin (fort men hörs) eller smygmotor, sända rapport vid
   sambandstillfället (pejlbart), vidga eller snäva starpoms mandat inför natten.
-- **Kampanjkarta:** Nordatlanten med vägen enligt besticket (aldrig sanningen), telegrammens
-  kvadrater, datumet och fjärrskrivarremsan.
+- **Kampanjkartan i sjökortet** (ingen egen vy): under transiten visar sjökortet Nordatlanten med vägen
+  enligt besticket (aldrig sanningen), telegrammens kvadrater och datumet.
 - **Slutet:** ДОНЕСЕНИЕ till staben med utfallet medalj, omplacering eller krigsrätt (upptäckt,
   neutralt fartyg sänkt, sänt för ofta). Kopplas till zampoliten och kärnvapenbeslutet 27 okt.
 - **Steg:** K1 kampanjtillstånd och sparning; K2 transit med snabbspolning och händelser; K3
-  telegrammen väljer uppdrag; K4 kampanjkartan; K5 slutbedömningen.
+  telegrammen väljer uppdrag; K4 sjökortet i transiten; K5 slutbedömningen.
 
 ## Scenarier
 
@@ -116,12 +116,11 @@ konspiration, ensam kapten. Tre motståndare:
   + 8 frön.
 - Öppna frågor: kaptenen eller en annan avhoppare; motivet (outsagt, personligt, vägrar T-5).
 
-## Nya system och vyer
+## Nya system
 
-System: batytermograf och akustisk prognos, egenbrus, luft (O₂/CO₂, regenereringspatroner), vakter och
-trötthet, undervattenstelefon i fler scenarier, torpedomladdning, ljuskulor.
-
-Vyer: eldledning, besättningslista, hydrologi.
+Batytermograf och akustisk prognos, egenbrus, luft (O₂/CO₂, regenereringspatroner), vakter och
+trötthet, undervattenstelefon i fler scenarier, torpedomladdning, ljuskulor. (Inga nya vyer: det nya
+syns i de vyer som finns.)
 
 ## Realismluckor mot Projekt 627A
 
