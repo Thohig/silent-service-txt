@@ -231,6 +231,43 @@ class Almanac:
                         julian_day(y, m, d, self.clock_start + sim_t - self.utc_offset_h * 3600))
 
 
+# Sjögångens verkan (Beaufort 0–7). Havsbruset växer med vinden (Wenz/Knudsen: ~5 dB per
+# fördubblad vindhastighet, ungefär 2,5 dB per Beaufortsteg i sonarens band); 3 är referensen.
+SEA_NOISE_DB_PER_B = 2.5
+SEA_NOISE_REF_B = 3
+
+
+def sea_noise_db(beaufort: int) -> float:
+    """Havsbrusets tillägg (dB) mot background_noise, som gäller vid Beaufort 3."""
+    return SEA_NOISE_DB_PER_B * (min(max(int(beaufort), 0), 7) - SEA_NOISE_REF_B)
+
+
+# Ytfartygets sonar i grov sjö: luftbubblor under kölen och rullning som slår ut sonardomen.
+SEA_PING_LOSS_FROM_B = 5
+SEA_PING_LOSS_DB = 3.0          # per steg från 5: 3, 6, 9 dB
+
+
+def sea_ping_loss_db(beaufort: int) -> float:
+    return max(0, int(beaufort) - SEA_PING_LOSS_FROM_B + 1) * SEA_PING_LOSS_DB
+
+
+# Radar och utkik mot periskop och antenn: sjöklotter. Räckvidden gånger detta (Beaufort 0–7);
+# till och med 3 gäller räckvidden som den är kalibrerad (RADAR_MAST_NM, jagarens MAST_NM), från
+# 4 drunknar masten i ekona från vågtopparna och skummet (ungefär halva vid 4, en fjärdedel vid 6).
+# En ubåt i ytläge påverkas mindre.
+RADAR_CLUTTER_F = (1.0, 1.0, 1.0, 1.0, 0.5, 0.35, 0.25, 0.2)
+RADAR_SURFACED_CLUTTER_F = (1.0, 1.0, 1.0, 1.0, 0.9, 0.8, 0.7, 0.6)
+
+
+# Sikten i hård vind: sjörök och regnbyar (gånger dag- och nattsikten), Beaufort 0–7
+SEA_VIS_F = (1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 0.6, 0.5)
+
+
+def radar_clutter_f(beaufort: int, surfaced: bool = False) -> float:
+    t = RADAR_SURFACED_CLUTTER_F if surfaced else RADAR_CLUTTER_F
+    return t[min(max(int(beaufort), 0), len(t) - 1)]
+
+
 @dataclass
 class Environment:
     profile: SoundProfile = field(default_factory=Thermocline)
@@ -252,8 +289,10 @@ class Environment:
     ice: IceField | None = None      # packis ovanför, se ice.py
     seabed: Seabed | None = None     # bottentopografi, se seabed.py
     tide: TidalStream | None = None  # tidvattenström (kustnära)
-    # sjögången (Beaufort 0–7). Än så länge bara det utkiken ser: bryggans och periskopets
-    # vågor, skum och gungande horisont. Ingen verkan på sonar, sikt eller radar.
+    # sjögången (Beaufort 0–7): havsbruset (`sea_noise_db`, Beaufort 3 är referensen för
+    # background_noise), jagarens ping (`sea_ping_loss_db`), flygets radar (sjöklotter), sikten
+    # (sjörök), vågtopparna som skymmer och periskopdjupet (se docs/system/hav.md). Kan ändras
+    # under spelet med `weather` (World sätter den varje tick).
     sea_state: int = 3
 
     def bottom_at(self, x: float, y: float) -> float:
@@ -273,10 +312,11 @@ class Environment:
         return self.profile.transmission_loss(range_nm, depth_a, depth_b)
 
     def noise_at(self, x: float, y: float) -> float:
-        """Bakgrundsbrus (dB) på platsen: isens brus om det finns is, annars havsbrus."""
+        """Bakgrundsbrus (dB) på platsen: isens brus om det finns is, annars havsbrus
+        efter sjögången (background_noise gäller vid Beaufort 3)."""
         if self.ice is not None:
             return self.ice.noise_at(x, y)
-        return self.background_noise
+        return self.background_noise + sea_noise_db(self.sea_state)
 
     def clock(self, sim_t: int) -> int:
         return (self.clock_start + sim_t) % 86400
@@ -303,11 +343,13 @@ class Environment:
     def light(self, sim_t: int) -> Light:
         """Ljuset vid simtid sim_t (sparas per sekund)."""
         cache = self.__dict__.setdefault("_light_cache", {})
-        key = (sim_t, self.clock_start, self.lat, self.date, self.sunrise, self.sunset)
+        key = (sim_t, self.clock_start, self.lat, self.date, self.sunrise, self.sunset,
+               self.sea_state)
         hit = cache.get(key)
         if hit is not None:
             return hit
-        vis = dict(day_vis=self.day_visibility_nm, night_vis=self.night_visibility_nm)
+        f = SEA_VIS_F[min(max(int(self.sea_state), 0), len(SEA_VIS_F) - 1)]
+        vis = dict(day_vis=self.day_visibility_nm * f, night_vis=self.night_visibility_nm * f)
         if self.lat is None or self.date is None:
             elev, az = self._fallback_sun(sim_t)
             out = Light(elev, az, **vis)

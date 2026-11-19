@@ -150,6 +150,7 @@ PHRASES = {
     else f"Batteriet nere på {d['level']:.0%}, kapten.",
     "air": lambda d: f"Koldioxidhalten är {nm(d['co2'])} procent och stiger.",
     "surfaced": lambda d: "Vi är i ytläge!",
+    "broach": lambda d: "Kapten, centralen! Sjön drog upp oss, tornet bröt ytan!",
     "leak_stopped": lambda d: "Läckan är tätad.",
     "hull.creak": lambda d: f"Skrovet knakar, kapten. {d['depth']:.0f} meter, under provdjup.",
     "damage": _damage,
@@ -329,6 +330,7 @@ RU_PHRASES = {
     "battery": lambda d: "Батарея разряжена, товарищ командир!" if d["level"] == 0
     else f"Заряд батареи {round(d['level'] * 100)} процентов, товарищ командир.",
     "surfaced": lambda d: "Мы в надводном положении!",
+    "broach": lambda d: f"{R.CAPTAIN}, центральный! Волной подняло, рубка показалась!",
     "leak_stopped": lambda d: "Течь заделана.",
     "hull.creak": lambda d: f"Корпус трещит, товарищ командир. {R.count(d['depth'], R.METER)}, "
     "ниже рабочей глубины.",
@@ -635,7 +637,7 @@ class EngineeringStation(Station):
                 if self.now - self._last_shock < 15:
                     continue
                 self._last_shock = self.now
-            alarm = type in ("reactor.scram", "damage", "surfaced", "ice.collision", "ice.bump",
+            alarm = type in ("reactor.scram", "damage", "surfaced", "broach", "ice.collision", "ice.bump",
                              "bottom.collision", "bottom.touch", "bottom.pressed", "net.caught",
                              "fire") or (type == "smoke" and data["level"] >= 0.7) or \
                 (type == "battery" and data["level"] <= 0.1)

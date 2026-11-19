@@ -38,7 +38,7 @@ from ..geo import angle_diff, norm360, velocity
 from ..ice import ice_view
 from ..orders import DESIG, CommandSpec, Order, Unknown, desig
 from ..ownship import PERISCOPE_DEPTH
-from ..periscope import (EVENT_S, sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
+from ..periscope import (EVENT_S, crest_m, sea_sigma_f, wave_height_m, sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
                          LandBearing, NIGHT_LAND,
                          HIGH, LOW, OPTICS, Optic, detectable,
                          Judges, PeriscopePicture, SightedObject, angle_on_bow, aob_quality,
@@ -165,6 +165,7 @@ PHRASES = {
     f"cirka {nm(d['range'])} sjömil. Sjunkbomber" + (", övningsladdningar." if d["practice"] else "!"),
     "off.periscope.hit": lambda d: f"Periskop: explosion i bäring {fmt_course(d['bearing'])}, cirka "
     f"{nm(d['range'])} sjömil! " + ("Ett eldklot, kapten!" if d["nuclear"] else "Eld och rök."),
+    "off.periscope.washed": lambda d: "Sjön sköljer över periskopet, kapten. Bilden kommer och går.",
     "off.periscope.aircraft": lambda d: f"Periskop: flygplan i bäring {fmt_course(d['bearing'])}, "
     f"cirka {nm(d['range'])} sjömil, " + ("lågt över vattnet" if d["low"] else "på höjd")
     + ". Tvåmotorigt patrullplan.",
@@ -200,6 +201,7 @@ RU_PHRASES = {
     + ("Учебные бомбы." if d["practice"] else "Глубинные бомбы!"),
     "off.periscope.hit": lambda d: f"Перископ: взрыв, пеленг {R.course(d['bearing'])}! "
     + ("Огненный шар!" if d["nuclear"] else "Огонь и дым."),
+    "off.periscope.washed": lambda d: f"{R.CAPTAIN}, перископ захлёстывает волной.",
     "off.periscope.aircraft": lambda d: f"Перископ: самолёт, пеленг {R.course(d['bearing'])}"
     + (", низко над водой!" if d["low"] else "."),
 }
@@ -304,6 +306,7 @@ class PeriscopeWatch(Station):
         self._shore_t = -10**9
         self._land_f: float | None = None               # avståndsbedömningens fel, en per hissning
         self._events: list[tuple[int, SightedObject]] = []    # (syns till, händelsen)
+        self._washed_said = False                       # "sjön sköljer över" en gång per hissning
 
     # --- order ------------------------------------------------------------------------
     def on_order(self, order: Order) -> None:
@@ -421,8 +424,21 @@ class PeriscopeWatch(Station):
         elif self.mode == "sweep":
             done = min(self.now - self._start_t, LOOK_S)
             self.train = norm360(self._sweep_from + SWEEP_DEG_S * done)
-        self._observe()
+        if self._washed():
+            if not self._washed_said:
+                self._washed_said = True
+                self.say("off.periscope.washed", kind="info")
+        else:
+            self._observe()
         self._step()
+
+    def _washed(self) -> bool:
+        """Vågtoppen över okularet denna sekund: inget syns (grov sjö). Ögat står högre när
+        sjön drar upp båten (`OwnShip.heave_m`)."""
+        own = self.own
+        if own.surfaced:
+            return False
+        return crest_m(self.world.env.sea_state, self.now) > EYE_PERISCOPE_M + own.heave_m
 
     def _mast_watch(self) -> None:
         """Masten länge uppe och ett hot i plottet: föreslå att fälla den."""
@@ -563,10 +579,11 @@ class PeriscopeWatch(Station):
     def _spots(self, kind: str, r: float, eye: float, bearing: float) -> bool:
         """Ser okularet fartyget? Titten letar i hög rakt mot bäringen och i låg runt omkring;
         svepet i låg; hålläget i den valda förstoringen (`periscope.detectable`)."""
+        wave = wave_height_m(self.world.env.sea_state)
         if self.mode == "look" and abs(angle_diff(bearing, self.train)) <= HIGH.half_fov and \
-                detectable(kind, r, eye, HIGH.power):
+                detectable(kind, r, eye, HIGH.power, wave):
             return True
-        return detectable(kind, r, eye, self.search.power)
+        return detectable(kind, r, eye, self.search.power, wave)
 
     def _judgement(self, key: str):
         return self._judges.get(key, self.now, self.rng, since=self._up_t)
@@ -578,15 +595,18 @@ class PeriscopeWatch(Station):
         full, short = SIGHTED.get(v.kind, ("ytfartyg", "fartyg"))
         day = light.phase == "dag"
         sil = light.silhouette(world.true_bearing(v))     # siluett, eller bara lanternor
-        part = visible_part(v.kind, r, eye) if sil else "ljus"
+        sea = world.env.sea_state
+        part = visible_part(v.kind, r, eye, wave_height_m(sea)) if sil else "ljus"
         opt = self.measure
         c_sig = AOB_SIGMA[part] if day or not sil else min(AOB_SIGMA["mastoppar"],
                                                            AOB_SIGMA[part] * TWILIGHT_AOB_F)
-        c_sig = min(c_sig * opt.aob_f, 60.0)
+        f = sea_sigma_f(sea)                              # grov sjö: sämre bedömning
+        c_sig = min(c_sig * opt.aob_f * f, 60.0)
         known = sil and light.daylight                    # klassning god ur siluetten
         bearing = norm360(world.true_bearing(v) + j.bearing * opt.bearing_sigma)
-        r_meas = max(0.05, r + j.range_rel * (opt.range_rel * r + opt.range_abs))
-        r_sig = opt.range_rel * r_meas + opt.range_abs     # vakthavande vet bara sitt mätta avstånd
+        rel, ab = opt.range_rel * f, opt.range_abs * f
+        r_meas = max(0.05, r + j.range_rel * (rel * r + ab))
+        r_sig = rel * r_meas + ab                         # vakthavande vet bara sitt mätta avstånd
         course = norm360(v.state.course + j.course * c_sig)
         speed = max(0, round(v.state.speed + j.speed * SPEED_SIGMA))
         aob = angle_on_bow(bearing, course)

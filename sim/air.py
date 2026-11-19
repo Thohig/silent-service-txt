@@ -21,6 +21,7 @@ from . import acoustics
 from .enemy import Datum, DestroyerAI
 from .entities import Emission, Transient, Vessel
 from .geo import NM_IN_M, bearing_to, distance, norm360
+from .environment import radar_clutter_f
 from .seabed import bottom_clutter
 from .ship import ShipState
 
@@ -141,10 +142,11 @@ class AircraftAI:
         world.emit_em(Emission("radar", p.x, p.y, self.vessel.id, world.time))
         own = world.own
         r = distance(p.x, p.y, own.state.x, own.state.y)
-        if own.surfaced:
-            det_r, prob = RADAR_SURFACED_NM, P_RADAR_SURFACED
+        sea = world.env.sea_state
+        if own.surfaced or own.broached(world.time):
+            det_r, prob = RADAR_SURFACED_NM * radar_clutter_f(sea, True), P_RADAR_SURFACED
         elif own.masts_up(world.time):
-            det_r, prob = RADAR_MAST_NM, P_RADAR_MAST
+            det_r, prob = RADAR_MAST_NM * radar_clutter_f(sea), P_RADAR_MAST
         else:
             return
         if r < det_r and self.rng.random() < prob:

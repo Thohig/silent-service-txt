@@ -51,7 +51,7 @@ def convoy_scenario(rng: random.Random, run_in_nm: tuple[float, float] = (16.0, 
     """Konvojen: krig, en eskorterad konvoj sicksackar förbi; sänk ett fartyg och kom undan."""
     start_clock = 6 * 3600 + 30 * 60                   # 06:30, just efter gryningen
     size = 20.0
-    env = Environment(clock_start=start_clock, sea_state=4, **_place(CONVOY_PLACE))
+    env = Environment(clock_start=start_clock, sea_state=5, **_place(CONVOY_PLACE))   # hård vind
     ox, oy = size / 2, rng.uniform(5.0, 8.0)
     own = OwnShip(ShipState(x=ox, y=oy, course=0, speed=4, depth=60, max_depth=400))
     world = World(own=own, env=env, rng=random.Random(rng.random()), size_nm=size,

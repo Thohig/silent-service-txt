@@ -25,7 +25,7 @@ from ..geo import bearing_to, distance, norm360, velocity
 from ..ice import ice_view
 from ..ownship import BRIDGE_CLEAR_S
 from ..seabed import shore_ranges
-from ..periscope import (EVENT_S, sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, NIGHT_LAND, IceBearing, Judgement, Judges, LandBearing,
+from ..periscope import (EVENT_S, sea_sigma_f, wave_height_m, sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, NIGHT_LAND, IceBearing, Judgement, Judges, LandBearing,
                          PeriscopePicture, SightedObject, angle_on_bow, aob_quality, lights,
                          detectable, range_quality, visible_part)
 from ..reports import Quality
@@ -211,7 +211,8 @@ class BridgeWatch(Station):
             if r <= vis and not world.in_sight(v.state.x, v.state.y):
                 continue                        # bakom land
             if v.is_ship and v.depth < 10 and r <= vis:
-                if not detectable(v.kind, r, EYE_BRIDGE_M, BINOC_POWER):
+                if not detectable(v.kind, r, EYE_BRIDGE_M, BINOC_POWER,
+                                  wave_height_m(world.env.sea_state)):
                     continue                    # under horisonten eller för litet i kikaren
                 objects.append(self._ship(v, r, light))
             elif v.kind == "aircraft" and day and r <= vis:
@@ -311,13 +312,17 @@ class BridgeWatch(Station):
         full, short = SIGHTED.get(v.kind, ("ytfartyg", "fartyg"))
         day = light.phase == "dag"
         sil = light.silhouette(world.true_bearing(v))     # siluett, eller bara lanternor
-        part = visible_part(v.kind, r, EYE_BRIDGE_M) if sil else "ljus"
+        sea = world.env.sea_state
+        part = visible_part(v.kind, r, EYE_BRIDGE_M, wave_height_m(sea)) if sil else "ljus"
         c_sig = AOB_SIGMA[part] if day or not sil else min(AOB_SIGMA["mastoppar"],
                                                            AOB_SIGMA[part] * TWILIGHT_AOB_F)
+        f = sea_sigma_f(sea)                              # grov sjö: sämre bedömning
+        c_sig = min(c_sig * f, 60.0)
         known = sil and light.daylight                    # klassning god ur siluetten
         bearing = norm360(world.true_bearing(v) + j.bearing * BEARING_SIGMA)
-        r_meas = max(0.05, r * (1 + j.range_rel * BINOC_RANGE_REL) + j.range_abs * BINOC_RANGE_ABS)
-        r_sig = BINOC_RANGE_REL * r_meas + BINOC_RANGE_ABS   # utkiken vet bara sitt mätta avstånd
+        rel, ab = BINOC_RANGE_REL * f, BINOC_RANGE_ABS * f
+        r_meas = max(0.05, r * (1 + j.range_rel * rel) + j.range_abs * ab)
+        r_sig = rel * r_meas + ab                         # utkiken vet bara sitt mätta avstånd
         course = norm360(v.state.course + j.course * c_sig)
         speed = max(0, round(v.state.speed + j.speed * SPEED_SIGMA))
         aob = angle_on_bow(bearing, course)

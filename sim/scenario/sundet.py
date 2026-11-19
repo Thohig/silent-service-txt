@@ -64,7 +64,7 @@ def strait_scenario(rng: random.Random, short: bool = False, out: bool = False) 
     shore_c = float(coast.shore(cx))
     tide = TidalStream(flood_set=0.0, peak_kn=rng.uniform(0.9, 1.3),
                        phase_s=rng.uniform(0, 44712))
-    env = Environment(clock_start=start_clock, sea_state=2, background_noise=64.0, current_set=270.0,
+    env = Environment(clock_start=start_clock, sea_state=2, background_noise=66.5, current_set=270.0,  # 64 dB vid sjö 2
                       current_kn=0.2, seabed=seabed, tide=tide, **_place(GUANTANAMO_PLACE))
     own = OwnShip(ShipState(x=cx + rng.uniform(-3.0, 3.0), y=1.5, course=0, speed=5, depth=100,
                             max_depth=400))

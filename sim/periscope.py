@@ -72,10 +72,11 @@ def hidden_height_m(range_nm: float, eye_m: float) -> float:
     return 0.0 if beyond <= 0 else (beyond / HORIZON_K) ** 2
 
 
-def visible_part(kind: str, range_nm: float, eye_m: float) -> str:
-    """helt, överbyggnad eller mastoppar, ur avstånd och ögonhöjd."""
+def visible_part(kind: str, range_nm: float, eye_m: float, wave_m: float = 0.0) -> str:
+    """helt, överbyggnad eller mastoppar, ur avstånd och ögonhöjd; vågtopparna (wave_m)
+    skymmer lika mycket till."""
     hull, sup, _mast = HEIGHTS.get(kind, DEFAULT_HEIGHTS)
-    hidden = hidden_height_m(range_nm, eye_m)
+    hidden = hidden_height_m(range_nm, eye_m) + wave_m
     if hidden < 0.5 * hull:
         return "helt"
     if hidden < sup:
@@ -96,12 +97,13 @@ def apparent_arcmin(height_m: float, range_nm: float) -> float:
     return math.degrees(height_m / max(range_nm * 1852.0, 1.0)) * 60.0
 
 
-def detectable(kind: str, range_nm: float, eye_m: float, power: float) -> bool:
+def detectable(kind: str, range_nm: float, eye_m: float, power: float,
+               wave_m: float = 0.0) -> bool:
     """Syns fartyget i en optik med denna förstoring? Det som ligger under horisonten aldrig;
     annars om dess skenbara höjd över horisonten gånger förstoringen är minst DETECT_ARCMIN.
     Med hög förstoring (6×) är det ungefär allt över horisonten, med låg (1,5×) tappas små
     och avlägsna fartyg (en patrullbåt bortom ~7 nm, mastoppar vid horisonten)."""
-    h = exposed_height_m(kind, range_nm, eye_m)
+    h = exposed_height_m(kind, range_nm, eye_m) - wave_m
     return h > 0 and apparent_arcmin(h, range_nm) * power >= DETECT_ARCMIN
 
 
@@ -111,6 +113,24 @@ WAVE_M = (0.0, 0.1, 0.3, 0.6, 1.0, 2.0, 3.0, 4.0)
 
 def wave_height_m(beaufort: int) -> float:
     return WAVE_M[min(max(int(beaufort), 0), len(WAVE_M) - 1)]
+
+
+def wave_period_s(beaufort: int) -> float:
+    """Sjöns period (s): längre vågor i hårdare vind."""
+    return 5.0 + min(max(int(beaufort), 0), 7)
+
+
+def crest_m(beaufort: int, t: int) -> float:
+    """Vågtoppen vid periskopet just nu (m över medelytan): höga toppar sköljer över okularet.
+    Toppen kommer en kvarts period efter sjöns sug (båten dras upp i vågdalen)."""
+    h = wave_height_m(beaufort)
+    return 0.8 * h * math.sin(2 * math.pi * t / wave_period_s(beaufort) - math.pi / 2)
+
+
+def sea_sigma_f(beaufort: int) -> float:
+    """Bedömningarna i grov sjö: avståndet (stadimetern mot en gungande horisont) och kursen
+    har så här mycket större σ; 1 till och med Beaufort 3, sedan 10 % per steg."""
+    return 1.0 + 0.1 * max(0, int(beaufort) - 3)
 
 
 # händelser utkiken kan se: hur högt de når (m) och hur länge de syns (s). Ett plask från en

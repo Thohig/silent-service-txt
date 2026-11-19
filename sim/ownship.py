@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from . import acoustics, trim
 from .entities import Transient, Vessel
+from .periscope import wave_height_m, wave_period_s
 from .trim import TrimState
 
 if TYPE_CHECKING:
@@ -39,6 +40,17 @@ ASTERN_PLANES = 0.3           # djuprodrens bärförmåga akterut, andel
 REPAIR_S = 1200               # tid att reparera en komponent helt
 BRIDGE_MAN_S = 20             # luckan öppen och utkikarna uppe så här länge efter att vi kommit upp
 BRIDGE_CLEAR_S = 20           # bryggan utryms och luckan stängs innan vi kan dyka
+# Sjön suger (V3): nära ytan drar vågornas tryck båten uppåt i takt med sjön. Utslaget växer
+# med våghöjden, minskar med farten (rodren tar) och med djupet. Når tornets topp ytan
+# (kölen grundare än BROACH_DEPTH_M) bryter tornet ytan och syns en stund.
+HEAVE_FROM_B = 4              # från denna Beaufort
+HEAVE_K = 2.4                 # utslag (m) per meter våghöjd i låg fart på periskopdjup
+HEAVE_SPEED_FROM_KN = 2.0     # över denna fart tar rodren …
+HEAVE_SPEED_PER_KN = 0.12     # … så här mycket per knop
+HEAVE_SPEED_MIN_F = 0.3
+HEAVE_DECAY_M = 10.0          # under periskopdjup avtar suget med e-faldning per så många meter
+BROACH_DEPTH_M = 13.0         # kölen så grunt: tornets topp i ytan
+BROACH_S = 15                 # tornet syns så länge efter att det brutit ytan
 COMPONENTS = ("sonar", "planes", "propulsion", "tubes", "periscope", "radio")
 COMPONENT_LABEL = {
     "sonar": "sonaren", "planes": "rodren", "propulsion": "framdrivningen",
@@ -79,12 +91,24 @@ class OwnSystems:
     bridge: str = "shut"
     bridge_t: int = 0                # när pågående öppning eller utrymning är klar
     periscope_until: int = -1
+    broach_until: int = -1           # tornet bröt ytan och syns till dess
     radar_until: int = -1
     transmit_until: int = -1
     trim: TrimState = field(default_factory=TrimState)
     alerts: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
     _battery_warned: set = field(default_factory=set)
     _last_creak: int = -10**9
+
+
+def heave_speed_f(speed: float) -> float:
+    """Hur mycket av sjöns sug som når båten i denna fart (rodren tar emot)."""
+    return min(1.0, max(HEAVE_SPEED_MIN_F,
+                        1.0 - (abs(speed) - HEAVE_SPEED_FROM_KN) * HEAVE_SPEED_PER_KN))
+
+
+def heave_depth_f(depth: float) -> float:
+    """Hur mycket av sjöns sug som når ned till detta djup."""
+    return 1.0 if depth <= PERISCOPE_DEPTH else math.exp(-(depth - PERISCOPE_DEPTH) / HEAVE_DECAY_M)
 
 
 class OwnShip(Vessel):
@@ -94,6 +118,8 @@ class OwnShip(Vessel):
         state.brake_accel = BRAKE_KN_PER_S
         state.astern_turn = ASTERN_TURN
         self._reversing = False          # maskinen slog mot farten förra sekunden
+        self.heave_amp_m = 0.0           # sjöns sug: utslaget just nu (djupmätaren visar det)
+        self.heave_m = 0.0               # och hur högt sjön drar oss denna sekund
         if state.depth <= 1.0:
             self.sys.bridge = "manned"       # börjar i ytläge med folk på bryggan
 
@@ -132,6 +158,28 @@ class OwnShip(Vessel):
     @property
     def surfaced(self) -> bool:
         return self.state.depth <= 1.0
+
+    def broached(self, now: int) -> bool:
+        """Tornet bröt nyss ytan (sjön drog upp oss): syns som en ubåt i ytläge."""
+        return self.sys.broach_until > now and not self.surfaced
+
+    # ------------------------------------------------------------------ sjön suger
+    def heave_amplitude(self, sea_state: int) -> float:
+        """Hur mycket sjön drar båten mot ytan (m), ur sjögången, farten och djupet."""
+        st, s = self.state, self.sys
+        if sea_state < HEAVE_FROM_B or self.surfaced or self.bridge_open or s.on_bottom:
+            return 0.0
+        speed_f = heave_speed_f(st.speed)
+        return HEAVE_K * wave_height_m(sea_state) * speed_f * heave_depth_f(st.depth)
+
+    def _heave_step(self, world: World) -> None:
+        now, sea = world.time, world.env.sea_state
+        self.heave_amp_m = amp = self.heave_amplitude(sea)
+        self.heave_m = amp * max(0.0, math.sin(2 * math.pi * now / wave_period_s(sea)))
+        if amp > 0 and self.state.depth - self.heave_m < BROACH_DEPTH_M:
+            if self.sys.broach_until <= now:
+                self.alert("broach")
+            self.sys.broach_until = now + BROACH_S
 
     @property
     def bridge_open(self) -> bool:
@@ -399,6 +447,7 @@ class OwnShip(Vessel):
             if before > 0 and s.leak_rate == 0:
                 self.alert("leak_stopped")
         self._trim_step(world, dt, regen)
+        self._heave_step(world)
 
         # skrov
         if st.depth > TEST_DEPTH:

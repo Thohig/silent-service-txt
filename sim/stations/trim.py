@@ -22,6 +22,7 @@ from .. import trim as T
 from ..crew import Role
 from ..fmt import nm
 from ..orders import CommandSpec, Order
+from ..ownship import BROACH_DEPTH_M, heave_depth_f, heave_speed_f
 from ..reports import Quality
 from ..russian import ru
 from ..systems import INFO, OFF, OK, WARN, Gauge, TrimTanks
@@ -41,6 +42,15 @@ FORE_SIGMA_T = 0.2             # lutningsmätaren
 SIGMA_QUALITY = (0.4, 0.8, 1.6)    # σ (ton) under: säker, god, osäker; annars dålig
 REPORT_PUMP_T = 2.0            # så stora trimningar säger han till om
 NOTHING_T = 0.1                # `trimma` med mindre obalans: inget att pumpa
+# Sjön suger (V3): djupmätaren slår i takt med sjön. Trimmaren ser utslaget och vet hur grunt
+# kölen kan gå innan tornet bryter ytan (BROACH_DEPTH_M); när marginalen är under en meter
+# föreslår han mer fart (rodren tar) eller djupare.
+HEAVE_SHOW_M = 0.5             # så stort utslag visas på tavlan
+HEAVE_SENSE_M = 0.05           # mindre utslag än så syns inte på djupmätaren
+HEAVE_MARGIN_M = 1.0           # marginal till ytan som räcker
+HEAVE_MAX_KN = 7               # fortare går inte med masten uppe
+HEAVE_SAFE_DEPTH = 25
+HEAVE_EVERY_S = 600
 
 
 @dataclass(frozen=True)
@@ -114,6 +124,11 @@ PHRASES = {
     "båten är trimmad. Ber att få trimma först.",
     "trim.hover.end": lambda d: "Ligger inte längre still, rodren håller djupet.",
     "trim.done": lambda d: "Båten är trimmad, pumparna stoppade.",
+    "trim.heave": lambda d: f"Kapten, trim. Sjön suger oss mot ytan, på periskopdjup slår djupet "
+    f"{nm(d['amp'])} meter. "
+    "Tornet kan bryta ytan. "
+    + (f"Föreslår fart {d['speed']}, då tar rodren." if d.get("speed") else
+       f"Föreslår djup {d['depth']}, där suger det mindre."),
 }
 phrases.register(PHRASES)
 
@@ -160,6 +175,9 @@ RU_PHRASES = {
     "нельзя, пока лодка не удифферентована. Прошу удифферентоваться.",
     "trim.hover.end": lambda d: "Больше не стоим без хода, глубину держат рули.",
     "trim.done": lambda d: "Лодка удифферентована, насосы остановлены.",
+    "trim.heave": lambda d: f"{R.CAPTAIN}, трюмный. Волна подсасывает лодку, глубина гуляет на "
+    f"{R.dec(d['amp'], R.METER)}. Рубка может показаться. "
+    + ("Предлагаю увеличить ход." if d.get("speed") else "Предлагаю уйти на глубину."),
 }
 phrases.register_ru(RU_PHRASES)
 
@@ -323,6 +341,28 @@ class TrimStation(Station):
         if was_pumping and not t.pumping and self._announced:
             self._announced = False
             self.say("trim.done")
+        self._heave_advice()
+
+    def _heave_advice(self) -> None:
+        """Djupmätaren slår (sjön suger): föreslå fart eller djup innan tornet bryter ytan.
+        På väg upp räknar trimmaren om utslaget till det beordrade djupet (suget avtar med
+        djupet på känt sätt), så att förslaget kommer innan vi är där."""
+        own = self.own
+        st, amp = own.state, own.heave_amp_m
+        if amp <= HEAVE_SENSE_M or own.surfaced or st.ordered_depth > HEAVE_SAFE_DEPTH:
+            return
+        target = min(st.depth, st.ordered_depth)
+        amp_t = amp * heave_depth_f(target) / heave_depth_f(st.depth)
+        if target - amp_t - BROACH_DEPTH_M >= HEAVE_MARGIN_M:
+            return
+        now_f = heave_speed_f(st.speed)
+        speed = next((v for v in range(max(int(st.speed) + 1, 3), HEAVE_MAX_KN + 1)
+                      if target - amp_t * heave_speed_f(v) / now_f - BROACH_DEPTH_M >= HEAVE_MARGIN_M),
+                     None)
+        data = {"amp": amp_t, "speed": speed, "depth": HEAVE_SAFE_DEPTH}
+        self.suggest("heave", "trim.heave", data,
+                     order=f"fart {speed}" if speed else f"djup {HEAVE_SAFE_DEPTH}",
+                     cooldown=HEAVE_EVERY_S, quality=Quality.GOD, alarm=True)
 
     def idle_proposals(self) -> list[Proposal]:
         t = self.own.sys.trim
@@ -362,6 +402,11 @@ class TrimStation(Station):
             g("Pumpar", "stilla")
         if t.hover:
             g("Ligg still", f"på {own.state.depth:.0f} m", INFO)
+        amp = own.heave_amp_m
+        if amp >= HEAVE_SHOW_M:
+            close = own.state.depth - amp - BROACH_DEPTH_M < HEAVE_MARGIN_M
+            g("Sjön suger", f"djupet slår {nm(amp)} m" + (", tornet nära ytan" if close else ""),
+              WARN if close else INFO)
         shift = t.fore_ballast_t / (2 * T.FORE_MAX_T)
         items.append(TrimTanks(fore=0.5 + shift, compensating=(t.ballast_t - T.BALLAST_MIN_T) / span,
                                aft=0.5 - shift, pitch=t.pitch))

@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING
 
 from . import acoustics
 from .entities import Transient, Vessel
-from .environment import MOON_SIL_DEG, MOON_SIL_LIGHT
+from .environment import MOON_SIL_DEG, MOON_SIL_LIGHT, radar_clutter_f, sea_ping_loss_db
 from .geo import angle_diff, bearing_to, distance, norm360
 from .seabed import bottom_clutter, shallow_reverb
 from .weapons import Decoy, Torpedo, drop_charges
@@ -256,10 +256,12 @@ class DestroyerAI:
         if own.sunk:
             return
         r = distance(self.vessel.state.x, self.vessel.state.y, own.state.x, own.state.y)
-        if own.surfaced:
-            det_r, p = 6.0 + 4.0 * world.env.light(world.time).level, 0.2   # dag 10, natt 6
+        sea = world.env.sea_state
+        if own.surfaced or own.broached(world.time):     # i ytläge, eller tornet bröt ytan
+            det_r = (6.0 + 4.0 * world.env.light(world.time).level) * radar_clutter_f(sea, True)
+            p = 0.2                                     # dag 10, natt 6 nm i lugn sjö
         elif own.masts_up(world.time):
-            det_r, p = self.MAST_NM, self.MAST_P * self.glitter_factor(world)
+            det_r, p = self.MAST_NM * radar_clutter_f(sea), self.MAST_P * self.glitter_factor(world)
         else:
             return
         if r < det_r and self.rng.random() < p:
@@ -318,6 +320,7 @@ class DestroyerAI:
                                          self._noise_toward(world, noise, tgt), DT_ACTIVE) \
                 - self._wake_clutter(world, tgt) - bottom_clutter(world, tgt) \
                 - shallow_reverb(world, tgt.state.x, tgt.state.y) \
+                - sea_ping_loss_db(world.env.sea_state) \
                 + self.rng.gauss(0, 3)
             if se > 0:
                 echoes.append((tgt, se))

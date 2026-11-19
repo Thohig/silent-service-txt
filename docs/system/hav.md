@@ -88,3 +88,28 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   NAVIGATION har raden Ström. Mot sanningen (`tests/test_current.py`, kuba, 0,4 kn, fix var 25:e min i 3 h,
   8 frön): medianfel < 0,15 kn, besticket en timme efter sista fixen ~0,66 av felet utan strömmen. Arktis med
   ja-boten: drivstationen 4 ⇒ 6 av 8 (`kontroll.py`, ny baslinje).
+- **Sjögången** (`Environment.sea_state`, Beaufort 0–7; V1–V4 2026-11-19). Grov sjö är dålig för
+  båda sidor: vi hör och ser sämre, men jagarens sonar och flygets radar också. Scenarierna: arktis och
+  duell 1 (under isen gäller isens brus), övning och sundet 2, kuba och jagad 3, konvoj 5 (höjd från 4).
+  - Havsbrus (`sea_noise_db`): `noise_at` = `background_noise` + 2,5 dB per Beaufortsteg från 3
+    (background_noise gäller vid 3; övningen och sundet fick 64,5/66,5 dB så att de är oförändrade vid 2).
+    Gäller vår sonar, jagarens passiva lyssning och bojarna; inte under isen.
+  - Jagarens ping (`sea_ping_loss_db`): 3 dB förlust per steg från 5 (bubblor under kölen, rullning).
+  - Radar och utkik mot masterna (`radar_clutter_f`): sjöklotter, räckvidden ×1 till och med 3, ×0,5 vid
+    4, ×0,35 vid 5, ×0,25 vid 6 (flygets `RADAR_MAST_NM`, jagarens `MAST_NM`); i ytläge mindre (×0,8 vid 5).
+  - Sikten (`SEA_VIS_F` i `Environment.light`): ×0,8 vid 5, ×0,6 vid 6, ×0,5 vid 7 (sjörök, regnbyar).
+  - Vågtopparna (`periscope.WAVE_M`, signifikant våghöjd 0,6 m vid 3, 2 m vid 5, 3 m vid 6) skymmer lika
+    mycket till av fartyg (`detectable`, `visible_part`) och händelser (`event_visible`): små båtar och
+    plask försvinner tidigare, skrovet går under horisonten tidigare. Bedömningarna (`sea_sigma_f`):
+    avståndets och kursens σ ×(1 + 0,1 per steg över 3), både periskopet och bryggan; kvaliteten följer σ.
+  - Sjön suger (`OwnShip.heave_amplitude`, `_heave_step`): från 4 drar vågtrycket båten mot ytan i takt
+    med sjön (period 5 + B s). Utslaget 2,4 m per meter våghöjd i ≤ 2 kn på periskopdjup, ×(1 − 0,12 per
+    knop över 2, minst 0,3), avtar under 18 m med e-faldning 10 m. Kölen grundare än 13 m (`BROACH_DEPTH_M`)
+    ⇒ tornet bryter ytan (`broach`, larm från centralen) och syns 15 s som en ubåt i ytläge för flyget och
+    jagaren (`OwnShip.broached`). Vid 5 och periskopdjup (17 m) bryter det i ≤ 3 kn, inte i 6 kn; vid 6
+    behövs ~6 kn, vid 7 ~7 kn (högsta fart med masten uppe). Trimmaren ser utslaget på djupmätaren
+    (systemtavlan "Sjön suger"), räknar om det till det beordrade djupet på väg upp och föreslår
+    `fart N` eller `djup 25` när marginalen till ytan är under 1 m (`trim.heave`, larmförslag).
+  - Periskopet sköljs över (`periscope.crest_m`): vågtoppen (0,8 × våghöjden) når över ögat (1,5 m plus
+    sjöns sug) en del av tiden; de sekunderna ser okularet inget. Vid 5 ~10 %, vid 6 ~30 % av tiden.
+    `off.periscope.washed` en gång per hissning.

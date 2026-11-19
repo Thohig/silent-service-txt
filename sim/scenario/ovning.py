@@ -67,7 +67,7 @@ def training_scenario(rng: random.Random) -> Scenario:
     mouth_y = fj.shore_y
     tide = TidalStream(flood_set=190.0, peak_kn=rng.uniform(0.8, 1.2),
                        phase_s=rng.uniform(0, 44712))
-    env = Environment(clock_start=TRAINING_CLOCK, sea_state=2, background_noise=62.0, current_set=270.0,
+    env = Environment(clock_start=TRAINING_CLOCK, sea_state=2, background_noise=64.5, current_set=270.0,  # 62 dB vid sjö 2
                       current_kn=0.1, seabed=seabed, tide=tide, **_place(KOLA_PLACE, 3.0))
     # ut från kajen: på farledens styrbordssida, kurs längs första benet, i ytläge
     (ax, ay), (bx, by) = path[0], path[1]

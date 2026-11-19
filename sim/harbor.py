@@ -68,7 +68,7 @@ class HydrophoneLine:
             return
         o = own.state
         lvl = own.radiated_level(world.env)
-        noise = max(world.env.background_noise, COASTAL_NOISE_DB)
+        noise = max(world.env.noise_at(o.x, o.y), COASTAL_NOISE_DB)
         for hx, hy in self.points:
             r = max(0.02, distance(hx, hy, o.x, o.y))
             n = self._noise(world, hx, hy, noise)
