@@ -94,13 +94,6 @@ En patrull 1–28 okt där scenarierna blir uppdrag med transiter emellan; starp
 - **Öppna frågor:** Holy Loch eller en påhittad bas (en påhittad norsk fjord vore mindre arbete i N4)?
   Tidvattnet kraftigare än verkligheten (Clyde mest 0,5–1,5 kn, starkast i Kilbrannan Sound)?
 
-## Arkitektur
-
-- **Talet renderat i processen.** Talet och effektljuden går genom mixern (`MixPlayer`, `MacSynth`, se
-  `docs/system/granssnitt.md`). `say -o` tar 0,55–0,75 s per replik; `NSSpeechSynthesizer` i processen med
-  rösten laddad 20–60 ms. Att rendera i processen (pyobjc-Cocoa på macOS, en syntes per röst) tar bort
-  fördröjningen.
-
 ## Gränssnitt
 
 - **M4 tjänsteblad** (huvudmenyn): spelade uppdrag med utfall, datum och frö sparade i fil mellan körningar.
