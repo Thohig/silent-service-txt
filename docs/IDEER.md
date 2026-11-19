@@ -14,8 +14,6 @@ när något går fel, ger högst en ny order (helst ingen) och syns i de vyer so
 Inga just nu (långvågen byggd 2026-11-19).
 
 Bara med det som behöver dem:
-- **Luften** (syre, koldioxid, regenereringspatroner): slås ihop med koldioxiden som finns, i maskins
-  rapporter och på systemtavlan; betydelse först om något kräver det.
 - **Omladdningen hörs:** omladdningen tar redan 5 minuter; det som saknas är att den slamrar (en transient
   jagaren kan höra).
 

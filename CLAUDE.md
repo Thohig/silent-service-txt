@@ -138,7 +138,7 @@ däckskanon, fler vyer (t.ex. plottbord, eldledning, besättningslista, hydrolog
 de vyer som finns), vakter och trötthet som system, besättningen som människor (personligheter,
 moral; starpom räcker), scenarierna Haveri (K-19), Räddningen, Spaningen och Avhopp, slumpade
 kriser, svårighet via besättningens kunskap, ljuskulor, undervattenstelefon i fler scenarier,
-primärkrets och strålningsdos, nödutrymning, tjänsteblad (spelade uppdrag sparade mellan körningar), huvudbarlast och hydraulik som system, tröghets- och
+primärkrets och strålningsdos, nödutrymning, tjänsteblad (spelade uppdrag sparade mellan körningar), luften som system (syre, regenereringspatroner), huvudbarlast och hydraulik som system, tröghets- och
 radionavigering i Arktis. Riktlinje: realismen ligger hos besättningen (rapporter, förslag, fel som
 märks), högst en ny order per system, inga nya vyer (se `docs/IDEER.md`).
 
