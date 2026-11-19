@@ -3,6 +3,34 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-19 – periskopets händelser, sjögångens verkan, vädret och siluetterna i braille
+
+Byggt i ordningen P1–P2, V1–V4, V5, SB1–SB3. Tester i `tests/test_periscope_events.py`,
+`tests/test_sea_effects.py`, `tests/test_weather.py` och `tests/test_silhouettes.py`. Detaljer i
+`docs/system/utkik.md` (Periskopet, Periskopbilden) och `docs/system/hav.md` (Sjögången, Vädret).
+
+- **P1–P2 Periskopet ser händelser** (`sim/stations/lookout.py`, delad med bryggan). Plask, vattenpelare och
+  träffar i okularet, bara det som når över horisonten och vågtopparna (plask 5 m, pelare 25 m, träff 60 m):
+  ögat 1,5 m upp ser ett plask på ~6 nm, en pelare på ~12. `off.periscope.column`/`hit`, okularet ritar
+  dem, och utkiken (bryggan och periskopet) ger plottet blyertsmärken där det syntes (`EventSighted`).
+- **V1–V4 Sjögångens verkan.** Havsbrus +2,5 dB per Beaufortsteg från 3, jagarens ping −3 dB per steg från
+  5, sjöklotter mot masterna från 4 (flyget och jagaren), sjörök från 5, vågtopparna skymmer fartyg och
+  plask, bedömningarnas σ +10 % per steg över 3. Grov sjö är alltså dålig för båda sidor.
+  Sjön suger båten mot ytan nära ytan från 4: i låg fart på periskopdjup i Beaufort 5 bryter tornet ytan
+  och syns 15 s som en ubåt i ytläge. Trimmaren ser djupmätaren slå och föreslår fart eller djup innan
+  (larmförslag); periskopet sköljs över en del av tiden. Konvojen går i Beaufort 5.
+- **V5 Vädret** (`sim/weather.py`). Sjögången ändras ett steg i taget, högst var 30–60:e minut, mot
+  prognosen i ordern (`VÄDER:`): kuba 3 → 4, konvoj 5 (4–6). Egen slumpström. Bryggan, periskopet och
+  sonaren (havsbruset) säger till när sjön ändrats.
+- **SB1–SB3 Siluetterna i braille** (`ui/silhouettes.py`). Profiler i meter med samma höjder som utkiken
+  räknar med, projicerade efter vinkeln på bogen, skurna av horisonten och vågorna, i verklig vinkelstorlek
+  men med minsta masthöjd 8 prickar (låg, bryggan) och 20 (hög, kikaren); i verklig skala vore en jagare på
+  2 nm nästan osynlig i låg. Bogvåg efter farten, rök ur ångarna, vattenpelaren som stiger och faller.
+  ASCII-siluetterna borta.
+- **Kalibreringen** (`kontroll.py`, 8 frön): allt som baslinjen utom konvojerna (Beaufort 5): konvoj ja
+  missar efter 149 min mot 112, konvoj-mot passiv anfallen 4 ⇒ 2. Baslinjen sparad för konvojerna.
+  `konvoj_salva.py konvoj-kort`: 1 sänkt av 8 (förut 0–2).
+
 ## 2026-11-19 – back i maskin (B1–B4)
 
 Tester i `tests/test_astern.py`. Detaljer i `docs/system/besattning.md` (Back i maskin).

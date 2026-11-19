@@ -43,6 +43,16 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 ## Siffrorna
 
+**Sjögången och vädret (2026-11-19, V1–V5, `kontroll.py`, 8 frön):** alla scenarier som baslinjen utom
+konvojerna, som nu går i Beaufort 5 (4–6 med vädret): `konvoj` ja convoy_missed median 112 ⇒ 149 min (alla
+8 missar som förut), `konvoj-mot` passiv convoy_attacked 4 ⇒ 2 och patrol_end 1 ⇒ 4, ja convoy_missed median
+21 ⇒ 28 min. Kuba med vädret (3 → 4 efter 2 h), jagad, övning, sundet, arktis och duell oförändrade (B ≤ 3
+ger samma brus, radar och σ som förut; övning och sundet fick background_noise +2,5 dB för att vara det vid
+2). Baslinjen sparad för konvoj, konvoj-kort och konvoj-mot. `konvoj_salva.py konvoj-kort 8`: 1 sänkt
+(frö 2), 1 neutralt (frö 4, som förut), mot 0–2 förut. Ja-boten i konvoj-kort (4 frön): trimmaren
+föreslår fart 6 på väg upp till periskopdjup i 3 av 4; med ja bröt tornet aldrig ytan
+(utan förslaget före djupet bröt det i 2 av 4).
+
 **Duellen (2026-11-18, `duell.py`, 8 frön; utfall, i parentes andra utfall):**
 - `duell`: passiv förlorad 6 (undan 2); ja-boten undan 3 (tiden ute 5, aldrig förlorad); verktygsboten
   sänkt 2, undan 2 (tiden ute 4). Första rapport ≤ 61 s.

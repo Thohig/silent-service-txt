@@ -1,6 +1,6 @@
 # K-114 – idéer och förbättringar som inte är byggda
 
-Samlat 2026-11-15 ur tidigare samtal, uppdaterat 2026-11-18 (kväll). Inget av detta är beställt; varje punkt
+Samlat 2026-11-15 ur tidigare samtal, uppdaterat 2026-11-19. Inget av detta är beställt; varje punkt
 väntar på kaptenens (användarens) beslut. Det som redan är byggt står i CLAUDE.md och README.md;
 konkreta öppna uppgifter (köra om, prova, utreda) i `docs/TODO.md`.
 
@@ -49,10 +49,10 @@ automatiska tidsskala (2026-11-18).
 sonarpanelen räknar, profilens band heter "sonar hörde", utkikens avstånd i periskopbilden,
 sjögång i bilden (`Environment.sea_state`).
 
-**Sjögångens verkan (F5b, "avvakta"):** sjögången bara i bilden än så länge. Nästa steg vore
-verkan: bakgrundsbrus (havsbrus efter Beaufort), utkikens sikt och bedömningsfel, flygets radar
-mot master, periskopdjupet (masten sköljs över, svårare hålla djupet) och kanske slumpad sjögång
-per uppdrag. Kräver ny kalibrering.
+~~**Sjögångens verkan (F5b)**~~ – byggd 2026-11-19 (V1–V5, se `docs/system/hav.md`): havsbrus, jagarens
+ping, sjöklotter mot masterna, sikten, vågtopparna, sjön som suger båten mot ytan (tornet kan bryta ytan),
+periskopet som sköljs över, och vädret som ändras under uppdraget. Kvar som idé: väderprognos i stabens
+telegram i en kampanj, sjögången per uppdrag slumpad ur årstiden.
 
 **Framtidsspår med insats:**
 1. ~~Braille i sjökort, profil och brygga~~ – byggt 2026-11-17.
@@ -66,10 +66,10 @@ per uppdrag. Kräver ny kalibrering.
 
 Byggt: låg/hög förstoring med σ efter förstoringen, svep i låg och titt i hög, upptäckt efter
 vinkelstorlek och horisont, okularet efter förstoringen med stadimeterns streck, utkikens kikare 7×
-och kikaren i bryggvyn. Kvar som idé: siluetter i braille skalade steglöst efter vinkelstorleken.
+och kikaren i bryggvyn. ~~Siluetter i braille~~ byggda 2026-11-19 (SB1–SB3, `ui/silhouettes.py`).
 
-Periskopet ser land sedan 2026-11-18 (`_observe_land`), men ännu inte händelser (plask, vattenpelare; bara bryggan). Ingen däckskanon (627A hade
-ingen; föreslå inte).
+Periskopet ser land sedan 2026-11-18 och ~~händelser~~ (plask, vattenpelare, träffar) sedan 2026-11-19
+(P1–P2). Ingen däckskanon (627A hade ingen; föreslå inte).
 
 ### Centralen, parkerade steg
 

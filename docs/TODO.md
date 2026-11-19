@@ -1,7 +1,7 @@
 # K-114 – att göra
 
 Konkreta öppna uppgifter: sådant som behöver köras om, provas, utredas eller beslutas. Idéer som
-inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-18 (kväll). Ta bort det som blir gjort
+inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-19. Ta bort det som blir gjort
 och för in det i rätt dokument (CLAUDE.md, `docs/system/`, `kalibrering/README.md`).
 
 ## Köra om
@@ -20,6 +20,11 @@ Inget just nu.
   villkorade tillståndet för T-5 i jagad. Det ryska talet för alla nya repliker (Milena).
 - Larmförslagen som står 30 s mot vanliga förslag, och radions förslag om periskopdjup efter flyget.
 - Navigatören vid kortets land (sundet-ut), båten mot stranden, omläggningen under isöppningar (arktis).
+- Sjögången och siluetterna (2026-11-19): siluetterna i braille i periskopet (låg/hög, svep, titt, kikaren)
+  och på bryggan i riktig terminal, särskilt läsbarheten i låg förstoring (minsta masthöjd 8 prickar) och
+  storleken i hög (20); vattenpelaren som stiger och faller; konvojen i Beaufort 5 (trimmarens förslag
+  om fart, tornet som bryter ytan, periskopet som sköljs över, sonarens havsbrus när vädret slår om);
+  det ryska talet för de nya replikerna (Milena).
 
 ## Utreda
 

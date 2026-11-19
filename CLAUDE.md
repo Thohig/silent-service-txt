@@ -124,7 +124,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 
 Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där):
 - `docs/system/scenarier.md`: Civil trafik, Konvoj, Konvoj i plottet, Anfall, Övningen, Flyg
-- `docs/system/hav.md`: Land skymmer, Ljuset, Is, Havsbotten, Strömmen
+- `docs/system/hav.md`: Land skymmer, Ljuset, Is, Havsbotten, Strömmen, Sjögången, Vädret
 - `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden
 - `docs/system/besattning.md`: Radion och telegrammen, Rapporten till staben, Huvudstaben,
   Slutrapportens samband, Radiospaning, Villkorat tillstånd för T-5, Starpom, Trim och flytkraft, Back i maskin,
@@ -167,6 +167,9 @@ för in varje färdigt steg där.
   10 s, alltid över 25 s, σ = 1,5 nm · √(30 s / längd), 0,7–3 nm (`DF_*` i `enemy.py`).
 - Back i maskin: broms 0,15 kn/s mot farten, backfart 8 kn (turbin) / 3 kn (smygmotor), gir ⅓ och
   djuproder 30 % akterut, omkastning 120 + 2,5·fart dB från ≥ 2 kn, kavitation akterut vid halva farten.
+- Sjögången (Beaufort, `docs/system/hav.md`): havsbrus +2,5 dB per steg från 3, jagarens ping −3 dB per
+  steg från 5, mastradar ×0,5 vid 4 och ×0,25 vid 6, sikt ×0,6 vid 6; sjön suger från 4 (2,4 m per meter
+  våghöjd i ≤ 2 kn), tornet bryter ytan med kölen grundare än 13 m. Kuba 3, konvoj 5, övning/sundet 2.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m, torpedavfyring ≤ 100 m och ≤ 12 kn.
 - Fiendens torped Mk 37: 26 kn, 5 nm, 145 dB, söker passivt i 40° och aktivt inom 0,4 nm och ±50 m i höjd;
   skenmålet 135 dB och bubbelekot starkare än skrovet; en träff är förlusten. Vi går 28 kn på turbinen.

@@ -185,7 +185,7 @@
     "convoy_missed": 8
    },
    "minuter": {
-    "convoy_missed": 99
+    "convoy_missed": 105
    }
   },
   "ja": {
@@ -193,15 +193,15 @@
     "convoy_missed": 8
    },
    "minuter": {
-    "convoy_missed": 112
+    "convoy_missed": 149
    }
   }
  },
  "konvoj-kort": {
   "passiv": {
    "utfall": {
-    "convoy_missed": 2,
-    "patrol_end": 6
+    "convoy_missed": 1,
+    "patrol_end": 7
    },
    "minuter": {
     "convoy_missed": 78,
@@ -210,11 +210,11 @@
   },
   "ja": {
    "utfall": {
-    "convoy_missed": 1,
-    "patrol_end": 7
+    "convoy_missed": 2,
+    "patrol_end": 6
    },
    "minuter": {
-    "convoy_missed": 73,
+    "convoy_missed": 76,
     "patrol_end": 80
    }
   }
@@ -222,27 +222,29 @@
  "konvoj-mot": {
   "passiv": {
    "utfall": {
-    "convoy_attacked": 4,
-    "convoy_missed": 1,
-    "lost": 2,
-    "patrol_end": 1
+    "convoy_attacked": 2,
+    "lost": 1,
+    "neutral_sunk": 1,
+    "patrol_end": 4
    },
    "minuter": {
-    "convoy_attacked": 20,
-    "convoy_missed": 32,
-    "lost": 24,
+    "convoy_attacked": 22,
+    "lost": 22,
+    "neutral_sunk": 6,
     "patrol_end": 34
    }
   },
   "ja": {
    "utfall": {
-    "convoy_attacked": 4,
+    "convoy_attacked": 3,
     "convoy_missed": 1,
+    "neutral_sunk": 1,
     "patrol_end": 3
    },
    "minuter": {
-    "convoy_attacked": 23,
-    "convoy_missed": 21,
+    "convoy_attacked": 27,
+    "convoy_missed": 28,
+    "neutral_sunk": 6,
     "patrol_end": 33
    }
   }
