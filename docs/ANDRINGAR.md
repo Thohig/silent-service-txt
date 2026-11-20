@@ -3,6 +3,22 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-20 – krigspatrullen efter provspel
+
+Rättat efter en timmes provspel och genomlästa telegram:
+- Staben sände "RAPPORT SAKNAS … RAPPORTERA OMEDELBART" i samma tillfälle som hemkallelsen ("rapportera
+  inte förrän ni är ute"): den väntade fortfarande på spaningsrapporten. Ett telegram med ny uppgift utan
+  rapport häver väntan och stryker påminnelserna i kö (`Headquarters.cancel_report_request`).
+- Hemkallad låg båten kvar på botten i sju timmar: navigatören föreslog botten igen och utvägen frågade
+  aldrig efter fart med hot i plottet. Nu inget bottenförslag när vi är hemkallade (om vi inte är jagade)
+  och `kurs …, fart 4` ut när vi ligger still.
+- I krig-kort hade vakten inte konvojen vid överlämnandet (9–11 nm, ibland bara handelsfartyg): den
+  startar nu 11–13 nm bort och ligger 5–9 nm bort som i konvoj-kort. Sambandstillfällena var 15:e minut
+  gav ständiga förslag om flytkabeln mitt i anfallet; nu var 30:e (07.35, 08.05 …).
+- Navigatören upprepade "kurs mot konvoj 1" var 15:e minut; nu upprepas kursen bara mot en fast plats
+  (ankarplatsen), en konvoj som rör sig kommer själv.
+Kalibreringen i `kalibrering/README.md`; krig-kort verktyg sänker nu 3 av 8.
+
 ## 2026-11-20 – krigspatrullen (krig, krig-kort)
 
 Nytt scenario utan fast plan: kriget har börjat och K-114 patrullerar kvadrat 14 tills staben kallar hem

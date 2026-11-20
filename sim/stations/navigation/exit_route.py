@@ -14,6 +14,7 @@ from .common import (
     EXIT_RECALC_S,
     EXIT_SAMPLE_NM,
     EXIT_SHALLOW_FACTOR,
+    EXIT_QUIET_KN,
     EXIT_TRANSIT_KN,
     EXIT_TRANSIT_NM,
     EXIT_THREAT_PENALTY_NM,
@@ -176,8 +177,12 @@ class ExitMixin:
         lång utan hot i plottet även marschfart på turbinen (annars hinner vi inte ut)."""
         sc = self.game.scenario
         k = self.game.knowledge
-        if sc is not None and sc.escape_task is not None and dist > EXIT_TRANSIT_NM and \
-                self.ship.ordered_speed < EXIT_TRANSIT_KN - 1 and not k.threat_held() and \
-                not k.hunted(self.now):
+        if sc is None or sc.escape_task is None:
+            return f"kurs {fmt_course(c)}", None
+        if dist > EXIT_TRANSIT_NM and self.ship.ordered_speed < EXIT_TRANSIT_KN - 1 and \
+                not k.threat_held() and not k.hunted(self.now):
             return f"kurs {fmt_course(c)}, turbin, fart {EXIT_TRANSIT_KN}", EXIT_TRANSIT_KN
+        if self.ship.ordered_speed < EXIT_QUIET_KN:
+            # stilla (på botten, stoppade): hot i plottet, så tyst fart ut i stället för marschfart
+            return f"kurs {fmt_course(c)}, fart {EXIT_QUIET_KN}", EXIT_QUIET_KN
         return f"kurs {fmt_course(c)}", None

@@ -101,6 +101,7 @@ TIDE_TABLE_ERR = 0.3        # tidvattentabellen kan ha så här stort fel (andel
 EXIT_FIRST_SUGGEST_S = 150  # ut ur området: låt sonar och djup komma först
 EXIT_TRANSIT_NM = 6.0       # hemkallade (krigspatrullen): så lång väg ut ger marschfart i förslaget
 EXIT_TRANSIT_KN = 8
+EXIT_QUIET_KN = 4           # hemkallade och stilla med hot i plottet: så här fort ut
 EXIT_THREAT_SECTOR = 40     # en väg ut inom så många grader från en hotkontakt är inte fri
 EXIT_THREAT_PENALTY_NM = 4.0
 EXIT_DEEP_M = 300           # grundare än så enligt kortet kan vi inte springa djupt (220 m) ...

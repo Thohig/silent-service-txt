@@ -40,6 +40,13 @@ class Headquarters:
         """Ett telegram (scenariots) ber om rapport: från nu väntar staben en."""
         self.expects_report = True
 
+    def cancel_report_request(self) -> None:
+        """Ett telegram byter uppgiften (krigspatrullen): staben väntar inte längre på en rapport, och
+        påminnelserna som står i kö sänds inte."""
+        self.expects_report = False
+        self.silent_windows = 0
+        self.queue = [q for q in self.queue if q not in SILENCE]
+
     def _on_report(self, e: ReportTransmitted) -> None:
         if not e.complete:
             return                  # staben fick inget, även om fienden kan ha pejlat

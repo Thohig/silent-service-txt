@@ -142,15 +142,15 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
             self._suggest_task_course(e.name, cooldown=0)
 
     def _task_watch(self) -> None:
-        """På väg mot uppgiftens plats: föreslå kursen igen om vi gått ifrån den (sökben, undan-
-        manöver), tills vi är nära eller plottet har ett mål med lösning (då tar anfallet över)."""
+        """På väg mot uppgiftens fasta plats (ankarplatsen): föreslå kursen igen om vi gått ifrån
+        den (sökben, undanmanöver), tills vi är nära eller plottet har ett hot."""
         k = self.game.knowledge
         if k.task_place is None or not (k.order_tasks & TASK_PLACE_TASKS) or \
                 self.steer is not None or k.threat_held():
             return
         wp = k.waypoints.get(k.task_place)
-        if wp is None:
-            return
+        if wp is None or wp.motion is not None:
+            return                  # ett mål som rör sig (konvojen) kommer själv: inget tjat
         wx, wy = wp.at(self.now)
         if distance(self.est_x, self.est_y, wx, wy) < TASK_NEAR_NM:
             return

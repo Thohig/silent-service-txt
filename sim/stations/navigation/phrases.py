@@ -289,7 +289,8 @@ PHRASES = {
        f"är kurs {fmt_course(d['course'])}, {nm(d['dist'])} sjömil")
     + (", bort från kontakterna." if d.get('clear') else ".")
     + f" Föreslår kurs {fmt_course(d['course'])}"
-    + (f", på turbinen i {d['speed']} knop." if d.get("speed") else "."),
+    + ((f", på turbinen i {d['speed']} knop." if d["speed"] > 4 else f", i {d['speed']} knop.")
+       if d.get("speed") else "."),
     "nav.exit.out": lambda d: f"Kapten, enligt besticket är vi ute ur {d['area']}.",
     "nav.suggest.test_depth": lambda d: f"Kapten, vi är på {d['depth']:.0f} meter, under "
     f"provdjup. Föreslår djup 280.",
@@ -606,7 +607,8 @@ RU_PHRASES = {
        f"курсом {R.course(d['course'])}, {R.dec(d['dist'], R.MILE)}")
     + (", в сторону от контактов." if d.get("clear") else ".")
     + f" Предлагаю курс {R.course(d['course'])}"
-    + (f", турбина, {R.count(d['speed'], R.KNOT)}." if d.get("speed") else "."),
+    + ((f", турбина, {R.count(d['speed'], R.KNOT)}." if d["speed"] > 4 else
+        f", {R.count(d['speed'], R.KNOT)}.") if d.get("speed") else "."),
     "nav.exit.out": lambda d: f"{R.CAPTAIN}, по счислению мы вышли из района.",
     "nav.suggest.settle": lambda d: f"{R.CAPTAIN}, штурман. Мы над мелководьем, по карте около "
     f"{R.count(d['depth'], R.METER)}. Если ляжем на грунт, наше эхо утонет в донном. "

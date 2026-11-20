@@ -185,6 +185,8 @@ class BottomMixin:
             return None
         if "inspelning" in k.order_tasks and not k.hunted(self.now):
             return None                 # vi ska höra målet, inte gömma oss för det
+        if self.game.recalled() and not k.hunted(self.now):
+            return None                 # hemkallade: vi ska ut, inte ligga still
         here = self.bottom_here()
         if here is None or here[1] is None or here[1] == "klippa" or here[0] > SETTLE_SUGGEST_MAX_M:
             return None

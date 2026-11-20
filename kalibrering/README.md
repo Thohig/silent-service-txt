@@ -56,6 +56,12 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
   hemma 3, en konvoj sänkt. Första förslaget 0–9 min efter överlämnandet (median ~1 min).
 - `kontroll.py` (frön 0–7): krig passiv tiden ute 8; ja hemma 6 (median 718 min), tiden ute 1, förlorad 1;
   krig-kort passiv hemma 1, ja hemma 5 (median 141 min). Baslinjen sparad.
+- Efter provspelet (2026-11-20: konvojen i krig-kort 11–13 nm, samband var 30:e min, ingen botten och fart 4
+  ut när vi är hemkallade, stabens väntan på rapport hävs av en ny uppgift): `krig` ja hemma 5, foto 3,
+  spaning 2, förlorad 1; verktyg hemma 6, förlorad 2, 2 konvojer, 3 foton. `krig-kort` passiv hemma 1; ja
+  hemma 4; verktyg hemma 4 och 3 konvojer sänkta (förut 1). Plottet har stora fartyg vid överlämnandet i
+  8 av 8 (konvojen grupperad i 7), som konvoj-kort; förut 9–11 nm bort och i 2 frön bara handelsfartyg.
+  `kontroll.py`: krig ja hemma 6 (median 674 min); krig-kort ja hemma 3 (143 min). Baslinjen sparad.
 - Vägen dit: utan marschfart till ankarplatsen och ut efter hemkallelsen, och med plottets TMA-ben efter
   hemkallelsen, kom ja-boten hem i 2 av 8 (foto 0); vaktjagaren som pingade i patrull hittade oss 6 nm från
   ankarplatsen (nu lyssnar den). Verktygsboten förlorades i 7 av 8 när den avböjde maskins förslag att gå

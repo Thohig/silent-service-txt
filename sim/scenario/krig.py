@@ -37,12 +37,12 @@ WAR_ESCAPE_NM = 2.0
 # den korta varianten: vakten har följt den första konvojen; efter den kallar staben hem oss.
 # Kvadraten är mindre och vi ligger nära nordkanten (konvojen kommer norrifrån och går förbi)
 WAR_SHORT_WARM_S = 35 * 60
-WAR_SHORT_FAR_NM = (13.0, 15.0)
+WAR_SHORT_FAR_NM = (11.0, 13.0)            # konvojen går 10–12 kn: 5–9 nm vid överlämnandet
 WAR_SHORT_SIZE = 20.0
 WAR_SHORT_EDGE_NM = (3.0, 4.0)                          # så långt innanför nordkanten
-WAR_SHORT_WINDOW_EVERY_S = 15 * 60
-WAR_SHORT_WINDOW_FIRST_S = WAR_SHORT_WARM_S + WAR_SHORT_WINDOW_EVERY_S
-WAR_SHORT_RECALL_S = WAR_SHORT_WARM_S + 70 * 60         # senast då, även mitt i anfallet
+WAR_SHORT_WINDOW_EVERY_S = 30 * 60
+WAR_SHORT_WINDOW_FIRST_S = WAR_SHORT_WARM_S + WAR_SHORT_WINDOW_EVERY_S   # 07.35
+WAR_SHORT_RECALL_S = WAR_SHORT_WARM_S + 59 * 60         # senast då (sänds 08.05), även mitt i anfallet
 WAR_SHORT_LIMIT_S = WAR_SHORT_WARM_S + 140 * 60
 WAR_SHORT_PASSED_NM = 6.0                               # konvojen förbi och så långt bort: missad
 
@@ -154,10 +154,10 @@ def _start_first(theatre: Theatre, world: World, far: tuple[float, float],
 
 def war_short_scenario(rng: random.Random) -> Scenario:
     """Krigspatrullen, kort: vakten har följt den första konvojen i 35 minuter. När den är avgjord
-    kallar staben hem oss vid nästa sambandstillfälle (var 15:e minut); vägen ut är kort."""
+    kallar staben hem oss vid nästa sambandstillfälle (var 30:e minut); vägen ut är kort."""
     tdef = TheatreDef(max_tasks=1, recall_after_s=WAR_SHORT_RECALL_S,
                       passed_nm=WAR_SHORT_PASSED_NM)
-    windows = [WAR_SHORT_WINDOW_FIRST_S + i * WAR_SHORT_WINDOW_EVERY_S for i in range(8)]
+    windows = [WAR_SHORT_WINDOW_FIRST_S + i * WAR_SHORT_WINDOW_EVERY_S for i in range(5)]
     sc = war_scenario(rng, tdef, first_far=WAR_SHORT_FAR_NM, windows=windows,
                       limit_s=WAR_SHORT_LIMIT_S, size=WAR_SHORT_SIZE, short=True)
     sc.warmup = Warmup(WAR_SHORT_WARM_S, _convoy_watch_pilot)

@@ -380,13 +380,11 @@
   },
   "ja": {
    "utfall": {
-    "lost": 1,
     "patrol_done": 6,
-    "patrol_end": 1
+    "patrol_end": 2
    },
    "minuter": {
-    "lost": 836,
-    "patrol_done": 718,
+    "patrol_done": 674,
     "patrol_end": 840
    }
   }
@@ -404,11 +402,11 @@
   },
   "ja": {
    "utfall": {
-    "patrol_done": 5,
-    "patrol_end": 3
+    "patrol_done": 3,
+    "patrol_end": 5
    },
    "minuter": {
-    "patrol_done": 141,
+    "patrol_done": 143,
     "patrol_end": 175
    }
   }

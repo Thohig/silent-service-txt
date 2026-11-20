@@ -273,11 +273,11 @@ def test_summary_rows_list_the_tasks_and_tonnage():
 
 @pytest.mark.slow
 def test_short_variant_hands_over_with_the_convoy_plotted():
+    from sim.stations.officer import is_big_ship
     for seed in range(1, 5):
         g = Game(build_scenario("krig-kort", random.Random(seed)), seed=seed)
         assert not g.over
-        assert g.knowledge.convoy is not None or any(
-            t.held and t.solution is not None for t in g.knowledge.tracks.values())
+        assert any(t.held and is_big_ship(t) for t in g.knowledge.tracks.values()), seed
         assert g.knowledge.order_tasks == frozenset({"anfall"})
 
 
@@ -292,3 +292,22 @@ def test_war_patrol_runs_to_an_end_without_errors():
     assert g.over
     tasks = g.world.mission["war_tasks"]
     assert len(tasks) >= 2 and all(t["result"] for t in tasks)
+
+
+def test_a_new_task_cancels_the_staffs_wait_for_a_report():
+    g = _game()
+    th = g.scenario.theatre
+    radio = g.station(RadioStation)
+    _resolve_current(g)
+    th.start(g.world, "spaning")
+    _receive(g)
+    assert radio.hq.expects_report
+    radio.hq.window_closed(reported=False)
+    radio.hq.window_closed(reported=False)
+    assert len(radio.hq.queue) == 2                  # påminnelserna väntar i kö
+    _resolve_current(g)
+    th.queue.append("recall")
+    _receive(g)
+    assert not radio.hq.expects_report and radio.hq.queue == []
+    texts = [t.text for t in g.knowledge.telegrams]
+    assert "ÅTERVÄND" in texts[-1] and not any("RAPPORT SAKNAS" in t for t in texts)

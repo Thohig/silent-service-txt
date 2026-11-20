@@ -132,6 +132,8 @@ class ReceptionMixin:
                                                f"telegram {self.received}"))
         if msg.flags.get("report_requested"):
             self.hq.request_report()
+        elif "tasks" in msg.flags:          # en ny uppgift utan rapport: staben väntar inte på någon
+            self.hq.cancel_report_request()
         if msg.waypoint is not None:
             name, x, y, sigma, t_pos = msg.waypoint
             self.game.bus.publish(PositionReported(self.now, name, x, y, sigma, t_pos,

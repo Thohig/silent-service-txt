@@ -204,9 +204,12 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `mission["war_df"]`) går flyget dit 15–30 min senare (`Theatre.air_cue`, flygets datum) och, högst en
   gång i timmen, en jaktgrupp med två jagare (skarpa, `start_hunt` mot fixet, söker i en ruta ±5 nm med
   koppel 4 nm, går hem efter 3 h); en sänkning drar flyget till platsen. Kort (`krig-kort`): kvadraten
-  20 nm, vi 3–4 nm innanför nordkanten på kurs 090/270, konvojen 13–15 nm norrifrån (kurs 180–230), vakten
-  35 min som i konvoj-kort, bara den uppgiften (missad redan 6 nm förbi), sambandstillfälle var 15:e min,
-  hemkallelsen senast 08.15, tiden ute 09.25. Siffrorna i `kalibrering/README.md` (`kalibrering/krig.py`).
+  20 nm, vi 3–4 nm innanför nordkanten på kurs 090/270, konvojen 11–13 nm norrifrån (kurs 180–230; den går
+  10–12 kn, så 5–9 nm vid överlämnandet som i konvoj-kort), vakten 35 min som i konvoj-kort, bara den
+  uppgiften (missad redan 6 nm förbi), sambandstillfälle var 30:e min från 07.35, hemkallelsen senast
+  08.05, tiden ute 09.25. En ny uppgift utan rapport häver stabens väntan på en (`Headquarters.
+  cancel_report_request`: påminnelserna i kö stryks). Hemkallade föreslår navigatören inte botten (om vi
+  inte är jagade) och föreslår fart 4 ut om vi ligger still med hot i plottet. Siffrorna i `kalibrering/README.md` (`kalibrering/krig.py`).
 - **Kärnvapenordern per scenario** (`Scenario.nuclear_order`, `at_war`; 2026-11-19): kuba, jagad, sundet och
   arktis "bara på order från Moskva" (rådet kan häva det vid skarpt angrepp, se Kärnvapenrådet i
   `docs/system/besattning.md`); jagads andra telegram villkorat (skarpa sjunkbomber); konvojen och duellen
