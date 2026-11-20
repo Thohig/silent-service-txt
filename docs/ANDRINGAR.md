@@ -3,6 +3,14 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-20 – statusraden ur stationerna
+
+Ingen ändring i spel (fingeravtrycket lika, 20 min, 2 frön, alla scenarier). `Game.status()` hämtade
+sonarns kontakter och brus och periskopets läge direkt ur `SonarRoom` och `PeriscopeWatch`; nu lämnar
+stationerna dem själva i `status_fields()`, så att `Game` inte känner någon enskild station i
+statusbilden. Kontakternas ordning (hot först, `S-2` före `S-10`) bor i `sonar_view.held_by_kind` och
+`designation_order`.
+
 ## 2026-11-19 – förslagen i hytten syns
 
 När starpom ringde om ett förslag utanför mandatet var det svårt att se vad man skulle ta ställning till:

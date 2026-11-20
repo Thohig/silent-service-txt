@@ -21,7 +21,7 @@ from ..geo import angle_diff, circular_mean, norm360
 from ..orders import CommandSpec, Order
 from ..profile import HeardEvent, Level
 from ..reports import Quality
-from ..sonar_view import (KEEP_S as WATERFALL_KEEP_S, SONAR_SOURCES, BearingTrace, ContactLine,
+from ..sonar_view import (held_by_kind, KEEP_S as WATERFALL_KEEP_S, SONAR_SOURCES, BearingTrace, ContactLine,
                           HeardMark, LostMark, OwnMark, bearing_drift, track_kind)
 from ..systems import INFO, OK, WARN, Gauge
 from ..sonar import (ClassificationUpdate, Detection, IncomingTorpedo, Lost, OwnTorpedo,
@@ -333,6 +333,16 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
 
     def held_designations(self) -> list[str]:
         return self.sensor.held_designations()
+
+    def status_fields(self) -> dict:
+        """Kontakterna sonar håller (hot först, ur kunskapens klassning) och bruset i lurarna."""
+        held, kinds = held_by_kind(self.held_designations(), self.game.knowledge.track)
+        bearings = []
+        for d in held:
+            tr = self.game.knowledge.track(d)
+            bearings.append(tr.last_bearing if tr is not None else None)
+        return {"contacts_held": held, "contact_kinds": kinds, "contact_bearings": tuple(bearings),
+                "sea_noise": self.sensor.background, "under_ice": self.sensor.under_ice}
 
     def background(self) -> tuple[float, bool]:
         """Bakgrundsbruset i lurarna: (dB, kommer från isen)."""

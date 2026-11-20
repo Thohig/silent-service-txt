@@ -24,7 +24,7 @@ from typing import Any, Callable, TypeVar
 from . import phrases, russian
 from .chart import ChartView
 from .profile import ProfileView
-from .sonar_view import KINDS, SonarView, track_kind
+from .sonar_view import SonarView
 from .systems import SystemsView
 from .crew import CrewMember, Role
 from .events import (EventBus, GameEnded, Handover, OrderIssued, PositionReported,
@@ -42,7 +42,7 @@ from .orders import (HELP_COMMAND, QUIT_COMMAND, SUGGESTION_COMMANDS, TIME_COMMA
 from .ownship import PERISCOPE_DEPTH
 from .reports import Quality, Report, ReportQueue
 from .scenario import Scenario
-from .stations import DEFAULT_STATIONS, NavigationStation, SonarRoom, Station
+from .stations import DEFAULT_STATIONS, NavigationStation, Station
 from .goals import NuclearFired, council_summary, report_summary
 from .truthlog import TruthLog
 
@@ -66,7 +66,7 @@ class StatusSnapshot:
     ordered_depth: float
     changing: frozenset[str]
     time_scale: int
-    contacts_held: tuple[str, ...]          # hot först, sedan okända, handel, is och eget
+    contacts_held: tuple[str, ...] = ()     # hot först, sedan okända, handel, is och eget
     reactor: str = "online"
     propulsion: str = "turbine"
     battery: float = 1.0
@@ -542,37 +542,12 @@ class Game:
         return view
 
     # ------------------------------------------------------------------ status
-    def _held_by_kind(self, held: list[str]) -> tuple[tuple[str, ...], tuple[str, ...]]:
-        """De hållna kontakterna, hot först (ur kunskapens klassning), och slaget för var och en."""
-        order = {k: i for i, k in enumerate(KINDS)}
-        pairs = []
-        for d in held:
-            tr = self.knowledge.track(d)
-            pairs.append((d, track_kind(tr) if tr is not None else "contact"))
-        pairs.sort(key=lambda p: (order[p[1]], _desig_no(p[0])))
-        return tuple(d for d, _ in pairs), tuple(k for _, k in pairs)
-
-    def _last_bearing(self, designation: str) -> float | None:
-        tr = self.knowledge.track(designation)
-        return tr.last_bearing if tr is not None else None
-
     def status(self) -> StatusSnapshot:
+        """Ögonblicksbilden: egen ubåt här, resten ur stationernas `status_fields()`."""
         own = self.world.own
         s, sy = own.state, own.sys
-        try:
-            sonar = self.station(SonarRoom)
-            held, kinds = self._held_by_kind(sonar.held_designations())
-            sea_noise, under_ice = sonar.background()
-        except KeyError:
-            held, kinds, sea_noise, under_ice = (), (), 0.0, False
         from .acoustics import cavitation_speed
         sug = self.active_suggestion()
-        try:
-            from .stations.periscope import PeriscopeWatch
-            ps = self.station(PeriscopeWatch)
-            pmode, ptrain, pup, poptic = ps.mode, ps.train, ps.up_s, ps.optic
-        except KeyError:
-            pmode, ptrain, pup, poptic = None, 0.0, 0, "periskop"
         return StatusSnapshot(
             clock=(self.start_clock + self.now) % 86400, sim_time=self.now,
             course=s.course, ordered_course=s.ordered_course,
@@ -580,8 +555,6 @@ class Game:
             astern=s.astern, ordered_astern=s.ordered_astern,
             depth=s.depth, ordered_depth=s.ordered_depth,
             changing=frozenset(s.changing()), time_scale=self.time_scale,
-            contacts_held=held, contact_kinds=kinds,
-            contact_bearings=tuple(self._last_bearing(d) for d in held),
             reactor=sy.reactor, propulsion=sy.propulsion, battery=sy.battery,
             hull=sy.hull, flooding=sy.flooding,
             periscope_depth=s.depth <= PERISCOPE_DEPTH, masts_up=own.masts_up(self.now),
@@ -589,16 +562,9 @@ class Game:
             blowing=sy.blowing,
             cavitating=s.speed > cavitation_speed(s.depth, s.prop_astern),
             suggestion=sug[0] if sug else None, over=self.over,
-            sea_noise=sea_noise, under_ice=under_ice,
             fire=sy.fire, smoke=sy.smoke, ventilating=sy.ventilating, on_bottom=sy.on_bottom,
-            bridge=sy.bridge, periscope=pmode, periscope_train=ptrain, periscope_up_s=pup,
-            periscope_optic=poptic,
+            bridge=sy.bridge,
             night=not self.world.env.is_day(self.now), hunted=self.knowledge.hunted(self.now),
             **{k: v for st in self.stations for k, v in st.status_fields().items()},
         )
 
-
-def _desig_no(d: str) -> tuple[int, str]:
-    """S-2 före S-10."""
-    tail = d.rsplit("-", 1)[-1]
-    return (int(tail), d) if tail.isdigit() else (10**6, d)

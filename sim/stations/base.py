@@ -105,7 +105,8 @@ class Station:
         return False
 
     def status_fields(self) -> dict:
-        """Fält till StatusSnapshot ur stationens eget läge (inte om fienden)."""
+        """Fält till StatusSnapshot ur stationens eget läge och kunskap (aldrig ur World).
+        Game känner inga enskilda stationer: det stationen visar i statusraden lämnas här."""
         return {}
 
     def vetoes(self, order: str) -> bool:

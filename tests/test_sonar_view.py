@@ -257,8 +257,8 @@ def test_status_bar_contacts_threats_first_in_colour():
 
 
 def test_game_orders_held_contacts_by_kind():
-    from sim.game import _desig_no
-    assert sorted(["S-10", "S-2", "S-1"], key=_desig_no) == ["S-1", "S-2", "S-10"]
+    from sim.sonar_view import designation_order
+    assert sorted(["S-10", "S-2", "S-1"], key=designation_order) == ["S-1", "S-2", "S-10"]
     g = _game("jagad-kort", seed=2)
     for _ in range(60):
         g.tick()

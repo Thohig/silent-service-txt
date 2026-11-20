@@ -281,7 +281,8 @@ class PeriscopeWatch(Station):
         return self.measure.key if self.mode is not None else self.power
 
     def status_fields(self) -> dict:
-        return {"periscope_power": self.shown_power}
+        return {"periscope": self.mode, "periscope_train": self.train, "periscope_up_s": self.up_s,
+                "periscope_optic": self.optic, "periscope_power": self.shown_power}
 
     @property
     def busy(self) -> bool:

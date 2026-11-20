@@ -237,3 +237,21 @@ def own_turns(points: Sequence[tuple[int, float]],
             steady = c
         prev = c
     return out
+
+
+def designation_order(d: str) -> tuple[int, str]:
+    """S-2 före S-10."""
+    tail = d.rsplit("-", 1)[-1]
+    return (int(tail), d) if tail.isdigit() else (10**6, d)
+
+
+def held_by_kind(designations: list[str], track) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """De hållna kontakterna, hot först (ur kunskapens klassning), och slaget för var och en.
+    `track(d)` ger kunskapens spår eller None."""
+    order = {k: i for i, k in enumerate(KINDS)}
+    pairs = []
+    for d in designations:
+        tr = track(d)
+        pairs.append((d, track_kind(tr) if tr is not None else "contact"))
+    pairs.sort(key=lambda p: (order[p[1]], designation_order(p[0])))
+    return tuple(d for d, _ in pairs), tuple(k for _, k in pairs)
