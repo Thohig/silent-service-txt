@@ -53,7 +53,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   (`CommandSpec`), `on_order`, `update`, `say`, `suggest`. Nya system = ny station
   i `DEFAULT_STATIONS`; `Game` ska inte behöva ändras. Krokar `Game` frågar alla stationer:
   `intercept` (order medan kaptenen går), `on_suggestion` (starpom beslutar), `vetoes` (förslag som
-  inte får ges), `keeps_time_scale` (ett larm som inte ska sänka tidskomprimeringen), `status_fields`.
+  inte får ges), `keeps_time_scale` (ett larm som inte ska sänka tidskomprimeringen), `status_fields`
+  (stationens fält i `StatusSnapshot`; `Game.status()` hämtar bara egen ubåt själv och känner ingen enskild station).
 - **Navigatören** är paketet `sim/stations/navigation/`: `station.py` (stationen, bestick, order,
   `update`), `common.py` (konstanter och order), `phrases.py`, och delarna som `NavigationStation` ärver:
   `fixes.py`, `bottom.py`, `ice.py`, `steering.py`, `exit_route.py`, `current.py` (strömmen ur fixarna).
