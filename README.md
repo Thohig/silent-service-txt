@@ -205,6 +205,7 @@ sim/                 ren Python, ingen Textual
     plot.py          plottlaget
     torpedo_room/    torpedrum, laddning och torpederna i vattnet; eldledningen i firing.py
 ui/                  Textual
+  views.py           vyregistret: vyerna, orden som öppnar dem och Tab-ordningen
   audio.py           tal, larm och hydrofonljud genom mixern (MixPlayer; reserv say/afplay)
   voices.py          rösterna: språk -> röst, uppläsning och rendering (macOS say)
   ambience.py        bakgrundsljud: mixer och slingor (sounddevice)

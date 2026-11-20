@@ -554,12 +554,12 @@ def test_periscope_view_shows_the_bridge_and_shares_the_look(tmp_path):
             for ai in g.world.ais:
                 ai.can_force = False
             _surface(g)
-            app.action_bridge()
+            app._toggle_view(BridgeScreen)
             await pilot.pause(0.1)
             assert isinstance(app.screen, BridgeScreen)
             for _ in range(6):                                     # blicken 90° styrbord
                 await pilot.press("right")
-            app.action_periscope()
+            app._toggle_view(PeriscopeScreen)
             await pilot.pause(0.6)
             assert isinstance(app.screen, PeriscopeScreen)
             head = str(app.screen.query_one("#periscope-head").render())
@@ -569,7 +569,7 @@ def test_periscope_view_shows_the_bridge_and_shares_the_look(tmp_path):
             assert "jagare" in line                                # det bryggan tittade på
             app.save_screenshot(str(tmp_path / "kikare.svg"))
             await pilot.press("space")                             # inget periskop: ingen effekt
-            app.action_bridge()
+            app._toggle_view(BridgeScreen)
             await pilot.pause(0.2)
             assert isinstance(app.screen, BridgeScreen)
             assert 60 <= app.screen.view_rel <= 120

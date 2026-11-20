@@ -57,7 +57,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (bara efter `ekolod`), isekolodets lodningar och sonarrummets hörda ljud. `Game.profile()`
   samlar, `ui/profile_render.py` ritar sidovyn (tid vågrätt, botten i eget band under
   bruten axel; vårt djup, kortets botten och tunna nivåer i braille vid exakt djup) och djupmätaren bredvid loggen. Tab växlar (hytten, när starpom har befälet) → logg → sjökort → sonar → ubåten → periskopbild → logg, med luckan öppen brygga före
-  periskopbild (`SubApp.tab_views`; `VIEWS` är alla vyer).
+  periskopbild. Vyerna, orden som öppnar dem och Tab-ordningen står i registret `ui/views.py`
+  (`REGISTRY`, `ViewDef`, `tab_order`); `SubApp` slår bara upp där.
 - **Centralen** (`ui/central_render.py`, `CentralView` i `ui/widgets.py`): bild av центральный пост.
   Huvudvyns layout efter fönstret (`GameScreen.on_resize`, klasserna `big`/`narrow`): minst 120 × 36 ⇒
   centralen fyller vyn (`#central-big`, inga figurer), loggen är en remsa (11 rader) med djupmätaren bredvid och hela

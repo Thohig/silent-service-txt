@@ -3,6 +3,15 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-20 – vyregistret
+
+Ingen ändring i spel. Vyerna var kopplade för hand i `ui/app.py` (en ordmängd per vy, en gren per vy i
+`_view_word`, `action_chart` m.fl. och en egen `tab_views`). Nu står de i `ui/views.py`: `ViewDef` med
+skärmen, orden, namnet i handboken, villkoret för Tab-ordningen (`ViewContext`: stort fönster, vem som har
+befälet, tornluckan) och för loggboken och telegrammen den metod i appen som tar ordet. Handbokens vyord
+(`ui/manual.VIEW_WORDS`) kommer ur registret, så bryggan står nu före periskopbilden där som i Tab-ordningen.
+Test: `tests/test_views.py` (Tab-ordningen i olika lägen, inget ord öppnar två vyer).
+
 ## 2026-11-20 – torpedrummet och radion som paket
 
 Ingen ändring i spel (fingeravtrycket lika). De två största stationerna är delade som navigatören:

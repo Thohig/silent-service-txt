@@ -26,35 +26,20 @@ from sim.scenario import SCENARIOS, build_scenario
 from sim.truthlog import TruthLog
 
 from .audio import MacPlayer, SoundBoard, make_soundboard
-from .boat import BoatScreen
 from .cabin import CabinScreen
-from .chart import ChartScreen
 from .logview import LogScreen
 from .menu import MenuScreen
 from .menu_audio import MenuSound
-from .bridge import BridgeScreen
-from .periscope import PeriscopeScreen
-from .sonar import SonarScreen
 from .menutext import INK as PAPER_INK
 from .menutext import stamp_for
 from .strips import TelegramStrip
 from .telegram import (crew_announcement, order_header, order_signature, report_header,
                        telegram_number)
 from .teletype import Teletype
+from .views import CENTRAL_WORDS, SCREENS as VIEWS, ViewContext, tab_order, view_for
 from .widgets import CentralView, DepthGauge, ReportLog, StatusBar
 
 MAX_TICKS_PER_FRAME = 20
-CHART_WORDS = {"sjökort", "sjokort", "kort", "karta"}
-SONAR_WORDS = {"sonar", "sonarvy", "vattenfall", "vattenfallet", "hydrofon", "lurarna"}
-BOAT_WORDS = {"ubåt", "ubåten", "båten", "profil", "djupprofil", "sidovy", "system",
-              "systemtavla", "systemtavlan", "tavla", "tavlan"}
-PERISCOPE_WORDS = {"periskopbild", "periskopvy", "bild"}
-BRIDGE_WORDS = {"brygga", "bryggan", "bryggvy", "utsikt"}
-LOG_WORDS = {"logg", "loggen", "loggbok", "loggboken"}
-CENTRAL_WORDS = {"central", "centralen"}
-CABIN_WORDS = {"hytt", "hytten", "kajuta", "kajutan"}
-TELEGRAM_WORDS = {"telegram", "telegrammen", "telegrammet", "radiogram", "radiogrammen"}
-VIEWS = (LogScreen, ChartScreen, SonarScreen, BoatScreen, PeriscopeScreen, BridgeScreen, CabinScreen)
 GAUGE_EVERY_S = 0.5
 CENTRAL_EVERY_S = 0.1                  # centralens instrument: tio gånger i sekunden
 CENTRAL_MIN_WIDTH = 100                # smalare terminal: bara djupmätaren
@@ -300,34 +285,29 @@ class SubApp(App):
         self._follow_command(self.game.status())
 
     def _view_word(self, text: str) -> bool:
-        """Ord som öppnar en vy (eller loggen). Sant om ordet var ett sådant."""
-        if text in CHART_WORDS:
-            self.action_chart()
-        elif text in SONAR_WORDS:
-            self._toggle_view(SonarScreen)
-        elif text in BOAT_WORDS:
-            self.action_boat()
-        elif text in PERISCOPE_WORDS:
-            self.action_periscope()
-        elif text in BRIDGE_WORDS:
-            self.action_bridge()
-        elif text in CABIN_WORDS:
-            self._toggle_view(CabinScreen)
-        elif text in TELEGRAM_WORDS:
-            self._telegrams()
-        elif text in LOG_WORDS:
-            if isinstance(self.screen, LogScreen) and self.screen.only_telegrams:
-                self.screen.set_telegrams(False)
-            elif self.gs().big:
-                self._toggle_view(LogScreen)
-            elif isinstance(self.screen, VIEWS):
-                self.pop_screen()
-        elif text in CENTRAL_WORDS:
+        """Ord som öppnar en vy (registret i `ui/views.py`) eller stänger den. Sant om ordet var ett sådant."""
+        if text in CENTRAL_WORDS:
             if isinstance(self.screen, VIEWS):
                 self.pop_screen()
-        else:
+            return True
+        view = view_for(text)
+        if view is None:
             return False
+        if view.word_action:
+            getattr(self, view.word_action)()
+        else:
+            self._toggle_view(view.screen)
         return True
+
+    def _log_word(self) -> None:
+        """Loggboken: från telegrammen till hela loggen; i stort fönster en egen vy, annars
+        stänger ordet vyn (loggen syns på huvudskärmen)."""
+        if isinstance(self.screen, LogScreen) and self.screen.only_telegrams:
+            self.screen.set_telegrams(False)
+        elif self.gs().big:
+            self._toggle_view(LogScreen)
+        elif isinstance(self.screen, VIEWS):
+            self.pop_screen()
 
     def _start(self) -> None:
         self.close_menu_sound()
@@ -381,9 +361,6 @@ class SubApp(App):
             self.pop_screen()
         self.push_screen(cls())
 
-    def action_chart(self) -> None:
-        self._toggle_view(ChartScreen)
-
     def _telegrams(self) -> None:
         """Loggboken med bara telegrammen (i alla fönsterstorlekar); igen stänger."""
         if not self.running or self.game is None:
@@ -398,26 +375,13 @@ class SubApp(App):
             self.pop_screen()
         self.push_screen(LogScreen(telegrams=True))
 
-    def action_boat(self) -> None:
-        self._toggle_view(BoatScreen)
-
-    def action_periscope(self) -> None:
-        self._toggle_view(PeriscopeScreen)
-
-    def action_bridge(self) -> None:
-        self._toggle_view(BridgeScreen)
-
     def tab_views(self) -> tuple[type[Screen], ...]:
-        """Tab-ordningen efter läget: under ytan ingen brygga; med folk på väg upp eller på
-        bryggan kommer bryggan före periskopbilden (kikaren)."""
-        base = (ChartScreen, SonarScreen, BoatScreen)
-        if self._screen is not None and self._screen.big:
-            base = (LogScreen,) + base
-        if self.game is not None and self.game.status().command == "starpom":
-            base = (CabinScreen,) + base
-        if self.game is None or self.game.status().bridge == "shut":
-            return base + (PeriscopeScreen,)
-        return base + (BridgeScreen, PeriscopeScreen)
+        """Tab-ordningen efter läget (`ui/views.tab_order`): under ytan ingen brygga, loggboken
+        bara i stort fönster, hytten när starpom har befälet."""
+        st = self.game.status() if self.game is not None else None
+        return tab_order(ViewContext(big=self._screen is not None and self._screen.big,
+                                     command=st.command if st else "captain",
+                                     bridge=st.bridge if st else "shut"))
 
     def action_cycle(self) -> None:
         """Tab: huvudvyn → (loggboken, om centralen är huvudvy) → sjökort → sonar → ubåten →

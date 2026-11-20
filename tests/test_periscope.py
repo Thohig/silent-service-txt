@@ -470,7 +470,7 @@ def test_live_periscope_view_turns_with_the_arrows(tmp_path):
             st.speed = st.ordered_speed = 3.0
             dd = next(v for v in g.world.contacts if v.kind == "destroyer")
             dd.state.x, dd.state.y = st.x, st.y + 1.5          # rakt norrut
-            app.action_periscope()
+            app._toggle_view(PeriscopeScreen)
             await pilot.pause(0.1)
             assert isinstance(app.screen, PeriscopeScreen)
             await pilot.press("up")

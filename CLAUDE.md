@@ -103,6 +103,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 - **Order i alla vyer** (`ui/viewbase.py`): vyerna ärver `ViewScreen` (rapportraden, `Esc`, orderrad
   `OrderLine` som visar väntande förslag). Vyns tangenter står i `EMPTY_KEYS` och gäller bara när
   orderraden är tom (Input tar annars alla utskrivbara tecken); bokstäver är aldrig vytangenter.
+- **Vyregistret** (`ui/views.py`): varje helskärmsvy är en `ViewDef` (skärmen, orden, namnet i handboken,
+  när den står i Tab-ordningen). Registrets ordning är Tab-ordningen; `SubApp` och handboken läser därifrån.
 - **Tangenter:** `Tab` växlar vy, `Esc` tillbaka, `ctrl+t` ljud. Undvik F-tangenter
   (medietangenter på Mac) och ctrl-tangenter som orderraden (`Input`) redan använder.
 - **Ryska** (`sim/russian.py`): fasta fraser i `WORDS` (translitterering, kyrilliska, svensk
