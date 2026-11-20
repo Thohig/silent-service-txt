@@ -34,6 +34,7 @@ scratchpad (2026-11-14–15). En del läser sanningen (`sundet.py --orakel`, `su
 | `konvoj.py` | konvoj | passiv, ja, attack |
 | `konvoj_salva.py` | konvoj, konvoj-kort | ja + salva mot stora fartyg |
 | `konvoj_mot.py` | konvoj-mot | passiv, ja, bort |
+| `krig.py` | krig, krig-kort (första argumentet), botar, antal frön; `KRIG_VERBOSE=N` skriver de sista N rapporterna | passiv, ja, verktyg (ja på alla förslag, periskop var 4:e min, `anfall`, salva mot klassad transport/tanker ≤ 3 nm med god lösning, sedan djupt bort en kvart) |
 | `arktis.py` | arktis | ja |
 | `arktis_kort.py` | arktis-kort | passiv, ja |
 | `tma_kvalitet.py` | flera | ja; plottets lösningar mot sanningen per kvalitet |
@@ -45,6 +46,21 @@ Provkörda 2026-11-15 med ett frö var. Alla gick utan fel. `konvoj.py` och `kub
 kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 ## Siffrorna
+
+**Krigspatrullen (2026-11-20, `krig.py`, 8 frön 1–8; uppgifter a = anfall, f = foto, s = spaning):**
+- `krig` passiv: tiden ute 8 (hör aldrig telegrammen på 80 m; alla uppgifter missade). Ja-boten: hemma
+  (`patrol_done`) 5, tiden ute 2, förlorad 1; foto 4 av 8, spaning 0 (2 inställda), konvojen 0; inget pejlat.
+  Verktyg: hemma 6, tiden ute 2, ingen förlorad; konvojen sänkt 3, foto 3, spaning rapporterad 3; 3
+  fartyg sänkta, 5 sändningar pejlade. Första förslaget efter 0–6 s. Hemma efter 8–14 h (median ~12,5 h).
+- `krig-kort` passiv: hemma 1, tiden ute 7. Ja-boten hemma 4 (konvojen missad 6, inställd 2). Verktyg:
+  hemma 3, en konvoj sänkt. Första förslaget 0–9 min efter överlämnandet (median ~1 min).
+- `kontroll.py` (frön 0–7): krig passiv tiden ute 8; ja hemma 6 (median 718 min), tiden ute 1, förlorad 1;
+  krig-kort passiv hemma 1, ja hemma 5 (median 141 min). Baslinjen sparad.
+- Vägen dit: utan marschfart till ankarplatsen och ut efter hemkallelsen, och med plottets TMA-ben efter
+  hemkallelsen, kom ja-boten hem i 2 av 8 (foto 0); vaktjagaren som pingade i patrull hittade oss 6 nm från
+  ankarplatsen (nu lyssnar den). Verktygsboten förlorades i 7 av 8 när den avböjde maskins förslag att gå
+  djupt och fort bort; med förslagen 0. Jaktgruppen utan koppel jagade ja-boten i 5 h. Fingeravtrycket för
+  alla andra scenarier oförändrat (60 min, 2 frön).
 
 **Clyde (2026-11-19, N2–N6, `clyde.py`, 8 frön; passiv / ja / verktyg = djup 40 och följ Polarisbåten):**
 - `clyde-in`: inspelad 0 / 4 / 4 av 8 (resten tiden ute; passiva får 1–9 min på bandet). Första förslag

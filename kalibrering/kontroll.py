@@ -5,7 +5,7 @@ Det är siffrorna under Kalibrering i CLAUDE.md som oftast glider: hur ofta pass
 ja-boten når varje utfall, och på hur lång tid. Kontrollen säger vad som flyttat sig sedan
 baslinjen sparades. De särskilda botarna (salva, grind, sprint …) körs fortfarande för hand.
 
-Användning (från repots rot; ~25 min på 4 kärnor för alla scenarier och 8 frön):
+Användning (från repots rot; ~30 min på 4 kärnor för alla scenarier och 8 frön):
     uv run python kalibrering/kontroll.py                 # jämför med baslinjen
     uv run python kalibrering/kontroll.py --spara         # skriv en ny baslinje
     uv run python kalibrering/kontroll.py --bara kuba,konvoj-kort --frön 4
@@ -28,7 +28,7 @@ from sim.game import Game
 from sim.scenario import SCENARIOS, build_scenario
 
 BASLINJE = _Path(__file__).with_name("baslinje.json")
-MAX_H = 10                 # längsta speltid (clyde 10 h, sundet 7 h)
+MAX_H = 15                 # längsta speltid (krig 14 h, clyde 10 h, sundet 7 h)
 JA_EFTER_S = 20            # ja-boten svarar så här länge efter förslaget
 FLYTT_N = 2
 FLYTT_TID = 0.25

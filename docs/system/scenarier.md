@@ -170,6 +170,43 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   vid sidan av Polarisbåtens väg söder om Little Cumbrae, besticket σ 1,0 nm (`Scenario.start_fix_sigma`, felet
   dras ur en egen ström), Polarisbåten 3–4 nm norr om oss, tidvattnet vänder 5–15 min efter
   överlämnandet; målet är bara bandet (`recorded`), 40 min.
+- **Krigspatrullen** (`krig`, `krig-kort`, `scenario/krig.py`, `sim/theatre.py`, 2026-11-20): krig 28 okt
+  1962, 06:30, kvadrat 14 (30 nm) norr om Kuba, Beaufort 4 (3–5), handelstrafik öster–väster och flyg. Ingen
+  fast plan: **krigsskådeplatsen** (`Theatre`, sanning, en spawner först i `World.spawners`) lägger ut en
+  uppgift i taget och skriver stabens telegram om den. Uppgifterna: `anfall` (konvoj med 3 transporter och
+  en tanker, 10–12 kn, 2 eskorter), `spaning` (landstigningsstyrka, 2 transporter i 13–15 kn och 2 eskorter:
+  rapportera kurs och fart, `report_requested`) och `foto` (3 fartyg till ankars, `moored`, och en vaktjagare
+  som lyssnar i patrull i en ruta ±2,5 nm, skarpa regler). Den första, en konvoj 16–22 nm bort, står i ordern
+  (`known_positions` med kurs och fart och flaggan uppgift); sedan `foto`, `spaning`, `anfall` i tur
+  (`TheatreDef.kinds`), 12–16 nm bort (ankarplatsen 6–9 nm). Nästa uppgift läggs ut 5 min före nästa
+  sambandstillfälle (07.30, sedan var 90:e min). Telegrammet skrivs när radion tar emot det (`deliver`):
+  läget med stabens fel (σ 2 / 2,5 / 0,8 nm), kurs avrundad till 10°, fart i hela knop; missar vi
+  tillfället sänds det igen med nytt läge. Det bär `tasks` ⇒ `TasksOrdered` ⇒ `Knowledge.order_tasks` (och
+  `order_tasks_t`, `task_place`), och positionen med `motion` ⇒ `Waypoint.at(t)` räknar fram läget (σ växer
+  2 kn). Navigatören föreslår `kurs mot <plats>` när uppgiften kommer och igen var 15:e min om vi gått mer
+  än 30° ifrån den (tills vi är 3 nm från platsen eller plottet har ett hot); till en fast plats > 6 nm bort
+  med marschfart (`turbin, fart 8`). Radion föreslår rapporten under en spaningsuppgift när plottet har en
+  lösning ≥ osäker på en kontakt som kommit efter uppgiften (inte jagade, inget hot inom 5 nm).
+  Vakthavande föreslår periskopdjup och svep inom 3,5 nm (+ σ) från ankarplatsen; fotot föreslås efter
+  svepet som förut. **Avgörandet** (sanning, var 10:e s): `sänkt` (minst ett mål sänkt och 10 min sedan
+  utan jägare, eller allt sänkt), `rapporterad` (en rapport efter telegrammet med något av styrkans fartyg,
+  eskorten räknas: `mission["report_truth"]` har sanningens id), `fotograferad` (ett foto ≥ osäker efter
+  telegrammet, `mission["photos"]`), `missad` (förbi oss och > 10 nm bort, eller 5 h / foto 6 h),
+  `inställd` (hemkallelsen kom). `mission["war_tasks"]` och `war_sunk` (tonnage: transport 12 000,
+  tanker 16 000, jagare 2 400 ton) ⇒ slutrapporten (`task_summary`, `ui/widgets.war_rows`). Avgjorda
+  uppgifter > 15 nm bort tas bort ur världen. **Hemkallelsen** efter 3 uppgifter, ≤ 4 konventionella
+  torpeder kvar (16 från start), skrovet < 50 % eller kl 16.30: ÅTERVÄND (`tasks` = ut, `recalled`); då
+  gäller `EscapeGoal(requires_flag="recalled")` (2 nm utanför kanten, ingen jägare) ⇒ `patrol_done`, och
+  `Scenario.escape_task = "ut"` gör att `Game.escape_nm` och navigatörens väg ut gäller först nu (med
+  marschfart om vägen är > 6 nm och inget hot), och att plottet inte föreslår TMA-ben (`Game.recalled`).
+  Tiden är ute 20.30 (`patrol_end`). `World.open_ended`: alla fiender sänkta avslutar inte. **Följderna**
+  (`TheatreDef.hunt`): pejlar nätet en sändning (samma regel som jagarna, `enemy.df_probability`/`df_sigma`,
+  `mission["war_df"]`) går flyget dit 15–30 min senare (`Theatre.air_cue`, flygets datum) och, högst en
+  gång i timmen, en jaktgrupp med två jagare (skarpa, `start_hunt` mot fixet, söker i en ruta ±5 nm med
+  koppel 4 nm, går hem efter 3 h); en sänkning drar flyget till platsen. Kort (`krig-kort`): kvadraten
+  20 nm, vi 3–4 nm innanför nordkanten på kurs 090/270, konvojen 13–15 nm norrifrån (kurs 180–230), vakten
+  35 min som i konvoj-kort, bara den uppgiften (missad redan 6 nm förbi), sambandstillfälle var 15:e min,
+  hemkallelsen senast 08.15, tiden ute 09.25. Siffrorna i `kalibrering/README.md` (`kalibrering/krig.py`).
 - **Kärnvapenordern per scenario** (`Scenario.nuclear_order`, `at_war`; 2026-11-19): kuba, jagad, sundet och
   arktis "bara på order från Moskva" (rådet kan häva det vid skarpt angrepp, se Kärnvapenrådet i
   `docs/system/besattning.md`); jagads andra telegram villkorat (skarpa sjunkbomber); konvojen och duellen

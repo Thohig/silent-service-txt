@@ -3,6 +3,28 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-20 – krigspatrullen (krig, krig-kort)
+
+Nytt scenario utan fast plan: kriget har börjat och K-114 patrullerar kvadrat 14 tills staben kallar hem
+den. Ordern ger en konvoj; sedan sänder staben en uppgift i taget vid sambandstillfällena: fartyg till
+ankars att fotografera, en landstigningsstyrka att rapportera kurs och fart om, en ny konvoj. Navigatören
+föreslår kurs dit (marschfart till en fast plats långt bort), radion föreslår rapporten när plottet har
+styrkan och vakthavande periskopdjup och svep nära ankarplatsen. Pejlas en sändning kommer flyget och en
+jaktgrupp; en sänkning drar flyget dit. Efter tre uppgifter (eller torpederna nästan slut, skrovet skadat,
+kl 16.30) kallar staben hem oss och utvägen gäller; plottet föreslår då inga TMA-ben och navigatören
+föreslår marschfart ut. Slutrapporten listar uppgifterna och det sänkta tonnaget. Kort variant: bara
+den första konvojen i en mindre kvadrat, sedan hem.
+
+Var: `sim/theatre.py` (krigsskådeplatsen, sanning), `sim/scenario/krig.py`, `sim/radiogram.py`
+(`RadioMessage` med `motion`), `TasksOrdered` och `PositionReported.motion/task` (`events.py`),
+`Knowledge.order_tasks_t/task_place/photo_t`, `Waypoint.at`, `Scenario.theatre/escape_task`,
+`Game.recalled`, `World.open_ended`, `EscapeGoal.requires_flag`, `enemy.df_probability/df_sigma`. Radion
+levererar krigsskådeplatsens telegram efter scenariots (`reception.py`) och föreslår rapporten
+(`sending._task_report_advice`); navigatören `_task_watch` och `exit_order`; vakthavande
+`_photo_task_watch`. Tester: `tests/test_war_patrol.py`. Kalibrering: `kalibrering/krig.py`; ja-boten hemma
+5 av 8 (foto 4), verktygsboten hemma 6 (3 konvojer sänkta, 3 foton, 3 spaningar); kort: ja-boten hemma 4.
+Fingeravtrycket för alla andra scenarier oförändrat. `kontroll.py` kör nu upp till 15 h.
+
 ## 2026-11-20 – appen i ~/Projekt/Lokalt
 
 Ingen ändring i spel. `K-114.app` ligger nu i `~/Projekt/Lokalt` i stället för `~/Applications`, och

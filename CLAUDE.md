@@ -85,10 +85,16 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 - **Importgränser** vaktas av `tests/test_import_boundaries.py`: kunskapsmodulerna når aldrig
   sanningen (importer under `TYPE_CHECKING` räknas inte), `sim/` importerar aldrig Textual.
 - **Scenarier** bor i paketet `sim/scenario/`: en modul per scenario med sina korta varianter
-  (`kuba`, `arktis`, `duell`, `jagad`, `sundet`, `clyde`, `konvoj`, `ovning`), det delade i `common` (`Scenario`,
+  (`kuba`, `arktis`, `duell`, `jagad`, `sundet`, `clyde`, `konvoj`, `krig`, `ovning`), det delade i `common` (`Scenario`,
   `Warmup`, platserna, `_crew`, registret). De registreras i `__init__.py` (`register(ScenarioDef(...))`,
   menyns ordning) och väljs i gränssnittets väljare eller med `--scenario`. Scenariot bär områdesnamn
   och sluttexter; `Game` ska inte känna till enskilda scenarier.
+- **Krigsskådeplatsen** (`sim/theatre.py`, sanning, krigspatrullen `krig`): en spawner som lägger ut en
+  uppgift i taget (`anfall`, `spaning`, `foto`) och skriver stabens telegram när radion tar emot det
+  (`Scenario.theatre`, `radiogram.RadioMessage`). Flaggan `tasks` byter `Knowledge.order_tasks` under spelet
+  (`TasksOrdered`); utvägen gäller först efter hemkallelsen (`Scenario.escape_task`, `Game.recalled`,
+  `EscapeGoal.requires_flag`); `World.open_ended` håller spelet igång när allt är sänkt. Ny uppgiftstyp = ny
+  gren i `Theatre` (läggs ut, telegram, avgörande); `Game` ändras inte.
 - **Korta varianter** (`Scenario.warmup`, `Warmup(seconds, pilot)`): `Game` kör vakten före kaptenen
   med en fast plan (`pilot(game, t)` ger order via `game.command`) innan spelaren tar befälet, så att
   plott, sonar och bestick byggs av sensorerna (aldrig inskrivet). Rapporterna syns inte: gränssnittet
@@ -131,7 +137,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 
 Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där):
 - `docs/system/scenarier.md`: Civil trafik, Konvoj, Konvoj i plottet, Anfall, Övningen, Jagarkaptenerna,
-  Flyg, Fiendens torpeder (med nedräkningen), Clyde
+  Flyg, Fiendens torpeder (med nedräkningen), Clyde, Krigspatrullen
 - `docs/system/hav.md`: Land skymmer, Ljuset, Molnen, Fyrarna, Firth of Clyde, Is, Havsbotten, Strömmen,
   Sjögången, Vädret
 - `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden

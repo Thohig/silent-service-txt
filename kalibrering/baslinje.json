@@ -368,5 +368,49 @@
     "recorded": 29
    }
   }
+ },
+ "krig": {
+  "passiv": {
+   "utfall": {
+    "patrol_end": 8
+   },
+   "minuter": {
+    "patrol_end": 840
+   }
+  },
+  "ja": {
+   "utfall": {
+    "lost": 1,
+    "patrol_done": 6,
+    "patrol_end": 1
+   },
+   "minuter": {
+    "lost": 836,
+    "patrol_done": 718,
+    "patrol_end": 840
+   }
+  }
+ },
+ "krig-kort": {
+  "passiv": {
+   "utfall": {
+    "patrol_done": 1,
+    "patrol_end": 7
+   },
+   "minuter": {
+    "patrol_done": 169,
+    "patrol_end": 175
+   }
+  },
+  "ja": {
+   "utfall": {
+    "patrol_done": 5,
+    "patrol_end": 3
+   },
+   "minuter": {
+    "patrol_done": 141,
+    "patrol_end": 175
+   }
+  }
  }
 }
