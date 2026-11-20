@@ -8,7 +8,7 @@ import math
 
 from ..chart import LAYER_MARK, LAYER_TRACK, Mark, Ray, Ring
 from ..events import (ContactDetected, ContactLost, ConvoyAssessed, EventSighted, OwnActionLogged, OwnSoundMade,
-                      SoundHeard)
+                      ReportDelivered, SoundHeard)
 from ..crew import Role
 from ..fmt import fmt_course
 from ..geo import angle_diff, norm360
@@ -30,6 +30,7 @@ PLOT_INTERVAL = 30              # sekunder mellan omräkningar
 LOOK_TURN_MIN_DEG = 20.0        # periskopets kurs så här långt från lösningens: målet har girat
 LOOK_TURN_SIGMAS = 3.0
 SUGGEST_COOLDOWN = 420
+LEG_GAP_S = 300                 # ett benförslag (för vilken kontakt som helst) högst så här ofta
 SUGGEST_MIN_LEG_S = 300         # rak kurs så här länge innan nytt förslag
 TABLE_ROWS = 15
 BEARING_LINE_NM = 12.0          # bäringslinjer på kortet
@@ -123,6 +124,7 @@ class PlotTeam(Station):
     def __init__(self, game):
         super().__init__(game)
         self._last_suggest: dict[str, int] = {}
+        self._last_leg_t = -10**9      # senaste benförslaget, för vilken kontakt som helst (LEG_GAP_S)
         self._maneuver_said: dict[str, int] = {}
         self._hunt_since: int | None = None
         self._hunter_said: dict[str, int] = {}     # beteckning -> vad som sagts (1, 2) denna jakt
@@ -141,6 +143,7 @@ class PlotTeam(Station):
         bus.subscribe(OwnActionLogged, lambda e: self._on_own(e.t, e.kind))
         bus.subscribe(ContactDetected, self._on_detected)
         bus.subscribe(ContactLost, self._on_lost)
+        bus.subscribe(ReportDelivered, self._on_delivered)
         bus.subscribe(EventSighted, self._on_event_sighted)
 
     def _on_detected(self, e: ContactDetected) -> None:
@@ -505,11 +508,13 @@ class PlotTeam(Station):
                   and (tr.threat or self.game.knowledge.listening)
                   and not self._maneuvered_recently(tr) and not self._convoy_sibling(tr)
                   and not self.game.knowledge.hunted(self.now) and not self.game.recalled()
-                  and self.now - self._last_suggest.get(tr.designation, -10**9) >= SUGGEST_COOLDOWN):
+                  and self.now - self._last_suggest.get(tr.designation, -10**9) >= SUGGEST_COOLDOWN
+                  and self.now - self._last_leg_t >= LEG_GAP_S):
                 self._last_suggest[tr.designation] = self.now
                 course = self._suggest_course(sol, tr)
                 if course is None:
                     continue
+                self._last_leg_t = self.now     # ett nytt ben ger avstånd på alla bäringar
                 self.suggest(f"turn{tr.designation}", "plot.suggest",
                              {"designation": tr.designation, "quality": sol.quality,
                               "course": course, "first": not sol.own_maneuvered},
@@ -627,9 +632,15 @@ class PlotTeam(Station):
             self.say("plot.convoy.base", {"base": _base_data(est), "mean_leg_s": est.mean_leg_s},
                      kind="solution", quality=base.quality)
 
+    def _on_delivered(self, e: ReportDelivered) -> None:
+        """Ett benförslag har getts (också på vakthavandes initiativ): nästa först efter LEG_GAP_S."""
+        if e.report.type == "plot.suggest":
+            self._last_leg_t = e.t
+
     def idle_proposals(self) -> list[Proposal]:
         out = []
-        if self.game.knowledge.hunted(self.now) or self.game.recalled():
+        if self.game.knowledge.hunted(self.now) or self.game.recalled() or \
+                self.now - self._last_leg_t < LEG_GAP_S:
             return out          # jagade eller hemkallade: kursen behövs för att komma ut, inte för TMA
         for tr in self.game.knowledge.tracks.values():
             sol = tr.solution

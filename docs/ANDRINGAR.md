@@ -3,6 +3,19 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-20 – benförslag, pingar från tappad kontakt och botten före samband
+
+Tre gamla buggar som provspelet visade:
+- Plottet gav ett likadant benförslag för varje kontakt (fyra konvojfartyg: fyra "kurs 210" på en halv
+  minut). Ett nytt ben ger avstånd på alla bäringar, så nu ett benförslag åt gången, högst var 5:e minut
+  (`plot.LEG_GAP_S`), också på vakthavandes initiativ.
+- "Har tappat S-2" och strax efter "Pingarna från S-2 är mycket starka": sonar känner igen pingaren också
+  när kontakten är tappad. Nu säger den att maskinerna inte hörs, bara pingarna (`data["lost"]`).
+- Navigatören föreslog botten en minut efter radions förslag att gå upp till sambandstillfället, så båten
+  missade telegrammen. Nu inget bottenförslag medan ett sambandstillfälle väntar, om vi inte är jagade.
+Kalibrering: alla scenarier som baslinjen utom kuba-kort ja rapporterad 3 ⇒ 5; krig ja hemma 6.
+Tester: `tests/test_old_fixes_pings_legs.py`.
+
 ## 2026-11-20 – krigspatrullen efter provspel
 
 Rättat efter en timmes provspel och genomlästa telegram:

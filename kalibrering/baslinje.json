@@ -28,12 +28,10 @@
   },
   "ja": {
    "utfall": {
-    "patrol_end": 1,
-    "report_missed": 4,
-    "reported": 3
+    "report_missed": 3,
+    "reported": 5
    },
    "minuter": {
-    "patrol_end": 45,
     "report_missed": 35,
     "reported": 35
    }
@@ -384,7 +382,7 @@
     "patrol_end": 2
    },
    "minuter": {
-    "patrol_done": 674,
+    "patrol_done": 664,
     "patrol_end": 840
    }
   }

@@ -62,6 +62,10 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
   hemma 4; verktyg hemma 4 och 3 konvojer sänkta (förut 1). Plottet har stora fartyg vid överlämnandet i
   8 av 8 (konvojen grupperad i 7), som konvoj-kort; förut 9–11 nm bort och i 2 frön bara handelsfartyg.
   `kontroll.py`: krig ja hemma 6 (median 674 min); krig-kort ja hemma 3 (143 min). Baslinjen sparad.
+- Efter de gamla buggarna (2026-11-20: ett benförslag åt gången, `LEG_GAP_S` 300 s; ingen botten medan ett
+  sambandstillfälle väntar): `kontroll.py` alla scenarier som baslinjen utom kuba-kort ja rapporterad 3 ⇒ 5
+  (plottet drar inte bort båten med fyra benförslag) och krig ja hemma 6 (median 664 min; utan bottenregeln
+  3: båten la sig på botten en minut efter radions "djup 40" och missade hemkallelsen). Baslinjen uppdaterad.
 - Vägen dit: utan marschfart till ankarplatsen och ut efter hemkallelsen, och med plottets TMA-ben efter
   hemkallelsen, kom ja-boten hem i 2 av 8 (foto 0); vaktjagaren som pingade i patrull hittade oss 6 nm från
   ankarplatsen (nu lyssnar den). Verktygsboten förlorades i 7 av 8 när den avböjde maskins förslag att gå

@@ -87,6 +87,12 @@ def _src(d: dict) -> str:
     return f" från {d['designation']}" if d.get("designation") else ""
 
 
+def _only_pings(d: dict) -> str:
+    """Kontakten är tappad på passiv sonar men pingarna känns igen: säg det, så att det inte låter
+    som att vi har den igen."""
+    return f" Maskinerna på {d['designation']} hör vi inte, bara pingarna." if d.get("lost") else ""
+
+
 # Sjunkbombernas klassning (KV2): sonaren hör bara den mottagna nivån. En signalladdning ger
 # 195 dB vid källan, en skarp 230: en signalladdning nära låter som en skarp flera sjömil bort.
 # Starkare än en signalladdning kan låta (närmast CHARGE_MIN_M) är skarpt, säkert. Annars avgör
@@ -119,10 +125,10 @@ PHRASES = {
     "sonar.ping.first": lambda d: f"Kapten, sonar! Aktiv sonar i bäring {fmt_course(d['bearing'])}"
     f"{_src(d)}. Någon söker.",
     "sonar.ping.fast": lambda d: f"{ru('Tovarisjtj komandir')}, sonar! Pingtakten{_src(d)} har ökat kraftigt. "
-    "De har troligen kontakt med oss!",
-    "sonar.ping.slow": lambda d: f"Pingtakten{_src(d)} har minskat igen.",
+    "De har troligen kontakt med oss!" + _only_pings(d),
+    "sonar.ping.slow": lambda d: f"Pingtakten{_src(d)} har minskat igen." + _only_pings(d),
     "sonar.ping.close": lambda d: f"Pingarna{_src(d)} är mycket starka nu, kapten. "
-    "Jag hör dem genom skrovet.",
+    "Jag hör dem genom skrovet." + _only_pings(d),
     "sonar.splash": lambda d: f"Kapten, sonar! Plask i vattnet, bäring {fmt_course(d['bearing'])}"
     + (", nära!" if d.get("near") else ".") + " Sjunkbomber!",
     "sonar.explosion": lambda d: (
@@ -165,6 +171,10 @@ def _ru_src(d: dict) -> str:
     return f" от {R.contact(d['designation'], True)}" if d.get("designation") else ""
 
 
+def _ru_only_pings(d: dict) -> str:
+    return " Шумов винтов не слышно, только посылки." if d.get("lost") else ""
+
+
 def _ru_cap(s: str) -> str:
     return s[:1].upper() + s[1:]
 
@@ -190,10 +200,10 @@ RU_PHRASES = {
     "sonar.ping.first": lambda d: f"{R.CAPTAIN}, акустик! Работа гидролокатора, пеленг "
     f"{R.course(d['bearing'])}{_ru_src(d)}. Нас ищут.",
     "sonar.ping.fast": lambda d: f"{R.CAPTAIN}, акустик! Темп посылок{_ru_src(d)} резко возрос. "
-    "Видимо, они нас обнаружили!",
-    "sonar.ping.slow": lambda d: f"Темп посылок{_ru_src(d)} снова снизился.",
+    "Видимо, они нас обнаружили!" + _ru_only_pings(d),
+    "sonar.ping.slow": lambda d: f"Темп посылок{_ru_src(d)} снова снизился." + _ru_only_pings(d),
     "sonar.ping.close": lambda d: f"Посылки{_ru_src(d)} очень сильные, товарищ командир. "
-    "Слышно через корпус.",
+    "Слышно через корпус." + _ru_only_pings(d),
     "sonar.splash": lambda d: f"{R.CAPTAIN}, акустик! Всплески, пеленг {R.course(d['bearing'])}"
     + (", близко!" if d.get("near") else ".") + " Глубинные бомбы!",
     "sonar.explosion": lambda d: (
@@ -574,6 +584,9 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
             key = ev.designation or unknown or f"okänd{self._unknown_pingers}"
             if not key.startswith("okänd"):
                 d["designation"] = key           # den kända pingaren, också när kontakten tappats
+                tr = self.game.knowledge.tracks.get(key)
+                if tr is not None and not tr.held:
+                    d["lost"] = True             # vi hör bara pingarna, inte maskinerna
             if key not in self._pings and unknown and ev.designation and unknown.startswith("okänd"):
                 self._pings[key] = self._pings.pop(unknown)      # samma pingare, nu identifierad
             p = self._pings.setdefault(key, {"last": None, "fast": False, "close_t": -10**9,

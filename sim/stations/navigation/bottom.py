@@ -187,12 +187,24 @@ class BottomMixin:
             return None                 # vi ska höra målet, inte gömma oss för det
         if self.game.recalled() and not k.hunted(self.now):
             return None                 # hemkallade: vi ska ut, inte ligga still
+        if not k.hunted(self.now) and self._radio_window_pending():
+            return None                 # radion ska upp och ta emot: lägg oss inte på botten nu
         here = self.bottom_here()
         if here is None or here[1] is None or here[1] == "klippa" or here[0] > SETTLE_SUGGEST_MAX_M:
             return None
         return Proposal(2, "settle", "nav.suggest.settle", "botten",
                         {"depth": round(here[0], -1), "kind": here[1]},
                         quality=self._shoal_quality(), cooldown=1200)
+
+    def _radio_window_pending(self) -> bool:
+        """Väntar eller pågår ett sambandstillfälle som radion inte klarat av (eget instrument:
+        radions schema)?"""
+        from ..radio import RadioStation
+        try:
+            radio = self.game.station(RadioStation)
+        except KeyError:
+            return False
+        return radio.window_pending() is not None
 
     def _unstick_watch(self) -> None:
         """Fast mot land eller stoppade tvärt mot en isvägg: föreslå att gå loss åt andra
