@@ -14,6 +14,8 @@ from .common import (
     EXIT_RECALC_S,
     EXIT_SAMPLE_NM,
     EXIT_SHALLOW_FACTOR,
+    EXIT_TRANSIT_KN,
+    EXIT_TRANSIT_NM,
     EXIT_THREAT_PENALTY_NM,
     EXIT_THREAT_SECTOR,
     LAND_CLEAR_M,
@@ -161,9 +163,21 @@ class ExitMixin:
         if route is None:
             return
         c, dist, clear = route
-        if abs(angle_diff(c, self.ship.ordered_course)) <= 20:
+        order, speed = self.exit_order(c, dist)
+        if abs(angle_diff(c, self.ship.ordered_course)) <= 20 and speed is None:
             return
         self.suggest("exit", "nav.suggest.exit",
                      {"course": c, "dist": dist, "clear": clear, "area": self.game.area_name,
-                      "via": self.exit_via},
-                     order=f"kurs {fmt_course(c)}", cooldown=600 if self.exit_via else 1200)
+                      "via": self.exit_via, **({"speed": speed} if speed else {})},
+                     order=order, cooldown=600 if self.exit_via else 1200)
+
+    def exit_order(self, c: float, dist: float) -> tuple[str, int | None]:
+        """Ordern ut: kursen, och när staben kallat hem oss (`Scenario.escape_task`) och vägen är
+        lång utan hot i plottet även marschfart på turbinen (annars hinner vi inte ut)."""
+        sc = self.game.scenario
+        k = self.game.knowledge
+        if sc is not None and sc.escape_task is not None and dist > EXIT_TRANSIT_NM and \
+                self.ship.ordered_speed < EXIT_TRANSIT_KN - 1 and not k.threat_held() and \
+                not k.hunted(self.now):
+            return f"kurs {fmt_course(c)}, turbin, fart {EXIT_TRANSIT_KN}", EXIT_TRANSIT_KN
+        return f"kurs {fmt_course(c)}", None

@@ -284,6 +284,16 @@ class PositionReported(Event):
     sigma: float            # nm vid tidpunkten t_pos
     t_pos: int
     source: str = "radio"   # radio, periskop
+    # (kurs, fart i knop) om det som meddelas rör sig (en konvoj), annars None
+    motion: tuple[float, float] | None = None
+    task: bool = False      # positionen hör till en ny uppgift i ordern (navigatören föreslår kurs dit)
+
+
+@dataclass(frozen=True)
+class TasksOrdered(Event):
+    """Ett telegram byter det ordern kräver (`Knowledge.order_tasks`): krigspatrullens uppgifter."""
+    tasks: tuple[str, ...]
+    source: str = "telegram"
 
 
 @dataclass(frozen=True)

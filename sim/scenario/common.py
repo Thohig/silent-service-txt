@@ -7,18 +7,11 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 from ..crew import CrewMember, Role
+from ..radiogram import RadioMessage  # noqa: F401  (scenarierna importerar den härifrån)
 from ..environment import TidalStream
 from ..reports import Quality
 from ..seabed import Seabed
 from ..world import World
-
-
-@dataclass
-class RadioMessage:
-    text: str
-    flags: dict = field(default_factory=dict)
-    # (namn, x, y, sigma nm, simtid) – en position huvudstaben meddelar
-    waypoint: tuple[str, float, float, float, int] | None = None
 
 
 @dataclass(frozen=True)
@@ -41,8 +34,9 @@ class Scenario:
     radio_windows: list[int] = field(default_factory=list)   # simtid när fönster öppnar
     radio_window_len: int = 20 * 60
     radio_messages: list[RadioMessage] = field(default_factory=list)
-    # positioner besättningen känner från start: (namn, x, y, sigma nm, simtid)
-    known_positions: list[tuple[str, float, float, float, int]] = field(default_factory=list)
+    # positioner besättningen känner från start: (namn, x, y, sigma nm, simtid[, (kurs, fart),
+    # uppgift]); uppgift: ordern skickar oss dit (navigatören föreslår kurs)
+    known_positions: list[tuple] = field(default_factory=list)
     area_name: str = "kvadrat 7"         # operationsområdet, som besättningen säger det
     outcome_text: dict[str, str] = field(default_factory=dict)   # ersätter Game.OUTCOME_TEXT
     chart_seabed: Seabed | None = None   # det gamla sjökortets bild av botten (kunskap)
@@ -72,6 +66,11 @@ class Scenario:
     at_war: bool = False
     # fyrlistan (seabed.Lighthouse) navigatören har; med den gäller fyrarna i nattfixen
     light_list: tuple = ()
+    # krigsskådeplatsen (theatre.Theatre, sanning): uppgifter som staben sänder under spelet
+    theatre: Any = None
+    # utvägen gäller först när ordern (Knowledge.order_tasks) har denna uppgift, t.ex. "ut"
+    # när staben kallar hem krigspatrullen; None: från start
+    escape_task: str | None = None
 
 
 

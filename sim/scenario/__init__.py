@@ -80,6 +80,17 @@ from .konvoj import (  # noqa: F401
     convoy_scenario,
     convoy_short_scenario,
 )
+from .krig import (  # noqa: F401
+    WAR_AREA,
+    WAR_LIMIT_S,
+    WAR_RECALL_S,
+    WAR_SHORT_LIMIT_S,
+    WAR_SHORT_SIZE,
+    WAR_SHORT_WARM_S,
+    WAR_SIZE,
+    war_scenario,
+    war_short_scenario,
+)
 from .kuba import (  # noqa: F401
     KUBA_AIR,
     KUBA_SHORT_AFTER_S,
@@ -229,3 +240,15 @@ register(ScenarioDef(
     "Kort variant. K-114 ligger redan på periskopdjup i övningsområdet. Gå igenom resten av "
     "programmet: djup 100, provdjup, smygmotor, lyssning, övningstorped och uppstigning.",
     training_short_scenario, minutes=40))
+register(ScenarioDef(
+    "krig", "Krigspatrullen, 28 oktober 1962",
+    "Kriget har börjat. Patrullera kvadrat 14 norr om Kuba tills staben kallar hem er. Uppgifterna "
+    "kommer vid sambandstillfällena: konvojer att anfalla, styrkor att rapportera, ankarplatser att "
+    "fotografera. Pejlas en sändning kommer jaktgrupper och flyg.",
+    war_scenario))
+register(ScenarioDef(
+    "krig-kort", "Krigspatrullen – första konvojen, 28 oktober 1962",
+    "Kort variant. Vakten har följt den första konvojen i en halvtimme och plottet har den. Anfall, "
+    "bryt kontakten och ta emot stabens hemkallelse vid nästa sambandstillfälle; gå sedan ut ur "
+    "kvadraten.",
+    war_short_scenario, minutes=90))

@@ -6,12 +6,14 @@ ingen referens till världen.
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 from .events import (AirRadarHeard, BearingObserved, ChargeHeard, InterceptHeard, BridgeSighted, ClassificationChanged, ContactDetected,
                      ConvoyAssessed, ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound,
                      PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported, RecordingMade,
-                     ListeningExercise, NuclearOrderRead, TelegramReceived, TorpedoExercise, TorpedoInWater)
+                     ListeningExercise, NuclearOrderRead, TasksOrdered, TelegramReceived, TorpedoExercise,
+                     TorpedoInWater)
 from .icemap import IceMap
 from .periscope import PeriscopePicture
 from .seabed import Seabed
@@ -73,6 +75,7 @@ class ContactTrack:
 HUNTED_WINDOW_S = 300          # så länge efter senaste tecknet räknar vi med att de har oss
 TORPEDO_ALARM_S = 60           # så länge efter senaste bäringen på en fientlig torped
 WAYPOINT_DRIFT_KN = 0.3          # isdrift åt okänt håll: så växer osäkerheten
+WAYPOINT_MOTION_KN = 2.0         # ett mål som rör sig: fel i meddelad kurs och fart, sicksack
 HUNTER_PING_S = 300            # ett mål som pingat så nyss räknas som jagande
 
 
@@ -85,9 +88,20 @@ class Waypoint:
     sigma0: float
     t: int
     source: str = "radio"
+    motion: tuple[float, float] | None = None    # (kurs, fart) om målet rör sig
 
     def sigma(self, now: int) -> float:
-        return self.sigma0 + WAYPOINT_DRIFT_KN * max(0, now - self.t) / 3600.0
+        drift = WAYPOINT_DRIFT_KN if self.motion is None else WAYPOINT_MOTION_KN
+        return self.sigma0 + drift * max(0, now - self.t) / 3600.0
+
+    def at(self, now: int) -> tuple[float, float]:
+        """Läget nu: det meddelade, framräknat med meddelad kurs och fart."""
+        if self.motion is None:
+            return self.x, self.y
+        c, v = self.motion
+        dt_h = max(0, now - self.t) / 3600.0
+        return (self.x + v * dt_h * math.sin(math.radians(c)),
+                self.y + v * dt_h * math.cos(math.radians(c)))
 
 
 AIR_CLOSE = ("stark", "mycket stark")    # flygradarns styrka då masterna kan synas
@@ -120,7 +134,10 @@ class Knowledge:
     air_close_t: int | None = None       # senast radarvarnaren hörde flygradar nära (stark, mycket stark)
     convoy: ConvoyEstimate | None = None   # plottets bild av en konvoj
     telegrams: list[TelegramReceived] = field(default_factory=list)   # det radion tagit emot
-    order_tasks: frozenset[str] = frozenset()   # vad ordern kräver (Scenario.tasks)
+    order_tasks: frozenset[str] = frozenset()   # vad ordern kräver (Scenario.tasks, TasksOrdered)
+    order_tasks_t: int = 0                      # när ordern senast byttes (TasksOrdered)
+    task_place: str | None = None               # positionen den senaste uppgiften gäller
+    photo_t: int | None = None                  # senaste spaningsfotot
     # vad ordern och telegrammen säger om kärnladdningen och kriget: (tid, nuclear, war, källa)
     nuclear_orders: list[tuple[int, str | None, bool | None, str]] = field(default_factory=list)
     charges: list[ChargeHeard] = field(default_factory=list)   # sjunkbomberna som besättningen bedömt dem
@@ -134,6 +151,7 @@ class Knowledge:
         bus.subscribe(OpeningNotFound, self._on_opening_not_found)
         bus.subscribe(PositionReported, self._on_position)
         bus.subscribe(TelegramReceived, self.telegrams.append)
+        bus.subscribe(TasksOrdered, self._on_tasks)
         bus.subscribe(ChargeHeard, self.charges.append)
         bus.subscribe(NuclearOrderRead,
                       lambda e: self.nuclear_orders.append((e.t, e.nuclear, e.war, e.source)))
@@ -151,6 +169,9 @@ class Knowledge:
         bus.subscribe(TorpedoExercise, lambda e: setattr(self, "torpedo_exercise", e.active))
 
     # --- händelser ------------------------------------------------------------
+    def _on_tasks(self, e: TasksOrdered) -> None:
+        self.order_tasks, self.order_tasks_t = frozenset(e.tasks), e.t
+
     def _on_air_radar(self, e: AirRadarHeard) -> None:
         self.air_radar = (e.t, e.strength)
         if e.strength in AIR_CLOSE:
@@ -188,6 +209,7 @@ class Knowledge:
             self.periscope = last
 
     def _on_photo(self, e: PhotoTaken) -> None:
+        self.photo_t = e.t
         if self.best_photo is None or e.quality > self.best_photo:
             self.best_photo = e.quality
 
@@ -212,7 +234,9 @@ class Knowledge:
 
     def _on_position(self, e: PositionReported) -> None:
         old = self.waypoints.get(e.name)
-        new = Waypoint(e.name, e.x, e.y, e.sigma, e.t_pos, e.source)
+        new = Waypoint(e.name, e.x, e.y, e.sigma, e.t_pos, e.source, e.motion)
+        if e.task:
+            self.task_place = e.name
         if old is None or new.sigma(e.t) <= old.sigma(e.t):
             self.waypoints[e.name] = new
 

@@ -210,9 +210,12 @@ class EscapeGoal(Goal):
     requires_photo: int | None = None
     y_below: float | None = None
     requires_record: str | None = None     # inte utan inspelningen av detta mål (RecordGoal)
+    requires_flag: str | None = None       # inte förrän ett telegram satt flaggan (t.ex. recalled)
     RANK: ClassVar[int] = 90
 
     def check(self, world: World) -> bool:
+        if self.requires_flag is not None and not world.mission.get(self.requires_flag):
+            return False
         if self.requires_photo is not None and \
                 world.mission.get("best_photo", -1) < self.requires_photo:
             return False

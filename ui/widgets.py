@@ -220,6 +220,7 @@ class ReportLog(RichLog):
             rows.append(("Kärnladdning", "använd"))
         rows += radio_rows(summary.get("radio"))
         rows += council_rows(summary.get("council"))
+        rows += war_rows(summary.get("war"))
         for k, v in rows:
             line = Text("  ")
             line.append(f"{k}: ", style="dim")
@@ -244,6 +245,28 @@ class ReportLog(RichLog):
                     self.emit(line)
         self.emit(Text("═" * 60, style="dim"))
         self.emit(Text("  Avsluta med ctrl+q.", style="dim italic"))
+
+
+RESULT_WORDS = {"sänkt": "sänkt", "rapporterad": "rapporterad", "fotograferad": "fotograferad",
+                "missad": "missad", "inställd": "inställd vid hemkallelsen"}
+
+
+def war_rows(w: dict | None) -> list[tuple[str, str]]:
+    """Slutrapportens rader om krigspatrullen (`theatre.task_summary`)."""
+    if not w:
+        return []
+    rows = []
+    for t in w["tasks"]:
+        what = RESULT_WORDS.get(t["result"], t["result"])
+        if t["sunk"] and t["result"] != "sänkt":
+            what += f", {t['sunk']} sänkta"
+        given = f"kl {t['given']}" if t["given"] else "aldrig mottagen"
+        rows.append((f"Uppgift {t['n']}, {t['name'].rsplit(' ', 1)[0]} ({given})", what))
+    tons = f"{w['tons']:,}".replace(",", " ")
+    rows.append(("Sänkta fiendefartyg", f"{w['sunk']}, cirka {tons} ton"))
+    if w["df"]:
+        rows.append(("Sändningar pejlade av fienden", str(w["df"])))
+    return rows
 
 
 def radio_rows(r: dict | None) -> list[tuple[str, str]]:

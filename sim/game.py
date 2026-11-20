@@ -44,6 +44,7 @@ from .reports import Quality, Report, ReportQueue
 from .scenario import Scenario
 from .stations import DEFAULT_STATIONS, NavigationStation, Station
 from .goals import NuclearFired, council_summary, report_summary
+from .theatre import task_summary
 from .truthlog import TruthLog
 
 S = TypeVar("S", bound=Station)
@@ -195,8 +196,10 @@ class Game:
         for st in self.stations:
             st.attach(self.bus)
         self.registry = build_registry(station_classes)
-        for name, x, y, sigma, t in scenario.known_positions:
-            self.bus.publish(PositionReported(0, name, x, y, sigma, t, "order"))
+        for name, x, y, sigma, t, *rest in scenario.known_positions:   # (…[, (kurs, fart), uppgift])
+            self.bus.publish(PositionReported(0, name, x, y, sigma, t, "order",
+                                              motion=rest[0] if rest else None,
+                                              task=len(rest) > 1 and bool(rest[1])))
         # loggboken börjar när kaptenen tar befälet, efter en ev. uppvärmning
         self.logbook = Logbook(self.clock_str)
         self.warmup_pending = scenario.warmup is not None
@@ -253,8 +256,21 @@ class Game:
 
     @property
     def escape_nm(self) -> float | None:
-        """Om målet är att lämna området: marginalen utanför kanten (nm)."""
-        return self.scenario.escape_margin_nm if self.scenario else None
+        """Om målet är att lämna området: marginalen utanför kanten (nm). Med `escape_task`
+        först när ordern (kunskapen) har den uppgiften, t.ex. när staben kallat hem oss."""
+        sc = self.scenario
+        if sc is None:
+            return None
+        if sc.escape_task is not None and sc.escape_task not in self.knowledge.order_tasks:
+            return None
+        return sc.escape_margin_nm
+
+    def recalled(self) -> bool:
+        """Har staben kallat hem oss (`Scenario.escape_task` i ordern)? Då är vägen ut det enda
+        som gäller: plottlaget föreslår inga nya ben för bättre lösningar."""
+        sc = self.scenario
+        return sc is not None and sc.escape_task is not None and \
+            sc.escape_task in self.knowledge.order_tasks
 
     def escape_ready(self) -> bool:
         """Har vi det vi kom för (t.ex. fotot), så att vägen ut är det som återstår?"""
@@ -476,6 +492,7 @@ class Game:
             "radio": report_summary(self.world, list(self.scenario.radio_windows),
                                     self.scenario.radio_window_len),
             "council": council_summary(self.world),
+            "war": task_summary(self.world),
         }
         self.log(f"SLUT {summary}")
         self.bus.publish(GameEnded(self.now, o["outcome"], summary))

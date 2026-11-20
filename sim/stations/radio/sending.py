@@ -72,6 +72,7 @@ class SendingMixin:
             py = c.y + c.speed * dt_h * math.cos(math.radians(c.course))
             out["contacts"].append({
                 "designation": c.designation,
+                "id": v.id,                     # sanningens id (krigsskådeplatsen, aldrig till spelaren)
                 "pos_err_nm": distance(px, py, v.state.x, v.state.y),
                 "course_err": abs(angle_diff(c.course, v.state.course)),
                 "speed_err": abs(c.speed - v.state.speed)})
@@ -112,6 +113,38 @@ class SendingMixin:
         if up is None:
             return
         self.suggest(f"clear{i}", "radio.clear", {**d, "what": up}, order=up, cooldown=0)
+
+    def _task_report_advice(self) -> None:
+        """Staben har gett en spaningsuppgift (`rapport` i ordern, krigspatrullen): när plottet har
+        en lösning på ett fartyg som kommit efter uppgiften, föreslå att sända rapporten (inte
+        medan fienden har oss), först periskopdjup om vi är djupt."""
+        k = self.game.knowledge
+        if self.report_required or "rapport" not in k.order_tasks or self.tx_done_t is not None \
+                or self._reported_t >= k.order_tasks_t:
+            return
+        if k.hunted(self.now) or self._threat_near() is not None or k.air_close_now():
+            return
+        best = None
+        for tr in k.tracks.values():
+            sol = tr.solution
+            if not tr.held or tr.benign or tr.friendly or sol is None or \
+                    sol.quality < Quality.OSAKER or tr.first_t < k.order_tasks_t:
+                continue
+            if best is None or sol.quality > best[1]:
+                best = (tr.designation, sol.quality)
+        if best is None:
+            return
+        st = self.own.state
+        if st.depth <= PERISCOPE_DEPTH + 0.5:
+            full = self.draft("full")
+            risk, q = self.risk(full.duration_s)
+            self.suggest("task_report", "radio.suggest.task_report",
+                         {"now": True, "designation": best[0], "seconds": full.duration_s,
+                          "risk": risk}, order="sänd rapport", cooldown=REPORT_SUGGEST_S, quality=q)
+        else:
+            self.suggest("task_report_up", "radio.suggest.task_report",
+                         {"now": False, "designation": best[0]}, order="periskopdjup",
+                         cooldown=REPORT_SUGGEST_S, quality=best[1])
 
     def _report_advice(self, w0: int) -> None:
         """Ordern kräver en rapport: föreslå periskopdjup och sedan sändningen, men inte

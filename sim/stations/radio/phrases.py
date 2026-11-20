@@ -111,6 +111,11 @@ PHRASES = {
          f"Föreslår att vi sänder nu. Det tar cirka {d['seconds']} sekunder, och risken att de "
          f"pejlar oss är {d['risk']}.") if d["now"] else
         "Vi måste upp på periskopdjup för att sända. Föreslår periskopdjup."),
+    "radio.suggest.task_report": lambda d: f"Kapten, radio. Staben vill ha kurs och fart på "
+    f"styrkan, och plottet har en lösning på {d['designation']}. " + (
+        f"Föreslår att vi sänder rapporten nu. Det tar cirka {d['seconds']} sekunder, och risken "
+        f"att de pejlar oss är {d['risk']}." if d["now"] else
+        "Vi måste upp på periskopdjup för att sända. Föreslår periskopdjup."),
     "radio.wait": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}, men plottet har "
     f"{d['designation']} på {nm(d['range'])} sjömil. Där uppe ligger vi över skiktet och hörs. "
     "Föreslår att vi väntar på djupet tills den gått längre bort.",
@@ -182,6 +187,11 @@ RU_PHRASES = {
     f"{R.contact(d['designation'])} в {R.dec(d['range'], R.MILE)}. Предлагаю ждать на глубине.",
     "radio.clear": lambda d: f"{R.CAPTAIN}, радист. {R.contact(d['designation']).capitalize()} теперь в "
     f"{R.dec(d['range'], R.MILE)}. Предлагаю подвсплыть.",
+    "radio.suggest.task_report": lambda d: f"{R.CAPTAIN}, радист. Штаб ждёт курс и скорость "
+    f"отряда. Есть решение: {R.contact(d['designation'])}. " + (
+        f"Предлагаю передать сейчас, около {R.count(d['seconds'], R.SECOND)}. Риск пеленгации "
+        f"{RISK_RU[d['risk']]}." if d["now"] else
+        "Для передачи нужна перископная глубина. Предлагаю всплыть под перископ."),
     "radio.suggest.report": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи идёт, штаб ждёт донесения. "
     + ((f"Полное донесение около {R.count(d['seconds'], R.SECOND)}, риск пеленгации "
         f"{RISK_RU[d['risk']]}. Предлагаю короткое донесение, около "

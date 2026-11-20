@@ -56,6 +56,8 @@ class World:
     patrol_end: int | None = None
     # det som skickar in nya enheter under spelet (civil trafik, flyg); var och en har step(world)
     spawners: list[Any] = field(default_factory=list)
+    # ett spel utan slut när alla fiender är sänkta (krigspatrullen: staben sänder nya uppgifter)
+    open_ended: bool = False
     _pending_t: list[Transient] = field(default_factory=list)
     _pending_e: list[Emission] = field(default_factory=list)
 
@@ -144,7 +146,7 @@ class World:
                 self.end("neutral_sunk")
             return
         enemies = self.enemy_ships
-        if enemies and all(v.sunk for v in enemies):
+        if enemies and not self.open_ended and all(v.sunk for v in enemies):
             self.mission.setdefault("all_sunk_t", self.time)
             if self.time - self.mission["all_sunk_t"] >= SINK_ENDING_DELAY:
                 self.end("sank")

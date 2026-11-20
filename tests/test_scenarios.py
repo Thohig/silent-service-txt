@@ -50,8 +50,11 @@ def test_order_tasks_match_the_goals(key):
     if w.goal(PhotoGoal) or (w.goal(EscapeGoal) and w.goal(EscapeGoal).requires_photo is not None
                              and sc.warmup is None):
         expected.add("foto")
-    if w.goal(EscapeGoal):
-        expected.add("ut")
+    if w.goal(EscapeGoal) and w.goal(EscapeGoal).requires_flag is None:
+        expected.add("ut")                  # krigspatrullen: utvägen först efter hemkallelsen
+    if sc.theatre is not None:              # krigsskådeplatsens första uppgift står i ordern
+        from sim.theatre import TASK_ORDER
+        expected.update(TASK_ORDER[sc.theatre.tasks[0].kind])
     if w.goal(SurfaceNearGoal):
         expected.add("station")
     if w.goal(TrainingGoal):

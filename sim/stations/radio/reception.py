@@ -3,7 +3,7 @@ from __future__ import annotations
 
 
 from ...headquarters import MAX_PER_WINDOW
-from ...events import (NuclearOrderRead, PositionReported,
+from ...events import (NuclearOrderRead, PositionReported, TasksOrdered,
                       TelegramReceived)
 from ...ownship import ANTENNA_DEPTH
 from .common import (
@@ -86,6 +86,8 @@ class ReceptionMixin:
     def _pending_texts(self, upto: int) -> list[str]:
         """Det staben sänder vid detta tillfälle: scenariots radiogram och stabens svar."""
         out = [m.text for m in self.messages[self._next_msg:upto + 1]]
+        if self.theatre is not None:
+            out += [m.text for m in self.theatre.pending(self.world)]
         return out + self.hq.queue[:MAX_PER_WINDOW]
 
     def _say_garbled(self, text: str, why: list[str]) -> None:
@@ -105,23 +107,35 @@ class ReceptionMixin:
         while self._next_msg <= upto and self._next_msg < len(self.messages):
             msg = self.messages[self._next_msg]
             self._next_msg += 1
-            self._telegram(msg.text, via)
-            if "nuclear" in msg.flags or "war" in msg.flags:
-                self.game.bus.publish(NuclearOrderRead(self.now, msg.flags.get("nuclear"),
-                                                       msg.flags.get("war"),
-                                                       f"telegram {self.received}"))
-            self.world.mission.update(msg.flags)
-            if msg.flags.get("report_requested"):
-                self.hq.request_report()
-            if msg.waypoint is not None:
-                name, x, y, sigma, t_pos = msg.waypoint
-                self.game.bus.publish(PositionReported(self.now, name, x, y, sigma, t_pos))
+            self._radiogram(msg, via)
             any_msg = True
+        if self.theatre is not None:            # krigsskådeplatsens uppgifter (theatre.py)
+            for msg in self.theatre.deliver(self.world):
+                self._radiogram(msg, via)
+                any_msg = True
         for text in self.hq.outgoing():          # stabens svar på det vi sänt (eller inte sänt)
             self._telegram(text, via)
             any_msg = True
         if not any_msg:
             self.say("radio.nothing")
+
+    def _radiogram(self, msg, via: str) -> None:
+        """Ett radiogram från staben (`radiogram.RadioMessage`): texten och det flaggorna säger."""
+        self._telegram(msg.text, via)
+        if "nuclear" in msg.flags or "war" in msg.flags:
+            self.game.bus.publish(NuclearOrderRead(self.now, msg.flags.get("nuclear"),
+                                                   msg.flags.get("war"),
+                                                   f"telegram {self.received}"))
+        self.world.mission.update(msg.flags)
+        if "tasks" in msg.flags:
+            self.game.bus.publish(TasksOrdered(self.now, tuple(msg.flags["tasks"]),
+                                               f"telegram {self.received}"))
+        if msg.flags.get("report_requested"):
+            self.hq.request_report()
+        if msg.waypoint is not None:
+            name, x, y, sigma, t_pos = msg.waypoint
+            self.game.bus.publish(PositionReported(self.now, name, x, y, sigma, t_pos,
+                                                   motion=msg.motion, task="tasks" in msg.flags))
 
     def _telegram(self, text: str, via: str = "mast") -> None:
         self.delivered.append(text)

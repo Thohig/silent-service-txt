@@ -25,7 +25,7 @@ from .sending import SendingMixin
 
 
 class RadioStation(ReceptionMixin, SendingMixin, Station):
-    REACHES_WORLD = True        # sändningar (pejlbara emissioner) och huvudstabens meddelanden
+    REACHES_WORLD = True        # sändningar (pejlbara emissioner), stabens meddelanden och krigsskådeplatsen
     role = Role.RADIO
     MAST_ORDERS = (SendReport,)
     COMMANDS = [
@@ -47,6 +47,8 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
         self.windows: list[int] = list(sc.radio_windows) if sc else []
         self.window_len: int = sc.radio_window_len if sc else 1200
         self.messages = list(sc.radio_messages) if sc else []
+        # krigsskådeplatsen (theatre.py, sanning): uppgifter som staben sänder under spelet
+        self.theatre = getattr(sc, "theatre", None)
         self.delivered: list[str] = []
         self._next_msg = 0
         self._orders_read = False
@@ -323,6 +325,8 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
                 self.game.bus.publish(ReportTransmitted(self.now, r))
                 self.game.bus.publish(OwnActionLogged(self.now, "report"))
 
+        if self.now % 30 == 0:
+            self._task_report_advice()
         for i, w0 in enumerate(self.windows):
             if w0 <= self.now < w0 + self.window_len:
                 self._report_advice(w0)
@@ -360,7 +364,8 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
             elif self.now >= w0 + self.window_len:
                 self._handled.add(i)
                 self.cable = False
-                if self._next_msg <= i and self._next_msg < len(self.messages):
+                if self._next_msg <= i and self._next_msg < len(self.messages) or \
+                        self.theatre is not None and self.theatre.pending(self.world):
                     self.say("radio.missed", {"next": self._next_window_clock()}, alarm=False)
 
     def _intercept(self) -> None:

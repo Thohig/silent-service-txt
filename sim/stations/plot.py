@@ -504,7 +504,7 @@ class PlotTeam(Station):
             elif (sol.quality < Quality.GOD and sol.n_obs >= 12 and sol.span_s >= 120
                   and (tr.threat or self.game.knowledge.listening)
                   and not self._maneuvered_recently(tr) and not self._convoy_sibling(tr)
-                  and not self.game.knowledge.hunted(self.now)
+                  and not self.game.knowledge.hunted(self.now) and not self.game.recalled()
                   and self.now - self._last_suggest.get(tr.designation, -10**9) >= SUGGEST_COOLDOWN):
                 self._last_suggest[tr.designation] = self.now
                 course = self._suggest_course(sol, tr)
@@ -629,8 +629,8 @@ class PlotTeam(Station):
 
     def idle_proposals(self) -> list[Proposal]:
         out = []
-        if self.game.knowledge.hunted(self.now):
-            return out          # jagade: kursen behövs för att komma undan, inte för TMA
+        if self.game.knowledge.hunted(self.now) or self.game.recalled():
+            return out          # jagade eller hemkallade: kursen behövs för att komma ut, inte för TMA
         for tr in self.game.knowledge.tracks.values():
             sol = tr.solution
             if not (tr.threat or tr.held and tr.friendly and self.game.knowledge.listening) \

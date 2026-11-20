@@ -11,9 +11,9 @@ import re
 from ... import acoustics
 from ...chart import LAYER_CONTOUR, LAYER_ICE, LAYER_OWN, LAYER_TRACK, Mark, Note, Ray, Ring, Track
 from ...crew import Role
-from ...events import OwnSoundMade
+from ...events import OwnSoundMade, PositionReported
 from ...fmt import clock, fmt_course, kn, nm
-from ...geo import angle_diff, bearing_to, norm360, velocity
+from ...geo import angle_diff, bearing_to, distance, norm360, velocity
 from ...ice import SAIL_TOP_M
 from ...icemap import Opening
 from ...orders import NUM, CommandSpec, Order, Unknown, num
@@ -80,6 +80,14 @@ def _course(m: re.Match) -> Order:
 
 
 
+TASK_PLACE_TASKS = frozenset({"anfall", "rapport", "foto"})   # uppgifter med en plats att gå till
+TASK_NEAR_NM = 3.0          # så nära uppgiftens plats slutar navigatören föreslå kursen dit
+TASK_OFF_DEG = 30.0         # och föreslår den igen när vi gått så här långt ifrån den
+TASK_SUGGEST_S = 900
+TASK_TRANSIT_NM = 6.0       # så långt bort föreslår navigatören marschfart dit
+TASK_TRANSIT_KN = 8
+
+
 class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixin, Station):
     REACHES_WORLD = True        # ekolodet, isekolodet och dagsljuset för landmärken
     role = Role.NAVIGATOR
@@ -123,6 +131,53 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         CommandSpec(r"(?:lägg oss på |lagg oss pa |lägg på |lagg pa |sätt oss på |satt oss pa |"
                     r"gå ned på |ga ned pa )?botten", lambda m: SettleOnBottom(), "botten"),
     ]
+
+    def attach(self, bus) -> None:
+        super().attach(bus)
+        bus.subscribe(PositionReported, self._on_task_position)
+
+    def _on_task_position(self, e: PositionReported) -> None:
+        """Staben ger en ny uppgift med en position (krigspatrullen): föreslå kurs dit."""
+        if e.task:
+            self._suggest_task_course(e.name, cooldown=0)
+
+    def _task_watch(self) -> None:
+        """På väg mot uppgiftens plats: föreslå kursen igen om vi gått ifrån den (sökben, undan-
+        manöver), tills vi är nära eller plottet har ett mål med lösning (då tar anfallet över)."""
+        k = self.game.knowledge
+        if k.task_place is None or not (k.order_tasks & TASK_PLACE_TASKS) or \
+                self.steer is not None or k.threat_held():
+            return
+        wp = k.waypoints.get(k.task_place)
+        if wp is None:
+            return
+        wx, wy = wp.at(self.now)
+        if distance(self.est_x, self.est_y, wx, wy) < TASK_NEAR_NM:
+            return
+        c = bearing_to(self.est_x, self.est_y, wx, wy)
+        if abs(angle_diff(c, self.ship.ordered_course)) > TASK_OFF_DEG:
+            self._suggest_task_course(k.task_place, cooldown=TASK_SUGGEST_S)
+
+    def _suggest_task_course(self, name: str, cooldown: int) -> None:
+        if self.game.knowledge.hunted(self.now):
+            return
+        wp = self.game.knowledge.waypoints.get(name)
+        if wp is None:
+            return
+        wx, wy = wp.at(self.now)
+        r = distance(self.est_x, self.est_y, wx, wy)
+        order = f"kurs mot {name}"
+        # en fast plats långt bort och inget hot i plottet: marschfart på turbinen (under
+        # kavitationen på 60 m). Mot ett mål som rör sig (en konvoj) väntar vi hellre in det.
+        transit = wp.motion is None and r > TASK_TRANSIT_NM and \
+            self.ship.ordered_speed < TASK_TRANSIT_KN - 1 and not self.game.knowledge.threat_held()
+        if transit:
+            order += f", turbin, fart {TASK_TRANSIT_KN}"
+        self.suggest(f"task_{name}", "nav.suggest.task",
+                     {"name": name, "course": bearing_to(self.est_x, self.est_y, wx, wy),
+                      "range": r, "sigma": wp.sigma(self.now) + self.uncertainty(),
+                      "speed": TASK_TRANSIT_KN if transit else None},
+                     order=order, cooldown=cooldown)
 
     def __init__(self, game):
         super().__init__(game)
@@ -279,8 +334,9 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
             items.append(Mark(light.x, light.y, "✶", "light", light.name))
         for wp in self.game.knowledge.waypoints.values():
             ws = wp.sigma(now)
-            items.append(Ring(wp.x, wp.y, ws, "waypoint"))
-            items.append(Mark(wp.x, wp.y, "⊕", "waypoint", f"{wp.name} ±{nm(ws)} nm"))
+            wx, wy = wp.at(now)                 # ett rörligt mål: framräknat med meddelad kurs
+            items.append(Ring(wx, wy, ws, "waypoint"))
+            items.append(Mark(wx, wy, "⊕", "waypoint", f"{wp.name} ±{nm(ws)} nm"))
         items.append(Ring(self.est_x, self.est_y, sigma, "own"))
         if s.speed > 0.2:
             items.append(Ray(self.est_x, self.est_y, s.track, s.speed * OWN_VECTOR_S / 3600,
@@ -514,9 +570,11 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         if self.game.escape_nm is not None:
             if self.game.escape_ready() and (route := self.exit_route()) is not None:
                 c, dist, clear = route
-                out.append(Proposal(3, "idle_exit", "nav.suggest.exit", f"kurs {fmt_course(c)}",
+                order, speed = self.exit_order(c, dist)
+                out.append(Proposal(3, "idle_exit", "nav.suggest.exit", order,
                                     {"course": c, "dist": dist, "clear": clear,
-                                     "area": self.game.area_name, "via": self.exit_via},
+                                     "area": self.game.area_name, "via": self.exit_via,
+                                     **({"speed": speed} if speed else {})},
                                     cooldown=900))
         elif not (0.5 <= self.est_x <= size - 0.5 and 0.5 <= self.est_y <= size - 0.5):
             c = bearing_to(self.est_x, self.est_y, size / 2, size / 2)
@@ -607,6 +665,8 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
     def update(self) -> None:
         self._current_age()
         self._dead_reckon()
+        if self.now % 60 == 0:
+            self._task_watch()
         if (self.game.start_clock + self.now) % DR_TICK_S == 0:
             self.dr_ticks.append((self.now, self.est_x, self.est_y))
         self._steer_step(Follow)

@@ -61,6 +61,16 @@ DF_SIGMA_30S_NM = 1.5
 DF_SIGMA_MIN_NM = 0.7
 DF_SIGMA_MAX_NM = 3.0
 ATTACK_COOLDOWN = 240
+
+
+def df_probability(duration: float) -> float:
+    """Sannolikheten att pejlnätet får ett fix på en kortvågssändning så här lång (s)."""
+    return min(1.0, max(0.0, (duration - DF_MIN_S) / (DF_SURE_S - DF_MIN_S)))
+
+
+def df_sigma(duration: float) -> float:
+    """Pejlfixets fel (nm, 1σ) för en sändning så här lång (s)."""
+    return min(DF_SIGMA_MAX_NM, max(DF_SIGMA_MIN_NM, DF_SIGMA_30S_NM * math.sqrt(30.0 / duration)))
 UWT_INTERVAL = 180
 WAKE_NM = 0.3               # ubåt så nära ett handelsfartyg gömmer sig i dess kölvatten
 WAKE_DEPTH_M = 100
@@ -316,11 +326,9 @@ class DestroyerAI:
                 self._datum_from_bearing(world, em.x, em.y, 0.3, depth_guess=15.0)
             elif em.kind == "hf" and r < 200:
                 # pejlnätet: en kort sändning hinner de inte pejla, en lång pejlas skarpare
-                p_fix = min(1.0, max(0.0, (em.duration - DF_MIN_S) / (DF_SURE_S - DF_MIN_S)))
-                if self.rng.random() >= p_fix:
+                if self.rng.random() >= df_probability(em.duration):
                     continue
-                sigma = min(DF_SIGMA_MAX_NM, max(DF_SIGMA_MIN_NM,
-                                                 DF_SIGMA_30S_NM * math.sqrt(30.0 / em.duration)))
+                sigma = df_sigma(em.duration)
                 self._set_datum(world, em.x + self.rng.gauss(0, sigma),
                                 em.y + self.rng.gauss(0, sigma), 15.0, sigma + 0.5)
 

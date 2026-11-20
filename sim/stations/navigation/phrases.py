@@ -198,6 +198,11 @@ PHRASES = {
     + (f", {d['classification']}" if d.get("classification") else "") + ".",
     "nav.steer": lambda d: f"Kurs {fmt_course(d['course'])} mot {d['name']}, "
     f"{nm(d['range'])} sjömil, ± {nm(d['sigma'])}.",
+    "nav.suggest.task": lambda d: f"Kapten, navigatören. Enligt staben ligger {d['name']} "
+    f"{nm(d['range'])} sjömil i kurs {fmt_course(d['course'])}, ± {nm(d['sigma'])}. "
+    f"Föreslår kurs mot {d['name']}"
+    + (f", på turbinen i {d['speed']} knop, så är vi där om "
+       f"{round(d['range'] / d['speed'] * 60 / 10) * 10} minuter." if d.get("speed") else "."),
     "nav.steer.none": lambda d: f"Kapten, vi har ingen position för {d['name']}. "
     + (f"Vi känner till: {', '.join(d['known'])}." if d["known"] else ""),
     "nav.suggest.land": lambda d: "Kapten, navigatören! "
@@ -283,7 +288,8 @@ PHRASES = {
        if d.get("via") else
        f"är kurs {fmt_course(d['course'])}, {nm(d['dist'])} sjömil")
     + (", bort från kontakterna." if d.get('clear') else ".")
-    + f" Föreslår kurs {fmt_course(d['course'])}.",
+    + f" Föreslår kurs {fmt_course(d['course'])}"
+    + (f", på turbinen i {d['speed']} knop." if d.get("speed") else "."),
     "nav.exit.out": lambda d: f"Kapten, enligt besticket är vi ute ur {d['area']}.",
     "nav.suggest.test_depth": lambda d: f"Kapten, vi är på {d['depth']:.0f} meter, under "
     f"provdjup. Föreslår djup 280.",
@@ -448,6 +454,9 @@ RU_PHRASES = {
     "nav.follow.none": lambda d: f"{R.CAPTAIN}, пеленга на {R.contact(d['designation'])} нет.",
     "nav.steer": lambda d: f"Курс {R.course(d['course'])}, дистанция {R.dec(d['range'], R.MILE)}, "
     f"ошибка {R.dec(d['sigma'], R.MILE)}.",
+    "nav.suggest.task": lambda d: f"{R.CAPTAIN}, штурман. По данным штаба цель в "
+    f"{R.dec(d['range'], R.MILE)}, курс {R.course(d['course'])}. Предлагаю идти туда"
+    + (f", турбина, {R.count(d['speed'], R.KNOT)}." if d.get("speed") else "."),
     "nav.steer.none": lambda d: f"{R.CAPTAIN}, места этой точки у нас нет.",
     "nav.ice.report": _ru_ice_report,
     "nav.suggest.keel": lambda d: f"{_NAV} Идём мелко подо льдом, ход {R.dec(d['speed'], R.KNOT)}. "
@@ -596,7 +605,8 @@ RU_PHRASES = {
     + (f"в обход земли, {R.dec(d['dist'], R.MILE)}" if d.get("via") else
        f"курсом {R.course(d['course'])}, {R.dec(d['dist'], R.MILE)}")
     + (", в сторону от контактов." if d.get("clear") else ".")
-    + f" Предлагаю курс {R.course(d['course'])}.",
+    + f" Предлагаю курс {R.course(d['course'])}"
+    + (f", турбина, {R.count(d['speed'], R.KNOT)}." if d.get("speed") else "."),
     "nav.exit.out": lambda d: f"{R.CAPTAIN}, по счислению мы вышли из района.",
     "nav.suggest.settle": lambda d: f"{R.CAPTAIN}, штурман. Мы над мелководьем, по карте около "
     f"{R.count(d['depth'], R.METER)}. Если ляжем на грунт, наше эхо утонет в донном. "

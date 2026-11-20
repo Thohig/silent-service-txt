@@ -56,6 +56,8 @@ CONVOY_LOOK_S = 240        # konvojen känd: en kort titt mot den så här ofta 
 FIRE_LOOK_NM = 3.5         # ett stort fartyg så nära enligt plottet: snart skjutläge
 FIRE_LOOK_S = 90           # ... då en titt före skottet om förra titten på det är så här gammal
 CONVOY_STEP_S = 30
+PHOTO_TASK_NM = 3.5         # så nära den meddelade ankarplatsen föreslår vakthavande en titt
+PHOTO_LOOK_S = 180          # och en ny titt så här ofta
 HUSH_SPEED_KN = 6          # tystnad i båten: jagade och högst så här fort (eller smygmotorn)
 HUSH_LIFT_S = 60           # tystnaden hävs när det varit lugnt eller fort så här länge
 ESCORT_CLOSE_NM = 3.0      # en jagare så nära: föreslå inte att gå upp
@@ -189,6 +191,11 @@ PHRASES = {
     "off.photo.done": lambda d: f"Bilder tagna, kapten. {d['count']} fartyg till ankars på cirka "
     f"{nm(d['range'])} sjömil. Bildkvaliteten är {d['quality']}"
     + ("." if d["day"] else ", i mörker.") + " Periskop ner.",
+    "off.suggest.photo_up": lambda d: f"Kapten, vakthavande. Enligt besticket är vi cirka "
+    f"{nm(d['range'])} sjömil från ankarplatsen. Föreslår periskopdjup för en titt och bilder"
+    + ("." if d["day"] else ", men i mörkret måste vi nära."),
+    "off.suggest.photo_look": lambda d: f"Kapten, vakthavande. Ankarplatsen bör ligga cirka "
+    f"{nm(d['range'])} sjömil bort. Föreslår ett periskopsvep.",
     "off.suggest.photo": lambda d: f"Kapten, vakthavande. Ankarplatsen är cirka {nm(d['range'])} "
     f"sjömil bort, nära nog för {d['quality']} bild. Föreslår fotografering.",
     "off.radar.start": lambda d: "Radar sänder. Ett svep.",
@@ -292,6 +299,10 @@ RU_PHRASES = {
     f"{R.count(d['count'], ('судно', 'судна', 'судов'))} на якоре, около "
     f"{R.dec(d['range'], R.MILE)}. Качество снимков {LABEL_RU[d['quality']]}"
     + ("." if d["day"] else ", в темноте.") + " Перископ опустить.",
+    "off.suggest.photo_up": lambda d: f"{_OFF} До якорной стоянки около {R.dec(d['range'], R.MILE)}. "
+    "Предлагаю всплыть под перископ, осмотреться и фотографировать.",
+    "off.suggest.photo_look": lambda d: f"{_OFF} Якорная стоянка примерно в "
+    f"{R.dec(d['range'], R.MILE)}. Предлагаю осмотреться в перископ.",
     "off.suggest.photo": lambda d: f"{_OFF} До якорной стоянки около {R.dec(d['range'], R.MILE)}, "
     f"можно снять, качество будет {LABEL_RU[d['quality']]}. Предлагаю фотографировать.",
     "off.suggest.look": lambda d: f"{_OFF} Мы на перископной глубине и давно не смотрели. "
@@ -629,10 +640,35 @@ class OfficerStation(Station):
             return
         n = sum(1 for v in targets if world.true_range(v) <= r + 1.0)
         world.mission["best_photo"] = max(world.mission.get("best_photo", -1), int(q))
+        world.mission.setdefault("photos", []).append((self.now, int(q)))
         self.game.bus.publish(PhotoTaken(self.now, q, "ankarplatsen"))
         self.say("off.photo.done", {"range": r * self.rng.uniform(0.9, 1.1), "count": n,
                                     "quality": q.label, "day": world.env.daylight(self.now)},
                  quality=q)
+
+    def _photo_task_watch(self) -> None:
+        """Staben vill ha ett foto (`foto` i ordern): nära den meddelade ankarplatsen föreslår
+        vakthavande periskopdjup och en titt (bilden föreslås efter svepet, `_suggest_photo`)."""
+        k = self.game.knowledge
+        if "foto" not in k.order_tasks or k.task_place is None or k.hunted(self.now) or \
+                k.photo_t is not None and k.photo_t >= k.order_tasks_t and \
+                k.best_photo is not None and k.best_photo >= Quality.OSAKER:
+            return
+        wp = k.waypoints.get(k.task_place)
+        if wp is None:
+            return
+        ex, ey = self.game.own_position_estimate()
+        wx, wy = wp.at(self.now)
+        r = distance(ex, ey, wx, wy)
+        if r > PHOTO_TASK_NM + wp.sigma(self.now):
+            return
+        st = self.own.state
+        d = {"range": r, "day": self.world.env.daylight(self.now)}
+        if st.ordered_depth > PERISCOPE_DEPTH:
+            self.suggest("photo_up", "off.suggest.photo_up", d, order="periskopdjup", cooldown=600)
+        elif st.depth <= PERISCOPE_DEPTH + 0.5 and self._periscope().mode is None and \
+                self.now - self._periscope().last_look_t >= PHOTO_LOOK_S:
+            self.suggest("photo_look", "off.suggest.photo_look", d, order="periskop", cooldown=300)
 
     def _suggest_photo(self) -> None:
         """Efter ett periskopsvep: ankarplatsen nära nog för en bättre bild än vi har."""
@@ -686,6 +722,7 @@ class OfficerStation(Station):
         self._hush_watch()
         if self.now % CONVOY_STEP_S == 0:
             self._convoy_watch()
+            self._photo_task_watch()
         if self.photo_done_t is not None and self.now >= self.photo_done_t:
             self.photo_done_t = None
             self._photo_done()

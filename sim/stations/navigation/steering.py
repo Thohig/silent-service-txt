@@ -388,11 +388,12 @@ class SteeringMixin:
         if wp is None:
             self.say("nav.steer.none", {"name": name, "known": sorted(wps)})
             return
-        c = round(bearing_to(self.est_x, self.est_y, wp.x, wp.y)) % 360
+        wx, wy = wp.at(self.now)                # ett rörligt mål: framräknat med meddelad kurs
+        c = round(bearing_to(self.est_x, self.est_y, wx, wy)) % 360
         self.vak = None
         self.steer = None
         self.course_set_t = self.now
         self.ship.order_course(c)
         self.say("nav.steer", {"name": wp.name, "course": c,
-                               "range": distance(self.est_x, self.est_y, wp.x, wp.y),
+                               "range": distance(self.est_x, self.est_y, wx, wy),
                                "sigma": wp.sigma(self.now) + self.uncertainty()}, kind="ack")
