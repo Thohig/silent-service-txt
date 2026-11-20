@@ -3,6 +3,13 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-20 – appen i ~/Projekt/Lokalt
+
+Ingen ändring i spel. `K-114.app` ligger nu i `~/Projekt/Lokalt` i stället för `~/Applications`, och
+`ikon/bygg-app.sh` bygger dit när inget mål anges (README likaså). Appen har kodmappens sökväg inskriven
+(startskriptet, länkarna till `.venv`), så den kan flyttas fritt. Det är en flytt av kodmappen som kräver
+att den byggs om.
+
 ## 2026-11-20 – vyregistret
 
 Ingen ändring i spel. Vyerna var kopplade för hand i `ui/app.py` (en ordmängd per vy, en gren per vy i
