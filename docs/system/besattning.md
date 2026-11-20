@@ -13,7 +13,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (masten fri, radion hel) ⇒ efter `LISTEN_S` (20 s) säger radiomannen en sändning för orderns datum
   (`order_day` ur `DATUM:`-raden, `broadcasts_for`); bara stämning, aldrig information. Den 28 okt bara
   bärvåg. Ljudet `shortwave` (menyns ratt och brus) före rösten.
-- **Sambandstillfällena och långvågen** (L1–L4, 2026-11-19; `stations/radio.py`): staben sänder vid
+- **Sambandstillfällena och långvågen** (L1–L4, 2026-11-19; `stations/radio/`): staben sänder vid
   scenariots sambandstillfällen (`Scenario.radio_windows`, 20 min, kuba-kort 15). Det vi missar sänds om
   vid nästa (`radio.missed` säger när: `_next_window_clock`); efter sista tillfället når det oss inte.
   Mottagning (`_receive`): på antenndjup (≤ 30 m) med masten på 60 s (`RECEIVE_S`), eller på djupet på

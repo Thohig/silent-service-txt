@@ -201,9 +201,9 @@ sim/                 ren Python, ingen Textual
     bridge.py        tornluckan och utkiken på bryggan i ytläge
     council.py       zampoliten och kärnvapenrådet: tre nycklar till kärnladdningen
     lookout.py       händelserna utkiken ser (plask, pelare, träffar), delad av bryggan och periskopet
-    radio.py         sambandstillfällen, långvåg, rapporter, pejlrisk och radiospaning
+    radio/           sambandstillfällen, långvåg (reception.py), rapporter och pejlrisk (sending.py), radiospaning
     plot.py          plottlaget
-    torpedo_room.py  torpedrum och eldledning
+    torpedo_room/    torpedrum, laddning och torpederna i vattnet; eldledningen i firing.py
 ui/                  Textual
   audio.py           tal, larm och hydrofonljud genom mixern (MixPlayer; reserv say/afplay)
   voices.py          rösterna: språk -> röst, uppläsning och rendering (macOS say)

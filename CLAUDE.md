@@ -64,10 +64,14 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   `Station`), med sitt eget tillstånd och `STEP_S`; `nav.goal` är dess namn (follow, attack, wait,
   fairway, station, circle). Ett steg som slutar sätter `steer = None` där det säger varför; `kurs`
   avbryter (`on_order`).
+- **Torpedrummet** är paketet `sim/stations/torpedo_room/`: `station.py` (stationen, order, laddning,
+  torpederna i vattnet), `common.py` (konstanter, order, `Tube`, `Running`), `phrases.py` och `firing.py`
+  (eldledningen, `FiringMixin`). Växer en station sig stor: dela den så (navigatören, radion, torpedrummet).
 - **Rapporter** bär `type` + `data`, aldrig färdig text. Texten skapas av
   `phrases.render()` vid leverans, efter rapportfiltren. Varje station registrerar
   sina fraser med `phrases.register({...})` i sin egen modul.
-- **Radion** (`stations/radio.py`): rapporten byggs ur kunskapen i `dispatch.py` (`SentReport`,
+- **Radion** (paketet `stations/radio/`: `station.py`, `common.py`, `phrases.py`, och `reception.py`
+  (mottagningen) och `sending.py` (rapporten, pejlrisken) som `RadioStation` ärver): rapporten byggs ur kunskapen i `dispatch.py` (`SentReport`,
   `ReportTransmitted`); huvudstaben (`headquarters.py`) vet bara vad vi sänt och svarar vid nästa
   sambandstillfälle. Båda är kunskap (importtestet). Radion antecknar sanningen bakom varje rapport
   för slutrapporten (`goals.report_summary`).

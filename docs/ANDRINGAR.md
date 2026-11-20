@@ -3,6 +3,14 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-20 – torpedrummet och radion som paket
+
+Ingen ändring i spel (fingeravtrycket lika). De två största stationerna är delade som navigatören:
+`sim/stations/torpedo_room/` (`station.py`, `common.py`, `phrases.py`, `firing.py` med eldledningen som
+`FiringMixin`) och `sim/stations/radio/` (`station.py`, `common.py`, `phrases.py`, `reception.py` med
+mottagningen och `sending.py` med rapporten och pejlrisken). Paketens `__init__.py` exporterar samma namn
+som förut. Torpedrummets tolkning av `ladda tub …` heter `load_order` (var `_load`, samma namn som metoden).
+
 ## 2026-11-20 – statusraden ur stationerna
 
 Ingen ändring i spel (fingeravtrycket lika, 20 min, 2 frön, alla scenarier). `Game.status()` hämtade
