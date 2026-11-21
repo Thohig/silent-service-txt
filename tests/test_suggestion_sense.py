@@ -123,3 +123,63 @@ def test_radio_status_during_an_open_window_and_after_it():
     text = [r for r in reports if r.type == "radio.status"][-1].text
     nxt = g.clock_str(radio.windows[1])[:5]
     assert f"Nästa sambandstillfälle kl {nxt}." in text and "1 meddelande mottaget" in text
+
+
+def test_a_suggestion_never_comes_before_the_report_it_follows():
+    from sim.reports import Report, ReportQueue
+    q = ReportQueue()
+    q.submit(Report(11, "Maskin", "eng.suggest.creep", {"order": "smygmotor"}, kind="suggest"))
+    q.submit(Report(12, "Sonar", "sonar.new_contact", {}, kind="contact"))
+    assert [r.type for r in q.due(20)] == ["sonar.new_contact", "eng.suggest.creep"]
+    q.submit(Report(30, "Vakthavande", "off.esm", {}, kind="contact"))
+    q.submit(Report(29, "Vakthavande", "off.suggest.down", {"order": "djup 60"}, kind="suggest"))
+    assert [r.type for r in q.due(40)] == ["off.esm", "off.suggest.down"]
+    # långt isär: förslaget väntar inte
+    q.submit(Report(50, "Maskin", "eng.suggest.creep", {"order": "smygmotor"}, kind="suggest"))
+    q.submit(Report(70, "Sonar", "sonar.new_contact", {}, kind="contact"))
+    assert [r.type for r in q.due(60)] == ["eng.suggest.creep"]
+
+
+def test_no_new_firing_solution_while_our_torpedoes_run_at_the_target():
+    from sim.stations.torpedo_room.common import Running
+    g, _ = _game()
+    room = g.station(TorpedoRoom)
+    room.in_water.append(Running(1, 1, "53-61", "S-1", 90.0, g.now, g.now + 120, g.now + 600))
+    said = []
+    room.suggest = lambda key, type, *a, **k: said.append(type) or True
+    from types import SimpleNamespace
+    from sim.reports import Quality
+    tr = SimpleNamespace(designation="S-1", threat=True, friendly=False, held=True,
+                         solution=SimpleNamespace(quality=Quality.SAKER))
+    g.knowledge.tracks = {"S-1": tr}
+    room._readiness()
+    assert said == []
+
+
+def test_firing_solution_without_contact_picks_the_best_threat():
+    from types import SimpleNamespace
+    from sim.reports import Quality
+    g, _ = _game()
+    room = g.station(TorpedoRoom)
+    mk = lambda d, q, r: SimpleNamespace(designation=d, held=True, threat=True,  # noqa: E731
+                                         solution=SimpleNamespace(quality=q, range_nm=r))
+    g.knowledge.tracks = {"S-1": mk("S-1", Quality.OSAKER, 1.0), "S-2": mk("S-2", Quality.GOD, 4.0),
+                          "S-3": mk("S-3", Quality.GOD, 2.0)}
+    assert room._best_target() == "S-3"
+    g.knowledge.tracks = {}
+    assert room._best_target() is None
+
+
+def test_an_anchored_ship_is_reported_lying_still():
+    from sim.phrases import render
+    from sim.reports import Report
+    r = Report(0, "Vakthavande", "off.periscope.contact",
+               {"designation": "S-9", "label": "fartyg till ankars", "bearing": 231.0, "range": 7.8,
+                "course": None, "speed": 0, "lights": []})
+    render(r, lambda t=None: "06:00:00")
+    assert "Ligger still" in r.text and "Vinkel på bogen" not in r.text
+    r = Report(0, "Bryggan", "bridge.contact",
+               {"designation": "S-9", "label": "fartyg till ankars", "bearing": 231.0, "range": 2.0,
+                "visible": "helt", "course": None, "speed": 0, "lights": ["topp"]})
+    render(r, lambda t=None: "06:00:00")
+    assert "ankarljus" in r.text and "Ligger still" in r.text

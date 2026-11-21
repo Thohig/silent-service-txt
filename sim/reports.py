@@ -58,10 +58,16 @@ class ReportFilter(Protocol):
     def __call__(self, report: Report) -> Report | None: ...
 
 
+SUGGEST_AFTER_S = 6     # ett förslag går inte före en rapport som ligger så här nära i kön
+
+
 @dataclass
 class ReportQueue:
+    """Rapporterna i tur och ordning efter t_due. Ett förslag går aldrig före en rapport som ligger
+    nära det i kön: först "ny kontakt", sedan "föreslår smygmotor" (stationerna reagerar på
+    händelser som ibland publiceras innan rapporten om dem är lagd)."""
     filters: list[ReportFilter | Callable[[Report], Report | None]] = field(default_factory=list)
-    _heap: list[tuple[int, int, Report]] = field(default_factory=list)
+    _heap: list[tuple[int, int, int, Report]] = field(default_factory=list)
     _seq: itertools.count = field(default_factory=itertools.count)
 
     def submit(self, report: Report) -> None:
@@ -70,12 +76,26 @@ class ReportQueue:
             r = f(r)
             if r is None:
                 return
-        heapq.heappush(self._heap, (r.t_due, next(self._seq), r))
+        if r.kind == "suggest":
+            near = [q.t_due for _, _, _, q in self._heap
+                    if q.kind != "suggest" and r.t_due <= q.t_due <= r.t_due + SUGGEST_AFTER_S]
+            if near:
+                r.t_due = max(near)
+        else:
+            moved = False
+            for i, (t, k, n, q) in enumerate(self._heap):
+                if q.kind == "suggest" and r.t_due - SUGGEST_AFTER_S <= t < r.t_due:
+                    q.t_due = r.t_due
+                    self._heap[i] = (r.t_due, k, n, q)
+                    moved = True
+            if moved:
+                heapq.heapify(self._heap)
+        heapq.heappush(self._heap, (r.t_due, r.kind == "suggest", next(self._seq), r))
 
     def due(self, now: int) -> list[Report]:
         out: list[Report] = []
         while self._heap and self._heap[0][0] <= now:
-            out.append(heapq.heappop(self._heap)[2])
+            out.append(heapq.heappop(self._heap)[3])
         return out
 
     def __len__(self) -> int:
@@ -83,4 +103,4 @@ class ReportQueue:
 
     def has_kind(self, kind: str) -> bool:
         """Finns en rapport av detta slag i kön (ännu inte levererad)?"""
-        return any(r.kind == kind for _, _, r in self._heap)
+        return any(r.kind == kind for *_, r in self._heap)

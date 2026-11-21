@@ -101,8 +101,12 @@ class IceMixin:
         closed = before if (before is not None and self.icemap.current is None) else None
         if closed is not None and closed.length_m >= REPORT_OPENING_M and self.vak is None:
             self.say("nav.ice.passed", self.opening_data(closed), quality=closed.quality(self.now))
-        # isen driver in över oss på grunt vatten
-        if self._prev_usable and not obs.usable and s.depth <= ANTENNA_DEPTH + 2:
+        # isen driver in över oss på grunt vatten, eller medan vi stiger mot en öppning; på väg mot
+        # ytläge räcker det att för- eller akterskeppet fått tjock is över sig
+        rising = s.ordered_depth <= ANTENNA_DEPTH and s.ordered_depth < s.depth - 1
+        hull_blocked = s.ordered_depth == 0 and max(ends) > BREAKABLE_M
+        if (self._prev_usable and not obs.usable and (s.depth <= ANTENNA_DEPTH + 2 or rising)) \
+                or (hull_blocked and rising and obs.usable):
             self.suggest("ice_closing", "nav.suggest.ice_closing", {"depth": SAFE_ICE_DEPTH},
                          order=f"djup {SAFE_ICE_DEPTH}", cooldown=120, alarm=True)
         self._prev_usable = obs.usable
@@ -219,10 +223,12 @@ class IceMixin:
                              {"kind": thickness_words(latest.thickness), "open": False},
                              order="ytläge", cooldown=0)
             else:
-                # bara tornet ryms: för- och akterskeppet skulle stöta i tjock is
+                # bara tornet ryms: för- och akterskeppet skulle stöta i tjock is (råken är för
+                # smal, eller lång nog men vi står snett i den)
                 self.game.bus.publish(OpeningNotFound(self.now, o.no))
                 self.suggest("vak_narrow", "nav.vak.too_narrow",
-                             {"length": round_m(o.length_m), "depth": SAFE_ICE_DEPTH},
+                             {"length": round_m(o.length_m), "depth": SAFE_ICE_DEPTH,
+                              "cramped": o.length_m >= MIN_SURFACE_LEN_M},
                              order=f"fart 5, djup {SAFE_ICE_DEPTH}", cooldown=0)
             return
         if self._vak_here:

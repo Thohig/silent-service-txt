@@ -37,6 +37,9 @@ BEARING_LINE_NM = 12.0          # bäringslinjer på kortet
 VECTOR_S = 360                  # fartvektor på kortet: sex minuters gång
 FADE_S = 300                    # äldre bäringar ritas bleka
 MANEUVER_REPEAT_S = 300         # säg "har ändrat kurs" högst så här ofta per kontakt
+IMPROVED_AGAIN_S = 600          # samma kvalitet sägs inte igen inom så här lång tid (den svänger)
+HUNTED_MANEUVER_REPEAT_S = 1800  # ... och så här sällan medan vi är jagade (jagaren girar hela
+                                 # tiden; plot.hunter säger hur han jagar)
 HUNTER_AFTER_S = 600            # jagade så länge: plottet säger vad det vet om jagarens sätt
 HUNTER_LONG_S = 1500            # ... och igen när jakten hållit på så här länge
 HUNTER_PING_WINDOW_S = 300      # pingtakten ur bäringarna från hans pingar så här långt bakåt
@@ -126,6 +129,8 @@ class PlotTeam(Station):
         self._last_suggest: dict[str, int] = {}
         self._last_leg_t = -10**9      # senaste benförslaget, för vilken kontakt som helst (LEG_GAP_S)
         self._maneuver_said: dict[str, int] = {}
+        # senast sagda förbättring per kontakt: (kvalitet, tma_from_t, tid)
+        self._improved_said: dict[str, tuple[Quality, int, int]] = {}
         self._hunt_since: int | None = None
         self._hunter_said: dict[str, int] = {}     # beteckning -> vad som sagts (1, 2) denna jakt
         self._look_checked: dict[str, int] = {}     # senaste periskoptitt prövad mot lösningen
@@ -489,7 +494,9 @@ class PlotTeam(Station):
                         and tr.designation in convoy.members:
                     self._convoy_turned(convoy)
                 # ett mål som girar hela tiden (jagaren söker) startas om tyst däremellan
-                elif self.now - self._maneuver_said.get(tr.designation, -10**9) >= MANEUVER_REPEAT_S:
+                elif self.now - self._maneuver_said.get(tr.designation, -10**9) >= (
+                        HUNTED_MANEUVER_REPEAT_S if self.game.knowledge.hunted(self.now)
+                        else MANEUVER_REPEAT_S):
                     self._maneuver_said[tr.designation] = self.now
                     self.say("plot.maneuver", {"designation": tr.designation},
                              kind="solution", quality=Quality.DALIG, alarm=True)
@@ -500,7 +507,12 @@ class PlotTeam(Station):
                 tr.leg_sol = sol
             self.game.log(f"TMA {tr.designation} r={sol.range_nm:.2f}±{sol.range_sigma:.2f} "
                           f"k={sol.course:.0f} v={sol.speed:.1f} q={sol.quality.label} n={sol.n_obs}")
-            if sol.quality >= Quality.GOD and (prev_q is None or sol.quality > prev_q):
+            said = self._improved_said.get(tr.designation)
+            if said is not None and (said[1] != tr.tma_from_t or self.now - said[2] >= IMPROVED_AGAIN_S):
+                said = None             # lösningen har börjat om, eller det var länge sedan
+            if sol.quality >= Quality.GOD and (prev_q is None or sol.quality > prev_q) \
+                    and (said is None or sol.quality > said[0]):
+                self._improved_said[tr.designation] = (sol.quality, tr.tma_from_t, self.now)
                 self.say("plot.improved",
                          {"designation": tr.designation, "solution": solution_data(sol)},
                          kind="solution", quality=sol.quality)

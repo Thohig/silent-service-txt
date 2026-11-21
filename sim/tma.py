@@ -134,9 +134,11 @@ def predicted_bearing(state: Sequence[float], t_ref: int, t: int,
 
 
 def quality_from(rel_range_error: float, n_obs: int, span_s: int,
-                 course_sigma: float = 0.0, speed: float = 0.0) -> Quality:
+                 course_sigma: float = 0.0, speed: float = 0.0, speed_sigma: float = 0.0) -> Quality:
     """Kvaliteten ur avståndets relativa osäkerhet, med kursens osäkerhet som tak
-    när målet går (en lösning med okänd kurs duger inte att skjuta på)."""
+    när målet kan gå (en lösning med okänd kurs duger inte att skjuta på). Kan gå: skattad fart
+    plus två σ minst COURSE_MATTERS_KN, så att ett mål som felaktigt ser nästan stilla ut inte
+    slipper taket."""
     if n_obs < MIN_OBS or span_s < MIN_SPAN_S:
         return Quality.DALIG
     if rel_range_error < 0.10:
@@ -147,7 +149,7 @@ def quality_from(rel_range_error: float, n_obs: int, span_s: int,
         q = Quality.OSAKER
     else:
         return Quality.DALIG
-    if speed >= COURSE_MATTERS_KN:
+    if speed + 2 * speed_sigma >= COURSE_MATTERS_KN:
         for limit, cap in zip(COURSE_SIGMA_LIMITS, (Quality.GOD, Quality.OSAKER, Quality.DALIG)):
             if course_sigma >= limit:
                 q = min(q, cap)
@@ -377,7 +379,7 @@ def solve(observations: Sequence[BearingObs], t_now: int | None = None,
         bearing=norm360(math.degrees(math.atan2(dx, dy))),
         range_sigma=range_sigma, course_sigma=course_sigma, speed_sigma=speed_sigma,
         quality=Quality.DALIG if fit > MANEUVER_CHI2 or speed > MAX_TARGET_KN
-        else quality_from(rel, len(obs), span, course_sigma, speed),
+        else quality_from(rel, len(obs), span, course_sigma, speed, speed_sigma),
         n_obs=len(obs), span_s=span, own_maneuvered=own_maneuvered(obs),
         rms_residual=rms, fit=fit,
     )

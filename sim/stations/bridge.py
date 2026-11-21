@@ -68,11 +68,15 @@ def _lights_text(ls: tuple[str, ...]) -> str:
 
 def _contact(d: dict) -> str:
     where = f"i bäring {fmt_course(d['bearing'])}, cirka {nm(d['range'])} sjömil"
+    if d["lights"] and d.get("course") is None:
+        return f"Bryggan: {d['designation']}, ankarljus {where}. Ligger still."
     if d["lights"]:
         return (f"Bryggan: {d['designation']}, lanternor {where}. Vi ser "
                 f"{_lights_text(tuple(d['lights']))}.")
     out = f"Bryggan: {d['designation']}, {d['label']} {where}{PART_TEXT[d['visible']]}."
-    if d["visible"] != "mastoppar":
+    if d.get("course") is None:
+        out += " Ligger still."
+    elif d["visible"] != "mastoppar":
         out += f" Går ungefär {fmt_course(round(d['course'] / 5) * 5)}, fart cirka {kn(d['speed'])} knop."
     return out
 
@@ -334,14 +338,17 @@ class BridgeWatch(Station):
         r_sig = rel * r_meas + ab                         # utkiken vet bara sitt mätta avstånd
         course = norm360(v.state.course + j.course * c_sig)
         speed = max(0, round(v.state.speed + j.speed * SPEED_SIGMA))
+        moored = v.kind == "moored"     # ankarkulan, ankarljusen: det ligger still, ingen kurs att säga
+        if moored:
+            speed = 0
         aob = angle_on_bow(bearing, course)
         ls = () if day else lights(aob)
         if fresh:
             self._plot(desig, full if sil else "ytfartyg", known, bearing, r_meas, r_sig,
-                       course, c_sig, speed)
+                       None if moored else course, c_sig, speed)
         if self._call_out(v.id):
             self.say("bridge.contact", {"designation": desig, "label": short, "bearing": bearing,
-                                        "range": r_meas, "visible": part, "course": course,
+                                        "range": r_meas, "visible": part, "course": None if moored else course,
                                         "speed": speed, "lights": list(ls)},
                      kind="contact", quality=range_quality(r_meas, r_sig))
         if v.kind == "destroyer" and r_meas < CLOSE_NM and (d := self.dive_depth(DIVE_DEPTH)) is not None:
@@ -354,7 +361,7 @@ class BridgeWatch(Station):
                              lights=ls, seen_t=self.now)
 
     def _plot(self, desig: str, label: str, day: bool, bearing: float, r_meas: float,
-              r_sig: float, course: float, c_sig: float, speed: float) -> None:
+              r_sig: float, course: float | None, c_sig: float, speed: float) -> None:
         """En observation till plottet: bäring, avstånd, kurs och fart med utkikens σ."""
         bus, now = self.game.bus, self.now
         tr = self.game.knowledge.tracks.get(desig)

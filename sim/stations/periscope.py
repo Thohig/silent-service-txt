@@ -118,12 +118,18 @@ class PeriscopeTrain(Order):
 
 def _contact(d: dict) -> str:
     how = "enligt stadimetern" if d.get("power") == "hög" else "cirka"
-    return (f"{d['designation']}: {d['label']} i bäring {fmt_course(d['bearing'])}, avstånd {how} "
-            f"{nm(d['range'])} sjömil. Vinkel på bogen ger kurs ungefär {fmt_course(d['course'])}, "
-            f"fart cirka {kn(d['speed'])} knop.")
+    out = (f"{d['designation']}: {d['label']} i bäring {fmt_course(d['bearing'])}, avstånd {how} "
+           f"{nm(d['range'])} sjömil.")
+    if d.get("course") is None:             # till ankars
+        return out + " Ligger still."
+    return out + (f" Vinkel på bogen ger kurs ungefär {fmt_course(d['course'])}, "
+                  f"fart cirka {kn(d['speed'])} knop.")
 
 
 def _lights_contact(d: dict) -> str:
+    if d.get("course") is None:             # ankarljus: ligger still
+        return (f"{d['designation']}: ankarljus i bäring {fmt_course(d['bearing'])}, avstånd cirka "
+                f"{nm(d['range'])} sjömil. Ligger still.")
     return (f"{d['designation']}: lanternor i bäring {fmt_course(d['bearing'])}, avstånd cirka "
             f"{nm(d['range'])} sjömil. Kurs ungefär {fmt_course(d['course'])}.")
 
@@ -620,11 +626,14 @@ class PeriscopeWatch(Station):
         r_sig = rel * r_meas + ab                         # vakthavande vet bara sitt mätta avstånd
         course = norm360(v.state.course + j.course * c_sig)
         speed = max(0, round(v.state.speed + j.speed * SPEED_SIGMA))
+        moored = v.kind == "moored"     # ankarkulan, ankarljusen: det ligger still, ingen kurs att säga
+        if moored:
+            speed = 0
         aob = angle_on_bow(bearing, course)
         ls = () if day else lights(aob)
         if fresh:
             self._plot(desig_, full if sil else "ytfartyg", known, bearing, r_meas, r_sig,
-                       course, c_sig, speed, opt.bearing_sigma)
+                       None if moored else course, c_sig, speed, opt.bearing_sigma)
         if v.id not in self._called:
             self._called.add(v.id)
             prev = self._last_call.get(v.id)
@@ -638,7 +647,8 @@ class PeriscopeWatch(Station):
                 self._last_call[v.id] = (self.now, course, speed)
                 self.say("off.periscope.contact",
                          {"designation": desig_, "label": short, "bearing": bearing,
-                          "range": r_meas, "course": course, "speed": speed, "lights": list(ls),
+                          "range": r_meas, "course": None if moored else course, "speed": speed,
+                          "lights": list(ls),
                           "power": opt.key},
                          kind="contact", quality=Quality.GOD)
             if v.kind == PHOTO_TARGET_KIND:
@@ -654,7 +664,7 @@ class PeriscopeWatch(Station):
                              lights=ls, seen_t=self.now)
 
     def _plot(self, desig_: str, label: str, day: bool, bearing: float, r_meas: float,
-              r_sig: float, course: float, c_sig: float, speed: float,
+              r_sig: float, course: float | None, c_sig: float, speed: float,
               b_sig: float = HIGH.bearing_sigma) -> None:
         """En observation till plottet: bäring, avstånd, kurs och fart med periskopets σ."""
         bus, now = self.game.bus, self.now

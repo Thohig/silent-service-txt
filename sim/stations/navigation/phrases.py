@@ -315,9 +315,12 @@ PHRASES = {
     "nav.vak.missed": lambda d: "Kapten, isekolodet visar tjock is här. Öppningen har drivit "
     "iväg eller så missade vi den.",
     "nav.vak.next": lambda d: "Kapten, navigatören. " + _opening_words(d) + " Föreslår att vi går dit.",
-    "nav.vak.too_narrow": lambda d: f"Kapten, vi står under nyisen, men råken är bara cirka "
-    f"{d['length']} meter. För smal för att bryta igenom med hela skrovet. Föreslår att vi söker "
-    f"vidare, fart 5 på {d['depth']} meter.",
+    "nav.vak.too_narrow": lambda d: (
+        f"Kapten, vi står under nyisen, men för- och akterskeppet har tjock is över sig, råken är "
+        f"cirka {d['length']} meter och vi kommer inte rätt i den." if d.get("cramped")
+        else f"Kapten, vi står under nyisen, men råken är bara cirka {d['length']} meter. För smal "
+        "för att bryta igenom med hela skrovet.")
+    + f" Föreslår att vi söker vidare, fart 5 på {d['depth']} meter.",
     "nav.suggest.resume": lambda d: "Kapten, navigatören. Vi ligger stilla under tjock is. Föreslår "
     f"att vi söker vidare efter öppet vatten, fart 5 på {d['depth']} meter.",
     "nav.station.wp": lambda d: f"Kurs {fmt_course(d['course'])} mot {d['name']}, cirka "
@@ -469,9 +472,11 @@ RU_PHRASES = {
     "nav.vak.missed": lambda d: f"{R.CAPTAIN}, эхоледомер показывает толстый лёд. Полынью "
     "отнесло, или мы её проскочили.",
     "nav.vak.next": lambda d: f"{_NAV} {_ru_opening(d)} Предлагаю идти туда.",
-    "nav.vak.too_narrow": lambda d: f"{R.CAPTAIN}, мы под молодым льдом, но разводье всего около "
-    f"{R.count(d['length'], R.METER)}. Корпусом не проломить. Предлагаю искать дальше, ход пять "
-    f"узлов на {R.count(d['depth'], R.METER)}.",
+    "nav.vak.too_narrow": lambda d: (
+        f"{R.CAPTAIN}, мы под молодым льдом, но над носом и кормой толстый лёд. "
+        if d.get("cramped") else
+        f"{R.CAPTAIN}, мы под молодым льдом, но разводье всего около {R.count(d['length'], R.METER)}. ")
+    + f"Корпусом не проломить. Предлагаю искать дальше, ход пять узлов на {R.count(d['depth'], R.METER)}.",
     "nav.suggest.resume": lambda d: f"{_NAV} Стоим под толстым льдом. Предлагаю искать чистую "
     f"воду дальше, ход пять узлов на {R.count(d['depth'], R.METER)}.",
     "nav.vak.narrow_station": lambda d: f"{R.CAPTAIN}, над нами чистая вода, но разводье всего около "

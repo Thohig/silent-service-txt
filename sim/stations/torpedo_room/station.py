@@ -181,6 +181,8 @@ class TorpedoRoom(FiringMixin, Station):
             if not (tr.threat or own_target) or sol is None \
                     or sol.quality < Quality.GOD:
                 continue
+            if any(r.designation == tr.designation for r in self.in_water):
+                continue            # våra torpeder är på väg dit: inget nytt skott förrän de är framme
             if self._ready_said.get(tr.designation, Quality.DALIG) >= sol.quality:
                 continue
             for tube in self.tubes:

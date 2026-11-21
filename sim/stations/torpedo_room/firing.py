@@ -294,13 +294,25 @@ class FiringMixin:
                                       "homing": TORPEDO_TYPES[type_key].homing},
                  quality=Quality.OSAKER)
 
+    def _best_target(self) -> str | None:
+        """Utan angiven kontakt: den enda hållna, annars hotkontakten med bäst lösning (närmast
+        vid lika)."""
+        tracks = self.game.knowledge.tracks.values()
+        held = [t for t in tracks if t.held]
+        if len(held) == 1:
+            return held[0].designation
+        cands = [t for t in held if t.threat and t.solution is not None]
+        if not cands:
+            return None
+        best = max(cands, key=lambda t: (t.solution.quality, -t.solution.range_nm))
+        return best.designation
+
     def _preview(self, designation: str | None) -> None:
         if designation is None:
-            held = [t for t in self.game.knowledge.tracks.values() if t.held]
-            if len(held) != 1:
-                self.say("torp.refused", {"reason": "ange vilken kontakt"})
+            designation = self._best_target()
+            if designation is None:
+                self.say("torp.refused", {"reason": "vi har ingen kontakt med skjutlösning"})
                 return
-            designation = held[0].designation
         tr, sol = self._solution_for(designation)
         if tr is None or sol is None:
             self.say("torp.refused", {"reason": f"vi har ingen lösning på {designation}"})

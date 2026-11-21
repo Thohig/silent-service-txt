@@ -230,6 +230,9 @@ def test_course_uncertainty_caps_quality():
     assert quality_from(0.05, 100, 600, course_sigma=70, speed=10) == Quality.DALIG
     # ett mål som nästan ligger still: kursen spelar ingen roll
     assert quality_from(0.05, 100, 600, course_sigma=70, speed=1) == Quality.SAKER
+    # ... men inte om farten är så osäker att det lika gärna kan gå (provspelet: en trupptransport
+    # i 6 kn skattad till 2 kn kallades god med okänd kurs, och den raka torpeden missade)
+    assert quality_from(0.05, 100, 600, course_sigma=70, speed=1, speed_sigma=2) == Quality.DALIG
 
 
 def test_solution_without_new_bearings_grows_uncertain():
