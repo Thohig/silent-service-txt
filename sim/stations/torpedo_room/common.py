@@ -8,6 +8,7 @@ from ...orders import Order, Unknown
 
 
 N_TUBES = 8
+TOO_CLOSE_MARGIN_NM = 0.15  # närmare än armeringssträckan plus detta: torpedrummet frågar en gång
 CONFIRM_S = 60          # en upprepad eldorder inom så här lång tid verkställs
 NEUTRAL_LANE_NM = 0.5   # ett känt handelsfartyg så nära en torpedbana (enligt plottet): varna
 NEUTRAL_CONE_DEG = 10.0  # ... eller, utan lösning, med bäringen så nära banan

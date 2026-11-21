@@ -2,6 +2,8 @@
 kurs mot banken, starpoms citat av kaptenens order."""
 import random
 
+import pytest
+
 from sim.events import ReportDelivered
 from sim.game import Game
 from sim.reports import Report, ReportQueue
@@ -215,3 +217,40 @@ def test_surfaced_in_sight_of_the_enemy_gives_a_moment_to_dive():
     for _ in range(10):
         w.tick()
     assert w.outcome["outcome"] == "forced"
+
+
+# --- steg 5: radarvarnaren, skott på för kort håll ------------------------------------------
+def test_firing_inside_the_arming_distance_is_asked_once():
+    from sim.stations.torpedo_room import TorpedoRoom
+    g = Game(build_scenario("kuba-kort", random.Random(1)), seed=1)
+    reports = []
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    torp = g.station(TorpedoRoom)
+    tr = g.knowledge.tracks["S-1"]
+    tr.classification, tr.class_quality = "jagare, ångturbiner, två axlar", Quality.SAKER
+    torp._aim = lambda sol, load: (90.0, 30.0, 0.2)      # träffpunkten 0,2 nm bort
+    torp._solution_for = lambda d: (tr, tr.solution or object())
+    g.world.own.state.ordered_speed = g.world.own.state.speed = 3
+    g.command("eld tub 1 mot S-1")
+    _run(g)
+    assert any(r.type == "torp.too_close" for r in reports) and not torp.in_water
+    g.command("eld tub 1 mot S-1")
+    _run(g)
+    assert torp.in_water
+
+
+@pytest.mark.slow
+def test_radar_warner_does_not_repeat_known_radars():
+    from sim.stations.officer import ESM_REPEAT_S
+    g, reports = _game("clyde", 29)
+    st = g.world.own.state
+    st.depth = st.ordered_depth = 17
+    for _ in range(ESM_REPEAT_S - 60):
+        g.tick()
+    first = [r for r in reports if r.type == "off.esm"]
+    assert first and len(first) <= 4            # var 10:e min förut: 3 radarstationer × 3
+    st.depth = st.ordered_depth = 40
+    _run(g, 30)
+    st.depth = st.ordered_depth = 17
+    _run(g, 30)
+    assert any(r.type == "off.esm.same" for r in reports)

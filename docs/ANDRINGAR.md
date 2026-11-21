@@ -52,6 +52,11 @@ krigspatrullen i 14 h, gränssnittet i 80×24, 120×40 och 220×60) gav inga und
 - **konvoj-mot:** vaktens salva upprepades blint och sköt rakt igenom torpedrummets varning för ett
   neutralt fartyg i banan (neutral sänkt efter 3 och 9 min i 2 av 24 frön). Nu byter vakten mål.
   24 frön, passiv kapten: anfallen 9, tiden ute 13, förlorad 1, missad 1 (förut neutral sänkt 2).
+- **Radarvarnaren** ropar ut samma radar igen bara när styrkan ändrats, den flyttat sig mer än 15° eller
+  efter 30 min (`ESM_REPEAT_S`, förut 10); kommer vi upp och bara känner igen dem säger den "samma tre
+  radarstationer som förut" (`off.esm.same`). Clyde frö 29: 9 rader på 2 h i stället för 39.
+- **För nära för att skjuta:** ligger träffpunkten närmare än armeringssträckan + 0,15 nm frågar
+  torpedrummet en gång ("exploderar inte", `torp.too_close`); boten sköt förut på 0,3 nm utan ett ord.
 - **Prov:** `tests/test_playtest_fixes.py`.
 
 ## 2026-11-21 – trådstyrd torped (53-62T, försök)

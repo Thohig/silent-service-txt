@@ -25,7 +25,7 @@ from ..events import (AirRadarHeard, BearingObserved, Handover, ClassificationCh
                       ContactDetected, PhotoTaken)
 from ..knowledge import AIR_CLOSE
 from ..fmt import fmt_course, kn, nm
-from ..geo import bearing_to, distance, norm360
+from ..geo import angle_diff, bearing_to, distance, norm360
 from ..orders import AskSuggestion, CommandSpec, Order
 from ..ownship import PERISCOPE_DEPTH
 from ..periscope import SightedObject
@@ -46,6 +46,8 @@ def is_big_ship(track) -> bool:
 
 RADAR_S = 10
 RADAR_RANGE_NM = 12.0
+ESM_REPEAT_S = 1800        # radarvarnaren ropar ut samma radar igen först efter så här lång tid,
+ESM_MOVED_DEG = 15.0       # eller när styrkan ändrats eller den flyttat sig så här mycket i bäring
 AIR_ESM_NM = 40.0          # flygradar hörs så här långt
 AIR_STRENGTHS = ("svag", "medel", "stark", "mycket stark")
 QUIET_S = 600              # tystnad från kaptenen innan besättningen tar initiativ
@@ -204,6 +206,8 @@ PHRASES = {
     "off.radar.contact": lambda d: f"Radar: {d['designation']} i bäring {fmt_course(d['bearing'])}, "
     f"avstånd {nm(d['range'])} sjömil.",
     "off.radar.none": lambda d: "Radar: inga ekon inom tolv sjömil.",
+    "off.esm.same": lambda d: "Radarvarnare: " + ("samma radar som förut." if d["n"] == 1 else
+                                                  f"samma {d['n']} radarstationer som förut."),
     "off.esm": lambda d: f"Radarvarnare: radar i bäring {fmt_course(d['bearing'])}, "
     f"signal {d['strength']}." + (" De kan se våra master!" if d['strength'] == "mycket stark" else ""),
     "off.esm.air": lambda d: f"Radarvarnare: flygradar i bäring {fmt_course(d['bearing'])}, "
@@ -277,6 +281,7 @@ RU_PHRASES = {
     "off.hush": lambda d: "Тишина в отсеках! Доклады вполголоса.",
     "off.hush.end": lambda d: "Режим тишины отменён.",
     "off.refused": lambda d: f"{_OFF} Выполнить не могу.",
+    "off.esm.same": lambda d: "Станция предупреждения: те же радары, что и раньше.",
     "off.esm": lambda d: f"Станция предупреждения: радар, пеленг {R.course(d['bearing'])}, "
     f"сигнал {STRENGTH_RU[d['strength']]}."
     + (" Они могут видеть наши выдвижные!" if d["strength"] == "mycket stark" else ""),
@@ -342,8 +347,9 @@ class OfficerStation(Station):
         self.rng = game.rng_for("officer")
         self.radar_done_t: int | None = None
         self.photo_done_t: int | None = None
-        self._esm_last: dict[str, tuple[str, int]] = {}
+        self._esm_last: dict[str, tuple[str, int, float]] = {}   # styrka, när sagd, bäring
         self._next_esm = 0
+        self._esm_fresh = True      # första svepet efter att vi kommit upp: sammanfatta de kända
         self._idle_t = -10**9       # senaste initiativ (eller försök) vid tystnad
         self._hunt_seen = -10**9    # senaste jakttecken vakthavande har tagit ställning till
         self.hushed = False         # tystnad i båten: jagade och vi smyger
@@ -759,9 +765,12 @@ class OfficerStation(Station):
                 self.say("off.radar.contact", d, kind="contact", quality=Quality.SAKER)
 
         # radarvarnare: automatiskt på periskopdjup
+        if st.depth > PERISCOPE_DEPTH + 1:
+            self._esm_fresh = True              # nästa svep är det första efter att vi kommit upp
         if st.depth <= PERISCOPE_DEPTH + 1 and self.now >= self._next_esm:
             self._next_esm = self.now + 10
             self._esm_air()
+            known = 0
             for v in self._surface_ships():
                 if not v.has_radar:
                     continue
@@ -770,13 +779,20 @@ class OfficerStation(Station):
                     continue
                 strength = ("mycket stark" if r < 4 else "stark" if r < 8
                             else "medel" if r < 15 else "svag")
+                true_b = world.true_bearing(v)
                 prev = self._esm_last.get(v.id)
-                if prev is None or prev[0] != strength or self.now - prev[1] > 600:
-                    self._esm_last[v.id] = (strength, self.now)
-                    b = norm360(world.true_bearing(v) + rng.gauss(0, 3))
+                if prev is not None and prev[0] == strength and self.now - prev[1] <= ESM_REPEAT_S \
+                        and abs(angle_diff(true_b, prev[2])) <= ESM_MOVED_DEG:
+                    known += 1                  # samma radar som förut: ropas inte ut igen
+                else:
+                    self._esm_last[v.id] = (strength, self.now, true_b)
+                    b = norm360(true_b + rng.gauss(0, 3))
                     self.say("off.esm", {"bearing": b, "strength": strength}, kind="contact",
                              alarm=strength == "mycket stark")
-                    if strength == "mycket stark" and (d := self.dive_depth(60)) is not None:
-                        self.suggest("down_esm", "off.suggest.down",
-                                     {"reason": "Radarn är mycket stark.", "why": "esm", "depth": d},
-                                     order=f"djup {d}", cooldown=300, alarm=True)
+                if strength == "mycket stark" and (d := self.dive_depth(60)) is not None:
+                    self.suggest("down_esm", "off.suggest.down",
+                                 {"reason": "Radarn är mycket stark.", "why": "esm", "depth": d},
+                                 order=f"djup {d}", cooldown=300, alarm=True)
+            if self._esm_fresh and known:
+                self.say("off.esm.same", {"n": known}, kind="contact")
+            self._esm_fresh = False

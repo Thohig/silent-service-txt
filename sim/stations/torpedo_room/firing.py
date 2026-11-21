@@ -7,11 +7,11 @@ from ...events import OwnSoundMade
 from ...geo import angle_diff
 from ...firecontrol import intercept
 from ...reports import Quality
-from ...weapons import TORPEDO_TYPES, launch_torpedo
+from ...weapons import ARM_DISTANCE_NM, TORPEDO_TYPES, launch_torpedo
 from .common import (
     CONFIRM_S, FireSalvo, FireTube, MAX_LAUNCH_DEPTH, MAX_LAUNCH_SPEED, NEUTRAL_CONE_DEG,
     NEUTRAL_LANE_NM, NEUTRAL_STEP_S, N_TUBES, Running, SALVO_GAP_MAX_NM, SALVO_GAP_NM,
-    SALVO_MAX, SALVO_STEP_DEG, Tube,
+    SALVO_MAX, SALVO_STEP_DEG, TOO_CLOSE_MARGIN_NM, Tube,
 )
 
 
@@ -174,6 +174,15 @@ class FiringMixin:
             course = (course + o.offset) % 360
             if not o.in_salvo and not self._neutrals_clear(tr.designation, [course], tube.load):
                 return False
+            if not o.in_salvo and not spec.nuclear and dist is not None and \
+                    dist < ARM_DISTANCE_NM + TOO_CLOSE_MARGIN_NM:
+                warned = self.__dict__.setdefault("_close_warned", {})
+                if warned.get(tr.designation, -10**9) < self.now - CONFIRM_S:
+                    # innanför armeringssträckan exploderar den inte: fråga en gång
+                    warned[tr.designation] = self.now
+                    self.say("torp.too_close", {"designation": tr.designation, "range": dist},
+                             alarm=True)
+                    return False
             if not tr.warship and not (spec.exercise and tr.friendly) and \
                     self._confirmed.get(tr.designation, -10**9) < self.now - CONFIRM_S:
                 # torpedrummet frågar en gång; samma order inom en minut verkställs
