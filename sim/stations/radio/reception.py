@@ -103,20 +103,22 @@ class ReceptionMixin:
             self.say("radio.garbled", d)
 
     def _deliver(self, upto: int, via: str = "mast") -> None:
-        any_msg = False
+        msgs = []
         while self._next_msg <= upto and self._next_msg < len(self.messages):
-            msg = self.messages[self._next_msg]
+            msgs.append(self.messages[self._next_msg])
             self._next_msg += 1
-            self._radiogram(msg, via)
-            any_msg = True
         if self.theatre is not None:            # krigsskådeplatsens uppgifter (theatre.py)
-            for msg in self.theatre.deliver(self.world):
-                self._radiogram(msg, via)
-                any_msg = True
-        for text in self.hq.outgoing():          # stabens svar på det vi sänt (eller inte sänt)
+            msgs += self.theatre.deliver(self.world)
+        # staben skriver sina svar med det nya i telegrammen för ögonen (krig, ny uppgift,
+        # hemkallelse), och svaren på det vi sänt kommer före de nya orderna
+        for msg in msgs:
+            self.hq.read_order(msg.flags)
+        replies = self.hq.outgoing()             # stabens svar på det vi sänt (eller inte sänt)
+        for text in replies:
             self._telegram(text, via)
-            any_msg = True
-        if not any_msg:
+        for msg in msgs:
+            self._radiogram(msg, via)
+        if not msgs and not replies:
             self.say("radio.nothing")
 
     def _radiogram(self, msg, via: str) -> None:

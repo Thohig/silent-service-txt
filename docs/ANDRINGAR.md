@@ -18,6 +18,16 @@ krigspatrullen i 14 h, gränssnittet i 80×24, 120×40 och 220×60) gav inga und
 - **Minustecken:** `kurs -10`, `fart -3`, `djup -5` ger en förklaring i stället för "Kapten?".
 - **Starpom:** citerar kaptenens order med tresiffrig kurs ("kurs 000", inte "kurs 0"), och när
   högtalaren kallat kaptenen står det larmet först i överlämnandet (förut ett senare plottlarm).
+- **Sjunkna kontakter:** sonar skickar `ContactSunk` när den hör brytningsljud från en känd kontakt.
+  Kunskapen märker spåret (`ContactTrack.sunk_t`, inte längre hållet eller ett hot), sonar glömmer
+  dess pingar (förut fick en annan jagare i nästan samma bäring den sänktas namn: "Pingtakten från
+  S-3 har minskat" fem minuter efter att S-3 sjönk) och säger inte "Har tappat S-3", torpedrummet
+  säger "S-3 har redan sjunkit" i stället för "Tid för torpeden mot S-3", och sjökortet ritar × där
+  plottet trodde att den sjönk.
+- **Staben i krig och efter hemkallelsen:** `Headquarters.read_order` läser scenariots och
+  krigsskådeplatsens telegram före svaren. I krig inget "FÖLJ KONVOJEN" eller "ANGRIP EJ UTAN ORDER";
+  hemkallade bara kvittensen. Svaren kommer före de nya orderna (krig frö 7 fick förut "PATRULLEN ÄR
+  SLUT" följt av "FÖLJ KONVOJEN" och "ANGRIP EJ UTAN ORDER" vid samma tillfälle).
 - **Prov:** `tests/test_playtest_fixes.py`.
 
 ## 2026-11-21 – trådstyrd torped (53-62T, försök)

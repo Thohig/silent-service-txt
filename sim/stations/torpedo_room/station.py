@@ -170,7 +170,9 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
         for r in list(self.in_water):
             if r.t_hit is not None and not r.timed and self.now >= r.t_hit:
                 r.timed = True
-                self.say("torp.time", {"tube": r.tube, "designation": r.designation}, kind="info")
+                tr = self.game.knowledge.tracks.get(r.designation) if r.designation else None
+                self.say("torp.time.sunk" if tr is not None and tr.sunk else "torp.time",
+                         {"tube": r.tube, "designation": r.designation}, kind="info")
             if self.now >= r.t_end + END_GRACE_S:
                 self._finish(r, "timeout")
                 if TORPEDO_TYPES[r.type].exercise:

@@ -68,3 +68,53 @@ def test_starpom_quotes_courses_with_three_digits():
     assert _canon("kurs 0") == "kurs 000"
     assert _canon("Kurs  45") == "kurs 045"
     assert _canon("fart 5") == "fart 5"
+
+
+# --- steg 2: sjunkna kontakter, stabens telegram ---------------------------------------
+from sim.dispatch import ReportedContact, ReportedConvoy, SentReport  # noqa: E402
+from sim.events import EventBus, ReportTransmitted  # noqa: E402
+from sim.headquarters import Headquarters  # noqa: E402
+from sim.reports import Quality  # noqa: E402
+from sim.sonar import TransientHeard  # noqa: E402
+from sim.stations.sonar_room import SonarRoom  # noqa: E402
+
+
+def _report(hq_bus, n=1):
+    dd = ReportedContact("S-2", "jagare, ångturbiner, två axlar", 1.0, 2.0, 90.0, 15.0, Quality.GOD, 0)
+    cv = ReportedConvoy(3.0, 4.0, 200.0, 12.0, Quality.OSAKER, 5, 2)
+    hq_bus.publish(ReportTransmitted(10, SentReport(10, "full", (0.0, 0.0, 0.3), (dd,), cv,
+                                                    ("hunted",), number=n)))
+
+
+def test_staff_at_war_does_not_forbid_attacks_or_ask_to_follow():
+    bus = EventBus()
+    hq = Headquarters(at_war=True)
+    hq.attach(bus)
+    _report(bus)
+    out = hq.outgoing() + hq.outgoing()
+    assert not any("ANGRIP EJ" in t or "FÖLJ KONVOJEN" in t for t in out)
+    assert out[0].endswith("MOTTAGEN.") and not hq.expects_report
+
+
+def test_recall_leaves_only_the_receipts():
+    bus = EventBus()
+    hq = Headquarters()
+    hq.attach(bus)
+    _report(bus)
+    hq.read_order({"tasks": ("ut",), "recalled": True})
+    assert hq.outgoing() == ["FRÅN HUVUDSTABEN. ER RAPPORT NR 1 MOTTAGEN."]
+    assert not hq.expects_report
+    _report(bus, 2)
+    assert hq.outgoing() == ["FRÅN HUVUDSTABEN. ER RAPPORT NR 2 MOTTAGEN."]
+
+
+def test_a_sunk_contact_is_no_threat_and_its_pinger_is_forgotten():
+    g, reports = _game("kuba", 1)
+    g.knowledge.on_detection("S-2", 0)
+    sonar = g.station(SonarRoom)
+    sonar._on_sound(TransientHeard("ping", 40.0, 80.0, "S-2"))
+    assert "S-2" in sonar._pings
+    sonar._on_sound(TransientHeard("breakup", 40.0, 60.0, "S-2"))
+    tr = g.knowledge.tracks["S-2"]
+    assert tr.sunk and not tr.held and not tr.threat
+    assert "S-2" not in sonar._pings

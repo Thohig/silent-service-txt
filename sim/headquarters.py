@@ -27,6 +27,8 @@ SILENCE = (
 @dataclass
 class Headquarters:
     expects_report: bool = False
+    at_war: bool = False            # ordern eller ett telegram säger krig: inga fredsförbehåll
+    recalled: bool = False          # hemkallade: bara kvittenser, ingen ny uppgift och ingen rapport väntas
     received: list[SentReport] = field(default_factory=list)
     queue: list[str] = field(default_factory=list)
     silent_windows: int = 0         # sambandstillfällen i rad utan väntad rapport
@@ -47,6 +49,19 @@ class Headquarters:
         self.silent_windows = 0
         self.queue = [q for q in self.queue if q not in SILENCE]
 
+    def read_order(self, flags: dict) -> None:
+        """Det staben själv sänder vid samma tillfälle (scenariots radiogram, krigsskådeplatsens
+        uppgifter): krig, hemkallelse, ny uppgift. Läses före svaren så att de inte säger emot."""
+        if flags.get("war") is not None:
+            self.at_war = bool(flags["war"])
+        if flags.get("recalled"):
+            self.recalled = True
+            self.expects_report = False
+            self.silent_windows = 0
+            self.queue = [q for q in self.queue if q.endswith("MOTTAGEN.")]
+        elif "tasks" in flags and not flags.get("report_requested"):
+            self.cancel_report_request()
+
     def _on_report(self, e: ReportTransmitted) -> None:
         if not e.complete:
             return                  # staben fick inget, även om fienden kan ha pejlat
@@ -54,7 +69,9 @@ class Headquarters:
         self.received.append(r)
         self.silent_windows = 0
         self.queue.append(f"FRÅN HUVUDSTABEN. ER RAPPORT NR {r.number} MOTTAGEN.")
-        if r.convoy is not None and not self._asked_convoy:
+        if self.recalled:
+            return                  # på väg hem: kvittensen räcker
+        if r.convoy is not None and not self._asked_convoy and not self.at_war:
             self._asked_convoy = True
             self.queue.append("FRÅN HUVUDSTABEN. FÖLJ KONVOJEN. RAPPORTERA KURS OCH FART VID "
                               "NÄSTA SAMBANDSTILLFÄLLE.")
@@ -62,7 +79,8 @@ class Headquarters:
         for c in r.contacts:
             if c.designation in self._warned:
                 continue
-            if any(w in c.classification for w in ("jagare", "bevakningsfartyg", "patrullbåt")):
+            if not self.at_war and \
+                    any(w in c.classification for w in ("jagare", "bevakningsfartyg", "patrullbåt")):
                 self._warned.add(c.designation)
                 self.queue.append(f"FRÅN HUVUDSTABEN. {c.designation} UPPFATTAD. UNDVIK "
                                   "UPPTÄCKT. ANGRIP EJ UTAN ORDER.")

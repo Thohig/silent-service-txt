@@ -10,7 +10,7 @@ import math
 from dataclasses import dataclass, field
 
 from .events import (AirRadarHeard, BearingObserved, ChargeHeard, InterceptHeard, BridgeSighted, ClassificationChanged, ContactDetected,
-                     ConvoyAssessed, ContactLost, EventBus, HuntSigns, IceSounded, OpeningNotFound,
+                     ConvoyAssessed, ContactLost, ContactSunk, EventBus, HuntSigns, IceSounded, OpeningNotFound,
                      PeriscopeBlocked, PeriscopeSighted, PhotoTaken, PositionReported, RecordingMade,
                      ListeningExercise, NuclearOrderRead, TasksOrdered, TelegramReceived, TorpedoExercise,
                      TorpedoInWater)
@@ -37,6 +37,7 @@ class ContactTrack:
     legs: list[LegFix] = field(default_factory=list)   # avslutade ben (sicksack)
     turns: list[int] = field(default_factory=list)     # när plottet märkt att målet girat
     leg_sol: Solution | None = None                    # benets senaste användbara lösning
+    sunk_t: int | None = None                          # när sonar hörde den sjunka
 
     @property
     def civil(self) -> bool:
@@ -65,7 +66,11 @@ class ContactTrack:
     @property
     def threat(self) -> bool:
         """En hållen kontakt som kan vara ett fiendefartyg."""
-        return self.held and not self.benign and not self.friendly
+        return self.held and not self.benign and not self.friendly and self.sunk_t is None
+
+    @property
+    def sunk(self) -> bool:
+        return self.sunk_t is not None
 
     @property
     def last_bearing(self) -> float | None:
@@ -147,6 +152,7 @@ class Knowledge:
         bus.subscribe(BearingObserved, lambda e: self.on_bearing(e.obs))
         bus.subscribe(ClassificationChanged, self._on_classified)
         bus.subscribe(ContactLost, lambda e: self.on_lost(e.designation))
+        bus.subscribe(ContactSunk, self._on_sunk)
         bus.subscribe(IceSounded, lambda e: self.ice.on_sounding(e.obs))
         bus.subscribe(OpeningNotFound, self._on_opening_not_found)
         bus.subscribe(PositionReported, self._on_position)
@@ -258,6 +264,11 @@ class Knowledge:
             self.tracks[designation] = tr
         tr.held = True
         return tr
+
+    def _on_sunk(self, e: ContactSunk) -> None:
+        if (tr := self.tracks.get(e.designation)) is not None and tr.sunk_t is None:
+            tr.sunk_t = e.t
+            tr.held = False
 
     def on_lost(self, designation: str) -> None:
         if tr := self.tracks.get(designation):

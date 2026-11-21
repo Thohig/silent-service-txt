@@ -366,6 +366,11 @@ class PlotTeam(Station):
                 continue
             sol = tr.solution
             style = "merchant" if tr.civil else "contact"
+            if tr.sunk:
+                if self.now - tr.sunk_t <= FORGET_S and (p := self._sunk_at(tr)) is not None:
+                    items.append(Mark(*p, "×", style, f"{tr.designation} sjönk "
+                                      f"{self.game.clock_str(tr.sunk_t)[:5]}", faded=True))
+                continue
             if sol is not None and sol.quality >= Quality.OSAKER and \
                     (tr.threat or tr.civil or tr.friendly):
                 dt = (self.now - sol.t) / 3600.0
@@ -394,6 +399,14 @@ class PlotTeam(Station):
                                  quality=sol.quality if sol else Quality.DALIG,
                                  faded=not tr.held or age > FADE_S))
         return items
+
+    def _sunk_at(self, tr) -> tuple[float, float] | None:
+        """Var plottet tror att kontakten sjönk: lösningen framräknad till dess, annars ingenstans."""
+        sol = tr.solution or tr.leg_sol
+        if sol is None:
+            return None
+        dt = (tr.sunk_t - sol.t) / 3600.0
+        return sol.x + sol.state[2] * dt, sol.y + sol.state[3] * dt
 
     def _fan_items(self) -> list:
         """Solfjädern för det markerade målet: plottlagets bäringar på nuvarande ben, dragna från

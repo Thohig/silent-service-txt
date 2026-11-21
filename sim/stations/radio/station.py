@@ -67,7 +67,8 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
         self._waiting: set[int] = set()       # fönster där vi väntar på djupet på grund av ett hot
         # ordern kräver en rapport under sambandstillfället (kuba-kort)
         self.report_required = bool(sc and sc.report_required)
-        self.hq = Headquarters(expects_report=self.report_required)   # vet bara vad vi sänt
+        self.hq = Headquarters(expects_report=self.report_required,
+                               at_war=bool(getattr(sc, "at_war", False)))   # vet bara vad vi sänt
         self._closed: set[int] = set()
         self.broadcasts = broadcasts_for(order_day(sc.secret_order) if sc else None)
         self._broadcast_n = 0

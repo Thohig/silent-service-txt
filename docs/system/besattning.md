@@ -47,8 +47,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (`Emission.duration`) när sändningen slutar eller avbryts; under 10 s pejlas den aldrig, över 25 s
   alltid, däremellan linjärt; datumets σ = 1,5 nm · √(30 s / längd), 0,7–3 nm.
 - **Huvudstaben** (`sim/headquarters.py`, R3; ägs av radion, läser aldrig världen): vet bara vad vi
-  sänt (`ReportTransmitted`, avbrutna räknas inte). Svarar vid nästa sambandstillfälle, efter
-  scenariots telegram och högst `MAX_PER_WINDOW` (3) åt gången: kvittens ("ER RAPPORT NR n
+  sänt (`ReportTransmitted`, avbrutna räknas inte). Svarar vid nästa sambandstillfälle, före
+  scenariots och krigsskådeplatsens telegram (som staben läser först, `read_order`: krig, ny uppgift,
+  hemkallelse) och högst `MAX_PER_WINDOW` (3) åt gången. I krig (`at_war`) inget "FÖLJ KONVOJEN" och
+  inget "ANGRIP EJ UTAN ORDER"; hemkallade (`recalled`) bara kvittenser, och ingen rapport väntas: kvittens ("ER RAPPORT NR n
   MOTTAGEN"), följduppdrag ur innehållet (konvoj ⇒ "FÖLJ KONVOJEN", varefter nästa rapport väntas;
   jagare/bevakningsfartyg ⇒ "UNDVIK UPPTÄCKT", en gång per kontakt; jagade ⇒ "BRYT KONTAKTEN").
   Väntas en rapport (`Scenario.report_required`, eller ett telegram med flaggan `report_requested`,

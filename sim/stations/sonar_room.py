@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from .. import acoustics, phrases
 from ..crew import Role
 from ..entities import Transient
-from ..events import (BearingObserved, ChargeHeard, ClassificationChanged, ContactDetected, HuntSigns,
+from ..events import (BearingObserved, ChargeHeard, ClassificationChanged, ContactDetected, ContactSunk, HuntSigns,
                       ContactLost, OwnSoundMade, OwnTorpedoHeard, SoundHeard)
 from ..fmt import fmt_course, nm
 from .. import russian as R
@@ -475,6 +475,8 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
                 case Lost():
                     bus.publish(ContactLost(self.now, ev.designation))
                     tr = self.game.knowledge.tracks.get(ev.designation)
+                    if tr is not None and tr.sunk:
+                        continue        # den sjönk: brytningsljudet är redan rapporterat
                     self.say("sonar.lost", {"designation": ev.designation,
                                             "last_bearing": tr.last_bearing if tr else None},
                              kind="contact")
@@ -691,6 +693,10 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
             if self._dedupe(f"breakup{ev.designation}", 60):
                 # brytningsljudet följer på detonationen; rapportera det efter den
                 self.say("sonar.breakup", d, kind="contact", alarm=True, extra_delay=6)
+            if ev.designation:
+                # den sjunker: dess pingar finns inte mer (andras pingar i samma bäring är inte dess)
+                self._pings.pop(ev.designation, None)
+                bus.publish(ContactSunk(self.now, ev.designation))
         practice = ev.kind == "explosion" and not ev.own_weapon and ev.se <= 160 and \
             not self.classify_charge(ev)[0]
         bus.publish(SoundHeard(self.now, ev.kind, ev.bearing, ev.designation, practice, detail,

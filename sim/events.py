@@ -158,6 +158,12 @@ class ContactLost(Event):
 
 
 @dataclass(frozen=True)
+class ContactSunk(Event):
+    """Sonar hörde brytningsljud från en känd kontakt: den sjunker."""
+    designation: str
+
+
+@dataclass(frozen=True)
 class SoundHeard(Event):
     """Sonaren hörde en transient: ping, plask, detonation, undervattenstelefon …"""
     kind: str

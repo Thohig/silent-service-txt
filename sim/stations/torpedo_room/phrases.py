@@ -116,6 +116,8 @@ PHRASES = {
     + (" Den målsökande torpeden söker själv efter giren." if d.get("homing") else ""),
     "torp.time": lambda d: f"Tid för torpeden från tub {d['tube']}"
     + (f" mot {d['designation']}" if d.get("designation") else "") + "!",
+    "torp.time.sunk": lambda d: f"Tid för torpeden från tub {d['tube']}, men {d['designation']} har "
+    "redan sjunkit. Den går vidare tills räckvidden är slut.",
     "torp.loading": lambda d: f"Laddar tub {d['tube']} med {d['type']}. "
     + ("Vi tar det försiktigt, åtta minuter. Det slamrar ändå när torpeden går in." if d.get("quiet")
        else "Fem minuter."),
@@ -242,6 +244,7 @@ RU_PHRASES = {
     + ("" if d.get("preview") else " Повторите приказ, если стреляем."),
     "torp.leg_warning": lambda d: f"{R.CAPTAIN}, торпедный отсек. Внимание: цель идёт "
     f"зигзагом, конвой может повернуть раньше, чем дойдёт торпеда.",
+    "torp.time.sunk": lambda d: f"Время торпеды из аппарата {d['tube']}, но цель уже тонет.",
     "torp.time": lambda d: f"Время торпеды из аппарата {d['tube']}"
     + (f" по {R.contact(d['designation'], True)}" if d.get("designation") else "") + "!",
     "torp.loading": lambda d: f"Есть, заряжаем аппарат {d['tube']}, {R.weapon(d['type'])}. "
