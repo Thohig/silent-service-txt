@@ -347,7 +347,8 @@ class OfficerStation(Station):
         self.rng = game.rng_for("officer")
         self.radar_done_t: int | None = None
         self.photo_done_t: int | None = None
-        self._esm_last: dict[str, tuple[str, int, float]] = {}   # styrka, när sagd, bäring
+        self._esm_last: dict[str, tuple[str, int]] = {}      # radar: styrka, när hörd (flyg: när sagd)
+        self._esm_said: dict[str, tuple[str, int, float]] = {}   # fartygsradar: styrka, när sagd, bäring
         self._next_esm = 0
         self._esm_fresh = True      # första svepet efter att vi kommit upp: sammanfatta de kända
         self._idle_t = -10**9       # senaste initiativ (eller försök) vid tystnad
@@ -780,12 +781,13 @@ class OfficerStation(Station):
                 strength = ("mycket stark" if r < 4 else "stark" if r < 8
                             else "medel" if r < 15 else "svag")
                 true_b = world.true_bearing(v)
-                prev = self._esm_last.get(v.id)
+                self._esm_last[v.id] = (strength, self.now)
+                prev = self._esm_said.get(v.id)
                 if prev is not None and prev[0] == strength and self.now - prev[1] <= ESM_REPEAT_S \
                         and abs(angle_diff(true_b, prev[2])) <= ESM_MOVED_DEG:
                     known += 1                  # samma radar som förut: ropas inte ut igen
                 else:
-                    self._esm_last[v.id] = (strength, self.now, true_b)
+                    self._esm_said[v.id] = (strength, self.now, true_b)
                     b = norm360(true_b + rng.gauss(0, 3))
                     self.say("off.esm", {"bearing": b, "strength": strength}, kind="contact",
                              alarm=strength == "mycket stark")
