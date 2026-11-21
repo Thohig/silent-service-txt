@@ -21,10 +21,6 @@ Inget just nu.
 
 ## Beslut som väntar på kaptenen
 
-- **Publicera webbversionen:** repot är privat, och Pages kräver då GitHub Pro (annars repot offentligt).
-  Sedan Settings › Pages › Source: GitHub Actions och Actions › pages › Run workflow; prova sidan under
-  `/silent-service-txt/` (även `?scenario=`). Integriteten utredd 2026-11-21: inga personuppgifter i
-  `k114.zip`, men koden blir läsbar och kontonamnet står i adressen.
 
 - **Ljud i webbversionen:** talet med webbläsarens talsyntes (`speechSynthesis`; rysk röst beror på
   webbläsare och system) och ljuden och mixern med Web Audio, kopplat in i `voices.backend()` och

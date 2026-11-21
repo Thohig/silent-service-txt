@@ -8,7 +8,8 @@ visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/READM
 Spelet går att spela i webbläsaren, utan ljud. Pyodide kör samma `sim/` och `ui/`, och Textual ritar i
 xterm.js genom en egen drivrutin (`web/pyodide_driver.py`: escapesekvenserna till terminalen i sidan,
 tangenter och storlek tillbaka på samma händelseslinga, inga trådar). `web/bygg.py` packar spelet bredvid
-`web/index.html`; `.github/workflows/pages.yml` publicerar när det körs för hand (inte vid push: minuterna). Pyodide saknar trådar, så en
+`web/index.html`; `.github/workflows/pages.yml` publicerar när det körs för hand (inte vid push). Publicerad 2026-11-21 på
+https://thohig.github.io/silent-service-txt/ (repot gjort offentligt, kuba-kort provat där). Pyodide saknar trådar, så en
 kort variants uppvärmning körs i bitar mellan ritningarna (`Game.warm_up_steps`, samma spel som `warm_up`,
 testat). Provat i Chromium: menyn, övning i övningsområdet (uppvärmning, order, förslag, vyerna med Tab).
 Simuleringen går 1–2 gånger långsammare än i CPython (övning ~8 ms per tick mot ~4, konvoj och krig < 1 ms).

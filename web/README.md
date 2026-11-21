@@ -31,6 +31,5 @@ som ritar och läser tangenter är ny. Sidan är statisk och kan ligga på GitHu
 ## Publicering
 `.github/workflows/pages.yml` bygger och publicerar bara för hand (Actions › pages › Run workflow),
 så att varje push till main inte kostar Actions-minuter. En gång i repots inställningar: Settings ›
-Pages › Source: GitHub Actions. Pages från ett privat repo kräver GitHub Pro; sidan är offentlig även då,
-och `k114.zip` gör `sim/` och `ui/` läsbara för alla. Besökarna hämtar Pyodide och xterm.js från jsDelivr
+Pages › Source: GitHub Actions (påslaget 2026-11-21; repot är offentligt). Besökarna hämtar Pyodide och xterm.js från jsDelivr
 och Textual från PyPI. Adressen blir `https://thohig.github.io/silent-service-txt/`.
