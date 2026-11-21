@@ -1,7 +1,7 @@
 # K-114 – att göra
 
 Konkreta öppna uppgifter: sådant som behöver köras om, provas, utredas eller beslutas. Idéer som
-inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-21. Ta bort det som blir gjort
+inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-22. Ta bort det som blir gjort
 och för in det i rätt dokument (CLAUDE.md, `docs/system/`, `kalibrering/README.md`).
 
 ## Köra om
@@ -10,9 +10,7 @@ Inget just nu.
 
 ## Prova för hand (riktig terminal, macOS)
 
-- **Webbversionen** i Safari och Chrome på Mac (`web/README.md`): tangenter (Tab, Esc, ctrl-tangenter),
-  typsnittet (lådtecken och punktgrafik i centralen), storleksändring och ett helt uppdrag. Ljudet:
-  att det hörs, talet (Alva, Milena) och om kön på 0,25 s räcker när tiden komprimeras.
+Inget just nu (webbversionen provad av kaptenen 2026-11-22: fungerar bra).
 
 ## Utreda
 
