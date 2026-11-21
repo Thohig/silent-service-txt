@@ -7,7 +7,8 @@ och bryggan tittar; plottet bygger lösningen av det. Sedan skjuter kaptenen `el
 
 Användning: ytskott.py [typer] [frön]
   typer kommaseparerade bland 53-61, SET-53, 53-62T och salva (tre 53-61); standard alla
-  t.ex. ytskott.py 53-61,53-62T 8   (~2 min på 4 kärnor)
+  (standard 24). Varje frö och avstånd får ett eget spelfrö (`run_seed`); andelen träffar visas med
+  90 % konfidensintervall. T.ex. ytskott.py 53-61,53-62T 8   (~2 min på 4 kärnor)
 
 Körs från repots rot: uv run python kalibrering/ytskott.py …
 """
@@ -29,8 +30,26 @@ RANGES = (1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
 WATCH_S = 600
 
 
+def run_seed(seed: int, rng_nm: float) -> int:
+    """Ett eget frö per avstånd: med samma frö på alla avstånd fick varje avstånd samma sensorslump
+    och samma bäring, så 8 frön × 6 avstånd var i praktiken 8 försök."""
+    return seed * 100 + int(rng_nm * 10)
+
+
+def wilson(k: int, n: int, z: float = 1.645) -> tuple[float, float]:
+    """90 % konfidensintervall för en andel (Wilson)."""
+    if n == 0:
+        return 0.0, 1.0
+    p = k / n
+    d = 1 + z * z / n
+    c = (p + z * z / (2 * n)) / d
+    h = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
+    return max(0.0, c - h), min(1.0, c + h)
+
+
 def run(args):
     typ, rng_nm, seed = args
+    seed = run_seed(seed, rng_nm)
     g = Game(default_scenario(random.Random(seed)), seed=seed)
     rep = []
     g.bus.subscribe(ReportDelivered, lambda e: rep.append(e.report))
@@ -89,7 +108,7 @@ def run(args):
 
 def main():
     types = sys.argv[1].split(",") if len(sys.argv) > 1 else ["53-61", "salva", "SET-53", "53-62T"]
-    seeds = range(1, 1 + (int(sys.argv[2]) if len(sys.argv) > 2 else 8))
+    seeds = range(1, 1 + (int(sys.argv[2]) if len(sys.argv) > 2 else 24))
     jobs = [(t, r, s) for t in types for r in RANGES for s in seeds]
     with Pool() as p:
         res = dict(zip(jobs, p.map(run, jobs)))
@@ -101,7 +120,8 @@ def main():
             errs = sorted(x[1] for x in rows if x[1] is not None)
             med = f"{errs[len(errs) // 2]:.3f}" if errs else "-"
             q = sorted({x[2] for x in rows if x[2]})
-            print(f"{t:7} {r:.0f} nm: {hits}/{len(rows)} träff, ej skjuten {not_fired}, "
+            lo, hi = wilson(hits, len(rows))
+            print(f"{t:7} {r:.0f} nm: {hits}/{len(rows)} träff ({lo:.0%}–{hi:.0%}), ej skjuten {not_fired}, "
                   f"relativt lägesfel median {med} nm, lösning {', '.join(q)}")
 
 

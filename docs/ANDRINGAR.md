@@ -3,6 +3,13 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-22 – provskjutningen med eget frö per avstånd
+
+`kalibrering/ytskott.py` ger varje frö och avstånd ett eget spelfrö (`run_seed`) och visar andelen träffar
+med 90 % konfidensintervall; standard 24 frön. Förut gav samma frö samma sensorslump och bäring på alla
+avstånd, så 48 skott var 8 försök. Nu: en ensam 53-61 träffar 24/24 till 2 nm, 10–13 av 24 på 3–4 nm, 3–5
+på 5–6 nm; salvan 19/24 till 4 nm. Ändrar inte spelet.
+
 ## 2026-11-21 – CI kör alla tester vid push
 
 `.github/workflows/tester.yml` kör nu `uv run pytest -q --slow` vid varje push till main, inte bara vid

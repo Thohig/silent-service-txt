@@ -31,9 +31,6 @@ lägen på tio minuter ger ~0,5 kn fel i farten även på ett stilla mål). Men:
   förtidsdetonationer. Gör dem något för träffsäkra på långt håll.
 - **Träffytan är en cirkel** (`HIT_RADIUS_NM` 0,03 nm, `HULL_HALF_NM`) oavsett vinkel mot målet; mot för
   eller akter är en jagare ~12 m bred. En ellips efter längd och bredd vore riktigare, och strängare.
-- **Provskjutningen bör köras med olika frön per avstånd och 20–30 frön.** Nu ger samma frö troligen samma
-  sensorslump på alla avstånd (samma två frön träffade överallt), så 48 skott är i praktiken 8 försök
-  (2 av 8 ≈ 5–55 %).
 
 ## Små brister i bilden
 
