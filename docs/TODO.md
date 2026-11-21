@@ -16,9 +16,7 @@ Inget just nu.
 
 ## Utreda
 
-- **konvoj-kort, ja-boten:** efter rättelserna från provspelet (2026-11-21) slutar den med en skjuten men
-  missad salva i 3 av 8 frön i stället för 1 (tiden ute 7 ⇒ 5). Ingen av rättelserna rör anfallet direkt;
-  troligen skiftar sprinten eller glesare skenmål vad ja-boten hinner med. Se om fröna sköt på sämre lösningar.
+Inget just nu.
 
 ## Beslut som väntar på kaptenen
 

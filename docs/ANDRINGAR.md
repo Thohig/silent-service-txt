@@ -3,6 +3,13 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-21 – utrett: konvoj-kort och ja-boten efter rättelserna
+
+Ingen försämring. Ja-boten skjuter aldrig i konvoj-kort (avfyring föreslås aldrig som ja-order), så
+`convoy_missed` där betyder att konvojen passerade utan skott, inte en missad salva. Att det blev 3 av 8
+i stället för 0–1 kommer av färre sprintförslag efter rättelserna: boten jagar inte ikapp konvojen, som
+hinner 8 nm bort före tidsgränsen. Siffrorna i `kalibrering/README.md`.
+
 ## 2026-11-21 – ljud i webbversionen, W3: inkopplat
 
 Webbversionen har ljud: `ljud` (eller Inställningar) slår på bakgrunden, larmen, hydrofonljuden och talet,

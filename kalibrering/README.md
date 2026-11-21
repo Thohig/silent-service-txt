@@ -51,11 +51,20 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 ## Siffrorna
 
 **Rättelser efter provspelet (2026-11-21, `kontroll.py` frön 0–7):** jagad ja undan 5 ⇒ 7, förlorad 3 ⇒ 1
-(median 74 ⇒ 49 min); jagad-kort ja undan 6 ⇒ 8; konvoj-mot ja anfallen 3 ⇒ 5; konvoj-kort ja missad
-1 ⇒ 3 (tiden ute 7 ⇒ 5); krig ja hemma 7, förlorad 1 (efter första omgången 2: båten la sig på botten
+(median 74 ⇒ 49 min); jagad-kort ja undan 6 ⇒ 8; konvoj-mot ja anfallen 3 ⇒ 5; konvoj-kort ja konvojen
+passerad 1 ⇒ 3 (tiden ute 7 ⇒ 5; ja-boten skjuter aldrig, se nedan); krig ja hemma 7, förlorad 1 (efter första omgången 2: båten la sig på botten
 mitt i anfallet, nu `charged_close` och `eng.suggest.lift`). konvoj-mot passiv med vaktens salva, 24
 frön: neutral sänkt 2 ⇒ 0. Baslinjen sparad. Provspelet före rättelserna: ~100 spel (provspel.py frö
 29, `kaos.py` 3 frön × 20 scenarier, riktade lägen, krig 14 h frö 5–7), inga undantag.
+
+**konvoj-kort, ja-boten efter rättelserna (utrett 2026-11-21):** ingen försämring av anfallet. Ja-boten
+skjuter aldrig i konvoj-kort, varken före eller efter (avfyring föreslås aldrig som ja-order), så båda
+utfallen är utan skott: `convoy_missed` ("kom aldrig till skott", inte en missad salva; den texten hör
+till konvoj-mot) när hela konvojen hunnit 8 nm bort före tidsgränsen, annars `patrol_end`. Närmaste
+avstånd till konvojen ungefär som förut (median 2,4 ⇒ 2,6 nm; efter kommer tre frön under 0,5 nm, före
+inget), men färre förslag om sprint (`djup 220, turbin, fart 13` bland de vanligaste förslagen i 6 av 8
+frön före, 2 av 8 efter; glesare larm under långa jakter)
+gör att boten inte jagar ikapp konvojen efteråt, så den hinner förbi i 3 frön i stället för 0–1.
 
 **Ytskott mot stillaliggande mål (2026-11-21, `ytskott.py`, frön 1–8):** träffar av 8 på 1/2/3/4/5/6 nm:
 53-61 ensam 8/7/2/2/2/2, salva med tre 53-61 8/7/4/6/5/5, SET-53 8/8/8/8 (5 och 6 nm utom räckhåll),
