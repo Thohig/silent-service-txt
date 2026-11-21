@@ -20,13 +20,3 @@ Inga just nu (jagarkaptenerna, tystnaden, skrovknaket och nedräkningen byggda 2
 ## Scenarier
 
 Inga just nu (Clyde byggt 2026-11-19, se `docs/system/scenarier.md`).
-
-## Historiska anmärkningar
-
-Kuba-ubåtarna 1962 var Projekt 641 (diesel), inte 627A. Provdjup 300 m och krossdjup 450 m är troligen
-generöst (källor anger ~240/300 m). K-3 nådde Nordpolen juli 1962. 627A-båtarna låg 1962 i Zapadnaja
-Litsa; övningen utgår ändå från Poljarnyj (medvetet val). På B-59 krävdes tre nycklar för att
-flottiljens stabschef (Archipov) var ombord; på de andra båtarna räckte kapten och zampolit.
-Clyde: depåfartyget USS Proteus låg i Holy Loch från mars 1961 och Polarisbåtarna gick i ytläge genom
-firthen; bassängen är förenklad (Arran och Cumbraeöarna som ellipser, Bute och Cowal som strand). Ingen
-minering: det var fred. Tidvattnet är ungefär som det verkliga (0,5–1,5 kn, mer i sunden).
