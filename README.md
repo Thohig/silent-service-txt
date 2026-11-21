@@ -22,7 +22,7 @@ uv run pytest             # snabba tester
 uv run pytest --slow      # alla tester
 ```
 
-När ett uppdrag är slut tar Enter dig tillbaka till huvudmenyn. Där finns också inställningar (ljud, tal, slumpfrö) och en lista över alla order och ryska ord. Med ljudet på (`ctrl+t` eller Inställningar) spelar menyn egen musik, hamnen i Poljarnyj och ibland Radio Moskva; fjärrskrivaren längst ned skriver flottans meddelanden fram mot den 28 oktober. Stäng programmet med `ctrl+q`. I eget fönster (`fonster.py`, samma flaggor som `main.py`) körs spelet i en webbterminal (textual-serve) i ett pywebview-fönster; `⌘Q` eller spelets eget slut stänger fönstret, och appen `K-114.app` (byggd med `sh ikon/bygg-app.sh [mål]`, standard `~/Projekt/Lokalt`) startar det som en enda ikon i Docken. Sanningen (exakta positioner och TMA-lösningar) loggas
+När ett uppdrag är slut tar Enter dig tillbaka till huvudmenyn. Där finns också inställningar (ljud, tal, slumpfrö) och en lista över alla order och ryska ord. Med ljudet på (`ctrl+t` eller Inställningar; i webbläsaren ordern `ljud`, eftersom Chrome tar `ctrl+t`) spelar menyn egen musik, hamnen i Poljarnyj och ibland Radio Moskva; fjärrskrivaren längst ned skriver flottans meddelanden fram mot den 28 oktober. Stäng programmet med `ctrl+q`. I eget fönster (`fonster.py`, samma flaggor som `main.py`) körs spelet i en webbterminal (textual-serve) i ett pywebview-fönster; `⌘Q` eller spelets eget slut stänger fönstret, och appen `K-114.app` (byggd med `sh ikon/bygg-app.sh [mål]`, standard `~/Projekt/Lokalt`) startar det som en enda ikon i Docken. Sanningen (exakta positioner och TMA-lösningar) loggas
 till `logs/truth-*.log`.
 
 ## Order
@@ -222,9 +222,9 @@ sim/                 ren Python, ingen Textual
     torpedo_room/    torpedrum, laddning och torpederna i vattnet; eldledningen i firing.py
 ui/                  Textual
   views.py           vyregistret: vyerna, orden som öppnar dem och Tab-ordningen
-  audio.py           tal, larm och hydrofonljud genom mixern (MixPlayer; reserv say/afplay)
-  voices.py          rösterna: språk -> röst, uppläsning och rendering (macOS say)
-  ambience.py        bakgrundsljud: mixer och slingor (sounddevice)
+  audio.py           tal, larm och hydrofonljud genom mixern (MixPlayer; reserv say/afplay; WebPlayer i webben)
+  voices.py          rösterna: språk -> röst, uppläsning och rendering (macOS say; WebSpeech i webben)
+  ambience.py        bakgrundsljud: mixer och slingor (sounddevice; output() väljer utgången)
   chart.py           sjökortet i helskärm
   chart_render.py    rastrering av sjökortet till tecken
   boat.py            vyn Ubåten i helskärm (djupprofil och systemtavla)
@@ -239,6 +239,12 @@ ui/                  Textual
   silhouettes.py     fartygens siluetter i braille (profiler i meter, vinkelstorlek), vattenpelaren
   bridge.py          utsikten från bryggan i helskärm (utkikens bild, varannan sekund)
   bridge_render.py   himmel, sjö, fördäck och kölvatten, föremålen med periskopets siluetter
+web/                 webbversionen (Pyodide + xterm.js, GitHub Pages; se web/README.md)
+  index.html         sidan: terminalen, Pyodide, ljudets AudioWorklet och talsyntesen
+  start.py           startar SubApp i webbläsaren; kopplar sidans ljud och tal
+  pyodide_driver.py  Textual-drivrutin utan trådar mot terminalen i sidan
+  web_audio.py       mixern till Web Audio (WebOut)
+  bygg.py            packar spelet till web/dist
 ```
 
 ### Lägga till ett system

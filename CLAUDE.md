@@ -137,9 +137,12 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   `WebSpeech` i webbläsaren, bara `start`); `say`
   utanför den filen fångas av `tests/test_voices.py`.
 - **Webbversionen** (`web/`, GitHub Pages): samma `sim/` och `ui/` i Pyodide med en egen Textual-drivrutin
-  (`web/pyodide_driver.py`) och xterm.js. Inga trådar och inget ljud där: det som körs i en tråd behöver
-  en väg utan (`ui/app.py`, `THREADS`; `Game.warm_up_steps`). Publiceras bara för hand
-  (`.github/workflows/pages.yml`, `workflow_dispatch`). `web/README.md`.
+  (`web/pyodide_driver.py`) och xterm.js. Inga trådar där: det som körs i en tråd behöver en väg utan
+  (`ui/app.py`, `THREADS`; `Game.warm_up_steps`; `MenuSound(threaded=False)`). Ljudet: mixern till Web Audio
+  (`web/web_audio.py`, `WebOut`, satt som `ui.ambience.OUTPUT`), talet med webbläsarens talsyntes
+  (`voices.WebSpeech`), spelaren `audio.WebPlayer`; `ui/` känner aldrig `web/`. Publicerad på
+  https://thohig.github.io/silent-service-txt/, bara för hand (`.github/workflows/pages.yml`,
+  `workflow_dispatch`): efter ändringar i `sim/`, `ui/` eller `web/` kör `gh workflow run pages.yml`. `web/README.md`.
 - **Händelsebussen** (`events.py`) är synkron. `Knowledge` registreras före
   stationerna så att stationer alltid ser uppdaterad kunskap.
 - **Utbyggnadskrokar:** rapportfilter (`ReportQueue.filters`, ändrar `data`) för
@@ -243,7 +246,8 @@ för in varje färdigt steg där.
   bara med `--slow` (`tests/conftest.py`). Kör `uv run pytest -q` lokalt före varje commit, och `--slow`
   före större steg (nya system, kalibrering). GitHub Actions (`.github/workflows/tester.yml`) kör bara de
   snabba testerna vid push till main och `--slow` vid pull request eller manuellt (`workflow_dispatch`);
-  ändringar som bara rör `.md` och `docs/` kör inget (Actions-minuterna räcker annars inte). Scenariotestet hoppar över de korta
+  ändringar som bara rör `.md` och `docs/` kör inget. Repot är offentligt sedan 2026-11-21 (minuterna är
+  gratis). `setup-uv` har inga flyttande huvudtaggar: exakt version (`@v10.3.3`); övriga actions på huvudversion. Scenariotestet hoppar över de korta
   varianternas uppvärmning utan `--slow`.
 - Verifiera spelkänslan med en huvudlös genomspelning: skapa `Game`, prenumerera
   på `ReportDelivered`, skriv ut rapporter, kör `g.tick()` i en loop (gärna med
