@@ -3,6 +3,14 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-21 – webbversionen varnar på telefoner
+
+På en liten skärm (terminalen under 100×30 tecken) eller en pekskärm utan mus säger sidan, innan den
+laddar Pyodide, att K-114 är ett textspel för dator. Står telefonen upp ber den om liggande läge, och den
+påminner om att vyerna nås med ord (`sjökort`, `sonar`, `ubåt`, `logg`, `central` tillbaka) eftersom
+telefonens tangentbord saknar Tab och Esc. Spelet vägrar aldrig: "Spela ändå" startar det och valet
+sparas i webbläsaren. Bara `web/index.html` (`mobileWarning`); provat i panelen i mobil- och datorstorlek.
+
 ## 2026-11-21 – K-114.app raderad
 
 Appen i `~/Projekt/Lokalt` är borttagen; spelet startas med `uv run main.py`, `fonster.py` eller i

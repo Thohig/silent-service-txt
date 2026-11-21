@@ -12,12 +12,35 @@
   #status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
             font: 15px Menlo, "DejaVu Sans Mono", monospace; white-space: pre-line; text-align: center; }
   #status.done { display: none; }
+  #warn { position: absolute; inset: 0; display: none; overflow-y: auto; background: #0b0f0c;
+          font: 15px/1.5 Menlo, "DejaVu Sans Mono", monospace; }
+  #warn.show { display: block; }
+  #warn .box { max-width: 34em; margin: 0 auto; padding: 32px 16px; box-sizing: border-box; }
+  #warn h1 { font-size: 17px; margin: 0 0 1em; color: #e4ebc8; }
+  #warn p { margin: 0 0 1em; }
+  #warn code { color: #e4ebc8; }
+  #warn .buttons { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 1.5em; }
+  #warn button { font: inherit; color: #0b0f0c; background: #c8d0b0; border: 0; border-radius: 4px;
+                 padding: 10px 16px; cursor: pointer; }
+  #warn button.second { color: #c8d0b0; background: transparent; border: 1px solid #c8d0b0; }
+  #warn [hidden] { display: none; }
 </style>
 </head>
 <body>
 <div id="term"></div>
 <div id="status">K-114
 laddar …</div>
+<div id="warn" role="dialog" aria-labelledby="warn-title"><div class="box">
+  <h1 id="warn-title">K-114 är ett textspel för dator.</h1>
+  <p>Det styrs med tangentbordet och behöver en stor skärm. På telefon blir vyerna för trånga.</p>
+  <p id="warn-rotate" hidden>Vrid telefonen till liggande läge om du ändå vill prova.</p>
+  <p>Telefonens tangentbord saknar Tab och Esc: skriv vyns namn (<code>sjökort</code>, <code>sonar</code>,
+     <code>ubåt</code>, <code>logg</code> …) för att byta vy och <code>central</code> för att gå tillbaka.</p>
+  <div class="buttons">
+    <button id="warn-play">Spela ändå</button>
+    <button id="warn-copy" class="second">Kopiera länken</button>
+  </div>
+</div></div>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.29.5/full/pyodide.js"></script>
@@ -110,6 +133,38 @@ async function makeAudio() {
 const status = document.getElementById("status");
 const say = (s) => { status.textContent = "K-114\n" + s; };
 
+// Telefoner: spelet behöver tangentbord och en stor terminal. Varna innan Pyodide laddas (~15 MB),
+// men låt den som vill spela ändå; valet sparas. Pekskärm utan mus betyder troligen inget tangentbord.
+const MIN_COLS = 100, MIN_ROWS = 30;
+const WARN_KEY = "k114.spelaAndå";
+
+function remembered() {
+  try { return localStorage.getItem(WARN_KEY) === "1"; } catch (e) { return false; }
+}
+
+function mobileWarning(term) {
+  const small = term.cols < MIN_COLS || term.rows < MIN_ROWS;
+  const touchOnly = matchMedia("(pointer: coarse)").matches && !matchMedia("(any-pointer: fine)").matches;
+  if (!(small || touchOnly) || remembered()) return Promise.resolve();
+  const warn = document.getElementById("warn");
+  const copy = document.getElementById("warn-copy");
+  document.getElementById("warn-rotate").hidden = !(small && innerHeight > innerWidth);
+  status.classList.add("done");
+  warn.classList.add("show");
+  copy.onclick = async () => {
+    try { await navigator.clipboard.writeText(location.href); copy.textContent = "Länken kopierad"; }
+    catch (e) { copy.textContent = location.href; }
+  };
+  return new Promise((ok) => {
+    document.getElementById("warn-play").onclick = () => {
+      try { localStorage.setItem(WARN_KEY, "1"); } catch (e) { /* privat läge: fråga igen nästa gång */ }
+      warn.classList.remove("show");
+      status.classList.remove("done");
+      ok();
+    };
+  });
+}
+
 async function start() {
   const params = new URLSearchParams(location.search);
   const term = new Terminal({
@@ -120,6 +175,8 @@ async function start() {
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   term.open(document.getElementById("term"));
+  fit.fit();
+  await mobileWarning(term);
   fit.fit();
 
   say("startar Python …");

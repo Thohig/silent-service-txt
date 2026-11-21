@@ -40,6 +40,10 @@ GitHub Pages: https://thohig.github.io/silent-service-txt/
 - **Tangenter:** webbläsaren tar vissa själv (`ctrl+t` och `ctrl+w` i Chrome); `ctrl+q` och menyns
   Avsluta stänger spelet. Sanningsloggen skrivs i minnet och försvinner när sidan laddas om.
 - **Fart:** simuleringen går 1–2 gånger långsammare än i CPython (övning ~8 ms per tick mot ~4).
+- **Telefoner:** är terminalen mindre än 100×30 tecken, eller har enheten pekskärm utan mus, visar
+  sidan en varning innan Pyodide laddas (`mobileWarning` i `index.html`): spelet är för dator, vrid
+  telefonen om den står upp, och vyerna nås med ord (`sjökort`, `sonar` …, `central` tillbaka) eftersom
+  telefonens tangentbord saknar Tab och Esc. "Spela ändå" startar spelet och sparas i `localStorage`.
 - **Första laddningen** hämtar ~15 MB (Pyodide, numpy, Textual); sedan har webbläsaren det i cache.
 
 ## Publicering
