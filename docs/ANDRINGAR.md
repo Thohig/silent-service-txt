@@ -28,6 +28,20 @@ krigspatrullen i 14 h, gränssnittet i 80×24, 120×40 och 220×60) gav inga und
   krigsskådeplatsens telegram före svaren. I krig inget "FÖLJ KONVOJEN" eller "ANGRIP EJ UTAN ORDER";
   hemkallade bara kvittensen. Svaren kommer före de nya orderna (krig frö 7 fick förut "PATRULLEN ÄR
   SLUT" följt av "FÖLJ KONVOJEN" och "ANGRIP EJ UTAN ORDER" vid samma tillfälle).
+- **Djupt och fort utan pendling:** maskins sprint (`EngineeringStation._sprint`) godtar ett beordrat
+  djup från 180 m ned till 290 m (eller djupgränsen) och räknar farten där; förut föreslog den "djup 220"
+  var tionde minut när sonars undanmanöver tagit oss till 280, och ja-boten pendlade 220 ↔ 280 i över en
+  timme med skrovknak varje gång (kuba frö 29: 3 knak i stället för ett tiotal). Sonars undanmanöver
+  går uppåt bara till skiktet + 60 m. Smygmotor föreslås först 10 min efter senaste jakttecknet
+  (`CREEP_AFTER_HUNT_S`; förut turbin och 36 s senare smygmotor).
+- **Sonars djupförslag** börjar med "Kapten, sonar." och säger "laddningarna" bara efter sjunkbomber,
+  annars "så att de tappar ekot".
+- **Glesare under långa jakter:** undervattenstelefonen (2, 4, 8 … högst 30 min emellan, "De sänder
+  fortfarande" efter första gången; kuba frö 29 10 rader i stället för ~50), "pingarna är mycket
+  starka" per pingare på samma sätt, skenmål högst var 20:e minut (`DECOY_SUGGEST_S`) och med antalet
+  kvar när två eller färre återstår.
+- **En nära pingare** (≥ `PING_NEAR_RL`) får svänga 1,5°/s i bäring, högst 60°, och är ändå samma
+  pingare (sundet: en patrullbåt förbi oss gav "Aktiv sonar … Någon söker" 9 gånger på 3 min).
 - **Prov:** `tests/test_playtest_fixes.py`.
 
 ## 2026-11-21 – trådstyrd torped (53-62T, försök)

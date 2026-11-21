@@ -14,7 +14,7 @@ from ... import acoustics
 from ...weapons import TORPEDO_TYPES, launch_decoy
 from ..base import Proposal, Station
 from .common import (
-    END_GRACE_S, CutWire, FireAt, FireSalvo, FireTube, FiringSolution, LaunchDecoy, LoadTube, N_TUBES,
+    DECOY_SUGGEST_S, END_GRACE_S, CutWire, FireAt, FireSalvo, FireTube, FiringSolution, LaunchDecoy, LoadTube, N_TUBES,
     RELOAD_CLANK_S, RELOAD_QUIET_S, RELOAD_S, RUN_REPORT_AFTER, Running, TRACK_FADE_S,
     TRACK_KEEP_S, TorpedoReport, TorpedoStatus, Tube, TubeStatus, load_order,
 )
@@ -319,4 +319,6 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
         """Sonar säger att de har oss (täta starka pingar, sjunkbomber): skenmål. Täta svaga pingar
         långt bort (sonar.ping.fast_far) är någon annans jakt och ger inget förslag."""
         if self.decoys > 0 and e.reason in ("ping", "splash"):
-            self.suggest("decoy", "torp.suggest.decoy", order="skenmål", cooldown=600)
+            # glest: sex skenmål räcker annars en timme i en lång jakt
+            self.suggest("decoy", "torp.suggest.decoy", {"left": self.decoys}, order="skenmål",
+                         cooldown=DECOY_SUGGEST_S)

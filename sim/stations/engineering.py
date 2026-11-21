@@ -394,6 +394,8 @@ phrases.register_ru(RU_PHRASES)
 TORPEDO_SPEED_S = 300      # så länge efter senaste torpedbäringen gäller farten före tystnaden
 SPRINT_DEPTH = 220          # upptäckta: så djupt vi vill springa (under skiktet, över provdjup)
 SPRINT_MIN_DEPTH = 100
+SPRINT_DEEPEST = 290        # ett beordrat djup ned hit duger lika bra (sonars undanmanöver går ofta djupare)
+CREEP_AFTER_HUNT_S = 600    # smygmotor föreslås inte förrän jakten varit tyst så här länge
 
 
 class EngineeringStation(Station):
@@ -565,7 +567,7 @@ class EngineeringStation(Station):
             order, data = p
             out.append(Proposal(2, "idle_sprint", "eng.suggest.sprint", order, data, cooldown=600))
         elif not hunted and s.propulsion == "turbine" and not s.on_bottom and \
-                not self.own.surfaced and self.game.knowledge.threat_held():
+                not self.own.surfaced and self.game.knowledge.threat_held() and self._hunt_quiet():
             out.append(Proposal(2, "idle_creep", "eng.suggest.creep", "smygmotor"))
         return out
 
@@ -583,6 +585,13 @@ class EngineeringStation(Station):
         safe = max(3.0, int(acoustics.cavitation_speed(st.depth)))
         return f"fart {safe}", {"speed": safe}
 
+    def _hunt_quiet(self) -> bool:
+        """Har jakten varit tyst länge nog för att smyga igen? (Jakttecknen kommer och går; utan
+        väntan föreslog maskin turbin och 36 s senare smygmotor.)"""
+        if self.game.knowledge.hunted(self.now):
+            self._hunted_t = self.now
+        return self.now - getattr(self, "_hunted_t", -10**9) >= CREEP_AFTER_HUNT_S
+
     def _sprint(self) -> tuple[str, dict] | None:
         """Upptäckta: djupt och så fort det går utan kavitation. None om vi redan gör det."""
         own, s, st = self.own, self.own.sys, self.own.state
@@ -598,13 +607,16 @@ class EngineeringStation(Station):
             depth = min(depth, lim)
         if depth < SPRINT_MIN_DEPTH:
             return None
+        deepest = min(SPRINT_DEEPEST, lim) if lim is not None else SPRINT_DEEPEST
+        depth_ok = depth - 40 <= st.ordered_depth <= max(deepest, depth)
+        if depth_ok:
+            depth = st.ordered_depth            # djupare duger: farten räknas där vi ska vara
         speed = int(acoustics.cavitation_speed(depth)) - 1
         if speed <= 6:
             return None
-        if s.propulsion == "turbine" and st.ordered_speed >= speed - 1 and \
-                abs(st.ordered_depth - depth) <= 40:
+        if s.propulsion == "turbine" and st.ordered_speed >= speed - 1 and depth_ok:
             return None
-        parts = [] if abs(st.ordered_depth - depth) <= 40 else [f"djup {depth:.0f}"]
+        parts = [] if depth_ok else [f"djup {depth:.0f}"]
         # alltid med: förslaget levereras med fördröjning, och smygmotor kan ha
         # beordrats under tiden
         parts.append("turbin")
@@ -700,6 +712,8 @@ class EngineeringStation(Station):
             self.suggest("blow", "eng.suggest.blow", {"flooding": s.flooding},
                          order="nödblåsning", cooldown=120, alarm=True)
         hunted = self.game.knowledge.hunted(self.now)
+        if hunted:
+            self._hunted_t = self.now
         if self.game.knowledge.torpedo_alarm(self.now) or self.game.knowledge.doors_t >= self.now - 60:
             pass                            # torped i vattnet: sonars undanmanöver gäller
         elif hunted and (p := self._sprint()) is not None:
@@ -708,5 +722,5 @@ class EngineeringStation(Station):
         # i ytläge syns vi ändå: smygmotorn hjälper inte
         elif not hunted and s.propulsion == "turbine" and not s.on_bottom and \
                 not own.surfaced and self.game.knowledge.tracks and \
-                self.game.knowledge.threat_held():
+                self.game.knowledge.threat_held() and self._hunt_quiet():
             self.suggest("creep", "eng.suggest.creep", order="smygmotor", cooldown=3600)

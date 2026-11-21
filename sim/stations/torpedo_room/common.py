@@ -24,6 +24,7 @@ MAX_LAUNCH_SPEED = 12
 RUN_REPORT_AFTER = 10       # s efter avfyring innan sonar bekräftar normal gång
 TRACK_KEEP_S = 1800              # avslutade banor ligger kvar på kortet så länge
 TRACK_FADE_S = 600
+DECOY_SUGGEST_S = 1200      # skenmål föreslås högst så här ofta under en jakt
 END_GRACE_S = 30            # marginal efter räckvidden innan vi säger trolig miss
 GUIDE_STEP_S = 20           # trådstyrning: eldledningen räknar om kursen så här ofta
 GUIDE_MIN_DEG = 2.0         # ... och skickar en styrorder när den skiljer så här mycket

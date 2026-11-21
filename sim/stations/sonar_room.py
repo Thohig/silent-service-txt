@@ -40,6 +40,14 @@ SLOW_PING_S = 20            # så här långt mellan pingarna två gånger i rad
 PING_SAME_DEG = 8.0         # okända pingar inom så här många grader räknas som samma pingare
 PING_DRIFT_DEG_PER_S = 0.15 # ... plus så här mycket per sekund sedan förra pingen (pingaren rör sig)
 PING_SAME_MAX_DEG = 20.0
+PING_DRIFT_NEAR_DEG_PER_S = 1.5     # starka pingar (≥ PING_NEAR_RL): pingaren är nära och svänger fort
+PING_SAME_MAX_NEAR_DEG = 60.0
+UWT_FIRST_S = 120           # undervattenstelefonen: första gången, sedan dubbelt så länge emellan
+UWT_MAX_S = 1800
+UWT_RESET_S = 1800          # tyst så här länge: nästa är en ny omgång
+CLOSE_FIRST_S = 300         # "pingarna är mycket starka": samma glesning per pingare
+CLOSE_MAX_S = 1800
+CLOSE_RESET_S = 2400
 PING_KNOWN_S = 900          # en känd pingare som tappats som kontakt känns igen på bäringen så länge
 PING_SMOOTH = 0.5           # ny ping väger så här mycket i pingarens bäring
 # Så starka pingar (mottagen nivå, dB) kommer från en jagare nära nog att jaga oss: en jagarping
@@ -151,8 +159,9 @@ PHRASES = {
         + (" Skarpa laddningar." if d.get("quality", 0) >= Quality.GOD else "")),
     "sonar.nuclear": lambda d: f"Kapten! Enorm detonation i bäring {fmt_course(d['bearing'])}. "
     "Hela hydrofonen är mättad.",
-    "sonar.uwt": lambda d: f"Undervattenstelefon i bäring {fmt_course(d['bearing'])}. Morse, "
-    "upprepat. Jag tror de uppmanar oss att gå till ytan.",
+    "sonar.uwt": lambda d: f"Undervattenstelefon i bäring {fmt_course(d['bearing'])}. "
+    + ("De sänder fortfarande, samma uppmaning." if d.get("again") else
+       "Morse, upprepat. Jag tror de uppmanar oss att gå till ytan."),
     "sonar.breakup": lambda d: f"Brytningsljud i bäring {fmt_course(d['bearing'])}{_src(d)}. "
     "Skott som ger vika. Ett fartyg sjunker, kapten.",
     "sonar.buoy": lambda d: f"Kapten, sonar. Små plask i bäring {fmt_course(d['bearing'])}, "
@@ -168,8 +177,9 @@ PHRASES = {
     "sonar.active.refused": lambda d: f"Kapten, {d['reason']}.",
     "sonar.suggest.layer": lambda d: f"Kapten, sonar. Vi ligger ovanför språngskiktet på "
     f"{d['layer']:.0f} meter. Föreslår djup {d['depth']:.0f}, under skiktet hörs vi sämre.",
-    "sonar.suggest.depth_change": lambda d: f"Föreslår djupändring till {d['depth']:.0f} meter, "
-    "så att laddningarna är inställda på fel djup!",
+    "sonar.suggest.depth_change": lambda d: f"Kapten, sonar. Föreslår djupändring till "
+    f"{d['depth']:.0f} meter, " + ("så att laddningarna är inställda på fel djup!"
+                                    if d.get("cause") == "charges" else "så att de tappar ekot!"),
     "sonar.suggest.slow": lambda d: f"Kapten, sonar. Vi hör dåligt i {d['speed']:.0f} knop. "
     "Föreslår fart 4.",
 }
@@ -232,8 +242,8 @@ RU_PHRASES = {
         f"Взрыв, пеленг {R.course(d['bearing'])}" + (", очень близко!" if d.get("near") else "!")),
     "sonar.nuclear": lambda d: f"{R.CAPTAIN}! Мощнейший взрыв, пеленг {R.course(d['bearing'])}. "
     "Гидрофоны забиты.",
-    "sonar.uwt": lambda d: f"Звукоподводная связь, пеленг {R.course(d['bearing'])}. Морзе, "
-    "повторяют. Думаю, требуют всплыть.",
+    "sonar.uwt": lambda d: f"Звукоподводная связь, пеленг {R.course(d['bearing'])}. "
+    + ("Всё ещё передают то же." if d.get("again") else "Морзе, повторяют. Думаю, требуют всплыть."),
     "sonar.breakup": lambda d: f"Шумы разрушения корпуса, пеленг {R.course(d['bearing'])}"
     f"{_ru_src(d)}. Переборки не выдерживают. Судно тонет, товарищ командир.",
     "sonar.buoy": lambda d: f"{R.CAPTAIN}, акустик. Слабые всплески, пеленг "
@@ -251,7 +261,8 @@ RU_PHRASES = {
     f"{R.count(d['layer'], R.METER)}. Предлагаю глубину {R.count(d['depth'], R.METER)}, "
     "под слоем нас хуже слышно.",
     "sonar.suggest.depth_change": lambda d: f"Предлагаю сменить глубину на "
-    f"{R.count(d['depth'], R.METER)}, чтобы бомбы были установлены на неверную глубину!",
+    f"{R.count(d['depth'], R.METER)}, " + ("чтобы бомбы были установлены на неверную глубину!"
+                                          if d.get("cause") == "charges" else "чтобы они потеряли эхо!"),
     "sonar.suggest.slow": lambda d: f"{R.CAPTAIN}, акустик. На ходу {R.count(d['speed'], R.KNOT)} "
     "слышим плохо. Предлагаю ход четыре узла.",
 }
@@ -274,6 +285,7 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
         self._pings: dict[str, dict] = {}
         self._unknown_pingers = 0
         self._last_sound: dict[str, int] = {}
+        self._uwt_gap: tuple[int, int] = (UWT_FIRST_S, -1)    # (väntan till nästa, senast sagd)
         self.heard: list[HeardEvent] = []          # för djupprofilen
         self.marks: list[HeardMark] = []           # för vattenfallet (med bäring)
         self.lost: list[LostMark] = []
@@ -597,7 +609,11 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
                     continue
                 off = abs(angle_diff(q.get("bearing", ev.bearing), ev.bearing))
                 since = self.now - q["last"] if q["last"] is not None else 0
-                gate = min(PING_SAME_MAX_DEG, PING_SAME_DEG + PING_DRIFT_DEG_PER_S * since)
+                if ev.rl >= PING_NEAR_RL:
+                    # en nära pingare kan svänga fort i bäring (245 → 326 på 90 s förbi oss)
+                    gate = min(PING_SAME_MAX_NEAR_DEG, PING_SAME_DEG + PING_DRIFT_NEAR_DEG_PER_S * since)
+                else:
+                    gate = min(PING_SAME_MAX_DEG, PING_SAME_DEG + PING_DRIFT_DEG_PER_S * since)
                 if off <= gate and (best is None or off < best):
                     unknown, best = k, off
             if unknown is None and not ev.designation:
@@ -643,10 +659,13 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
                     # snabb takt och starka pingar: de har troligen kontakt med oss
                     p["hunting"] = True
                     self.say("sonar.ping.fast", d, kind="contact", alarm=True)
-                    self._evasive_depth()
+                    self._evasive_depth(cause="ping")
             if p["hunting"]:
                 bus.publish(HuntSigns(self.now, "ping"))
-            if ev.se > 75 and self.now - p["close_t"] > 300:
+            if ev.se > 75 and self.now - p["close_t"] > p.get("close_gap", CLOSE_FIRST_S):
+                # glesare för varje gång under samma jakt (2,5 h med samma rad var 5:e min förut)
+                p["close_gap"] = CLOSE_FIRST_S if self.now - p["close_t"] > CLOSE_RESET_S \
+                    else min(p.get("close_gap", CLOSE_FIRST_S) * 2, CLOSE_MAX_S)
                 p["close_t"] = self.now
                 self.say("sonar.ping.close", d, kind="contact")
             p["last"] = self.now
@@ -654,7 +673,7 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
             if self._dedupe("splash", 20):
                 self.say("sonar.splash", {**d, "near": ev.se > 45}, kind="contact", alarm=True)
                 bus.publish(HuntSigns(self.now, "splash"))
-                self._evasive_depth(cooldown=60)
+                self._evasive_depth(cooldown=60, cause="charges")
         elif ev.kind == "explosion":
             if ev.se > 160:
                 if self._dedupe("nuclear", 60):
@@ -678,7 +697,7 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
         elif ev.kind == "buoy_ping":
             if self._dedupe("buoy_ping", 600):
                 self.say("sonar.buoy_ping", d, kind="contact", alarm=True)
-                self._evasive_depth()
+                self._evasive_depth(cause="ping")
         elif ev.kind == "ice":
             if self._dedupe("ice", ICE_REPORT_S):
                 self.say("sonar.ice", {**d, "near": ev.se > 25}, kind="contact",
@@ -687,8 +706,15 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
             if self._dedupe("doors", 60):
                 self._on_doors(ev.bearing)
         elif ev.kind == "uwt":
-            if self._dedupe("uwt", 120):
-                self.say("sonar.uwt", d, kind="contact")
+            gap, last = self._uwt_gap
+            if self.now - last > UWT_RESET_S:
+                gap = UWT_FIRST_S                   # en ny omgång: säg det som första gången
+            if self.now - last >= gap or last < 0:
+                again = 0 <= last and self.now - last <= UWT_RESET_S
+                self._uwt_gap = (min(gap * 2, UWT_MAX_S) if again else UWT_FIRST_S, self.now)
+                self.say("sonar.uwt", {**d, "again": again}, kind="contact")
+            else:
+                self._uwt_gap = (gap, last)
         elif ev.kind == "breakup":
             if self._dedupe(f"breakup{ev.designation}", 60):
                 # brytningsljudet följer på detonationen; rapportera det efter den
@@ -710,11 +736,11 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
         level = rl + (PING_LAYER_DB if ld is not None and self.own.state.depth > ld else 0.0)
         return level >= PING_NEAR_RL, abs(level - PING_NEAR_RL) >= PING_LAYER_DB
 
-    def _evasive_depth(self, cooldown: int = 300) -> None:
+    def _evasive_depth(self, cooldown: int = 300, cause: str = "ping") -> None:
         d = self._evasive_target()
         if d is None:
             return
-        self.suggest("evade_depth", "sonar.suggest.depth_change", {"depth": d},
+        self.suggest("evade_depth", "sonar.suggest.depth_change", {"depth": d, "cause": cause},
                      order=f"djup {d:.0f}", cooldown=cooldown, alarm=True)
 
     def _evasive_target(self) -> float | None:
@@ -731,6 +757,11 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
             d = min(st.ordered_depth + 60, 280)     # grundare skulle vi kavitera i den här farten
         else:
             d = st.ordered_depth - 80
+            if env.layer_depth is not None:
+                # uppåt bara till under skiktet: över det hör jagaren oss igen
+                d = max(d, env.layer_depth + 60)
+                if abs(d - st.ordered_depth) < 20:
+                    d = min(st.ordered_depth + 60, 280)
         lim = self._depth_limit()
         if lim is not None and d > lim:
             d = lim

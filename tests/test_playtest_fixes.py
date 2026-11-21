@@ -118,3 +118,59 @@ def test_a_sunk_contact_is_no_threat_and_its_pinger_is_forgotten():
     tr = g.knowledge.tracks["S-2"]
     assert tr.sunk and not tr.held and not tr.threat
     assert "S-2" not in sonar._pings
+
+
+# --- steg 3: förslagen under jakt ---------------------------------------------------------
+from sim.stations.engineering import EngineeringStation  # noqa: E402
+
+
+def test_sprint_accepts_a_deeper_ordered_depth():
+    g, _ = _game("kuba", 2)
+    eng = g.station(EngineeringStation)
+    st, s = g.world.own.state, g.world.own.sys
+    s.propulsion = "turbine"
+    st.ordered_depth, st.ordered_speed = 280, 5
+    order, data = eng._sprint()
+    assert "djup" not in order and data["depth"] == 280      # förut "djup 220" tillbaka upp
+    st.ordered_speed = data["speed"]
+    assert eng._sprint() is None
+    st.ordered_depth = 60
+    assert eng._sprint()[0].startswith("djup 220")
+
+
+def test_evasive_depth_names_its_cause_and_stays_under_the_layer():
+    g, reports = _game("kuba", 2)
+    sonar = g.station(SonarRoom)
+    st = g.world.own.state
+    st.ordered_depth, st.ordered_speed = 200, 4
+    d = sonar._evasive_target()
+    assert d >= g.world.env.layer_depth + 60
+    sonar._evasive_depth(cause="charges")
+    _run(g, 10)
+    r = next(r for r in reports if r.type == "sonar.suggest.depth_change")
+    assert r.text.startswith("Kapten, sonar.") and "laddningarna" in r.text
+
+
+def test_underwater_telephone_is_reported_ever_more_seldom():
+    g, reports = _game("kuba", 2)
+    sonar = g.station(SonarRoom)
+    for _ in range(40 * 60):
+        if g.now % 180 == 0:
+            sonar._on_sound(TransientHeard("uwt", 40.0, 30.0, None))
+        g.tick()
+    said = [r for r in reports if r.type == "sonar.uwt"]
+    assert 3 <= len(said) <= 6                 # var 3:e min i 40 min gav 14 förut
+    assert not said[0].data["again"] and said[1].data["again"]
+
+
+def test_a_near_pinger_sweeping_past_stays_one_pinger():
+    g, reports = _game("kuba", 2)
+    g.world.ais.clear()                         # bara vår pingare
+    sonar = g.station(SonarRoom)
+    b = 245.0
+    for i in range(10):
+        sonar._on_sound(TransientHeard("ping", b, 80.0, None, 150.0))
+        b += 9.0
+        for _ in range(10):
+            g.tick()
+    assert len([r for r in reports if r.type == "sonar.ping.first"]) == 1

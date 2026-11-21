@@ -68,6 +68,8 @@ def _solution(d: dict) -> str:
             + "; ".join(rows) + ".")
 
 
+DECOY_RU = ("имитатор", "имитатора", "имитаторов")
+
 PHRASES = {
     "torp.refused": lambda d: f"Kapten, {d['reason']}.",
     "torp.nuclear_confirm": lambda d: f"Kapten, torped. Tub {d['tube']} har kärnladdning, nycklarna "
@@ -129,7 +131,8 @@ PHRASES = {
     f"tub {d['tube']} med {d['type']}, gångtid {_mmss(d['run_s'])}. Inväntar order.",
     "torp.suggest.reload": lambda d: f"Kapten, torped. Tub {d['tube']} är tom. "
     f"Föreslår att vi laddar {d['type']}.",
-    "torp.suggest.decoy": lambda d: "Kapten, torped. Föreslår skenmål för att dra deras sonar.",
+    "torp.suggest.decoy": lambda d: "Kapten, torped. Föreslår skenmål för att dra deras sonar."
+    + (f" Vi har {d['left']} kvar." if d.get("left", 99) <= 2 else ""),
     "torp.in_water": _in_water,
     "torp.run.running": lambda d: f"Tub {d['tube']}: sonar hör torpeden i bäring "
     f"{fmt_course(d['bearing'])}, normal gång.",
@@ -256,7 +259,8 @@ RU_PHRASES = {
     "torp.suggest.reload": lambda d: f"{R.CAPTAIN}, минёр. Аппарат {d['tube']} пуст. "
     f"Предлагаю зарядить {R.weapon(d['type'])}.",
     "torp.suggest.decoy": lambda d: f"{R.CAPTAIN}, минёр. Предлагаю выпустить имитатор, "
-    "чтобы отвлечь их гидролокатор.",
+    "чтобы отвлечь их гидролокатор."
+    + (f" Осталось {R.count(d['left'], DECOY_RU)}." if d.get("left", 99) <= 2 else ""),
     "torp.run.running": lambda d: f"{_ru_tube(d)}: акустик слышит торпеду, пеленг "
     f"{R.course(d['bearing'])}, идёт нормально.",
     "torp.run.turned": lambda d: f"{_ru_tube(d)}: торпеда поворачивает, пеленг "
