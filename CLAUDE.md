@@ -133,7 +133,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   standard, `tal ryska`/`tal svenska`); utan Milena svenskt tal. Ny fras ⇒ lägg till rysk fras (testet kräver det för alla utom `phrases.NO_SPEECH`, det som aldrig
   läses upp: systemrader och tabeller). Svensk fritext i `data` (t.ex. `reason`) läses inte på ryska:
   lägg en nyckel bredvid (`why`) eller säg det allmänt ("Выполнить не могу").
-  Talsyntesen bor bara i `ui/voices.py` (`backend()`, `MacSay`: röst per språk, `start`, `render`); `say`
+  Talsyntesen bor bara i `ui/voices.py` (`backend()`, `MacSay`: röst per språk, `start`, `render`;
+  `WebSpeech` i webbläsaren, bara `start`); `say`
   utanför den filen fångas av `tests/test_voices.py`.
 - **Webbversionen** (`web/`, GitHub Pages): samma `sim/` och `ui/` i Pyodide med en egen Textual-drivrutin
   (`web/pyodide_driver.py`) och xterm.js. Inga trådar och inget ljud där: det som körs i en tråd behöver

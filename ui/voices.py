@@ -7,7 +7,8 @@ backend. Gränssnittet (`Voices`) har två sätt att tala:
     render(text, voice, rate, sr)     läs till ljud (mono flyttal) för mixern (Radio Moskva)
 
 `backend()` väljer backend för plattformen: `MacSynth` (macOS talsyntes i processen, rösterna
-laddade, 20–60 ms per replik) om pyobjc finns, annars `MacSay` (`say`, `say -o` ~0,55 s).
+laddade, 20–60 ms per replik) om pyobjc finns, annars `MacSay` (`say`, `say -o` ~0,55 s). I
+webbläsaren (Pyodide) `WebSpeech`: sidans talsyntes, som bara kan läsa upp direkt (ingen `render`).
 Röstnamnen per språk står i backendens `VOICES`; `voice("ru")` ger namnet om rösten finns.
 """
 from __future__ import annotations
@@ -15,6 +16,7 @@ from __future__ import annotations
 import shutil
 import struct
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -176,10 +178,67 @@ class MacSynth(MacSay):
                 job["done"].set()
 
 
+# --------------------------------------------------------------------------- webbläsaren
+class _Utterance:
+    """En replik i webbläsarens talsyntes (`Speaking`)."""
+
+    def __init__(self, handle, bridge):
+        self.handle = handle
+        self.bridge = bridge
+
+    def poll(self) -> int | None:
+        return 0 if self.handle.done else None
+
+    def terminate(self) -> None:
+        if not self.handle.done:
+            self.bridge.cancel()
+
+
+class WebSpeech:
+    """Webbläsarens talsyntes (`speechSynthesis`) genom sidans brygga (`web/index.html`,
+    `speech`): `has(språk)`, `speak(text, språk, takt)` ger ett handtag med `done`, `cancel()`.
+    Röstnamnen är spelets (Alva, Milena); sidan väljer den rösten om webbläsaren har den,
+    annars en annan på samma språk. Uppläsningen går inte genom mixern, så `render` ger None."""
+
+    VOICES = MacSay.VOICES
+    BASE_WPM = 180                 # `say`-takt som motsvarar webbläsarens takt 1
+
+    bridge = None                  # sätts av web/start.py
+
+    def available(self) -> bool:
+        return self.bridge is not None
+
+    def _language(self, voice: str) -> str | None:
+        return next((lang for lang, name in self.VOICES.items() if name == voice), None)
+
+    def has_voice(self, voice: str) -> bool:
+        lang = self._language(voice)
+        return self.available() and lang is not None and bool(self.bridge.has(lang))
+
+    def voice(self, language: str) -> str | None:
+        name = self.VOICES.get(language)
+        return name if name is not None and self.has_voice(name) else None
+
+    def start(self, text: str, voice: str, rate: int) -> Speaking | None:
+        lang = self._language(voice)
+        if not self.available() or lang is None:
+            return None
+        try:
+            return _Utterance(self.bridge.speak(text, lang, rate / self.BASE_WPM), self.bridge)
+        except Exception:                              # noqa: BLE001 – en replik får aldrig fälla talet
+            return None
+
+    def render(self, text: str, voice: str, rate: int, sample_rate: int) -> np.ndarray | None:
+        return None
+
+
 # --------------------------------------------------------------------------- val
 @lru_cache(maxsize=1)
 def backend() -> Voices:
-    """Backend för den här plattformen: talsyntesen i processen om den finns, annars `say`."""
+    """Backend för den här plattformen: i webbläsaren dess talsyntes, på macOS talsyntesen i
+    processen om den finns, annars `say`."""
+    if sys.platform == "emscripten":
+        return WebSpeech()
     return MacSynth() if MacSynth.supported() else MacSay()
 
 

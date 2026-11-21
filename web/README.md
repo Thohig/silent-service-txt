@@ -20,6 +20,10 @@ som ritar och läser tangenter är ny. Sidan är statisk och kan ligga på GitHu
   50:e ms på en kö 0,25 s fram ur mixern; sidans AudioWorklet (`index.html`, `WORKLET`) spelar kön i
   22 050 Hz. Ljudklockan står still tills sidan fått en tangent eller ett klick. Mixern kostar ~0,3 ms
   per block om 46 ms i Pyodide, syntesen av bakgrundsljuden 0,2 s och menyns 1 s.
+- Talet: `ui.voices.WebSpeech` (vald av `voices.backend()` under Pyodide) läser upp med webbläsarens
+  `speechSynthesis` genom sidans `makeSpeech`: Alva och Milena om de finns (Safari och Chrome på Mac
+  har dem), annars en annan röst på språket. Utan rysk röst talar besättningen svenska. Talet går inte
+  genom mixern, så telefon- och skotteffekten finns inte i webben, och Radio Moskva i menyn är tyst.
 - `bygg.py`: packar `sim/`, `ui/` och startfilerna till `k114.zip` bredvid sidan och ikonen.
 
 ## Skillnader mot terminalen

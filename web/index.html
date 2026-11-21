@@ -53,6 +53,43 @@ class K114Out extends AudioWorkletProcessor {
 }
 registerProcessor("k114-out", K114Out);`;
 
+// Talet: webbläsarens talsyntes. Spelets röster (Alva, Milena) om de finns, annars en annan
+// röst på språket. Chrome laddar rösterna efter sidan: vänta på dem en kort stund.
+const VOICE_NAMES = { sv: "Alva", ru: "Milena" };
+const LANGS = { sv: "sv-SE", ru: "ru-RU" };
+
+async function makeSpeech() {
+  const syn = window.speechSynthesis;
+  if (!syn || !window.SpeechSynthesisUtterance) return null;
+  if (!syn.getVoices().length) {
+    await new Promise((ok) => { syn.addEventListener("voiceschanged", ok, { once: true }); setTimeout(ok, 1500); });
+  }
+  const pick = (lang) => {
+    const all = syn.getVoices().filter((v) => v.lang.replace("_", "-").toLowerCase().startsWith(lang));
+    return all.find((v) => v.name.startsWith(VOICE_NAMES[lang])) || all.find((v) => v.localService) || all[0] || null;
+  };
+  const voices = { sv: pick("sv"), ru: pick("ru") };
+  const live = new Set();
+  return {
+    has: (lang) => voices[lang] != null,
+    speak: (text, lang, rate) => {
+      const handle = { done: false };
+      const u = new SpeechSynthesisUtterance(text);
+      u.voice = voices[lang]; u.lang = LANGS[lang];
+      u.rate = Math.max(0.5, Math.min(2, rate));
+      // Chrome kan tappa repliker utan onend (skräpsamlad) och tystna i långa: håll kvar dem,
+      // och räkna repliken som slut efter en generös gräns så att besättningen aldrig fastnar.
+      const end = () => { handle.done = true; live.delete(u); clearTimeout(guard); };
+      const guard = setTimeout(end, (3 + text.length * 0.12 / u.rate) * 1000);
+      u.onend = u.onerror = end;
+      live.add(u);
+      syn.speak(u);
+      return handle;
+    },
+    cancel: () => syn.cancel(),
+  };
+}
+
 async function makeAudio() {
   // Webbläsaren tillåter ljud först efter en tangent eller ett klick: till dess står klockan still.
   if (!window.AudioWorkletNode) return null;
@@ -100,10 +137,11 @@ async function start() {
   term.onData((d) => game.feed(d));
   new ResizeObserver(() => { fit.fit(); game.resize(term.cols, term.rows); })
     .observe(document.getElementById("term"));
-  let audio = null;
+  let audio = null, speech = null;
   try { audio = await makeAudio(); } catch (e) { console.warn("inget ljud:", e); }
+  try { speech = await makeSpeech(); } catch (e) { console.warn("inget tal:", e); }
   const bridge = {
-    audio,
+    audio, speech,
     write: (s) => term.write(s),
     exit: () => { say("Spelet är avslutat. Ladda om sidan för att spela igen."); status.classList.remove("done"); },
   };

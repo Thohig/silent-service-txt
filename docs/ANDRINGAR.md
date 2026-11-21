@@ -3,6 +3,16 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-21 – ljud i webbversionen, W2: talet
+
+`ui/voices.py` har en tredje backend, `WebSpeech`, som `backend()` väljer under Pyodide: den läser upp
+med webbläsarens `speechSynthesis` genom sidans brygga (`makeSpeech` i `web/index.html`). Spelets
+röstnamn behålls (Alva, Milena); sidan tar den rösten om webbläsaren har den, annars en annan på samma
+språk. `render` ger None, så telefon- och skotteffekten och Radio Moskva hörs inte i webben. Chrome kan
+tappa en replik utan `onend`: sidan håller kvar replikerna och räknar dem som slut efter en generös gräns,
+så att besättningen aldrig fastnar. Provat i panelen (Chromium på Mac): Alva och Milena hittas och en
+replik läses upp och tar slut. Ännu inte inkopplat i spelet (W3).
+
 ## 2026-11-21 – ljud i webbversionen, W1: utgången
 
 Mixern (`ui.ambience.Ambience`) kan spela i webbläsaren. `web/web_audio.py` (`WebOut`, samma gränssnitt

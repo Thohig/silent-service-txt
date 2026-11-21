@@ -98,3 +98,59 @@ def test_macsynth_renderar_snabbt_med_laddad_rost():
     x = syn.render("Torped i vattnet!", voice, 180, 22050)
     assert x is not None and len(x) > 22050 * 0.5
     assert time.perf_counter() - t0 < 0.4
+
+
+class FakeWebSpeech:
+    """Sidans talsyntes: språken den har, och replikerna den fått."""
+
+    def __init__(self, langs=("sv", "ru")):
+        self.langs = set(langs)
+        self.spoken: list[tuple[str, str, float]] = []
+        self.cancelled = 0
+
+    def has(self, lang):
+        return lang in self.langs
+
+    def speak(self, text, lang, rate):
+        self.spoken.append((text, lang, rate))
+        return type("Handle", (), {"done": False})()
+
+    def cancel(self):
+        self.cancelled += 1
+
+
+def test_webbens_roster_per_sprak(monkeypatch):
+    monkeypatch.setattr(voices.WebSpeech, "bridge", FakeWebSpeech(langs=("sv",)))
+    web = voices.WebSpeech()
+    assert web.available()
+    assert web.voice("sv") == voices.SV_VOICE
+    assert web.voice("ru") is None           # ingen rysk röst i webbläsaren: svenska
+    assert web.render("Jest", voices.SV_VOICE, 180, 22050) is None
+    monkeypatch.setattr(voices.WebSpeech, "bridge", None)
+    assert not web.available() and web.voice("sv") is None
+    assert web.start("Jest", voices.SV_VOICE, 180) is None
+
+
+def test_webben_laser_upp_och_avbryter(monkeypatch):
+    bridge = FakeWebSpeech()
+    monkeypatch.setattr(voices.WebSpeech, "bridge", bridge)
+    web = voices.WebSpeech()
+    s = web.start("Есть", voices.RU_VOICE, 270)
+    assert bridge.spoken == [("Есть", "ru", 1.5)]
+    assert s.poll() is None
+    s.terminate()
+    assert bridge.cancelled == 1
+    s.handle.done = True
+    assert s.poll() == 0
+    s.terminate()                            # redan slut: avbryter inte nästa replik
+    assert bridge.cancelled == 1
+    assert web.start("x", "Okänd", 180) is None
+
+
+def test_backend_i_webblasaren(monkeypatch):
+    monkeypatch.setattr(voices.sys, "platform", "emscripten")
+    voices.backend.cache_clear()
+    try:
+        assert isinstance(voices.backend(), voices.WebSpeech)
+    finally:
+        voices.backend.cache_clear()

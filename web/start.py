@@ -1,6 +1,7 @@
 """Start i webbläsaren (Pyodide). Sidan (`index.html`) packar upp spelet, sätter
 `sys.path` och anropar `main` med terminalens storlek; tangenter går till `feed`.
-Sidans ljud (`bridge.audio`, en AudioWorklet) blir `web_audio.WebOut.sink`."""
+Sidans ljud (`bridge.audio`, en AudioWorklet) blir `web_audio.WebOut.sink` och dess talsyntes
+(`bridge.speech`) `ui.voices.WebSpeech.bridge`."""
 from __future__ import annotations
 
 import asyncio.tasks
@@ -53,6 +54,8 @@ async def main(bridge, cols: int, rows: int, seed: int | None = None,
     PyodideDriver.bridge = bridge
     audio = getattr(bridge, "audio", None)
     WebOut.sink = JsAudio(audio) if audio is not None else None
+    from ui.voices import WebSpeech
+    WebSpeech.bridge = getattr(bridge, "speech", None)
     app = SubApp(seed=seed, scenario=scenario or None, sound=False, log_dir=LOG_DIR)
     await app.run_async(size=(cols, rows))
 

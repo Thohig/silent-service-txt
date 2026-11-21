@@ -21,9 +21,8 @@ Inget just nu.
 
 ## Beslut som väntar på kaptenen
 
-- **Ljud i webbversionen** (W1–W4, godkänt 2026-11-21): W1 utgången (`web/web_audio.py`, Web Audio) klar.
-  Kvar: W2 talet med `speechSynthesis` (en `voices.Voices` för Pyodide; telefon- och skotteffekten går inte),
-  W3 inkopplingen (`make_soundboard`, `MenuSound` utan tråd, rätt text i stället för "kräver macOS"),
+- **Ljud i webbversionen** (W1–W4, godkänt 2026-11-21): W1 utgången (`web/web_audio.py`, Web Audio) och
+  W2 talet (`voices.WebSpeech`, `speechSynthesis`) klara. Kvar: W3 inkopplingen (`make_soundboard`, `MenuSound` utan tråd, rätt text i stället för "kräver macOS"),
   W4 prov i panelen och dokumentation.
 
 Bedömning av ytskotten (`kalibrering/ytskott.py`, siffrorna i `kalibrering/README.md`, 2026-11-21):
