@@ -13,6 +13,7 @@ kunskapens kontaktspår. Inget läses ur världen.
     Ambience                          mixern: slingor med mjuka volymändringar och enstaka
                                       ljud ovanpå (oneshot: larm, hydrofonljud, repliker)
     AmbientOut                        ljudström till högtalarna (sounddevice)
+    output(ambience)                  plattformens ljudström (`OUTPUT`; webben sätter sin egen)
 
 Slingorna syntetiseras i frekvensplanet och är därför sömlösa.
 """
@@ -324,6 +325,15 @@ class AmbientOut:
             except Exception:                          # noqa: BLE001
                 pass
             self.stream = None
+
+
+def output(ambience: Ambience):
+    """Ljudutgången för den här plattformen: `OUTPUT` (sounddevice, eller webbläsarens
+    `web_audio.WebOut` som `web/start.py` sätter)."""
+    return OUTPUT(ambience)
+
+
+OUTPUT = AmbientOut
 
 
 # --------------------------------------------------------------------------- syntes

@@ -17,12 +17,15 @@ panoreringsläge.
     SoundBoard(bus, player)   prenumererar på rapporter och ljud och köar tal
     SoundBoard.update(t)      anropas varje bildruta: startar nästa replik
     MacPlayer / NullPlayer    uppspelning resp. tystnad
+    WebPlayer                 webbläsaren: ljuden i mixern, talet direkt (`voices.WebSpeech`)
+    sound_available()         finns ljud på den här plattformen?
 """
 from __future__ import annotations
 
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import wave
@@ -37,7 +40,12 @@ from sim.reports import Report
 from sim.russian import segments
 
 from . import voices
+from . import ambience as _ambience
 from .ambience import Ambience, AmbientOut, ambient_targets
+
+WEB = sys.platform == "emscripten"    # webbläsaren (Pyodide): inga trådar, inga processer
+NO_SOUND = "Ljud saknas: kräver macOS (say och afplay)."
+NO_WEB_SOUND = "Ljud saknas: webbläsaren gav inget ljud."
 
 RATE = 22050
 VOICE = voices.SV_VOICE            # svensk röst
@@ -258,6 +266,45 @@ class MixPlayer:
                     self.mixer.oneshot(x, gain, tag=("tal", n))
                 if self._rendering == n:
                     self._rendering = 0
+
+
+class WebPlayer:
+    """Webbläsaren: ljuden genom mixern (Web Audio) och talet direkt med webbläsarens
+    talsyntes, som inte går genom mixern. Utan trådar, och utan effekter i talet."""
+
+    MAX_SOUNDS = 6
+
+    def __init__(self, mixer: Ambience, synth: voices.Voices | None = None, voice: str = VOICE,
+                 volume: float = 0.6):
+        self.mixer = mixer
+        self.synth = synth or voices.backend()
+        self.voice = voice
+        self.volume = volume / max(0.05, mixer.volume)
+        self.samples = {**synth_cues(), **synth_transients()}
+        self._speech: voices.Speaking | None = None
+
+    def play(self, cue: str, pan: float = 0.0, volume: float = 1.0) -> float:
+        if cue not in self.samples or self.mixer.shots() >= self.MAX_SOUNDS:
+            return 0.0
+        self.mixer.oneshot(stereo(self.samples[cue], pan), self.volume * volume, tag="cue")
+        return len(self.samples[cue]) / RATE
+
+    def speak(self, text: str, rate: int, voice: str | None = None) -> None:
+        self._speech = self.synth.start(text, voice or self.voice, rate)
+
+    def speaking(self) -> bool:
+        return self._speech is not None and self._speech.poll() is None
+
+    def stop(self) -> None:
+        if self._speech is not None and self._speech.poll() is None:
+            self._speech.terminate()
+        self._speech = None
+        self.mixer.stop_shots()
+
+
+def sound_available() -> bool:
+    """Finns ljud här: macOS med say och afplay, eller webbläsaren."""
+    return WEB or MacPlayer.available()
 
 
 # --------------------------------------------------------------------------- styrning
@@ -940,9 +987,10 @@ def make_soundboard(bus: EventBus, enabled: bool,
     """Koppla ljud till spelet. Returnerar (ljudbord, meddelande till kaptenen eller None)."""
     if not enabled:
         return SoundBoard(bus, NullPlayer(), enabled=False), None
+    if WEB:
+        return _web_soundboard(bus, heading)
     if not MacPlayer.available():
-        return SoundBoard(bus, NullPlayer(), enabled=False), \
-            "Ljud saknas: kräver macOS (say och afplay)."
+        return SoundBoard(bus, NullPlayer(), enabled=False), NO_SOUND
     ambience = Ambience()
     out = AmbientOut(ambience)
     notes = []
@@ -963,3 +1011,18 @@ def make_soundboard(bus: EventBus, enabled: bool,
     board = SoundBoard(bus, player, speech=speech, heading=heading, ru_voice=ru_voice,
                        ambience=ambience, out=out)
     return board, " ".join(notes) or None
+
+
+def _web_soundboard(bus: EventBus, heading) -> tuple[SoundBoard, str | None]:
+    """Webbläsaren: mixern till Web Audio (`ambience.output`), talet med webbläsarens röster."""
+    ambience = Ambience()
+    out = _ambience.output(ambience)
+    if out.stream is None:
+        return SoundBoard(bus, NullPlayer(), enabled=False), NO_WEB_SOUND
+    synth = voices.backend()
+    speech = synth.voice("sv") is not None
+    ru_voice = synth.voice("ru") if speech else None
+    note = None if speech else "Webbläsaren har ingen svensk röst, besättningen hörs inte."
+    board = SoundBoard(bus, WebPlayer(ambience, synth), speech=speech, heading=heading,
+                       ru_voice=ru_voice, ambience=ambience, out=out)
+    return board, note

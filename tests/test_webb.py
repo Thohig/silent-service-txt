@@ -162,3 +162,83 @@ def test_ljudet_fylls_pa_av_handelseslingan():
 
     asyncio.run(run())
     assert sink.frames() > 0 and sink.cleared
+
+
+class FakeSynth:
+    """Webbläsarens talsyntes som `voices.WebSpeech` ser ut utåt."""
+
+    def __init__(self, langs=("sv", "ru")):
+        self.langs = set(langs)
+        self.spoken: list[tuple[str, str, int]] = []
+        self.live = None
+
+    def voice(self, language):
+        return {"sv": "Alva", "ru": "Milena"}.get(language) if language in self.langs else None
+
+    def start(self, text, voice, rate):
+        self.spoken.append((text, voice, rate))
+
+        class Utt:
+            done = False
+
+            def poll(self):
+                return 0 if self.done else None
+
+            def terminate(self):
+                self.done = True
+
+        self.live = Utt()
+        return self.live
+
+
+def _web(monkeypatch, sink, synth):
+    from ui import ambience, audio, voices
+    monkeypatch.setattr(audio, "WEB", True)
+    monkeypatch.setattr(ambience, "OUTPUT", lambda mixer: web_audio.WebOut(mixer, sink, timer=False))
+    monkeypatch.setattr(voices, "backend", lambda: synth)
+
+
+def test_ljudbordet_i_webblasaren(monkeypatch):
+    from sim.events import EventBus
+    from ui import audio
+    sink, synth = FakeSink(), FakeSynth()
+    _web(monkeypatch, sink, synth)
+    board, note = audio.make_soundboard(EventBus(), True)
+    assert note is None and board.available and board.speaks_russian
+    assert isinstance(board.player, audio.WebPlayer)
+    assert board.player.play("ping", 0.5) > 0          # larm och hydrofonljud i mixern
+    board.out.pump()
+    assert np.abs(np.concatenate(sink.chunks)).max() > 0.01
+    board.player.speak("Jest", 180, "Milena")
+    assert synth.spoken == [("Jest", "Milena", 180)] and board.player.speaking()
+    board.toggle()                                       # ljudet av: repliken tystnar
+    assert synth.live.done and not board.player.speaking()
+    board.close()
+    assert sink.cleared
+
+
+def test_webblasaren_utan_ljud_eller_svensk_rost(monkeypatch):
+    from sim.events import EventBus
+    from ui import audio
+    _web(monkeypatch, None, FakeSynth())
+    board, note = audio.make_soundboard(EventBus(), True)
+    assert not board.available and note == audio.NO_WEB_SOUND
+    _web(monkeypatch, FakeSink(), FakeSynth(langs=("ru",)))
+    board, note = audio.make_soundboard(EventBus(), True)
+    assert board.available and not board.speech and "svensk röst" in note
+    assert audio.sound_available()
+
+
+@pytest.mark.slow
+def test_menyljudet_utan_trad(monkeypatch):
+    from ui.menu_audio import MenuSound
+    sink = FakeSink()
+    menu = MenuSound(out_factory=lambda m: web_audio.WebOut(m, sink, timer=False),
+                     threaded=False, voice=lambda _t: None)
+    assert menu.ready.is_set() and "music" in menu.mixer.samples
+    menu.radio("Говорит Москва")                         # utan röst: bara inställningen
+    assert not menu.on_air
+    menu.out.pump()
+    assert np.abs(np.concatenate(sink.chunks)).max() > 0.01
+    menu.close()
+    assert sink.cleared

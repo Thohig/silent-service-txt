@@ -346,7 +346,7 @@ def test_sound_switched_off_in_the_menu_can_be_switched_on_in_the_mission(tmp_pa
             return SoundBoard(bus, NullPlayer(), enabled=False), None
         return SoundBoard(bus, RecordingPlayer(), heading=heading), None
 
-    monkeypatch.setattr(app_mod.MacPlayer, "available", staticmethod(lambda: True))
+    monkeypatch.setattr(app_mod, "sound_available", lambda: True)
     monkeypatch.setattr(app_mod, "make_soundboard", fake_make)
 
     async def run():

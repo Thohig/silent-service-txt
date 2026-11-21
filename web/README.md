@@ -29,8 +29,10 @@ som ritar och läser tangenter är ny. Sidan är statisk och kan ligga på GitHu
 ## Skillnader mot terminalen
 - **Inga trådar:** en kort variants uppvärmning körs i bitar (`Game.warm_up_steps`) mellan
   ritningarna i stället för i en tråd (`ui/app.py`, `THREADS`).
-- **Inget ljud:** `say`, `afplay` och `sounddevice` finns inte. Spelet startar tyst och `ljud`
-  säger att ljudet saknas.
+- **Ljudet** startar av, som i terminalen; `ljud` eller Inställningar slår på det (`ctrl+t` tar Chrome
+  själv). Allt utom talet går genom mixern som vanligt (`ui.audio.WebPlayer`); talet är webbläsarens
+  (`voices.WebSpeech`), utan telefon- och skotteffekt, och Radio Moskva i menyn är bara brus. Menyns
+  syntes görs utan tråd och låser sidan ~1 s när ljudet slås på i menyn.
 - **Tangenter:** webbläsaren tar vissa själv (`ctrl+t` och `ctrl+w` i Chrome); `ctrl+q` och menyns
   Avsluta stänger spelet. Sanningsloggen skrivs i minnet och försvinner när sidan laddas om.
 - **Fart:** simuleringen går 1–2 gånger långsammare än i CPython (övning ~8 ms per tick mot ~4).

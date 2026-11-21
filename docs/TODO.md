@@ -11,7 +11,8 @@ Inget just nu.
 ## Prova för hand (riktig terminal, macOS)
 
 - **Webbversionen** i Safari och Chrome på Mac (`web/README.md`): tangenter (Tab, Esc, ctrl-tangenter),
-  typsnittet (lådtecken och punktgrafik i centralen), storleksändring och ett helt uppdrag.
+  typsnittet (lådtecken och punktgrafik i centralen), storleksändring och ett helt uppdrag. Ljudet:
+  att det hörs, talet (Alva, Milena) och om kön på 0,25 s räcker när tiden komprimeras.
 
 ## Utreda
 
@@ -21,9 +22,6 @@ Inget just nu.
 
 ## Beslut som väntar på kaptenen
 
-- **Ljud i webbversionen** (W1–W4, godkänt 2026-11-21): W1 utgången (`web/web_audio.py`, Web Audio) och
-  W2 talet (`voices.WebSpeech`, `speechSynthesis`) klara. Kvar: W3 inkopplingen (`make_soundboard`, `MenuSound` utan tråd, rätt text i stället för "kräver macOS"),
-  W4 prov i panelen och dokumentation.
 
 Bedömning av ytskotten (`kalibrering/ytskott.py`, siffrorna i `kalibrering/README.md`, 2026-11-21):
 mönstret stämmer (ensam rak torped bra till ~2 nm, dålig bortom 3 nm, som historiskt: raka torpeder

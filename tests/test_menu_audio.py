@@ -83,7 +83,7 @@ def test_app_starts_menu_music_toggles_it_and_stops_it_when_command_is_taken(
     from ui import app as ui_app
     from ui.app import GameScreen, SubApp
 
-    monkeypatch.setattr(ui_app, "MenuSound", lambda: MenuSound(out_factory=FakeOut))
+    monkeypatch.setattr(ui_app, "MenuSound", lambda **kw: MenuSound(out_factory=FakeOut, **kw))
 
     async def run():
         app = SubApp(seed=3, log_dir=tmp_path, sound=True)

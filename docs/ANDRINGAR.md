@@ -3,6 +3,16 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-21 – ljud i webbversionen, W3: inkopplat
+
+Webbversionen har ljud: `ljud` (eller Inställningar) slår på bakgrunden, larmen, hydrofonljuden och talet,
+och menyns musik och hamn. `ui/audio.py`: `make_soundboard` bygger i webbläsaren en `WebPlayer` (ljuden i
+mixern, talet direkt med `voices.WebSpeech`, inga trådar) och `sound_available()` ersätter
+`MacPlayer.available()` i appen och inställningarna. Ljudutgången väljs med `ambience.output()`
+(`OUTPUT`, som `web/start.py` sätter till `WebOut`), så `ui/` känner inte `web/`. `MenuSound` körs utan tråd
+(`threaded=THREADS`); syntesen låser sidan ~1 s när ljudet slås på i menyn. Provat i panelen: övning-kort
+med reaktor, turbin, kontakterna S-1 och S-2 och ryskt tal; menyn med musik och hamn; inga fel i konsolen.
+
 ## 2026-11-21 – ljud i webbversionen, W2: talet
 
 `ui/voices.py` har en tredje backend, `WebSpeech`, som `backend()` väljer under Pyodide: den läser upp

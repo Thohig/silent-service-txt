@@ -54,6 +54,8 @@ async def main(bridge, cols: int, rows: int, seed: int | None = None,
     PyodideDriver.bridge = bridge
     audio = getattr(bridge, "audio", None)
     WebOut.sink = JsAudio(audio) if audio is not None else None
+    import ui.ambience
+    ui.ambience.OUTPUT = WebOut
     from ui.voices import WebSpeech
     WebSpeech.bridge = getattr(bridge, "speech", None)
     app = SubApp(seed=seed, scenario=scenario or None, sound=False, log_dir=LOG_DIR)

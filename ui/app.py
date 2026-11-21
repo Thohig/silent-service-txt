@@ -27,7 +27,7 @@ from sim.fmt import fmt_course, kn, kn_dir
 from sim.scenario import SCENARIOS, build_scenario
 from sim.truthlog import TruthLog
 
-from .audio import MacPlayer, SoundBoard, make_soundboard
+from .audio import SoundBoard, make_soundboard, sound_available
 from .cabin import CabinScreen
 from .logview import LogScreen
 from .menu import MenuScreen
@@ -416,7 +416,7 @@ class SubApp(App):
         if self.game is not None:
             return
         if self.sound_wanted and self.menu_sound is None:
-            self.menu_sound = MenuSound()
+            self.menu_sound = MenuSound(threaded=THREADS)
         elif not self.sound_wanted:
             self.close_menu_sound()
 
@@ -437,7 +437,7 @@ class SubApp(App):
             return
         if not self.running or self.sound is None:
             return
-        if not self.sound.available and want is not False and MacPlayer.available():
+        if not self.sound.available and want is not False and sound_available():
             # Ljudet var avslaget när uppdraget började: bygg ljudbordet nu.
             self.sound.close()
             self._make_sound(True)

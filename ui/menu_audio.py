@@ -21,7 +21,8 @@ from pathlib import Path
 import numpy as np
 
 from . import voices as speech
-from .ambience import RATE, Ambience, AmbientOut
+from . import ambience as _ambience
+from .ambience import RATE, Ambience
 from .menutext import RADIO_TUNE_S
 
 MUSIC_BEAT_S = 1.0          # 60 slag i minuten
@@ -371,12 +372,14 @@ class MenuMixer(Ambience):
 class MenuSound:
     """Menyns ljud. Syntesen tar några sekunder och görs i en tråd; till dess är det tyst.
 
-    out_factory: ljudströmmen (AmbientOut), utbytbar i tester.
+    out_factory: ljudströmmen (`ambience.output`), utbytbar i tester.
+    threaded: False i webbläsaren (inga trådar): syntesen (~1 s) görs direkt, och radion
+    spelar inställningen utan att vänta på rösten.
     """
 
-    def __init__(self, out_factory=AmbientOut, threaded: bool = True, voice=speak_to_samples):
+    def __init__(self, out_factory=None, threaded: bool = True, voice=speak_to_samples):
         self.mixer = MenuMixer()
-        self.out = out_factory(self.mixer)
+        self.out = (out_factory or _ambience.output)(self.mixer)
         self.voice = voice                           # text -> ljud eller None
         self.threaded = threaded
         self.typing = False

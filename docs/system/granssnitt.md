@@ -43,7 +43,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   hydrofonljud panorerade efter relativ bäring (`TRANSIENT_SOUND`); `OwnSoundMade` ger egna
   ljud (ping, avfyring, skenmål, nödblåsning). Syntetiserade wav. Av som standard i `SubApp`.
   Spelaren (`make_soundboard`): `MixPlayer` när ljudströmmen går och talsyntesen finns i processen
-  (`voices.MacSynth`), annars `MacPlayer` (`say`/`afplay`). `MixPlayer` lägger allt i mixern som enstaka ljud
+  (`voices.MacSynth`), annars `MacPlayer` (`say`/`afplay`); i webbläsaren `WebPlayer` (ljuden i mixern, talet
+  direkt med `voices.WebSpeech`, utan effekter; utgången `ambience.output()`, där `web/start.py` sätter
+  `web_audio.WebOut`). `sound_available()` säger om ljud finns (macOS eller webbläsaren). `MixPlayer` lägger allt i mixern som enstaka ljud
   (`Ambience.oneshot`, märkt `("tal", n)` för repliken): talet renderas i en egen tråd (30–70 ms till ljud,
   rösterna värms vid start) och kan få effekt (`speech_effect`): `phone` för stationerna utanför centralen
   (`REMOTE_ROLES`: sonar, torped, maskin, radio) och starpom i hyttens telefon, `muffled` för centralen hörd
