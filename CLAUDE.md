@@ -15,6 +15,7 @@ oktober 1962. Python 3.12, Textual, numpy, uv. Användaren kör macOS (Apple Sil
 uv run main.py [--seed N] [--scenario kuba] [--tyst]   # spela (utan --scenario: huvudmenyn)
 uv run --extra fonster fonster.py [samma flaggor]       # i eget fönster (textual-serve + pywebview, Dockikon)
 sh ikon/bygg-app.sh [mål]                              # bygg K-114.app (standard ~/Projekt/Lokalt)
+uv run python web/bygg.py                               # webbversionen (Pyodide) till web/dist, se web/README.md
 uv run pytest -q              # snabba tester, parallellt (~18 s på 4 kärnor); före varje commit
 uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 4 kärnor); större steg
 ```
@@ -134,6 +135,9 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   lägg en nyckel bredvid (`why`) eller säg det allmänt ("Выполнить не могу").
   Talsyntesen bor bara i `ui/voices.py` (`backend()`, `MacSay`: röst per språk, `start`, `render`); `say`
   utanför den filen fångas av `tests/test_voices.py`.
+- **Webbversionen** (`web/`, GitHub Pages): samma `sim/` och `ui/` i Pyodide med en egen Textual-drivrutin
+  (`web/pyodide_driver.py`) och xterm.js. Inga trådar och inget ljud där: det som körs i en tråd behöver
+  en väg utan (`ui/app.py`, `THREADS`; `Game.warm_up_steps`). `web/README.md`.
 - **Händelsebussen** (`events.py`) är synkron. `Knowledge` registreras före
   stationerna så att stationer alltid ser uppdaterad kunskap.
 - **Utbyggnadskrokar:** rapportfilter (`ReportQueue.filters`, ändrar `data`) för

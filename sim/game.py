@@ -219,6 +219,12 @@ class Game:
         Gränssnittet kan skapa Game med warm_up=False och köra detta i en tråd medan
         ordern skrivs ut; det ska prenumerera på rapporterna först efteråt, så att
         vaktens rapporter inte syns. Lägesrapporten (Handover) levereras efter."""
+        for _ in self.warm_up_steps():
+            pass
+
+    def warm_up_steps(self, every: int = 60):
+        """Som `warm_up`, men en generator som lämnar tillbaka efter var `every`:e tick, så att
+        ett gränssnitt utan trådar (webbläsaren) kan köra vakten i bitar mellan ritningarna."""
         if not self.warmup_pending:
             return
         self.warmup_pending = False
@@ -230,6 +236,8 @@ class Game:
             self.tick()
             if self.over:
                 break
+            if t % every == every - 1:
+                yield t
         self.warmup_running = False
         self.suggestion = None
         self.held = None

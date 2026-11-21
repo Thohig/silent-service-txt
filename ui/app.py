@@ -6,7 +6,9 @@ inställningarna; varje uppdrag får ett nytt Game, en ny buss och en ny sanning
 """
 from __future__ import annotations
 
+import asyncio
 import random
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -50,6 +52,7 @@ SOUND_KEY = "ctrl+t"                   # t som i tal
 
 
 FRAME_S = 0.05
+THREADS = sys.platform != "emscripten"   # webbläsaren (Pyodide) har inga trådar
 OVER_PLACEHOLDER = "Uppdraget är slut – Enter: tillbaka till huvudmenyn"
 
 
@@ -204,8 +207,10 @@ class SubApp(App):
         tt.start()
         if self.menu_sound is not None:
             self.menu_sound.set_typing(True)
-        if game.warmup_pending:
+        if game.warmup_pending and THREADS:
             self.run_worker(self._run_warmup, thread=True, exclusive=True, group="warmup")
+        elif game.warmup_pending:
+            self.run_worker(self._run_warmup_steps(), exclusive=True, group="warmup")
         else:
             self._attach_game()
 
@@ -213,6 +218,12 @@ class SubApp(App):
         """Tråd: vakten före kaptenen. Inget annat rör spelet förrän den är klar."""
         self.game.warm_up()
         self.call_from_thread(self._attach_game)
+
+    async def _run_warmup_steps(self) -> None:
+        """Utan trådar (webbläsaren): vakten i bitar, och fjärrskrivaren ritar emellan."""
+        for _ in self.game.warm_up_steps():
+            await asyncio.sleep(0)
+        self._attach_game()
 
     def _attach_game(self) -> None:
         """Lyssna på spelet först nu, så att vaktens rapporter inte syns."""

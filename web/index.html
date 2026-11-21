@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K-114</title>
+<link rel="icon" href="k114.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #0b0f0c; color: #c8d0b0; }
+  #term { position: absolute; inset: 0; padding: 4px; }
+  #status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            font: 15px Menlo, "DejaVu Sans Mono", monospace; white-space: pre-line; text-align: center; }
+  #status.done { display: none; }
+</style>
+</head>
+<body>
+<div id="term"></div>
+<div id="status">K-114
+laddar …</div>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.29.5/full/pyodide.js"></script>
+<script>
+const TEXTUAL = "textual==8.2.8";
+const status = document.getElementById("status");
+const say = (s) => { status.textContent = "K-114\n" + s; };
+
+async function start() {
+  const params = new URLSearchParams(location.search);
+  const term = new Terminal({
+    fontFamily: 'Menlo, "DejaVu Sans Mono", "Cascadia Mono", monospace',
+    fontSize: 14, cursorBlink: false, allowProposedApi: true,
+    theme: { background: "#0b0f0c" },
+  });
+  const fit = new FitAddon.FitAddon();
+  term.loadAddon(fit);
+  term.open(document.getElementById("term"));
+  fit.fit();
+
+  say("startar Python …");
+  const py = await loadPyodide();
+  window.k114py = py;          // för felsökning i konsolen
+  say("laddar numpy och Textual …");
+  await py.loadPackage(["numpy", "micropip"]);
+  await py.pyimport("micropip").install(TEXTUAL);
+  say("laddar spelet …");
+  const zip = await (await fetch("k114.zip")).arrayBuffer();
+  py.unpackArchive(zip, "zip", { extractDir: "/home/pyodide/k114" });
+  py.runPython("import sys; sys.path.insert(0, '/home/pyodide/k114')");
+  const game = py.pyimport("start");
+
+  term.onData((d) => game.feed(d));
+  new ResizeObserver(() => { fit.fit(); game.resize(term.cols, term.rows); })
+    .observe(document.getElementById("term"));
+  const bridge = {
+    write: (s) => term.write(s),
+    exit: () => { say("Spelet är avslutat. Ladda om sidan för att spela igen."); status.classList.remove("done"); },
+  };
+  status.classList.add("done");
+  term.focus();
+  const seed = params.has("seed") ? parseInt(params.get("seed")) : undefined;
+  await game.main(bridge, term.cols, term.rows, seed, params.get("scenario") || undefined);
+}
+
+start().catch((e) => { console.error(e); say("Kunde inte starta:\n" + e); });
+</script>
+</body>
+</html>

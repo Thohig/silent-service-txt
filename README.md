@@ -14,6 +14,7 @@ uv run main.py --scenario kuba     # hoppa över huvudmenyn (kuba, kuba-kort, ja
 uv run main.py --seed 4            # reproducerbart scenario
 uv run main.py --tyst              # utan ljud
 uv run --extra fonster fonster.py  # i eget fönster med ubåtsikonen i Docken (macOS)
+uv run python web/bygg.py          # webbversionen till web/dist (GitHub Pages, se web/README.md)
 uv run pytest             # snabba tester
 uv run pytest --slow      # alla tester
 ```

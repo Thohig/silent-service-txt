@@ -10,7 +10,8 @@ Inget just nu.
 
 ## Prova för hand (riktig terminal, macOS)
 
-Inget just nu.
+- **Webbversionen** i Safari och Chrome på Mac (`web/README.md`): tangenter (Tab, Esc, ctrl-tangenter),
+  typsnittet (lådtecken och punktgrafik i centralen), storleksändring och ett helt uppdrag.
 
 ## Utreda
 
@@ -19,6 +20,10 @@ Inget just nu.
   troligen skiftar sprinten eller glesare skenmål vad ja-boten hinner med. Se om fröna sköt på sämre lösningar.
 
 ## Beslut som väntar på kaptenen
+
+- **Ljud i webbversionen:** talet med webbläsarens talsyntes (`speechSynthesis`; rysk röst beror på
+  webbläsare och system) och ljuden och mixern med Web Audio, kopplat in i `voices.backend()` och
+  `ambience`. Ett eget större steg; webben är tyst tills dess.
 
 Bedömning av ytskotten (`kalibrering/ytskott.py`, siffrorna i `kalibrering/README.md`, 2026-11-21):
 mönstret stämmer (ensam rak torped bra till ~2 nm, dålig bortom 3 nm, som historiskt: raka torpeder
