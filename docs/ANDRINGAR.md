@@ -3,6 +3,12 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-21 – K-114.app raderad
+
+Appen i `~/Projekt/Lokalt` är borttagen; spelet startas med `uv run main.py`, `fonster.py` eller i
+webbläsaren. Inget gick förlorat: appen var bara länkar och ett startskript, och ikonen (`ikon/K-114.icns`,
+`k114.svg`, PNG-filerna) finns i repot. `sh ikon/bygg-app.sh` bygger den igen.
+
 ## 2026-11-21 – utrett: konvoj-kort och ja-boten efter rättelserna
 
 Ingen försämring. Ja-boten skjuter aldrig i konvoj-kort (avfyring föreslås aldrig som ja-order), så
