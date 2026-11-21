@@ -42,6 +42,12 @@ PING_DRIFT_DEG_PER_S = 0.15 # ... plus så här mycket per sekund sedan förra p
 PING_SAME_MAX_DEG = 20.0
 PING_KNOWN_S = 900          # en känd pingare som tappats som kontakt känns igen på bäringen så länge
 PING_SMOOTH = 0.5           # ny ping väger så här mycket i pingarens bäring
+# Så starka pingar (mottagen nivå, dB) kommer från en jagare nära nog att jaga oss: en jagarping
+# på 230 dB når hit på ~8 nm (~5,5 nm genom skiktet). Svagare pingar i snabb takt jagar något
+# långt bort: sonar säger det, men inget stridslarm (HuntSigns) och inget förslag om att undvika.
+PING_NEAR_RL = 142.0
+PING_LAYER_DB = 7.0         # operatörens tumregel för vad skiktet tar av en ping
+PING_FAR_REPORT_S = 900     # en avlägsen jakt från samma pingare rapporteras inte oftare
 ICE_REPORT_S = 1800          # knakande is rapporteras inte oftare
 PROFILE_KEEP_S = 3 * 3600    # djupprofilen minns hörda ljud så här länge
 # Djupprofilens symboler för hörda ljud (och våra egna): (symbol, stil)
@@ -87,6 +93,10 @@ def _src(d: dict) -> str:
     return f" från {d['designation']}" if d.get("designation") else ""
 
 
+def _far(d: dict) -> str:
+    return "långt bort" if d.get("sure") else "troligen långt bort"
+
+
 def _only_pings(d: dict) -> str:
     """Kontakten är tappad på passiv sonar men pingarna känns igen: säg det, så att det inte låter
     som att vi har den igen."""
@@ -123,9 +133,11 @@ PHRASES = {
     + ".",
     "sonar.regained": lambda d: f"{d['designation']} hörs igen, bäring {fmt_course(d['bearing'])}.",
     "sonar.ping.first": lambda d: f"Kapten, sonar! Aktiv sonar i bäring {fmt_course(d['bearing'])}"
-    f"{_src(d)}. Någon söker.",
+    f"{_src(d)}. Någon söker." + (f" Svaga pingar, {_far(d)}." if d.get("far") else ""),
     "sonar.ping.fast": lambda d: f"{ru('Tovarisjtj komandir')}, sonar! Pingtakten{_src(d)} har ökat kraftigt. "
     "De har troligen kontakt med oss!" + _only_pings(d),
+    "sonar.ping.fast_far": lambda d: f"Kapten, sonar. Pingtakten{_src(d)} har ökat, men pingarna är svaga. "
+    f"De jagar något {_far(d)}, inte oss." + _only_pings(d),
     "sonar.ping.slow": lambda d: f"Pingtakten{_src(d)} har minskat igen." + _only_pings(d),
     "sonar.ping.close": lambda d: f"Pingarna{_src(d)} är mycket starka nu, kapten. "
     "Jag hör dem genom skrovet." + _only_pings(d),
@@ -171,6 +183,10 @@ def _ru_src(d: dict) -> str:
     return f" от {R.contact(d['designation'], True)}" if d.get("designation") else ""
 
 
+def _ru_far(d: dict) -> str:
+    return "далеко" if d.get("sure") else "видимо, далеко"
+
+
 def _ru_only_pings(d: dict) -> str:
     return " Шумов винтов не слышно, только посылки." if d.get("lost") else ""
 
@@ -198,9 +214,12 @@ RU_PHRASES = {
     "sonar.regained": lambda d: f"{_ru_cap(R.contact(d['designation']))} снова слышна, пеленг "
     f"{R.course(d['bearing'])}.",
     "sonar.ping.first": lambda d: f"{R.CAPTAIN}, акустик! Работа гидролокатора, пеленг "
-    f"{R.course(d['bearing'])}{_ru_src(d)}. Нас ищут.",
+    f"{R.course(d['bearing'])}{_ru_src(d)}. "
+    + (f"Посылки слабые, {_ru_far(d)}." if d.get("far") else "Нас ищут."),
     "sonar.ping.fast": lambda d: f"{R.CAPTAIN}, акустик! Темп посылок{_ru_src(d)} резко возрос. "
     "Видимо, они нас обнаружили!" + _ru_only_pings(d),
+    "sonar.ping.fast_far": lambda d: f"{R.CAPTAIN}, акустик. Темп посылок{_ru_src(d)} возрос, "
+    f"но посылки слабые. Ищут кого-то {_ru_far(d)}, не нас." + _ru_only_pings(d),
     "sonar.ping.slow": lambda d: f"Темп посылок{_ru_src(d)} снова снизился." + _ru_only_pings(d),
     "sonar.ping.close": lambda d: f"Посылки{_ru_src(d)} очень сильные, товарищ командир. "
     "Слышно через корпус." + _ru_only_pings(d),
@@ -590,12 +609,17 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
             if key not in self._pings and unknown and ev.designation and unknown.startswith("okänd"):
                 self._pings[key] = self._pings.pop(unknown)      # samma pingare, nu identifierad
             p = self._pings.setdefault(key, {"last": None, "fast": False, "close_t": -10**9,
-                                             "slow_n": 0})
+                                             "slow_n": 0, "hunting": False})
             # utjämnad bäring: en enstaka brusig ping drar inte iväg grinden
             p["bearing"] = ev.bearing if "bearing" not in p else \
                 norm360(p["bearing"] + PING_SMOOTH * angle_diff(ev.bearing, p["bearing"]))
+            near, sure = self._ping_near(ev.rl)
             if p["last"] is None or self.now - p["last"] > 900:
-                self.say("sonar.ping.first", d, kind="contact", alarm=True)
+                if near:
+                    self.say("sonar.ping.first", d, kind="contact", alarm=True)
+                else:               # svaga pingar: någon söker långt bort, inget larm
+                    self.say("sonar.ping.first", {**d, "far": True, "sure": sure}, kind="contact",
+                             quality=Quality.GOD if sure else Quality.OSAKER)
                 self._suggest_layer()
             else:
                 interval = self.now - p["last"]
@@ -604,12 +628,21 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
                 if interval <= FAST_PING_S and not p["fast"]:
                     p["fast"] = True
                     detail = "fast"
+                    # den jagar något, men långt bort: inte oss (en gång per jakt, högst var 15:e min)
+                    if not near and self.now - p.get("far_t", -10**9) > PING_FAR_REPORT_S:
+                        p["far_t"] = self.now
+                        self.say("sonar.ping.fast_far", {**d, "sure": sure}, kind="contact",
+                                 quality=Quality.GOD if sure else Quality.OSAKER)
+                elif p["slow_n"] >= 2 and p["fast"]:
+                    if p["hunting"]:    # en avlägsen jakt som ebbar ut är inget att ropa om
+                        self.say("sonar.ping.slow", d, kind="contact")
+                    p["fast"] = p["hunting"] = False
+                if p["fast"] and near and not p["hunting"]:
+                    # snabb takt och starka pingar: de har troligen kontakt med oss
+                    p["hunting"] = True
                     self.say("sonar.ping.fast", d, kind="contact", alarm=True)
                     self._evasive_depth()
-                elif p["slow_n"] >= 2 and p["fast"]:
-                    p["fast"] = False
-                    self.say("sonar.ping.slow", d, kind="contact")
-            if p["fast"]:
+            if p["hunting"]:
                 bus.publish(HuntSigns(self.now, "ping"))
             if ev.se > 75 and self.now - p["close_t"] > 300:
                 p["close_t"] = self.now
@@ -662,6 +695,14 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
             not self.classify_charge(ev)[0]
         bus.publish(SoundHeard(self.now, ev.kind, ev.bearing, ev.designation, practice, detail,
                                se=ev.se))
+
+    def _ping_near(self, rl: float) -> tuple[bool, bool]:
+        """Är pingaren nära nog att jaga oss? Operatören bedömer på styrkan (mottagen nivå), med
+        tumregeln att skiktet tar PING_LAYER_DB när vi ligger under det. Ger (nära, säker): säker
+        när styrkan är minst ett skikt från gränsen, så att ett felbedömt skikt inte ändrar svaret."""
+        ld = self.layer_depth()
+        level = rl + (PING_LAYER_DB if ld is not None and self.own.state.depth > ld else 0.0)
+        return level >= PING_NEAR_RL, abs(level - PING_NEAR_RL) >= PING_LAYER_DB
 
     def _evasive_depth(self, cooldown: int = 300) -> None:
         d = self._evasive_target()

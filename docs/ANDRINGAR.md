@@ -3,6 +3,19 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-21 – stridslarm bara när den pingande jagaren är nära
+
+Jagarens pingar hörs på 50–100 nm, och snabb pingtakt gav stridslarm och förslag om att undvika också
+när jagaren jagade något långt bort. Nu bedömer sonar avståndet på pingarnas styrka: snabb takt med
+mottagen nivå ≥ 142 dB (~8 nm; under skiktet räknar operatören med 7 dB för skiktet) är som förut
+(`sonar.ping.fast`, `HuntSigns`, stridslarm, djupförslag). Svagare ger `sonar.ping.fast_far` ("De jagar
+något långt bort, inte oss") utan larm, högst var 15:e minut per pingare; första pingen är då en vanlig
+kontaktrapport ("Svaga pingar, långt bort"). Bedömningen är god när styrkan ligger minst ett skikt från
+gränsen, annars osäker ("troligen långt bort"). Blir pingarna starka under jakten kommer larmet då.
+Bor i `sonar_room.py` (`PING_NEAR_RL`, `_ping_near`). Tester: `tests/test_ping_distance.py`.
+Kalibrering: alla scenarier som baslinjen utom krig ja (8 frön) förlorad 0 ⇒ 2, tidsgräns 2 ⇒ 0;
+över 24 frön förlorad 2 ⇒ 4 på olika frön (brus från förloppen som skiljer sig), stridslarm 67 ⇒ 60.
+
 ## 2026-11-20 – benförslag, pingar från tappad kontakt och botten före samband
 
 Tre gamla buggar som provspelet visade:

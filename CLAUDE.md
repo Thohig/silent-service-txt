@@ -118,7 +118,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   betydelse). Skriv dem med `ru("Jest")` i fraserna; betydelsen ska framgå av svensk text bredvid,
   aldrig siffror eller bedömningar på ryska. `segments()` delar texten; talet läser ryskan med
   `RU_VOICE` (Milena) och resten med Alva. Ordlistan visas i `hjälp`. Stridslarm (`off.battle_stations`,
-  revun) när jakttecken kommer efter 30 min lugn; avdelningarna rapporterar (`eng.inspected`)
+  revun) när jakttecken kommer efter 30 min lugn (snabb pingtakt räknas bara med starka pingar,
+  ≥ 142 dB mottaget, ~8 nm: `PING_NEAR_RL`; svagare ger `sonar.ping.fast_far` utan larm); avdelningarna rapporterar (`eng.inspected`)
   60 s efter haverilarm eller kraftig tryckvåg.
 - **Ryskt tal**: varje station registrerar `RU_PHRASES` med `phrases.register_ru()` ur samma `data`;
   `render()` fyller `Report.speech` (kyrilliskt), annars `russian.fallback()` (vem som rapporterar).
