@@ -21,7 +21,8 @@ rutinorder) gav en rad förslag som en riktig besättning inte hade gett. Rätta
 - **Skenmål bara mot oss.** Torpedrummet föreslog skenmål två sekunder efter att sonar sagt "de jagar
   något långt bort, inte oss". Nu på jakttecken (`HuntSigns`), inte på varje tät ping.
 - **Samma förslag en gång.** Navigatören och maskin föreslog båda "fart 5, djup 60" inom sekunder; samma
-  order från en annan station inom 2 min (`SAME_SUGGESTION_S`) släpps.
+  order från en annan station inom 30 s (`SAME_SUGGESTION_S`) släpps; senare kommer den fram med sitt
+  skäl (ett långsamt test visade grundvarningen 45 s efter sonarns "djup 120" släppt, och båten gick på grund).
 - **Rapporten före förslaget.** "Föreslår smygmotor" kom före "ny kontakt", "föreslår djup 60" före
   radarvarnaren. `ReportQueue` lägger ett förslag efter rapporter som ligger inom 6 s i kön.
 - **Radions statusrad.** Sa "nästa sambandstillfälle kl 09:00:00" kl 09:15. Nu "pågår, från 09:00 till
@@ -41,7 +42,8 @@ rutinorder) gav en rad förslag som en riktig besättning inte hade gett. Rätta
   god grova fel 6,5 % ⇒ 5,3 %, säker 2,5 % ⇒ 1,7 %, säker > 3σ 9,5 % ⇒ 5,1 %.
 Utrett och lämnat: i Arktis kom vi inte fram på 3 h, men navigatören höll kursen mot Nord-7 hela tiden;
 branden stoppar turbinen (5 kn) och vi stannar vid råkarna.
-Tester: `tests/test_suggestion_sense.py`, `tests/test_tma.py`. Kalibrering: KONTROLL
+Tester: `tests/test_suggestion_sense.py`, `tests/test_tma.py`. Kalibrering: `kontroll.py` (passiv och
+ja-boten, alla scenarier, 8 frön) som baslinjen: inget utfall flyttat (krig ja hemma 6, förlorad 1).
 
 ## 2026-11-21 – stridslarm bara när den pingande jagaren är nära
 

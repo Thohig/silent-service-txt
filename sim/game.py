@@ -52,7 +52,8 @@ V = TypeVar("V")
 SUGGESTION_TTL = 300
 ALARM_HOLD_S = 30           # ett larmförslag står så länge mot vanliga förslag
 HELD_MAX_S = 60             # ett förslag som väntat bakom ett larm släpps när det är så här gammalt
-SAME_SUGGESTION_S = 120     # en annan station föreslår samma order inom så här lång tid: släpps
+SAME_SUGGESTION_S = 30      # en annan station föreslår samma order så här snart efter: släpps (senare
+                            # kommer den fram, med sitt skäl: grundvarningen efter sonarns djupförslag)
 QUIT_CONFIRMED = "avbryt uppdraget bekräftat"   # ordern som ja verkställer efter frågan
 
 

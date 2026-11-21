@@ -40,7 +40,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
    är äldre än 60 s eller någon station säger nej (`vetoes`; `MAST_ORDERS` – sända, periskop, radar,
    foto – föreslås inte när det beordrade djupet är under periskopdjup; vakthavande säger nej till allt
    som tar oss uppåt medan fienden har oss). Vetot prövas också när förslaget levereras, och samma order
-   från en annan station inom 2 min släpps (`Game._suggestion_stale`). Ett förslag kommer aldrig före en
+   från en annan station inom 30 s släpps (`Game._suggestion_stale`). Ett förslag kommer aldrig före en
    rapport nära det i kön (`ReportQueue`). Gå-ned-förslag tar djupet ur `Station.dive_depth()`. Vid tystnad (10 min) tar vakthavande initiativ ur
    stationernas `idle_proposals()`.
 6. Fast tidssteg 1 s. All slump via seedade `random.Random` – inga globala `random.*`. Stationerna
