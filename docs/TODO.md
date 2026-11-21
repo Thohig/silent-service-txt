@@ -20,11 +20,6 @@ Inget just nu.
 
 ## Beslut som väntar på kaptenen
 
-- **De långsamma testerna i CI** (2026-11-21): alla 149 körningar av `tester.yml` kom från push till main,
-  så de 98 testerna märkta `slow` har aldrig körts där, bara lokalt med `--slow` (~6 min på 4 kärnor).
-  Alternativ: kör `--slow` vid push också (repot är offentligt, minuterna gratis), ett schemalagt
-  nattligt jobb, eller låt det vara som nu.
-
 
 Bedömning av ytskotten (`kalibrering/ytskott.py`, siffrorna i `kalibrering/README.md`, 2026-11-21):
 mönstret stämmer (ensam rak torped bra till ~2 nm, dålig bortom 3 nm, som historiskt: raka torpeder

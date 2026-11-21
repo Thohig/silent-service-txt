@@ -3,6 +3,12 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-21 – CI kör alla tester vid push
+
+`.github/workflows/tester.yml` kör nu `uv run pytest -q --slow` vid varje push till main, inte bara vid
+pull request och för hand. Förut hade de 98 långsamma testerna (hela spel, statistik över frön) aldrig
+körts i CI, eftersom allt committas direkt på main. Repot är offentligt, så minuterna är gratis.
+
 ## 2026-11-21 – testerna rensade från överlapp
 
 Ingen exakt dubblett bland de 1 046 testerna (samma namn i samma fil, samma kropp eller > 90 % lika).

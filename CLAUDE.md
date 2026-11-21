@@ -244,10 +244,9 @@ för in varje färdigt steg där.
 - Testerna körs parallellt (pytest-xdist, `-n auto` i pyproject; `-n0` för seriellt). Ett test som
   tar mer än ~1 s (hela spel, flera frön, uppvärmning, gränssnitt) märks `@pytest.mark.slow` och körs
   bara med `--slow` (`tests/conftest.py`). Kör `uv run pytest -q` lokalt före varje commit, och `--slow`
-  före större steg (nya system, kalibrering). GitHub Actions (`.github/workflows/tester.yml`) kör bara de
-  snabba testerna vid push till main och `--slow` vid pull request eller manuellt (`workflow_dispatch`);
-  ändringar som bara rör `.md` och `docs/` kör inget. Eftersom vi committar direkt på main har CI hittills
-  aldrig kört `--slow` (alla körningar vid push, 2026-11-21): de långsamma körs bara lokalt. Repot är offentligt sedan 2026-11-21 (minuterna är
+  före större steg (nya system, kalibrering). GitHub Actions (`.github/workflows/tester.yml`) kör alla
+  testerna (`--slow`) vid push till main, pull request och manuellt (`workflow_dispatch`); ändringar som
+  bara rör `.md` och `docs/` kör inget. Repot är offentligt sedan 2026-11-21 (minuterna är
   gratis). `setup-uv` har inga flyttande huvudtaggar: exakt version (`@v10.3.3`); övriga actions på huvudversion. Scenariotestet hoppar över de korta
   varianternas uppvärmning utan `--slow`.
 - Verifiera spelkänslan med en huvudlös genomspelning: skapa `Game`, prenumerera

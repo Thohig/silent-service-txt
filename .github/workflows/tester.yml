@@ -1,5 +1,5 @@
-# Snabba tester vid push till main; alla tester (även --slow: hela spel, statistik över frön) vid
-# pull request och när de startas för hand. Ändringar som bara rör dokumentation kör inget.
+# Alla tester (även --slow: hela spel, statistik över frön) vid push till main, pull request och när
+# de startas för hand. Ändringar som bara rör dokumentation kör inget.
 name: tester
 
 on:
@@ -31,9 +31,5 @@ jobs:
         run: |
           uv python install 3.12
           uv sync --locked
-      - name: Snabba tester
-        if: github.event_name == 'push'
-        run: uv run pytest -q
       - name: Alla tester (även --slow)
-        if: github.event_name != 'push'
         run: uv run pytest -q --slow
