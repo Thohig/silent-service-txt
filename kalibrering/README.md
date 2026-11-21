@@ -202,7 +202,12 @@ botarna är inte omkörda. `baslinje.json` är efter bytet.
 - Sonarrummets takt: samma kontakts bäring ropas högst var 60:e s (`BEARING_MIN_GAP_S`), annars vid
   5° ändring eller var 5:e min. Pingtakt snabb vid ≤ 13 s, långsam först efter två mellanrum ≥ 20 s
   i rad (en missad ping vänder den inte). Jagade, ja-boten: ~5 rapporter/min under jakten (förut ~11).
-- Sonar publicerar `HuntSigns` vid snabb pingtakt och plask; `Knowledge.hunted()` (5 min). Då
+- Pingarnas styrka (2026-11-21): en jagarping (230 dB) hörs på 50–100 nm i lugn fart, ekot når bara
+  ~4,4 nm. Snabb takt räknas som jakt på oss bara med mottagen nivå ≥ 142 dB (`PING_NEAR_RL`, ~8 nm;
+  under skiktet lägger operatören till 7 dB). Svagare: `sonar.ping.fast_far` utan larm, högst var 15:e
+  min per pingare. Krig ja, 24 frön: förlorad 2 ⇒ 4 på olika frön (brus), stridslarm 67 ⇒ 60; övriga
+  scenarier som baslinjen.
+- Sonar publicerar `HuntSigns` vid snabb pingtakt med starka pingar och plask; `Knowledge.hunted()` (5 min). Då
   föreslår maskin `eng.suggest.sprint` (turbin, djup ≤ 220 m, fart = kavitationsfart − 1)
   i stället för smygmotor, och sonar föreslår inte fart 4 när en kontakt tappas.
 - Jagade (`jagad`, `hunted_scenario`): ubåten börjar 45 m, 6 kn, 1,3 nm från bankens
