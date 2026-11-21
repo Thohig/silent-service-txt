@@ -18,6 +18,7 @@ SVG = HERE / "k114.svg"
 BOX = (100, 100, 924, 924)   # samma ruta som i k114.svg
 RADIUS = 185
 SIZES = [16, 32, 64, 128, 256, 512, 1024]
+WEB_SIZES = [32, 180, 256]   # flikikon, apple-touch-icon (Safari), och 256 som förut
 
 
 def render(size: int = 1024) -> Image.Image:
@@ -38,7 +39,8 @@ def render(size: int = 1024) -> Image.Image:
 def main() -> None:
     master = render()
     master.save(HERE / "k114-1024.png")
-    master.resize((256, 256), Image.LANCZOS).save(HERE / "k114-256.png")
+    for s in WEB_SIZES:
+        master.resize((s, s), Image.LANCZOS).save(HERE / f"k114-{s}.png")
     with tempfile.TemporaryDirectory() as tmp:
         iconset = Path(tmp) / "K-114.iconset"
         iconset.mkdir()

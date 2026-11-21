@@ -29,6 +29,9 @@ def test_bygget_har_spelet_och_startfilerna(tmp_path):
     assert {"start.py", "pyodide_driver.py", "web_audio.py", "sim/game.py", "ui/app.py"} <= names
     assert not any("__pycache__" in n or n.endswith(".pyc") for n in names)
     assert (out / "index.html").exists() and (out / "k114.png").exists()
+    html = (out / "index.html").read_text()
+    for size in bygg.ICON_SIZES:   # varje ikon sidan länkar finns i bygget
+        assert f'href="k114-{size}.png"' in html and (out / f"k114-{size}.png").exists()
 
 
 class FakeTerm:

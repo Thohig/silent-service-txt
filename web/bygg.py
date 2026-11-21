@@ -3,7 +3,7 @@
     uv run python web/bygg.py [mål]          # standard web/dist
     python -m http.server -d web/dist 8000   # prova på http://localhost:8000
 
-Mappen får `index.html`, ikonen och `k114.zip` (sim/, ui/ och startfilerna). Pyodide,
+Mappen får `index.html`, ikonerna (1024, 32 och 180 px) och `k114.zip` (sim/, ui/ och startfilerna). Pyodide,
 numpy, Textual och xterm.js hämtas av webbläsaren från CDN och PyPI.
 """
 from __future__ import annotations
@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 PACKAGES = ("sim", "ui")
 START = ("start.py", "pyodide_driver.py", "web_audio.py")
+ICON_SIZES = (32, 180)
 
 
 def build(out: Path) -> Path:
@@ -30,6 +31,8 @@ def build(out: Path) -> Path:
             z.write(WEB / name, name)
     shutil.copy(WEB / "index.html", out / "index.html")
     shutil.copy(ROOT / "ikon" / "k114-1024.png", out / "k114.png")
+    for size in ICON_SIZES:   # Safari tar hellre en liten flikikon och en apple-touch-icon
+        shutil.copy(ROOT / "ikon" / f"k114-{size}.png", out / f"k114-{size}.png")
     (out / ".nojekyll").touch()
     return out
 

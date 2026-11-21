@@ -3,6 +3,14 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-21 – ikonen i Safari
+
+Webbsidan länkade bara ikonen i 1024 px utan storlek, och Safari visade ingen. Nu finns en flikikon i
+32 px och en `apple-touch-icon` i 180 px (Safaris favoriter och startsida) bredvid den stora, med
+storlekar i `web/index.html`. Filerna `ikon/k114-32.png` och `ikon/k114-180.png` görs av
+`ikon/bygg.py` (`WEB_SIZES`) och kopieras av `web/bygg.py` (`ICON_SIZES`); `tests/test_webb.py`
+kollar att varje länkad ikon finns i bygget.
+
 ## 2026-11-21 – webbversionen varnar på telefoner
 
 På en liten skärm (terminalen under 100×30 tecken) eller en pekskärm utan mus säger sidan, innan den
