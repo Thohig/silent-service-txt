@@ -41,12 +41,20 @@ scratchpad (2026-11-14–15). En del läser sanningen (`sundet.py --orakel`, `su
 | `rad.py` | kuba, kuba-kort, jagad, jagad-kort (kommaseparerade) | hök-boten: ja-boten som laddar T-5, håller kärnvapenrådet vid varje bomb nära, går upp till skjutdjup och skjuter med nycklarna |
 | `starpom.py` | kuba, konvoj (kommaseparerade), frön, ev. `salva` | kaptenen lämnar över och sover, går till centralen för sina beslut; med `salva` skjuter han där (som `konvoj_salva.py`); mot samma kapten utan starpom |
 | `langvag.py` | scenarier (kommaseparerade), frön | ja-boten; radiogram med masten och på långvåg, stympade och missade sambandstillfällen |
+| `ytskott.py` | (eget upplägg) typer, frön | ytläge, stillaliggande jagare 1–6 nm, radar varje minut i 10 min, sedan ett skott (eller `salva`) per typ |
 | `provspel.py` | scenarier (kommaseparerade), timmar, frö | provspelskaptenen: ja, rutinorder, vyer, periskop, eld på god lösning ≤ 3 nm; hela rapportflödet till `logs/provspel/` att läsa |
 
 Provkörda 2026-11-15 med ett frö var. Alla gick utan fel. `konvoj.py` och `kuba_jakt.py`
 kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 ## Siffrorna
+
+**Ytskott mot stillaliggande mål (2026-11-21, `ytskott.py`, frön 1–8):** träffar av 8 på 1/2/3/4/5/6 nm:
+53-61 ensam 8/7/2/2/2/2, salva med tre 53-61 8/7/4/6/5/5, SET-53 8/8/8/8 (5 och 6 nm utom räckhåll),
+53-62T 8/8/8/8/7/7. Plottets relativa lägesfel vid skottet (målet relativt oss mot sanningen) median
+0,008/0,015/0,039/0,050/0,061/0,072 nm, ungefär 0,7° i bäring (radarns σ 1°, tio svep), mot träffradien 0,03 nm:
+en ensam rak torped räcker till ~2 nm, längre bort behövs salva, målsökare eller tråd. Samma två frön
+träffar med den ensamma raka på alla avstånd (felet är systematiskt per frö, inte per skott).
 
 **Provspel i 3 timmar (2026-11-21, `provspel.py`, alla långa scenarier, frö 11):** gav förslagen som
 rättades den dagen (`docs/ANDRINGAR.md`). Efter rättelserna inga förslag uppåt under jakt (`upp`-kontroll i

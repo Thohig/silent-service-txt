@@ -25,6 +25,10 @@ laddade från början (`ladda tub 7 tråd`).
 - **Prov:** `tests/test_wire_torpedo.py`. Mot en jagare 3 nm bort i 12 kn som girar 110° en minut
   efter skottet, med plottet uppdaterat var 10:e s: den trådstyrda träffar i minst 4 av 5 frön, en
   rak 53-61 i högst 1 (provkört: 6 av 6 mot 0 av 6).
+- **Ytskott mot stillaliggande mål** (`kalibrering/ytskott.py`, 8 frön, radar varje minut i 10 min):
+  träffar av 8 på 1–6 nm: ensam 53-61 8, 7, 2, 2, 2, 2; salva (tre 53-61) 8, 7, 4, 6, 5, 5; SET-53 8 ut
+  till 4 nm (räckvidden); 53-62T 8, 8, 8, 8, 7, 7. Plottets fel i sidled växer med ungefär 0,7° i bäring
+  och passerar träffradien (0,03 nm) strax under 3 nm, även när lösningen är säker.
 
 ## 2026-11-21 – provspel i 3 timmar: förslag med omdöme
 
