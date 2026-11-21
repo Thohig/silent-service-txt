@@ -28,12 +28,16 @@ GitHub Pages: https://thohig.github.io/silent-service-txt/
   `speechSynthesis` genom sidans `makeSpeech`: Alva och Milena om de finns (Safari och Chrome på Mac
   har dem), annars en annan röst på språket. Utan rysk röst talar besättningen svenska. Talet går inte
   genom mixern, så telefon- och skotteffekten finns inte i webben, och Radio Moskva i menyn är bara brus.
-- `bygg.py`: packar `sim/`, `ui/` och startfilerna till `k114.zip` bredvid sidan och ikonen.
+- `bygg.py`: packar `sim/`, `ui/` och startfilerna till `k114.zip` bredvid sidan och ikonerna.
+- Ikonerna: `k114.png` (1024 px), flikikonen `k114-32.png` och `apple-touch-icon` `k114-180.png`,
+  länkade med storlek i `index.html`. Safari visade ingen ikon när bara den stora fanns. Filerna görs av
+  `ikon/bygg.py` (`WEB_SIZES`) och kopieras av `bygg.py` (`ICON_SIZES`). Safari sparar ikoner länge: syns
+  ingen efter en ändring, töm `~/Library/Safari/Favicon Cache`.
 
 ## Skillnader mot terminalen
 - **Inga trådar:** en kort variants uppvärmning körs i bitar (`Game.warm_up_steps`) mellan
   ritningarna i stället för i en tråd (`ui/app.py`, `THREADS`).
-- **Ljudet** startar av, som i terminalen; `ljud` eller Inställningar slår på det (`ctrl+t` tar Chrome
+- **Ljudet** startar av (i terminalen är det på utan `--tyst`); `ljud` eller Inställningar slår på det (`ctrl+t` tar Chrome
   själv). Allt utom talet går genom mixern som vanligt (`ui.audio.WebPlayer`); talet är webbläsarens
   (`voices.WebSpeech`), utan telefon- och skotteffekt, och Radio Moskva i menyn är bara brus. Menyns
   syntes görs utan tråd och låser sidan ~1 s när ljudet slås på i menyn.
