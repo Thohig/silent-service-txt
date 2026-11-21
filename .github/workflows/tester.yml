@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.3.3   # setup-uv har inga flyttande huvudtaggar
         with:
           enable-cache: true
       - name: Installera Python och beroenden
