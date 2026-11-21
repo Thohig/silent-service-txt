@@ -3,6 +3,29 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-21 – trådstyrd torped (53-62T, försök)
+
+En trådstyrd försökstorped. Trådstyrda torpeder fanns inte i sovjetisk tjänst 1962 (de kom i slutet
+av 60-talet), så den är ett försöksexemplar: två i förråd i alla scenarier utom övningen, inte
+laddade från början (`ladda tub 7 tråd`).
+- **I spel:** `eld S-1` väljer den före SET-53 om den är laddad. Eldledningen styr den var 20:e s mot
+  plottets lösning, räknat från torpedens beräknade läge (skottpunkten och styrordern, inte
+  sanningens läge). Styrorder på 10° eller mer sägs. När torpeden enligt räkningen är 0,6 nm från
+  målet kapas tråden och målsökaren tar över. Fram till dess söker den inte, så andra fartyg på vägen
+  drar den inte till sig. Utan lösning går den vidare på sin kurs och torpedrummet säger det. Skjuten
+  på kurs (`eld tub 1 kurs 045`) söker den direkt, som en SET-53.
+- **Tråden:** den går av när den är utspelad (5,5 nm), efter 15 s över 12 kn, vid en gir på mer än
+  90° från kursen vid skottet, eller av sig själv (~1 % per minut). Torpedrummet varnar vid 12 kn och
+  60°, och märker genast när tråden går av, men vet bara varför om det var vår fart, gir eller
+  trådens längd. Den nya ordern är `kapa tråden [tub N]`. Hörs en fientlig torped medan vår är på
+  tråd föreslår torpedrummet `kapa tråden`, så att undanmanövern är fri.
+- **Var:** `weapons.py` (`wire_nm`, `guide_torpedo`, `cut_wire`, `_step_wire`, `WIRE_*`),
+  `stations/torpedo_room/wire.py` (`WireMixin`, beräknad bana `path`), `Running.legs`. Kortet ritar
+  banan bit för bit efter styrordern.
+- **Prov:** `tests/test_wire_torpedo.py`. Mot en jagare 3 nm bort i 12 kn som girar 110° en minut
+  efter skottet, med plottet uppdaterat var 10:e s: den trådstyrda träffar i minst 4 av 5 frön, en
+  rak 53-61 i högst 1 (provkört: 6 av 6 mot 0 av 6).
+
 ## 2026-11-21 – provspel i 3 timmar: förslag med omdöme
 
 Ett provspel i 3 timmar speltid i alla långa scenarier (ja-kapten som också tittar, skjuter och ger

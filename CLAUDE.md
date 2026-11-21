@@ -69,8 +69,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   fairway, station, circle). Ett steg som slutar sätter `steer = None` där det säger varför; `kurs`
   avbryter (`on_order`).
 - **Torpedrummet** är paketet `sim/stations/torpedo_room/`: `station.py` (stationen, order, laddning,
-  torpederna i vattnet), `common.py` (konstanter, order, `Tube`, `Running`), `phrases.py` och `firing.py`
-  (eldledningen, `FiringMixin`). Växer en station sig stor: dela den så (navigatören, radion, torpedrummet).
+  torpederna i vattnet), `common.py` (konstanter, order, `Tube`, `Running`), `phrases.py`, `firing.py`
+  (eldledningen, `FiringMixin`) och `wire.py` (trådstyrningen, `WireMixin`). Växer en station sig stor: dela den så (navigatören, radion, torpedrummet).
 - **Rapporter** bär `type` + `data`, aldrig färdig text. Texten skapas av
   `phrases.render()` vid leverans, efter rapportfiltren. Varje station registrerar
   sina fraser med `phrases.register({...})` i sin egen modul.
@@ -209,6 +209,8 @@ för in varje färdigt steg där.
   minören försiktigt, 8 min i stället för 5 och −12 dB. Jagaren hör slammret ~1,5 nm över skiktet i 5 kn.
 - Tystnad i båten: jagade och på smygmotorn eller ≤ 6 kn (`OfficerStation._hush_watch`, hävs efter 60 s).
   Skrovknak 132 dB var 25:e m vid djupändring > 1 m/s under 80 m (rodren i ≳ 6 kn); maskin säger det under jakt.
+- Trådstyrd 53-62T (försök): 35 kn, 7 nm, tråd 5,5 nm; styrs var 20:e s, målsökaren släpps 0,6 nm från
+  målet; tråden av efter 15 s över 12 kn, gir > 90° från kursen vid skottet, ~1 %/min av sig själv.
 - Fiendens torped Mk 37: 26 kn, 5 nm, 145 dB, söker passivt i 40° och aktivt inom 0,4 nm och ±50 m i höjd;
   skenmålet 135 dB och bubbelekot starkare än skrovet; en träff är förlusten. Vi går 28 kn på turbinen.
 - Trim (`sim/trim.py`): kompression 1 t/100 m, skiktet bär 3 t, smältvatten 1 t, torped netto 0,6 t förut,

@@ -12,15 +12,15 @@ numrerar egna torpeder i avfyrningsordning; torpedrummet gör detsamma
 och knyter numret till tuben. Alla torpeder avfyras därför här.
 
 Paketet: station.py (stationen, order, laddning, torpederna i vattnet, kortet), common.py
-(konstanter, order, tuber), phrases.py, och firing.py (eldledningen, `FiringMixin`) som
-TorpedoRoom ärver."""
+(konstanter, order, tuber), phrases.py, och firing.py (eldledningen, `FiringMixin`) och wire.py
+(trådstyrningen av 53-62T, `WireMixin`) som TorpedoRoom ärver."""
 from __future__ import annotations
 
 from . import phrases  # noqa: F401  (registrerar fraserna)
 from .common import (  # noqa: F401
     CONFIRM_S, END_GRACE_S, MAX_LAUNCH_DEPTH, MAX_LAUNCH_SPEED, N_TUBES, RELOAD_CLANK_S,
     RELOAD_QUIET_S, RELOAD_S, SALVO_MAX, TYPE_ALIASES,
-    FireAt, FireSalvo, FireTube, FiringSolution, LaunchDecoy, LoadTube, Running, TorpedoReport,
+    CutWire, FireAt, FireSalvo, FireTube, FiringSolution, LaunchDecoy, LoadTube, Running, TorpedoReport,
     TorpedoStatus, Tube, TubeStatus,
 )
 from .station import TorpedoRoom  # noqa: F401

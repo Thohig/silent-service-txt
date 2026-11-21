@@ -127,7 +127,7 @@ class FiringMixin:
         """Tuben torpedrummet väljer mot kontakten: målsökande före raka före övning, den
         första laddade som når; aldrig kärnladdningen (den kräver tubens nummer)."""
         tr, sol = self._solution_for(designation)
-        order = {"SET-53": 0, "53-61": 1, "övning": 2}
+        order = {"53-62T": 0, "SET-53": 1, "53-61": 2, "övning": 3}
         best = None
         for t in self.tubes:
             if t.load is None or t.loading or t.load not in order or self._blocked(t.load):
@@ -198,7 +198,7 @@ class FiringMixin:
             course = o.course
             if not self._neutrals_clear(None, [course], tube.load):
                 return False
-        launch_torpedo(self.world, spec, course, detonate_at)
+        torp = launch_torpedo(self.world, spec, course, detonate_at)
         if spec.nuclear:
             from ..council import NuclearCouncil
             if (c := self.game.station(NuclearCouncil)) is not None:
@@ -211,13 +211,16 @@ class FiringMixin:
         self._launches += 1
         run_nm = min(detonate_at, spec.range_nm) if detonate_at else spec.range_nm
         lx, ly = self.game.own_position_estimate()
-        self.in_water.append(Running(
+        run = Running(
             no=self._launches, tube=o.tube, type=spec.key, designation=o.designation,
             course=course, launch_t=self.now,
             t_hit=int(self.now + run_s) if run_s else None,
-            t_end=int(self.now + run_nm / spec.speed * 3600), launch_x=lx, launch_y=ly))
+            t_end=int(self.now + run_nm / spec.speed * 3600), launch_x=lx, launch_y=ly)
+        self.in_water.append(run)
+        if spec.wire_nm:
+            self._wire_launched(run, torp)
         self.say("torp.fired", {"tube": o.tube, "type": spec.key, "course": course,
-                                "run_s": run_s, "quality": quality},
+                                "run_s": run_s, "quality": quality, "wired": run.wired},
                  kind="ack", quality=quality, alarm=True)
         if o.designation and run_s and not o.in_salvo:
             self._leg_warning(o.designation, run_s, spec.key)

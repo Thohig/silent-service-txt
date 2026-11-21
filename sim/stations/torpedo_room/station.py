@@ -14,14 +14,15 @@ from ... import acoustics
 from ...weapons import TORPEDO_TYPES, launch_decoy
 from ..base import Proposal, Station
 from .common import (
-    END_GRACE_S, FireAt, FireSalvo, FireTube, FiringSolution, LaunchDecoy, LoadTube, N_TUBES,
+    END_GRACE_S, CutWire, FireAt, FireSalvo, FireTube, FiringSolution, LaunchDecoy, LoadTube, N_TUBES,
     RELOAD_CLANK_S, RELOAD_QUIET_S, RELOAD_S, RUN_REPORT_AFTER, Running, TRACK_FADE_S,
     TRACK_KEEP_S, TorpedoReport, TorpedoStatus, Tube, TubeStatus, load_order,
 )
 from .firing import FiringMixin
+from .wire import WireMixin, dr_position, path
 
 
-class TorpedoRoom(FiringMixin, Station):
+class TorpedoRoom(FiringMixin, WireMixin, Station):
     REACHES_WORLD = True        # torpeder och skenmål i vattnet, uppdragets flaggor
     role = Role.TORPEDO
     COMMANDS = [
@@ -43,6 +44,9 @@ class TorpedoRoom(FiringMixin, Station):
                                                                  max(int(m[1]), int(m[2])) + 1)))),
         CommandSpec(rf"salva\s+(?:mot\s+)?{DESIG}", lambda m: FireSalvo(desig(m[1])), "salva S-1"),
         CommandSpec(r"skenmål|skenmal|motmedel", lambda m: LaunchDecoy(), "skenmål"),
+        CommandSpec(r"kapa\s+tr[åa]d(?:en|arna)?(?:\s+(?:på\s+|pa\s+)?tub\s+(\d))?",
+                    lambda m: CutWire(int(m[1]) if m[1] else None),
+                    "kapa tråden (trådstyrd torped: målsökaren tar över)"),
     ]
 
     def __init__(self, game):
@@ -55,7 +59,7 @@ class TorpedoRoom(FiringMixin, Station):
             t.load = "53-61"
         for t in self.tubes[4:6]:
             t.load = "SET-53"
-        self.inventory = {"53-61": 6, "SET-53": 4, "T-5": 2}
+        self.inventory = {"53-61": 6, "SET-53": 4, "53-62T": 2, "T-5": 2}
         arm = getattr(game.scenario, "armament", None)
         if arm:                                   # t.ex. övningen: bara övningstorpeder
             for t in self.tubes:
@@ -66,6 +70,7 @@ class TorpedoRoom(FiringMixin, Station):
         self.finished: list[Running] = []         # ritas kvar på kortet en stund
         self._launches = 0
         self._ready_said: dict[str, Quality] = {}
+        self._wire_truth: dict = {}               # trådstyrd torped i vattnet: nr -> torpeden (tråden)
 
     def attach(self, bus) -> None:
         super().attach(bus)
@@ -110,6 +115,8 @@ class TorpedoRoom(FiringMixin, Station):
                     self._report_in_water()
             case AskContact(designation=d):
                 self._contact_asked(d)
+            case CutWire():
+                self._cut_wire(order)
             case LaunchDecoy():
                 if self.decoys <= 0:
                     self.say("torp.refused", {"reason": "skenmålen är slut"})
@@ -159,6 +166,7 @@ class TorpedoRoom(FiringMixin, Station):
             if t.loading and self.now >= t.ready_t:
                 t.load, t.loading = t.loading, None
                 self.say("torp.loaded", {"tube": t.n, "type": t.load})
+        self._guide()
         for r in list(self.in_water):
             if r.t_hit is not None and not r.timed and self.now >= r.t_hit:
                 r.timed = True
@@ -225,11 +233,13 @@ class TorpedoRoom(FiringMixin, Station):
         if self.in_water:
             items.append(Gauge("VAPEN", "I vattnet", ", ".join(
                 f"tub {r.tube}" + (f" mot {r.designation}" if r.designation else "")
-                for r in self.in_water), INFO))
+                + (" (tråd)" if r.wired else "") for r in self.in_water), INFO))
         return items
 
     def _finish(self, r: Running, how: str) -> None:
         self.in_water.remove(r)
+        self._wire_truth.pop(r.no, None)
+        r.wired = False
         r.end_t, r.end = self.now, how
         self.finished.append(r)
 
@@ -246,13 +256,15 @@ class TorpedoRoom(FiringMixin, Station):
             speed = TORPEDO_TYPES[r.type].speed
             t = min(self.now if not done else r.end_t, r.t_end)
             run = speed * max(0, t - r.launch_t) / 3600
-            b = math.radians(r.course)
-            hx, hy = r.launch_x + run * math.sin(b), r.launch_y + run * math.cos(b)
-            items.append(Track(((r.launch_x, r.launch_y), (hx, hy)), "torpedo_path", LAYER_RAY, None))
+            pts = path(r, t)            # trådstyrd: en bit per styrorder
+            hx, hy = pts[-1]
+            if len(pts) < 2:
+                pts.append(pts[0])
+            for a, b2 in zip(pts, pts[1:]):
+                items.append(Track((a, b2), "torpedo_path", LAYER_RAY, None))
             for m in range(1, int((t - r.launch_t) // 60) + 1):
-                d = speed * m / 60
-                items.append(Mark(r.launch_x + d * math.sin(b), r.launch_y + d * math.cos(b),
-                                  "+", "torpedo", faded=True, layer=LAYER_RAY + 0.1))
+                mx, my = dr_position(r, r.launch_t + 60 * m)
+                items.append(Mark(mx, my, "+", "torpedo", faded=True, layer=LAYER_RAY + 0.1))
             head = "✱" if r.end == "hit" else "?" if done or r.lost else "•"
             items.append(Mark(hx, hy, head, "torpedo", f"tub {r.tube}", faded=faded))
             if r.turned and r.bearing is not None and not done:
@@ -269,7 +281,9 @@ class TorpedoRoom(FiringMixin, Station):
                 "course": r.course, "elapsed": self.now - r.launch_t,
                 "to_hit": None if r.t_hit is None else r.t_hit - self.now,
                 "to_end": max(0, r.t_end - self.now),
-                "bearing": r.bearing, "lost": r.lost, "turned": r.turned})
+                "bearing": r.bearing, "lost": r.lost, "turned": r.turned,
+                "wired": r.wired, "seeker_on": r.seeker_on,
+                "guided": r.legs is not None and r.designation is not None})
         self.say("torp.in_water", {"running": rows})
 
     def _on_own_torpedo(self, e: OwnTorpedoHeard) -> None:
@@ -285,7 +299,8 @@ class TorpedoRoom(FiringMixin, Station):
                     self.say("torp.run.running", d, quality=e.quality)
             case "turned":
                 r.bearing, r.heard_t, r.turned = e.bearing, self.now, True
-                if TORPEDO_TYPES[r.type].homing:
+                # en trådstyrd torped girar på vår styrorder: det är inte målsökaren
+                if TORPEDO_TYPES[r.type].homing and (r.legs is None or r.seeker_on):
                     self.say("torp.run.turned", d, quality=e.quality, alarm=True)
             case "lost":
                 r.lost = True

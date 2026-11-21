@@ -7,6 +7,12 @@ Fiendens torpeder (side="enemy", `launch_enemy_torpedo`, amerikanska Mk 37) sök
 våra skenmål: passivt mot det som låter mest i konen, aktivt nära (`active_nm`) och bara i ett
 band i höjd (`ACTIVE_DEPTH_M`), där skrovet ekar och skenmålets bubbelmoln ekar mer. En låsning hålls tills något annat hörs klart bättre
 (`RELOCK_DB`); ett skenmål som torpeden passerat bortser den från. En träff på oss är förlusten.
+
+Trådstyrda torpeder (`wire_nm` > 0, försökstorpeden 53-62T): torpedrummet styr dem med
+`guide_torpedo` medan tråden håller och släpper målsökaren (`release_seeker`) nära målet; förut
+söker de inte. Tråden går av (`_step_wire`) när den är utspelad, när vi går fortare än
+`WIRE_MAX_SPEED` en stund eller girar mer än `WIRE_MAX_TURN` från kursen vid skottet, och ibland av
+sig själv. Då går torpeden vidare på sin kurs med målsökaren till.
 """
 from __future__ import annotations
 
@@ -45,6 +51,7 @@ class TorpedoSpec:
     seeker_noise: float = 70.0
     exercise: bool = False    # övningstorped: ingen stridsspets, går under målet
     active_nm: float = 0.0    # aktiv målsökare: hittar ett skrov så här nära (ekot)
+    wire_nm: float = 0.0      # trådstyrd: så lång tråd (sjömil); målsökaren släpps av torpedrummet
 
 
 TORPEDO_TYPES: dict[str, TorpedoSpec] = {
@@ -55,6 +62,10 @@ TORPEDO_TYPES: dict[str, TorpedoSpec] = {
                           range_nm=8.0, source_level=155, run_depth=12.0, exercise=True),
     "T-5": TorpedoSpec("T-5", "T-5 (kärnladdning)", speed=40, range_nm=5.5, nuclear=True,
                        source_level=150, kill_radius_nm=1.0),
+    # Försökstorpeden: elektrisk, trådstyrd, passiv målsökare som släpps nära målet. Trådstyrda
+    # torpeder kom i sovjetisk tjänst först i slutet av 60-talet; här är den ett försöksexemplar.
+    "53-62T": TorpedoSpec("53-62T", "53-62T (trådstyrd, försök)", speed=35, range_nm=7.0,
+                          homing=True, source_level=140, wire_nm=5.5),
 }
 # Amerikanska ubåtens torped (Mk 37, 1960): elektrisk, långsam, passiv och aktiv målsökning.
 MK37 = TorpedoSpec("Mk37", "Mk 37 (målsökande)", speed=26, range_nm=5.0, homing=True,
@@ -65,6 +76,10 @@ ACTIVE_DEPTH_M = 50.0        # den aktiva målsökaren ser bara så långt upp o
 RELOCK_DB = 6.0              # något annat måste höras så mycket bättre för att byta mål
 DEPTH_HIT_M = 20.0           # träff bara om djupet stämmer så här nära
 TORPEDO_HIT_HULL = 0.7       # en Mk 37 i skrovet: tillsammans med tryckvågen är det slutet
+WIRE_MAX_SPEED = 12.0        # knop: fortare och tråden slits av mot skrovet ...
+WIRE_OVERSPEED_S = 15        # ... efter så här lång tid
+WIRE_MAX_TURN = 90.0         # grader från skjutkursen: tråden hamnar i propellern
+WIRE_FAIL_PER_S = 1 / 6000   # tråden går av av sig själv (skarvar, isolering): ~1 % per minut
 
 
 
@@ -96,6 +111,10 @@ class Torpedo(Vessel):
         self.passed: dict[str, float] = {}   # övningstorped: närmaste passage per fartyg (nm)
         self.locked_se = 0.0
         self.ignored: set[str] = set()       # skenmål som torpeden gått förbi
+        self.wire_ok = spec.wire_nm > 0      # trådstyrd: tråden håller
+        self.seeker_on = spec.wire_nm <= 0   # trådstyrd: målsökaren släpps av torpedrummet
+        self.overspeed_s = 0
+        self.wire_course = course            # vår kurs vid avfyringen: giren räknas därifrån
 
     def radiated_level(self, env) -> float:
         return -999.0 if self.done else self.spec.source_level
@@ -153,9 +172,40 @@ def launch_torpedo(world: World, spec: TorpedoSpec, course: float,
     world.own.sys.trim.torpedo_fired()           # fören lättare: trimmarens sak
     tid = f"T{world.mission['torpedoes_fired']}"
     t = Torpedo(tid, spec, o.x, o.y, course, world.time, detonate_at_nm)
+    t.wire_course = o.course
     world.contacts.append(t)
     world.emit(Transient("launch", o.x, o.y, o.depth, acoustics.LAUNCH_LEVEL, world.own.id, world.time))
     return t
+
+
+def guide_torpedo(t: Torpedo, course: float) -> bool:
+    """Styrorder längs tråden. Går bara fram medan tråden håller."""
+    if not t.wire_ok or t.done:
+        return False
+    t.state.order_course(course)
+    return True
+
+
+def release_seeker(t: Torpedo) -> None:
+    """Målsökaren till (torpedrummet släpper den, eller tråden kapas)."""
+    t.seeker_on = True
+
+
+def cut_wire(t: Torpedo) -> None:
+    t.wire_ok = False
+    t.seeker_on = True
+
+
+def _step_wire(world: World, t: Torpedo, dt: int) -> None:
+    """Tråden mellan oss och torpeden: utspelad, sliten av farten, i propellern, eller av sig själv."""
+    own = world.own.state
+    if world.own.sunk or t.run_nm >= t.spec.wire_nm:
+        cut_wire(t)
+        return
+    t.overspeed_s = t.overspeed_s + dt if own.speed > WIRE_MAX_SPEED else 0
+    if t.overspeed_s >= WIRE_OVERSPEED_S or abs(angle_diff(own.course, t.wire_course)) > WIRE_MAX_TURN \
+            or world.rng.random() < WIRE_FAIL_PER_S * dt:
+        cut_wire(t)
 
 
 def launch_decoy(world: World) -> Decoy:
@@ -306,7 +356,9 @@ def _sink(world: World, v: Vessel) -> None:
 
 def _step_torpedo(world: World, t: Torpedo, dt: int) -> None:
     ts = t.state
-    if t.spec.homing and t.run_nm >= ARM_DISTANCE_NM:
+    if t.wire_ok:
+        _step_wire(world, t, dt)
+    if t.spec.homing and t.seeker_on and t.run_nm >= ARM_DISTANCE_NM:
         _seek(world, t)
     p0 = (ts.x, ts.y)
     ts.step(dt)

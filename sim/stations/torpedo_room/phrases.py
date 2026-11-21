@@ -7,6 +7,9 @@ from ...fmt import fmt_course, nm
 from ... import russian as R
 from ...russian import ru
 from ...reports import Quality
+from ...weapons import WIRE_MAX_SPEED, WIRE_MAX_TURN
+
+_WIRE_SPEED, _WIRE_TURN = round(WIRE_MAX_SPEED), round(WIRE_MAX_TURN)
 
 
 def _mmss(s: float) -> str:
@@ -42,7 +45,11 @@ def _in_water(d: dict) -> str:
             s += f", sonar har tappat den (sista bäring {fmt_course(r['bearing'])})"
         else:
             s += f", hörs i bäring {fmt_course(r['bearing'])}"
-        if r["turned"]:
+        if r.get("wired"):
+            s += ", går på tråd"
+        elif r.get("guided"):
+            s += ", tråden av, målsökaren söker"
+        if r["turned"] and not r.get("wired"):
             s += ", har svängt, troligen målsökt"
         rows.append(s)
     return "Torpeder i vattnet – " + "; ".join(rows) + "."
@@ -78,7 +85,29 @@ PHRASES = {
     + ("" if d.get("preview") else " Upprepa ordern om vi ska skjuta."),
     "torp.fired": lambda d: f"{ru('Torpeda vysjla')}! Tub {d['tube']} avfyrad, {d['type']}, kurs {fmt_course(d['course'])}"
     + (f", beräknad gångtid {_mmss(d['run_s'])}" if d.get("run_s") else "")
-    + (". Lösningen var dålig, risk för miss." if d.get("quality") == Quality.DALIG else "."),
+    + (". Lösningen var dålig, risk för miss." if d.get("quality") == Quality.DALIG else ".")
+    + (f" Den går på tråd: vi styr den mot plottets lösning. Håll farten under "
+       f"{_WIRE_SPEED} knop och gira inte mer än {_WIRE_TURN} grader." if d.get("wired") else ""),
+    "torp.wire.guide": lambda d: f"Tub {d['tube']}: plottet har flyttat {d['designation']}, "
+    f"vi styr torpeden till kurs {fmt_course(d['course'])}.",
+    "torp.wire.seeker": lambda d: f"Tub {d['tube']}: torpeden är nära {d['designation']} enligt "
+    "plottet. Tråden kapad, målsökaren söker.",
+    "torp.wire.no_solution": lambda d: f"Tub {d['tube']}: plottet har ingen lösning på "
+    f"{d['designation']} längre. Torpeden går vidare på sin kurs tills vi har en.",
+    "torp.wire.strain": lambda d: f"Kapten, torpedrummet! Tråden till tub {d['tube']}: "
+    + (f"vi går över {round(d['limit'])} knop, den slits av om vi inte saktar."
+       if d["why"] == "fart" else
+       f"vi har girat för långt, över {round(d['limit'])} grader går den i propellern."),
+    "torp.wire.broken": lambda d: f"Tub {d['tube']}: tråden har gått av"
+    + {"fart": " – farten slet av den", "gir": " – giren tog den", "längd": ", den är utspelad",
+       "": ""}[d["why"]]
+    + f". Torpeden går vidare på kurs {fmt_course(d['course'])}, målsökaren är till.",
+    "torp.wire.cut": lambda d: "Tråden kapad"
+    + (f" till tub {d['tubes'][0]}" if len(d["tubes"]) == 1
+       else " till tuberna " + ", ".join(str(t) for t in d["tubes"]))
+    + ". Målsökaren tar över, vi är fria att manövrera.",
+    "torp.suggest.cut_wire": lambda d: "Kapten, torped. Vi har en torped på tråd. Föreslår att vi "
+    "kapar tråden, så att vi kan gå undan fritt.",
     "torp.salvo": lambda d: f"Salva mot {d['designation']}: {d['n']} torpeder i solfjäder, "
     f"{nm(d['step'])} grader isär.",
     "torp.leg_warning": lambda d: f"Kapten, torpedrummet. Varning: {d['designation']} sicksackar. "
@@ -142,7 +171,11 @@ def _ru_in_water(d: dict) -> str:
             s += ", акустик её потерял"
         else:
             s += f", пеленг {R.course(r['bearing'])}"
-        if r["turned"]:
+        if r.get("wired"):
+            s += ", идёт по проводу"
+        elif r.get("guided"):
+            s += ", провод оборван, самонаводится"
+        if r["turned"] and not r.get("wired"):
             s += ", повернула, видимо наводится"
         rows.append(s)
     return "Торпеды в воде: " + "; ".join(rows) + "."
@@ -185,7 +218,22 @@ RU_PHRASES = {
     "torp.fired":lambda d: f"Торпеда вышла! {_ru_tube(d)}, {R.weapon(d['type'])}, курс "
     f"{R.course(d['course'])}"
     + (f", расчётное время хода {R.mmss(d['run_s'])}" if d.get("run_s") else "")
-    + (". Решение было плохое, возможен промах." if d.get("quality") == Quality.DALIG else "."),
+    + (". Решение было плохое, возможен промах." if d.get("quality") == Quality.DALIG else ".")
+    + (" Идёт по проводу, наводим по решению." if d.get("wired") else ""),
+    "torp.wire.guide": lambda d: f"{_ru_tube(d)}: цель сместилась, доворачиваем торпеду на курс "
+    f"{R.course(d['course'])}.",
+    "torp.wire.seeker": lambda d: f"{_ru_tube(d)}: торпеда рядом с целью. Провод обрезан, "
+    "головка самонаведения ищет.",
+    "torp.wire.no_solution": lambda d: f"{_ru_tube(d)}: решения по цели больше нет. Торпеда идёт "
+    "прежним курсом.",
+    "torp.wire.strain": lambda d: f"{R.CAPTAIN}, торпедный отсек! Провод аппарата {d['tube']}: "
+    + ("ход слишком большой, оборвём." if d["why"] == "fart" else "слишком большой поворот, "
+       "намотаем на винт."),
+    "torp.wire.broken": lambda d: f"{_ru_tube(d)}: провод оборван. Торпеда идёт курсом "
+    f"{R.course(d['course'])}, самонаведение включено.",
+    "torp.wire.cut": lambda d: "Есть, провод обрезан. Головка самонаведения ищет сама.",
+    "torp.suggest.cut_wire": lambda d: f"{R.CAPTAIN}, минёр. Торпеда на проводе. Предлагаю "
+    "обрезать провод, чтобы маневрировать свободно.",
     "torp.salvo": lambda d: f"Залп по {R.contact(d['designation'], True)}: "
     f"{R.count(d['n'], ('торпеда', 'торпеды', 'торпед'))} веером.",
     "torp.neutral": lambda d: f"{R.CAPTAIN}, торпедный отсек. Внимание: "

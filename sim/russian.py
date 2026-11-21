@@ -180,10 +180,11 @@ def classification(s: str) -> str:
 
 
 def weapon(name: str) -> str:
-    """Torpedtyp för rösten: SET-53 -> 'СЭТ 53', T-5 -> 'Т 5', 53-61 -> '53 61' (inte 'minus')."""
+    """Torpedtyp för rösten: SET-53 -> 'СЭТ 53', T-5 -> 'Т 5', 53-61 -> '53 61' (inte 'minus'),
+    53-62T -> '53 62Т'."""
     if name == "övning":
         return "практическая"
-    return name.replace("SET", "СЭТ").replace("T-", "Т-").replace("-", " ")
+    return name.replace("SET", "СЭТ").replace("T", "Т").replace("-", " ")
 
 
 def fallback(role: str, kind: str) -> str:
