@@ -42,6 +42,16 @@ krigspatrullen i 14 h, gränssnittet i 80×24, 120×40 och 220×60) gav inga und
   kvar när två eller färre återstår.
 - **En nära pingare** (≥ `PING_NEAR_RL`) får svänga 1,5°/s i bäring, högst 60°, och är ändå samma
   pingare (sundet: en patrullbåt förbi oss gav "Aktiv sonar … Någon söker" 9 gånger på 3 min).
+- **Fråga en gång** (`Station.confirm_once` i `intercept`, `CONFIRM_S` 60 s): navigatören om dykning i
+  fjorden och om ytläge när plottet har en fiende inom 6 nm (`SURFACE_THREAT_NM`), maskin om
+  nödblåsning utan vatten i båten eller djupfara. Upprepad order verkställs; ett förslag kaptenen sagt
+  ja till (`Game.accepting`) och vakten före överlämnandet (`Game.warmup_running`) frågas aldrig.
+  Förut: `djup 100` i fjorden ⇒ misslyckad övning efter 0 min, nödblåsning under jakt ⇒ tvingade upp.
+- **En minut i ytläge:** `World._check_outcome` slutar med `forced` först när fienden sett oss i
+  `SURFACE_GRACE_S` (60 s); utkiken hinner ropa och vi hinner dyka.
+- **konvoj-mot:** vaktens salva upprepades blint och sköt rakt igenom torpedrummets varning för ett
+  neutralt fartyg i banan (neutral sänkt efter 3 och 9 min i 2 av 24 frön). Nu byter vakten mål.
+  24 frön, passiv kapten: anfallen 9, tiden ute 13, förlorad 1, missad 1 (förut neutral sänkt 2).
 - **Prov:** `tests/test_playtest_fixes.py`.
 
 ## 2026-11-21 – trådstyrd torped (53-62T, försök)

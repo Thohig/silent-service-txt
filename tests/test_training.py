@@ -119,7 +119,11 @@ def test_diving_in_the_fjord_is_warned_and_ends_the_exercise():
     g = _game(1)
     said = []
     g.bus.subscribe(ReportDelivered, lambda e: said.append(e.report.type))
-    g.command("djup 40")
+    g.command("djup 40")                        # navigatören frågar först
+    for _ in range(10):
+        g.tick()
+    assert "nav.fjord_dive" in said and g.world.own.state.ordered_depth == 0
+    g.command("djup 40")                        # upprepad: verkställs
     for _ in range(120):
         g.tick()
         if g.over:

@@ -206,6 +206,8 @@ class Game:
         # loggboken börjar när kaptenen tar befälet, efter en ev. uppvärmning
         self.logbook = Logbook(self.clock_str)
         self.warmup_pending = scenario.warmup is not None
+        self.warmup_running = False      # vakten kör före kaptenen (warm_up)
+        self.accepting = False           # kaptenen har sagt ja: ordern är besättningens förslag
         if not self.warmup_pending:
             self.logbook.attach(self.bus)
         elif warm_up:
@@ -221,12 +223,14 @@ class Game:
             return
         self.warmup_pending = False
         w = self.scenario.warmup
+        self.warmup_running = True
         for t in range(w.seconds):
             if w.pilot(self, t):            # vakten lämnar över tidigare
                 break
             self.tick()
             if self.over:
                 break
+        self.warmup_running = False
         self.suggestion = None
         self.held = None
         self.last_command_t = self.last_suggestion_t = self.now
@@ -433,7 +437,11 @@ class Game:
                     return
                 self.suggestion = None
                 self._system("order.executing", {"what": sug[0]})
-                self.command(sug[0])
+                self.accepting = True           # besättningens eget förslag: ingen fråga tillbaka
+                try:
+                    self.command(sug[0])
+                finally:
+                    self.accepting = False
                 return
             case DeclineSuggestion():
                 self.suggestion = None

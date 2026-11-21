@@ -73,4 +73,7 @@ def test_surfacing_near_aware_destroyer_ends_game():
     w.own.state.order_depth(0)
     for _ in range(5):
         w.tick()
+    assert w.outcome is None                    # en stund att dyka igen (SURFACE_GRACE_S)
+    for _ in range(60):
+        w.tick()
     assert w.outcome and w.outcome["outcome"] == "forced"

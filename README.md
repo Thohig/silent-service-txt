@@ -148,6 +148,11 @@ där besättningen tror att det är, så kortet blir lika fel som besticket till
 nästa fix. Spelet går vidare medan kortet visas, och de senaste rapporterna
 syns längst ner.
 
+Order som bryter mot uppdraget eller saknar skäl frågar besättningen om en gång: dykning i fjorden
+(övningen), ytläge när plottet har en fiende inom 6 sjömil, nödblåsning utan vatten i båten eller
+djupfara. Samma order inom en minut verkställs; ett förslag du sagt ja till frågas aldrig. Ligger vi i
+ytläge och fienden ser oss har vi en minut att dyka igen.
+
 Spelet slutar om ubåten förloras, tvingas till ytan, sänker jagaren,
 när patrullen är slut kl 08:00 eller när kaptenen skriver `avsluta`. Då visas
 en kort rapport: tid i befäl, order, kontakter, torpeder, sjunkbomber,

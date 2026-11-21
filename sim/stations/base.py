@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 # att ha sagt något sedan förra gången, fördubblas väntetiden för varje gång.
 BACKOFF_BASE_S = 420
 BACKOFF_MAX_S = 3600
+CONFIRM_S = 60              # confirm_once: en upprepad order inom så här lång tid verkställs
 
 
 @dataclass(frozen=True)
@@ -92,6 +93,22 @@ class Station:
         """Kaptenens order innan den verkställs: sant om stationen tar hand om den (och
         säger varför), så att den inte går vidare. T.ex. medan kaptenen är på väg."""
         return False
+
+    def confirm_once(self, key: str, type: str, data: dict | None = None) -> bool:
+        """För intercept: en order som bryter mot uppdraget eller saknar skäl. Första gången säger
+        stationen varför och ordern stoppas (sant); upprepad inom CONFIRM_S verkställs. Ett förslag
+        kaptenen sagt ja till, och vakten före överlämnandet, frågas aldrig."""
+        if self.game.accepting or self.game.warmup_running:
+            return False
+        asked = getattr(self, "_confirm_asked", None)
+        if asked is None:
+            asked = self._confirm_asked = {}
+        t = asked.pop(key, None)
+        if t is not None and self.now - t <= CONFIRM_S:
+            return False
+        asked[key] = self.now
+        self.say(type, data or {}, alarm=True)
+        return True
 
     def on_suggestion(self, report) -> bool:
         """Ett förslag har levererats. Sant om stationen beslutat i frågan (starpom

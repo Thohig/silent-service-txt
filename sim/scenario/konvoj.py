@@ -159,6 +159,7 @@ class _CounterattackWatch:
 
     def __init__(self) -> None:
         self.handover_t: int | None = None
+        self.skip: set[str] = set()      # mål med ett neutralt fartyg i banan: vakten skjuter inte
 
     def __call__(self, game: Any, t: int) -> bool:
         from ..stations.officer import is_big_ship
@@ -185,7 +186,7 @@ class _CounterattackWatch:
             game.command(f"periskop {min(big)[1]}" if big else "periskop")
         best = None
         for tr in game.knowledge.tracks.values():
-            if not tr.held or not is_big_ship(tr):
+            if not tr.held or not is_big_ship(tr) or tr.designation in self.skip:
                 continue
             _, sol = torp._solution_for(tr.designation)
             looked = any(o.course_obs is not None and o.t >= tr.tma_from_t
@@ -200,8 +201,15 @@ class _CounterattackWatch:
                 best = (tr.designation, aim[1])
         if best is None:
             return False
-        game.command(f"salva {best[0]}")
-        game.command(f"salva {best[0]}")       # torpedrummet frågar en gång om målet
+        key = best[0]
+        warned = torp._neutral_warned.get(key)
+        for _ in range(2):                      # torpedrummet frågar en gång om målet
+            game.command(f"salva {key}")
+            if torp._neutral_warned.get(key) != warned:
+                self.skip.add(key)              # ett neutralt fartyg i banan: inte det målet
+                return False
+            if game.world.mission.get("hostile_act"):
+                break
         if game.world.mission.get("hostile_act"):
             self.handover_t = t + max(0, int(best[1]) - COUNTER_HANDOVER_S)
         return False

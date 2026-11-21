@@ -18,6 +18,7 @@ from ...ice import SAIL_TOP_M
 from ...icemap import Opening
 from ...orders import NUM, CommandSpec, Order, Unknown, num
 from ...ownship import ANTENNA_DEPTH, CRUSH_DEPTH, PERISCOPE_DEPTH, TEST_DEPTH
+from ...reports import Quality
 from ...profile import BottomSounding, ChartBottom, DepthTrace, IceSounding, Level
 from ...sonar_view import KEEP_S as SONAR_KEEP_S
 from ...sonar_view import OwnHeading, own_turns
@@ -96,6 +97,7 @@ TASK_OFF_DEG = 30.0         # och föreslår den igen när vi gått så här lå
 TASK_SUGGEST_S = 900
 TASK_TRANSIT_NM = 6.0       # så långt bort föreslår navigatören marschfart dit
 TASK_TRANSIT_KN = 8
+SURFACE_THREAT_NM = 6.0     # ytläge med en fiende så nära i plottet: navigatören frågar en gång
 
 
 class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringMixin, ExitMixin, Station):
@@ -423,6 +425,34 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         return tide.speed(self.now, depth)
 
     # --- order -------------------------------------------------------------------
+    def intercept(self, order: Order) -> bool:
+        """Dykning i fjorden och ytläge med en fiende nära: fråga en gång (`confirm_once`)."""
+        if not isinstance(order, SetDepth) or order.depth > self.ship.max_depth:
+            return False
+        if order.depth > 0 and self._dive_forbidden_here():
+            return self.confirm_once("fjord", "nav.fjord_dive")
+        if order.depth == 0 and self.ship.depth > 1 and (near := self._threat_near()) is not None:
+            return self.confirm_once("surface", "nav.surface_confirm", near)
+        return False
+
+    def _threat_near(self) -> dict | None:
+        """En fientlig kontakt i plottet som ser oss i ytläge: lösning inom SURFACE_THREAT_NM, eller
+        ett örlogsfartyg utan avstånd som vi hört nyss."""
+        best = None
+        for tr in self.game.knowledge.tracks.values():
+            if not tr.threat:
+                continue
+            sol = tr.solution
+            if sol is not None and sol.quality >= Quality.OSAKER:
+                r = sol.range_nm
+                if r <= SURFACE_THREAT_NM and (best is None or r < best["range"]):
+                    best = {"designation": tr.designation, "range": r,
+                            "classification": tr.classification}
+            elif tr.warship and best is None:
+                best = {"designation": tr.designation, "range": None,
+                        "classification": tr.classification}
+        return best
+
     def on_order(self, order: Order) -> None:
         s = self.ship
         match order:
@@ -462,8 +492,6 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                 if d > s.max_depth:
                     self.say("nav.limit", {"what": "depth", "limit": s.max_depth})
                     return
-                if d > 0 and self._dive_forbidden_here():
-                    self.say("nav.fjord_dive", alarm=True)
                 s.order_depth(d)
                 data = {"depth": d, "below_test": d > TEST_DEPTH}
                 latest = self.icemap.latest(self.now)

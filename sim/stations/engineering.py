@@ -12,7 +12,7 @@ from .. import russian as R
 from ..russian import ru
 from ..orders import CommandSpec, Order
 from ..ownship import (COMPONENT_LABEL, COMPONENTS, FLOOD_LOSS_T, PERISCOPE_DEPTH, SMOKE_LEVELS,
-                       TRIM_RESERVE_T)
+                       TEST_DEPTH, TRIM_RESERVE_T)
 from ..systems import (DANGER, INFO, OFF, OK, SEVERITY, WARN, Compartment, Flooding, Gauge,
                        health_state, health_word)
 from .base import Proposal, Station
@@ -217,6 +217,8 @@ PHRASES = {
     "eng.suggest.restart": lambda d: "Kapten, maskin. Föreslår omstart av reaktorn.",
     "eng.suggest.blow": lambda d: f"Kapten, maskin! Vi tar in vatten och sjunker, "
     f"{d['flooding']:.0f} ton ombord. Föreslår nödblåsning!",
+    "eng.blow_confirm": lambda d: "Kapten, maskin. Ingen vatteninträngning och djupet är i ordning. "
+    "Nödblåsningen tömmer högtrycksluften och tar oss rakt upp till ytan. Upprepa ordern om vi ska blåsa.",
     "eng.suggest.sprint": lambda d: "Kapten, maskin. De har oss redan på aktiv sonar, smygandet "
     f"hjälper inte nu. Föreslår turbin och fart {kn(d['speed'])} på {d['depth']:.0f} meter, "
     "där kaviterar vi inte. Djupt och fort bort.",
@@ -383,6 +385,8 @@ RU_PHRASES = {
     "eng.suggest.restart": lambda d: f"{R.CAPTAIN}, пульт. Предлагаю ввести реактор.",
     "eng.suggest.blow": lambda d: f"{R.CAPTAIN}, пульт! Принимаем воду и тонем, "
     f"{round(d['flooding'])} тонн внутри. Предлагаю аварийное продувание!",
+    "eng.blow_confirm": lambda d: f"{R.CAPTAIN}, пульт. Поступления воды нет, глубина в норме. "
+    "Аварийное продувание выбросит нас на поверхность. Повторите приказ, если продуваем.",
     "eng.suggest.sprint": lambda d: f"{R.CAPTAIN}, пульт. Нас уже держат гидролокатором, тишина "
     f"не поможет. Предлагаю турбину и ход {R.count(d['speed'], R.KNOT)} на глубине "
     f"{R.count(d['depth'], R.METER)}, там не кавитируем. Уходим глубоко и быстро.",
@@ -420,6 +424,16 @@ class EngineeringStation(Station):
         self._last_groan = -10**9
         self._inspect_t: int | None = None     # avdelningarna rapporterar då
 
+
+    def intercept(self, order: Order) -> bool:
+        """Nödblåsning utan vatten i båten eller djupfara: fråga en gång (`confirm_once`)."""
+        if not isinstance(order, EmergencyBlow):
+            return False
+        s, st = self.own.sys, self.own.state
+        danger = s.flooding > 0.5 or s.leak_rate > 0 or s.hull < 0.7 or st.depth > TEST_DEPTH - 20
+        if danger or st.depth <= 20:
+            return False
+        return self.confirm_once("blow", "eng.blow_confirm")
 
     def on_order(self, order: Order) -> None:
         own = self.own

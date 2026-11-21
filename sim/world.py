@@ -33,6 +33,7 @@ LAND_BLOCK_DB = 60.0        # ljud genom ett berg: i praktiken inget
 NO_DIVE_MARGIN_NM = 0.2     # förbudet gäller klart innanför mynningen
 G = TypeVar("G", bound=Goal)
 
+SURFACE_GRACE_S = 60        # i ytläge sedda av fienden: så länge innan uppdraget är förlorat
 SINK_ENDING_DELAY = 45      # sekunder brytningsljud innan spelet slutar
 HUNT_NEAR_NM = 1.0          # ett datum så nära oss räknas som att jägaren har oss
 MASK_BEAM_DEG = 4.0         # ett neutralt fartygs brus döljer andra ljud inom så här många grader
@@ -155,12 +156,18 @@ class World:
             if goal.check(self):
                 return
         if self.own.surfaced:
-            for ai in self.ais:
-                if ai.vessel.sunk or not getattr(ai, "can_force", True):
-                    continue
-                if ai.aware() or self.true_range(ai.vessel) < 6.0:
+            seen = any(not ai.vessel.sunk and getattr(ai, "can_force", True) and
+                       (ai.aware() or self.true_range(ai.vessel) < 6.0) for ai in self.ais)
+            if seen:
+                # ett ögonblick att dyka igen (utkiken ropar ut fartyget); ligger vi kvar är det slut
+                t0 = self.mission.setdefault("seen_surfaced_t", self.time)
+                if self.time - t0 >= SURFACE_GRACE_S:
                     self.end("forced")
                     return
+            else:
+                self.mission.pop("seen_surfaced_t", None)
+        else:
+            self.mission.pop("seen_surfaced_t", None)
         if self.patrol_end is not None and self.time >= self.patrol_end:
             self.end("patrol_end")
 

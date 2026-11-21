@@ -243,7 +243,11 @@ PHRASES = {
     + (". Fritt att dyka här." if d.get("surfaced") else ".")
     + (f" {d['to']} ligger framför oss." if d.get("to") else ""),
     "nav.fjord_dive": lambda d: "Kapten, navigatören! Vi är inne i fjorden. Ordern förbjuder "
-    "dykning innanför mynningen!",
+    "dykning innanför mynningen! Upprepa ordern om vi ändå ska dyka.",
+    "nav.surface_confirm": lambda d: f"Kapten, navigatören! Plottet har {d['designation']}, "
+    f"{d['classification']}" + (f", cirka {nm(d['range'])} sjömil bort" if d.get("range") is not None
+                                else ", avståndet okänt")
+    + ". I ytläge ser de oss. Upprepa ordern om vi ska upp.",
     "nav.fairway.none": lambda d: "Kapten, vi har redan gått farleden ut." if d["done"]
     else "Kapten, det finns ingen farled framför oss på kortet.",
     "nav.suggest.fairway": lambda d: "Kapten, navigatören. Jag föreslår att vi följer farleden ut"
@@ -543,7 +547,10 @@ RU_PHRASES = {
     "nav.fairway.leg": lambda d: f"Поворотная точка. Новый курс {R.course(d['course'])}.",
     "nav.fairway.done": lambda d: f"{R.CAPTAIN}, фарватер пройден. Можно погружаться.",
     "nav.fairway.none": lambda d: f"{R.CAPTAIN}, фарватера впереди нет.",
-    "nav.fjord_dive": lambda d: f"{R.CAPTAIN}, штурман! Мы в заливе. Погружение здесь запрещено!",
+    "nav.fjord_dive": lambda d: f"{R.CAPTAIN}, штурман! Мы в заливе. Погружение здесь запрещено! "
+    "Повторите приказ, если погружаемся.",
+    "nav.surface_confirm": lambda d: f"{R.CAPTAIN}, штурман! Рядом {R.contact(d['designation'])}. "
+    "В надводном положении нас увидят. Повторите приказ, если всплываем.",
     "nav.suggest.fairway": lambda d: f"{R.CAPTAIN}, штурман. Предлагаю идти по фарватеру, "
     "правой стороной.",
     "nav.suggest.fairway_to": lambda d: f"{R.CAPTAIN}, предлагаю курс {R.course(d['course'])} "

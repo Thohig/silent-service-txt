@@ -174,3 +174,44 @@ def test_a_near_pinger_sweeping_past_stays_one_pinger():
         for _ in range(10):
             g.tick()
     assert len([r for r in reports if r.type == "sonar.ping.first"]) == 1
+
+
+# --- steg 4: order som bryter mot uppdraget -------------------------------------------------
+def test_blowing_without_reason_is_asked_once():
+    g, reports = _game("jagad", 3)
+    g.command("nödblåsning")
+    _run(g)
+    assert any(r.type == "eng.blow_confirm" for r in reports) and not g.world.own.sys.blowing
+    g.command("nödblåsning")
+    _run(g)
+    assert g.world.own.sys.blowing
+
+
+def test_surfacing_near_a_plotted_enemy_is_asked_but_not_an_accepted_suggestion():
+    g = Game(build_scenario("kuba-kort", random.Random(1)), seed=1)   # vakten har plottat jagaren
+    reports = []
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    g.command("ytläge")
+    _run(g)
+    assert any(r.type == "nav.surface_confirm" for r in reports)
+    assert g.world.own.state.ordered_depth > 0
+    g.suggestion = ("ytläge", "test", g.now)     # besättningens förslag: kaptenen säger ja
+    g.command("ja")
+    _run(g)
+    assert g.world.own.state.ordered_depth == 0
+
+
+def test_surfaced_in_sight_of_the_enemy_gives_a_moment_to_dive():
+    from sim.world import SURFACE_GRACE_S
+    g, _ = _game("kuba-kort", 1)
+    w = g.world
+    w.own.state.depth = 0
+    w.own.state.order_depth(0)
+    ai = w.ais[0]
+    ai.vessel.state.x, ai.vessel.state.y = w.own.state.x + 2, w.own.state.y
+    for _ in range(SURFACE_GRACE_S - 5):
+        w.tick()
+    assert w.outcome is None
+    for _ in range(10):
+        w.tick()
+    assert w.outcome["outcome"] == "forced"
