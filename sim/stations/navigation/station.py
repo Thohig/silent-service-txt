@@ -539,8 +539,12 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
             self._pending.add(what)
 
     def vetoes(self, order: str) -> bool:
-        """Ingen i besättningen föreslår dykning där ordern förbjuder det."""
-        return bool(DIVE_ORDER.search(order.lower())) and self._dive_forbidden_here()
+        """Ingen i besättningen föreslår dykning där ordern förbjuder det, och ingen föreslår en fix
+        i periskopet när kaptenen just beordrat oss ned."""
+        if bool(DIVE_ORDER.search(order.lower())) and self._dive_forbidden_here():
+            return True
+        return self.ship.ordered_depth > PERISCOPE_DEPTH and self.ship.depth <= PERISCOPE_DEPTH + 2 \
+            and isinstance(self.game.registry.parse(order), TakeFix)
 
     def _dive_forbidden_here(self) -> bool:
         """Ordern förbjuder dykning i fjorden, och kortet säger att vi är där."""
@@ -718,8 +722,8 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                          cooldown=1800)
         elif no_lights:
             pass
-        elif s.depth <= PERISCOPE_DEPTH and sigma > 0.8 and "fix" not in self.tasks \
-                and s.speed <= 7 and "depth" not in changing:
+        elif s.depth <= PERISCOPE_DEPTH and s.ordered_depth <= PERISCOPE_DEPTH and sigma > 0.8 \
+                and "fix" not in self.tasks and s.speed <= 7 and "depth" not in changing:
             self.suggest("fix_now", "nav.suggest.fix_now", {"sigma": sigma}, order="fix",
                          cooldown=900)
         elif sigma > 1.0 and s.depth > PERISCOPE_DEPTH and self.icemap.soundings:

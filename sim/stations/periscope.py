@@ -643,10 +643,10 @@ class PeriscopeWatch(Station):
                          kind="contact", quality=Quality.GOD)
             if v.kind == PHOTO_TARGET_KIND:
                 self.game.station(OfficerStation)._suggest_photo()
-        if v.kind == "destroyer" and r_meas < CLOSE_NM:
+        if v.kind == "destroyer" and r_meas < CLOSE_NM and (d := self.dive_depth(100)) is not None:
             self.suggest("down_close", "off.suggest.down",
                          {"reason": f"{desig_} är nära.", "why": "close",
-                          "designation": desig_, "depth": 100}, order="djup 100",
+                          "designation": desig_, "depth": d}, order=f"djup {d}",
                          cooldown=300)
         return SightedObject(v.kind, short, bearing, r_meas, range_quality(r_meas, r_sig),
                              designation=desig_, visible=part, aob=aob,
@@ -680,9 +680,10 @@ class PeriscopeWatch(Station):
             self._called.add(v.id)
             self.say("off.periscope.aircraft", {"bearing": bearing, "range": r_meas, "low": low},
                      kind="contact", alarm=True)
-        self.suggest("down_air", "off.suggest.down", {"reason": "Flygplan i sikte.", "why": "aircraft",
-                                                       "depth": 60},
-                     order="djup 60", cooldown=300, alarm=True)
+        if (d := self.dive_depth(60)) is not None:
+            self.suggest("down_air", "off.suggest.down", {"reason": "Flygplan i sikte.", "why": "aircraft",
+                                                           "depth": d},
+                         order=f"djup {d}", cooldown=300, alarm=True)
         return SightedObject("aircraft", "flygplan", bearing, r_meas, Quality.OSAKER,
                              detail="lågt" if low else "", seen_t=self.now)
 

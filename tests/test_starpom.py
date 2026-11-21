@@ -17,9 +17,12 @@ from sim.stations.navigation.tasks import Attack
 from sim.stations.torpedo_room import FireTube, FireSalvo
 
 
-def _game(seed=3, key=None):
+def _game(seed=3, key=None, periscope=False):
     sc = build_scenario(key, random.Random(seed)) if key else default_scenario(random.Random(seed))
     g = Game(sc, seed=seed)
+    if periscope:       # radions "sänd rapport" ges bara på periskopdjup (mastordern, Station.vetoes)
+        st = g.world.own.state
+        st.depth = st.ordered_depth = 17
     reports = []
     g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
     return g, reports
@@ -90,7 +93,7 @@ def test_suggestion_outside_mandate_rings_the_captain():
     g.command("starpom har befälet")
     g.command("sov")
     _run(g, 3)
-    g.say(Role.RADIO, "order.declined", {"order": "sänd rapport", "made_t": g.now}, kind="suggest")
+    g.say(Role.RADIO, "order.declined", {"order": "avlyssna", "made_t": g.now}, kind="suggest")
     _run(g, 12)
     st = g.status()
     assert st.phone == "ring" and g.time_scale == 1 and not st.sleeping
@@ -98,7 +101,7 @@ def test_suggestion_outside_mandate_rings_the_captain():
     g.command("svara")
     _run(g, 8)
     call = [r for r in reports if r.type == "xo.call"]
-    assert call and "sänd rapport" in call[-1].text
+    assert call and "avlyssna" in call[-1].text
     assert g.status().phone is None
 
 
@@ -107,7 +110,7 @@ def test_cabin_shows_the_decision_after_the_call_and_yes_while_ringing_answers_f
     g, reports = _game()
     g.command("starpom har befälet")
     _run(g, 3)
-    g.say(Role.RADIO, "order.declined", {"order": "sänd rapport", "made_t": g.now}, kind="suggest")
+    g.say(Role.RADIO, "order.declined", {"order": "avlyssna", "made_t": g.now}, kind="suggest")
     _run(g, 12)
     st = g.status()
     assert st.phone == "ring" and st.decision is None
@@ -115,14 +118,14 @@ def test_cabin_shows_the_decision_after_the_call_and_yes_while_ringing_answers_f
     g.command("svara")
     _run(g, 3)
     st = g.status()
-    assert st.decision == "Radio föreslår sänd rapport"
+    assert st.decision == "Radio föreslår avlyssna"
     line = call_line(st, 0.0).plain
-    assert "ERT BESLUT" in line and "sänd rapport" in line and "ja" in line and "nej" in line
+    assert "ERT BESLUT" in line and "avlyssna" in line and "ja" in line and "nej" in line
     g.command("nej")
     _run(g, 2)
     assert g.status().decision is None
     # ja eller nej medan det ringer: kaptenen lyfter luren först och hör varför
-    g.say(Role.RADIO, "order.declined", {"order": "sänd rapport kort", "made_t": g.now},
+    g.say(Role.RADIO, "order.declined", {"order": "avlyssna kort", "made_t": g.now},
           kind="suggest")
     _run(g, 12)
     assert g.status().phone == "ring"
@@ -136,7 +139,7 @@ def test_cabin_shows_the_decision_after_the_call_and_yes_while_ringing_answers_f
 
 
 def test_unanswered_call_brings_the_orderly():
-    g, reports = _game()
+    g, reports = _game(periscope=True)
     g.command("starpom har befälet")
     _run(g, 3)
     g.say(Role.RADIO, "order.declined", {"order": "sänd rapport", "made_t": g.now}, kind="suggest")
@@ -475,7 +478,7 @@ def test_cabin_door_orderly():
     from dataclasses import replace
     from sim.stations.starpom import AJAR_S, STEPS_S
     from ui.cabin_render import lids_of, render_cabin
-    g, reports = _game()
+    g, reports = _game(periscope=True)
     g.command("starpom har befälet")
     _run(g, 3)
     g.say(Role.RADIO, "order.declined", {"order": "sänd rapport", "made_t": g.now}, kind="suggest")

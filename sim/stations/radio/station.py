@@ -146,11 +146,22 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
                     self._intercept_start = self.now
                     self.say("radio.intercept.start", kind="ack")
             case RadioStatus():
-                nxt = next((w for w in self.windows if w + self.window_len > self.now), None)
-                self.say("radio.status", {
-                    "next": self.game.clock_str(nxt) if nxt is not None else None,
-                    "received": len(self.delivered),
-                    "last": self.delivered[-1] if self.delivered else None})
+                self.say("radio.status", self._status_data())
+
+    def _status_data(self) -> dict:
+        """Radions läge: ett sambandstillfälle som pågår och inte är avklarat, annars nästa som inte
+        börjat än, och telegrammen."""
+        clock = lambda t: self.game.clock_str(t)[:5]   # noqa: E731
+        d: dict = {"received": len(self.delivered),
+                   "last": self.delivered[-1] if self.delivered else None}
+        for i, w0 in enumerate(self.windows):
+            if i not in self._handled and w0 <= self.now < w0 + self.window_len:
+                d["open"], d["until"] = clock(w0), clock(w0 + self.window_len)
+                break
+        nxt = next((w for w in self.windows if w > self.now), None)
+        if nxt is not None:
+            d["next"] = clock(nxt)
+        return d
 
     def _nav(self) -> NavigationStation | None:
         try:

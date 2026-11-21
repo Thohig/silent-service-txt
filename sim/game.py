@@ -52,6 +52,7 @@ V = TypeVar("V")
 SUGGESTION_TTL = 300
 ALARM_HOLD_S = 30           # ett larmförslag står så länge mot vanliga förslag
 HELD_MAX_S = 60             # ett förslag som väntat bakom ett larm släpps när det är så här gammalt
+SAME_SUGGESTION_S = 120     # en annan station föreslår samma order inom så här lång tid: släpps
 QUIT_CONFIRMED = "avbryt uppdraget bekräftat"   # ordern som ja verkställer efter frågan
 
 
@@ -169,6 +170,7 @@ class Game:
         self._views: dict[str, tuple[tuple[int, int], Any]] = {}
         self.over = False
         self.suggestion: tuple[str, str, int] | None = None   # (order, text, t)
+        self.suggestion_by = ""                                 # vem som gav förslaget
         self.suggestion_alarm = False            # det väntande förslaget är ett larm
         # ett vanligt förslag som kom medan ett larmförslag stod (ALARM_HOLD_S); det nyaste
         # vinner och levereras när larmet är besvarat eller tiden gått (_release_held)
@@ -315,12 +317,12 @@ class Game:
         return t >= made_t or (o.STANDING and last_order == o)
 
     def _deliver(self, r: Report) -> None:
-        if r.kind == "suggest" and r.data.get("order") and \
-                self.suggestion_redundant(r.data["order"], r.data.get("made_t", r.t_due)):
-            return                              # kaptenen har redan beslutat
+        if r.kind == "suggest" and r.data.get("order") and self._suggestion_stale(r):
+            return
         phrases.render(r, self.clock_str)
         if r.kind == "suggest" and r.data.get("order"):
             self.suggestion = (r.data["order"], r.text, self.now)
+            self.suggestion_by = r.speaker
             self.suggestion_alarm = r.alarm
             self.last_suggestion_t = self.now
             self.suggested_at[r.data["order"]] = self.now
@@ -332,6 +334,19 @@ class Game:
                     if self.suggestion is not None and self.suggestion[0] == r.data["order"]:
                         self.suggestion = None
                     break
+
+    def _suggestion_stale(self, r: Report) -> bool:
+        """Ska förslaget inte levereras? Kaptenen har redan beslutat, någon station säger nu nej
+        (läget har ändrats sedan förslaget gjordes), eller en annan station har just föreslagit
+        samma sak och det står obesvarat."""
+        order = r.data["order"]
+        if self.suggestion_redundant(order, r.data.get("made_t", r.t_due)):
+            return True
+        if any(st.vetoes(order) for st in self.stations):
+            return True
+        sug = self.active_suggestion()
+        return sug is not None and sug[0] == order and r.speaker != self.suggestion_by and \
+            self.now - sug[2] < SAME_SUGGESTION_S
 
     def _confirm_quit(self) -> None:
         """Vakthavande frågar innan uppdraget avbryts; ja verkställer."""

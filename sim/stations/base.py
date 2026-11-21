@@ -116,6 +116,18 @@ class Station:
         return bool(self.MAST_ORDERS) and self.own.state.ordered_depth > PERISCOPE_DEPTH and \
             isinstance(self.game.registry.parse(order), self.MAST_ORDERS)
 
+    def dive_depth(self, want: int) -> int | None:
+        """Djupet att föreslå när vi ska ned: want, men aldrig djupare än navigatören går med på här
+        (kortet framåt, en färsk lodning). None om det inte går att komma under periskopdjup."""
+        from ..ownship import PERISCOPE_DEPTH
+        from .navigation import NavigationStation
+        try:
+            limit = self.game.station(NavigationStation).depth_limit()
+        except KeyError:
+            limit = None
+        depth = int(want if limit is None else min(want, limit))
+        return depth if depth > PERISCOPE_DEPTH else None
+
     def chart_items(self) -> list:
         """Sjökortselement (sim.chart) ur stationens kunskap. Aldrig ur World."""
         return []

@@ -62,6 +62,8 @@ HUSH_SPEED_KN = 6          # tystnad i båten: jagade och högst så här fort (
 HUSH_LIFT_S = 60           # tystnaden hävs när det varit lugnt eller fort så här länge
 ESCORT_CLOSE_NM = 3.0      # en jagare så nära: föreslå inte att gå upp
 ESM_STRONG_S = 300         # mycket stark radar så nyligen: föreslå inte att gå upp
+HUNTED_UP_DEPTH = 50       # jagade: ingen föreslår att gå så här grunt (master, flytkabeln, fix)
+SMOKE_MUST_VENT = 0.7      # så tät rök: ventilationen går före jakten (maskins larmgräns)
 
 
 @dataclass(frozen=True)
@@ -352,6 +354,25 @@ class OfficerStation(Station):
         super().attach(bus)
         bus.subscribe(Handover, self._on_handover)
         self.game.queue.filters.append(self._hush_filter)
+
+    def vetoes(self, order: str) -> bool:
+        """Har fienden oss föreslår ingen att gå upp: periskop- och antenndjup, ytläge, fix,
+        öppningen i isen och ventilation väntar tills jakten är över (nödblåsning och tät rök undantagna)."""
+        if super().vetoes(order):
+            return True
+        if not self.game.knowledge.hunted(self.now) or self.own.sys.smoke >= SMOKE_MUST_VENT:
+            return False
+        from ..orders import split_orders
+        from .engineering import Ventilate
+        from .navigation.common import GoToOpening, SetDepth, TakeFix
+        ordered = self.own.state.ordered_depth
+        for part in split_orders(order):
+            o = self.game.registry.parse(part)
+            if isinstance(o, (TakeFix, GoToOpening, Ventilate)):
+                return True
+            if isinstance(o, SetDepth) and o.depth <= HUNTED_UP_DEPTH and o.depth < ordered:
+                return True
+        return False
 
     # --- tystnad i båten -----------------------------------------------------------
     def _quiet_wanted(self) -> bool:
@@ -705,10 +726,10 @@ class OfficerStation(Station):
                 b = norm360(world.true_bearing(v) + rng.gauss(0, 3))
                 self.say("off.esm.air", {"bearing": b, "strength": strength}, kind="contact",
                          alarm=close)
-            if close:       # också när vi kommer upp igen och flyget fortfarande är nära
+            if close and (d := self.dive_depth(60)) is not None:   # också när vi kommer upp igen
                 self.suggest("down_air", "off.suggest.down",
-                             {"reason": "Flygradar, nära. De kan se våra master.", "why": "air", "depth": 60},
-                             order="djup 60", cooldown=120, alarm=True)
+                             {"reason": "Flygradar, nära. De kan se våra master.", "why": "air", "depth": d},
+                             order=f"djup {d}", cooldown=120, alarm=True)
         self.game.bus.publish(AirRadarHeard(self.now, strongest))
 
     def _surface_ships(self):
@@ -755,7 +776,7 @@ class OfficerStation(Station):
                     b = norm360(world.true_bearing(v) + rng.gauss(0, 3))
                     self.say("off.esm", {"bearing": b, "strength": strength}, kind="contact",
                              alarm=strength == "mycket stark")
-                    if strength == "mycket stark":
+                    if strength == "mycket stark" and (d := self.dive_depth(60)) is not None:
                         self.suggest("down_esm", "off.suggest.down",
-                                     {"reason": "Radarn är mycket stark.", "why": "esm", "depth": 60},
-                                     order="djup 60", cooldown=300, alarm=True)
+                                     {"reason": "Radarn är mycket stark.", "why": "esm", "depth": d},
+                                     order=f"djup {d}", cooldown=300, alarm=True)

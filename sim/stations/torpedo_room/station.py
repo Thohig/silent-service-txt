@@ -5,7 +5,7 @@ import math
 
 from ...chart import LAYER_RAY, Mark, Ray, Track
 from ...crew import Role
-from ...events import CouncilHeld, OwnSoundMade, OwnTorpedoHeard, SoundHeard
+from ...events import CouncilHeld, HuntSigns, OwnSoundMade, OwnTorpedoHeard
 from ...orders import DESIG, NUM, AskContact, CommandSpec, Order, desig, num
 from ...reports import Quality
 from ...systems import INFO, OK, WARN, Gauge, TubeRack
@@ -69,7 +69,7 @@ class TorpedoRoom(FiringMixin, Station):
 
     def attach(self, bus) -> None:
         super().attach(bus)
-        bus.subscribe(SoundHeard, self._on_sound)
+        bus.subscribe(HuntSigns, self._on_hunt)
         bus.subscribe(OwnTorpedoHeard, self._on_own_torpedo)
         bus.subscribe(CouncilHeld, self._note_council)
 
@@ -296,6 +296,8 @@ class TorpedoRoom(FiringMixin, Station):
                 self._finish(r, "silent")
                 self.say("torp.run.silent", d, quality=Quality.GOD)
 
-    def _on_sound(self, e: SoundHeard) -> None:
-        if self.decoys > 0 and (e.kind == "splash" or e.detail == "fast"):
+    def _on_hunt(self, e: HuntSigns) -> None:
+        """Sonar säger att de har oss (täta starka pingar, sjunkbomber): skenmål. Täta svaga pingar
+        långt bort (sonar.ping.fast_far) är någon annans jakt och ger inget förslag."""
+        if self.decoys > 0 and e.reason in ("ping", "splash"):
             self.suggest("decoy", "torp.suggest.decoy", order="skenmål", cooldown=600)

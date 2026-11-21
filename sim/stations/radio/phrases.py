@@ -126,9 +126,13 @@ PHRASES = {
     "radio.listen.lost": lambda d: "Tappade Moskva, antennen kom under ytan.",
     "radio.moscow": lambda d: f"Kapten, radio. Radio Moskva hörs, remsa nummer {d['telegram']}.",
     "radio.moscow.silent": lambda d: "Kapten, radio. Moskva tiger, bara bärvågen.",
-    "radio.status": lambda d: (f"Nästa sambandstillfälle kl {d['next']}. " if d.get("next")
-                               else "Inga fler sambandstillfällen inplanerade. ")
-    + f"{d['received']} meddelanden mottagna."
+    "radio.status": lambda d: (
+        f"Sambandstillfället pågår, från {d['open']} till {d['until']}. " if d.get("open")
+        else f"Nästa sambandstillfälle kl {d['next']}. " if d.get("next")
+        else "Inga fler sambandstillfällen inplanerade. ")
+    + ("Inga meddelanden mottagna." if d["received"] == 0
+       else "1 meddelande mottaget." if d["received"] == 1
+       else f"{d['received']} meddelanden mottagna.")
     + (f" Senaste: {d['last']}" if d.get("last") else ""),
 }
 phrases.register(PHRASES)
@@ -151,8 +155,10 @@ RU_PHRASES = {
     f"{d['clock']} ещё не прошёл. Предлагаю остановиться здесь.",
     "radio.ice": lambda d: f"{R.CAPTAIN}, радист. Антенны подо льдом, приёма нет. "
     "Нужна чистая вода над нами.",
-    "radio.status": lambda d: (f"Следующий сеанс связи в {d['next']}. " if d.get("next")
-                               else "Сеансов связи больше не запланировано. ")
+    "radio.status": lambda d: (
+        f"Идёт сеанс связи, с {d['open']} до {d['until']}. " if d.get("open")
+        else f"Следующий сеанс связи в {d['next']}. " if d.get("next")
+        else "Сеансов связи больше не запланировано. ")
     + f"Принято радиограмм: {d['received']}.",
     "radio.prewarn": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}. Нужна глубина "
     f"под антенну, {R.count(ANTENNA_DEPTH, R.METER)} или меньше.",
