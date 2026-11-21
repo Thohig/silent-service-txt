@@ -30,6 +30,7 @@ laddade från början (`ladda tub 7 tråd`).
   till 4 nm (räckvidden); 53-62T 8, 8, 8, 8, 7, 7. Plottets fel i sidled växer med ungefär 0,7° i bäring
   och passerar träffradien (0,03 nm) strax under 3 nm, även när lösningen är säker. Målsökarnas 8 av 8
   mot stilla mål är troligen för högt (stoppad jagare 137 dB); se `docs/TODO.md`.
+- **Kontroll:** `kalibrering/kontroll.py` som baslinjen (35 min på 4 kärnor).
 
 ## 2026-11-21 – provspel i 3 timmar: förslag med omdöme
 

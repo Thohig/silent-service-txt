@@ -6,9 +6,7 @@ och för in det i rätt dokument (CLAUDE.md, `docs/system/`, `kalibrering/README
 
 ## Köra om
 
-- **Kalibreringskontrollen efter 53-62T** (`kalibrering/kontroll.py`): startad 2026-11-21 men inte
-  färdig i sessionen. Botarna laddar aldrig den trådstyrda; väntat utfall som baslinjen, utom att
-  torpedrummets förrådsrad har fått "53-62T 2".
+Inget just nu.
 
 ## Prova för hand (riktig terminal, macOS)
 
