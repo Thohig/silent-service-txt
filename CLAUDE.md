@@ -148,8 +148,8 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
 - `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden
 - `docs/system/besattning.md`: Radion och telegrammen, Rapporten till staben, Huvudstaben,
   Slutrapportens samband, Radiospaning, Kärnvapenrådet, Starpom, Trim och flytkraft, Back i maskin,
-  Trimmaren
-- `docs/system/vyer.md`: Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
+  Trimmaren, Besättningen under jakt, Fråga en gång
+- `docs/system/vyer.md`: Loggen, Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
 - `docs/system/granssnitt.md`: Huvudmenyn, Ljud
 
 Avslagna förslag (föreslå inte igen): tal på Linux (piper/espeak-ng), animering på sjökortet, bilder i
@@ -208,6 +208,11 @@ för in varje färdigt steg där.
   fyrfix σ 0,1 (två) / 0,2 (en); moln ≥ 0,6 stänger stjärnfixen. Firth-bottnen i ett rutnät 0,05 nm.
 - Omladdning: två slammer à 145 dB (torpeden in, bakluckan stängs); på smygmotorn eller jagade laddar
   minören försiktigt, 8 min i stället för 5 och −12 dB. Jagaren hör slammret ~1,5 nm över skiktet i 5 kn.
+- Jakten (`docs/system/besattning.md`): maskins sprint 220 m, godtar beordrat 180–290 m; smygmotor tidigast
+  10 min efter senaste jakttecknet; sonars undanmanöver uppåt bara till skiktet + 60 m; undervattenstelefonen
+  och "mycket starka" 2, 4, 8 … högst 30 min emellan; skenmål högst var 20:e min; nära pingare (≥ 142 dB)
+  1,5°/s, högst 60°; ingen botten när skarpa laddningar fallit nära de senaste 5 min. Radarvarnaren
+  upprepar en fartygsradar efter 30 min (eller ny styrka, > 15° i bäring). Ytläge sedda: 60 s att dyka.
 - Tystnad i båten: jagade och på smygmotorn eller ≤ 6 kn (`OfficerStation._hush_watch`, hävs efter 60 s).
   Skrovknak 132 dB var 25:e m vid djupändring > 1 m/s under 80 m (rodren i ≳ 6 kn); maskin säger det under jakt.
 - Trådstyrd 53-62T (försök): 35 kn, 7 nm, tråd 5,5 nm; styrs var 20:e s, målsökaren släpps 0,6 nm från

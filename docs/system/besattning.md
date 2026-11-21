@@ -6,7 +6,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
 - **Radion och telegrammen:** allt radion tar emot publiceras som `TelegramReceived` (text, `kind`
   telegram/broadcast, mottagningsnummer ombord) ⇒ `Knowledge.telegrams`. Radiomannen säger bara att det
   kommit (`radio.message`, `radio.moscow`: `data["telegram"]` = numret, texten i `data["text"]` och
-  `read_aloud`, som svenskt tal läser efter raden); loggboken skriver remsan under raden
+  `read_aloud`, som svenskt tal läser efter raden; `ReportQueue` levererar telegrammen i nummerordning
+  även när fraserna fördröjs olika länge); loggboken skriver remsan under raden
   (`ui/strips.py`, `TelegramStrip`, bryts efter loggens bredd, högst `MAX_W`). Ordern är loggens första
   remsa (`SubApp._log_order`, kind "order"). `telegram` öppnar loggboken (`LogScreen(telegrams=True)`,
   alla fönsterstorlekar) med bara remsorna; mellanslag växlar till hela loggen, `logg` likaså. Radio Moskva (`sim/broadcasts.py`): `radio moskva` på antenndjup
@@ -112,14 +113,16 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   styrorder från andra än navigatören medan navigatören anfaller eller följer, och djupare än radion behöver
   (`RadioStation.up_depth`: antenndjup eller flytkabelns 50 m) när ordern kräver rapport. Telefonorder (`phone_orders`, `_on_issued`: kaptenens order medan starpom har befälet, per sak
   `SLOTS` djup/kurs/fart/framdrivning) ändrar han inte själv på förslag de första 10 minuterna (`PHONE_ORDER_S`):
-  telefonen ringer i stället (`phone_order`: "Sonar föreslår djup 150. Ni beordrade djup 50 klockan …"); larm och jakt går före. Med anfallsorder ropas kaptenen (fara) 2 min före
+  telefonen ringer i stället (`phone_order`: "Sonar föreslår djup 150. Ni beordrade djup 50 klockan …"); larm och jakt går före.
+  Ordern sparas och jämförs i besättningens form (`_canon`: "kurs 0" ⇒ "kurs 000", gemener, ett mellanslag). Med anfallsorder ropas kaptenen (fara) 2 min före
   navigatörens `attack_eta_t` och när ett klassat stort fartyg med färsk lösning ≥ osäker är < 3,5 nm
   (`_target_watch`); `nav.attack.arrived` är fara; radions förvarning ringer när ordern kräver rapport. Väckning (`_wake`): info = lampan (civil kontakt, `plot.maneuver`, ny kontakt),
   fråga = telefonen ringer (hotkontakt med lösning ≥ osäker, stort fartyg, konvoj, telegram, förslag utanför
   mandatet, tidsgränsen 15 min, `väck mig`, larm i `ALARM_LEVELS`; samma fråga högst var 10:e min; ordonnansen
   efter 20 s), fara = högtalaren (`alarm_level` "danger": övriga larm, jakttecken) ⇒ 1× och kaptenen är i centralen direkt
   (`_arrive`, samma tick som `jag har befälet`; ingen gång sedan 2026-11-19, telefonen tystnar) och får
-  lägesrapport (`xo.handback`, `officer.situation`).
+  lägesrapport (`xo.handback`, `officer.situation`); larmet som kallade honom i högtalaren står först bland
+  skälen (`_arrive(first=…)`; förut kom ett senare plottlarm först).
   En väckningstid som passerat innan överlämnandet släpps vid överlämnandet.
   `tid 30`/`60` bara med starpom i befäl; `sov` ⇒ 60×, och larm som bara tänder lampan (info/None i
   `ALARM_LEVELS`) sänker inte tiden (`keeps_time_scale`); frågor och fara sänker han själv i `_wake`. Status: `StatusSnapshot.command`, `captain_at` (central/cabin),
@@ -197,3 +200,35 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   han minsta fart upp till 7 kn som räcker (`heave_speed_f`), annars `djup 25` (`trim.heave`, larmförslag, god,
   spärr 10 min). Panelen TRIM visar "Sjön suger: djupet slår N m" från 0,5 m, varning när tornet är nära
   ytan. Bryter tornet ändå ytan larmar centralen (`broach`, via maskins larmkö).
+- **Besättningen under jakt** (rättelser efter provspelet 2026-11-21, `tests/test_playtest_fixes.py`):
+  - *Djupt och fort:* maskins sprint (`EngineeringStation._sprint`) siktar på `SPRINT_DEPTH` 220 m men
+    godtar ett beordrat djup från 180 m ned till `SPRINT_DEEPEST` 290 m (eller navigatörens djupgräns) och
+    räknar kavitationsfarten där; så drar den inte upp båten igen efter sonars undanmanöver (förut pendlade
+    ja-boten 220 ↔ 280 m med skrovknak). Smygmotor (`eng.suggest.creep`) föreslås först
+    `CREEP_AFTER_HUNT_S` (10 min) efter senaste jakttecknet (`_hunt_quiet`, `_hunted_t`).
+  - *Sonars undanmanöver* (`SonarRoom._evasive_depth(cause=…)`): "laddningarna inställda på fel djup" bara
+    efter plask (`cause="charges"`), annars "så att de tappar ekot" (pingtakt, aktiv sonoboj); uppåt bara
+    till skiktet + 60 m.
+  - *Glesare upprepningar:* undervattenstelefonen 2, 4, 8 … högst 30 min emellan (`UWT_*`, "De sänder
+    fortfarande" efter första gången, ny omgång efter 30 min tystnad); "pingarna är mycket starka" per
+    pingare på samma sätt (`CLOSE_*`); skenmål högst var `DECOY_SUGGEST_S` (20 min), med antalet kvar när
+    två eller färre återstår.
+  - *Samma pingare:* starka pingar (≥ `PING_NEAR_RL`) får flytta sig `PING_DRIFT_NEAR_DEG_PER_S` (1,5°/s),
+    högst `PING_SAME_MAX_NEAR_DEG` (60°), och räknas ändå som samma pingare (en patrullbåt som passerar).
+  - *Sjunkna kontakter:* brytningsljud från en känd kontakt ⇒ `ContactSunk`; `Knowledge` sätter
+    `ContactTrack.sunk_t` (inte hållen, inget hot), sonar glömmer pingaren (andras pingar får inte dess
+    namn) och säger inte "Har tappat", torpedrummet säger `torp.time.sunk` i stället för "Tid för torpeden".
+  - *Botten under anfall:* navigatören föreslår inte `botten` när skarpa laddningar fallit nära de senaste
+    5 min (`Knowledge.charged_close`); ligger vi på botten och de bombar oss där föreslår maskin att lätta
+    (`eng.suggest.lift`, larm: turbin och sprintfart, `_sprint(lift=True)`).
+  - *För nära för att skjuta:* träffpunkten närmare än `ARM_DISTANCE_NM` + `TOO_CLOSE_MARGIN_NM` (0,25 +
+    0,15 nm) ⇒ torpedrummet frågar en gång (`torp.too_close`; inte salva eller kärnladdning).
+- **Fråga en gång** (`Station.confirm_once`, anropas i `intercept`; `CONFIRM_S` 60 s): en order som bryter
+  mot uppdraget eller saknar skäl stoppas första gången med skälet, och samma order inom en minut
+  verkställs. Navigatören: dykning i fjorden (`nav.fjord_dive`, övningen) och ytläge när plottet har en
+  fiende inom `SURFACE_THREAT_NM` (6 nm, lösning ≥ osäker, eller ett örlogsfartyg utan avstånd;
+  `nav.surface_confirm`). Maskin: nödblåsning utan vatten i båten (> 0,5 t eller läcka), skrovskada eller
+  djupfara (`eng.blow_confirm`). Ett förslag kaptenen sagt ja till (`Game.accepting`) och vakten före
+  överlämnandet (`Game.warmup_running`) frågas aldrig; starpoms order går inte genom `intercept`.
+  Sedda i ytläge har vi `SURFACE_GRACE_S` (60 s, `World._check_outcome`, `mission["seen_surfaced_t"]`)
+  att dyka igen innan uppdraget slutar med `forced`.

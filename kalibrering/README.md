@@ -43,6 +43,7 @@ scratchpad (2026-11-14–15). En del läser sanningen (`sundet.py --orakel`, `su
 | `langvag.py` | scenarier (kommaseparerade), frön | ja-boten; radiogram med masten och på långvåg, stympade och missade sambandstillfällen |
 | `ytskott.py` | (eget upplägg) typer, frön | ytläge, stillaliggande jagare 1–6 nm, radar varje minut i 10 min, sedan ett skott (eller `salva`) per typ |
 | `provspel.py` | scenarier (kommaseparerade), timmar, frö | provspelskaptenen: ja, rutinorder, vyer, periskop, eld på god lösning ≤ 3 nm; hela rapportflödet till `logs/provspel/` att läsa |
+| `kaos.py` | scenarier, frön (kommaseparerade), minuter | kaosboten: slumpade, udda och felaktiga order, ja/nej/jest på förslagen, vyer varje minut; letar undantag, oifyllda fält, punktdecimaler, kurser utan tre siffror, NaN, sanningens id:n; flödet till `logs/kaos/` |
 
 Provkörda 2026-11-15 med ett frö var. Alla gick utan fel. `konvoj.py` och `kuba_jakt.py`
 kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
@@ -54,7 +55,7 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 1 ⇒ 3 (tiden ute 7 ⇒ 5); krig ja hemma 7, förlorad 1 (efter första omgången 2: båten la sig på botten
 mitt i anfallet, nu `charged_close` och `eng.suggest.lift`). konvoj-mot passiv med vaktens salva, 24
 frön: neutral sänkt 2 ⇒ 0. Baslinjen sparad. Provspelet före rättelserna: ~100 spel (provspel.py frö
-29, en kaosbot med udda order 3 frön × 20 scenarier, riktade lägen, krig 14 h frö 5–7), inga undantag.
+29, `kaos.py` 3 frön × 20 scenarier, riktade lägen, krig 14 h frö 5–7), inga undantag.
 
 **Ytskott mot stillaliggande mål (2026-11-21, `ytskott.py`, frön 1–8):** träffar av 8 på 1/2/3/4/5/6 nm:
 53-61 ensam 8/7/2/2/2/2, salva med tre 53-61 8/7/4/6/5/5, SET-53 8/8/8/8 (5 och 6 nm utom räckhåll),

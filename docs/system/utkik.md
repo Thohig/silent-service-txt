@@ -38,6 +38,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (`periscope.Judges`, delad med bryggan) dras en gång per hissning och föremål, i hålläge om var 60:e s;
   då får plottet en observation (bäring och avstånd efter förstoringen, `AOB_SIGMA`, fart 2). Nytt i
   okularet ropas ut en gång per hissning. Egen slumpström (`game.rng_for("periscope")`). Övningsledaren räknar bara `live=False`.
+  Radarvarnaren (vakthavande, `OfficerStation`, var 10:e s på periskopdjup) ropar ut en fartygsradar igen
+  bara när styrkan ändrats, den flyttat sig mer än `ESM_MOVED_DEG` (15°) eller efter `ESM_REPEAT_S`
+  (30 min; `_esm_said`). Känner den bara igen dem när vi kommer upp säger den "samma N radarstationer som
+  förut" (`off.esm.same`). När radarn senast hördes (`_esm_last`) läser konvojvakten för "mycket stark".
   Två förstoringar (`periscope.Optic`, `LOW`/`HIGH`): låg 1,5×, ±16°, bäring σ 1°, avstånd 15 % + 0,05 nm, kurs
   σ × 1,5; hög 6×, ±4°, bäring σ 0,5°, avstånd 8 % + 0,03 nm (stadimetern). Svepet söker och mäter i låg;
   titten söker i låg (±16°) och mäter i hög; hålläget i den valda (`förstoring hög`/`låg`, `PeriscopePower`,

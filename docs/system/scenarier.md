@@ -24,6 +24,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   konvojen vidare och eskorten släpper. (Siffran är från Beaufort 4; sedan 2026-11-19 går konvojen i 5,
   4–6 med vädret: eskorternas ping −3 dB, deras radar och utkik mot masterna ×0,35, havsbruset +5 dB, och
   periskopdjupet kräver ~6 kn; se `docs/system/hav.md` och `kalibrering/README.md`.)
+  Motanfallet (`konvoj-mot`, `_CounterattackWatch`): vaktens salva frågar torpedrummet en gång om målet;
+  varnar torpedrummet i stället för ett neutralt fartyg i banan (`_neutral_warned`) byter vakten mål
+  (`skip`) i stället för att upprepa (förut neutral sänkt i 2 av 24 frön, 3 och 9 min efter överlämnandet).
 - **Konvoj i plottet** (`zigzag.py`, kunskap): vid varje målmanöver sparar plottet benets sista
   lösning ≥ osäker (`ContactTrack.legs`, `turns`). Baskurs = viktad rak linje genom benlägena
   (σ läge + 0,8 nm sicksack), farten = median av benens fart längs baskursen; kvalitet ur σ och
@@ -59,7 +62,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (`Scenario.fairway` ur sjökortets fjord ⇒ `Knowledge.fairway`/`fairway_to`, ritas `╌`). Navigatören
   (`farleden`, goal "fairway") styr 0,15 nm till styrbord, gir 0,25 nm före brytpunkten, säger
   `nav.fairway.done` (fritt att dyka) och föreslår `kurs mot övningsområdet`; föreslår `farleden` i
-  fjorden (var 10:e min). Landvarningen tiger om landet ligger bortom girpunkten. Fix från bryggan
+  fjorden (var 10:e min). Landvarningen tiger om landet ligger bortom girpunkten. En dykorder i fjorden
+  frågar navigatören om en gång (`confirm_once`); upprepad inom en minut dyker vi och övningen är förlorad. Fix från bryggan
   (`_bridge_bearings`: ytläge, bemannad, land i sikte): ingen mast, ingen fartgräns, var 3:e min av sig
   själv, rättelse < 0,15 nm sägs inte. Trafik in/ut med brytpunkter 0,2 nm till styrbord.
   Övningsområdet 4,5 nm norr om mynningen, 1,5–2,5 nm vid sidan av leden; botten 350–420 m.
@@ -111,6 +115,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (`PlotTeam._hunter_watch`, kunskap): efter 10 min jakt säger plottet jagarens fart (lösning ≥ osäker, färsk)
   och pingtakt (mediangapet mellan hans pingar de senaste 5 min: tätt ≤ 10 s, glest ≥ 20 s), och efter 25 min
   att han inte ger upp. Under jakt är lösningen oftast för dålig för farten; pingtakten finns nästan alltid.
+  I ytläge: sedd av en jagare (medveten eller < 6 nm) har vi en minut att dyka innan uppdraget slutar
+  (`SURFACE_GRACE_S`); navigatören frågar före ytläge med en fiende i plottet (`docs/system/besattning.md`).
 - **Flyg:** `air.py` (sanning). `AirPatrol` (en spawner) skickar ett plan i taget;
   `AircraftAI` söker med radar, bojar och MAD och ger jagaren datum (`DestroyerAI._set_datum`).
   Plan och bojar är `Vessel` som inte är fartyg (`is_ship` falskt, tysta). Besättningen

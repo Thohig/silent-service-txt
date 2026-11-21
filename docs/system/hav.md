@@ -90,6 +90,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   närmaste kurs i steg om 10° vars väg är fri, annars den djupaste. Bara där det finns land
   (sundet, övningen); på vanlig väg girar den sällan (fingeravtrycket ändrades bara i sundet-in/1,
   patrullbåten i farleden; kontrollen oförändrad).
+  `kurs mot banken` (`SteeringMixin._steer_to_bank`, i scenarier vars sjökort har en `Bank`): kurs mot
+  närmaste punkt där kortet visar `BANK_MIN_M`–`BANK_MAX_M` (60–250 m, att lägga sig på), sökt var 5:e grad
+  ut till `BANK_LOOK_NM`; står vi redan där säger navigatören det (`nav.steer.bank_here`). Navigatören
+  föreslår inte botten under ett pågående anfall (`Knowledge.charged_close`, se Besättningen under jakt).
   Ligga på botten (`botten`, `OwnSystems.settle`/`on_bottom`): saktar till 1 kn, går ned först
   under 1,5 kn, sätter sig vid kontakt; World flyttar oss inte. Ljud: maskin 100 + pumpar 112 dB
   (mot 112/128 + 120). Ekoavdrag (`bottom_clutter`): 25 dB stilla på botten, 10 dB inom 20 m.
