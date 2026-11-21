@@ -1,5 +1,6 @@
 """Start i webbläsaren (Pyodide). Sidan (`index.html`) packar upp spelet, sätter
-`sys.path` och anropar `main` med terminalens storlek; tangenter går till `feed`."""
+`sys.path` och anropar `main` med terminalens storlek; tangenter går till `feed`.
+Sidans ljud (`bridge.audio`, en AudioWorklet) blir `web_audio.WebOut.sink`."""
 from __future__ import annotations
 
 import asyncio.tasks
@@ -22,11 +23,36 @@ from pyodide_driver import PyodideDriver  # noqa: E402
 LOG_DIR = "/home/pyodide/logs"      # sanningsloggen i minnet (försvinner när sidan laddas om)
 
 
+class JsAudio:
+    """Sidans ljudbrygga som `WebOut` vill ha den: numpy in, Float32Array ut."""
+
+    def __init__(self, audio):
+        self.js = audio
+        self.rate = int(audio.rate)
+
+    def time(self) -> float:
+        return float(self.js.time())
+
+    def push(self, x) -> None:
+        import js
+        flat = x.reshape(-1)                        # sammanflätat: v, h, v, h …
+        buf = js.Float32Array.new(len(flat))
+        buf.assign(flat)
+        self.js.push(buf)
+
+    def clear(self) -> None:
+        self.js.clear()
+
+
 async def main(bridge, cols: int, rows: int, seed: int | None = None,
                scenario: str | None = None) -> None:
     from ui.app import SubApp
 
+    from web_audio import WebOut
+
     PyodideDriver.bridge = bridge
+    audio = getattr(bridge, "audio", None)
+    WebOut.sink = JsAudio(audio) if audio is not None else None
     app = SubApp(seed=seed, scenario=scenario or None, sound=False, log_dir=LOG_DIR)
     await app.run_async(size=(cols, rows))
 

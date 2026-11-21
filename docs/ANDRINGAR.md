@@ -3,6 +3,16 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-21 – ljud i webbversionen, W1: utgången
+
+Mixern (`ui.ambience.Ambience`) kan spela i webbläsaren. `web/web_audio.py` (`WebOut`, samma gränssnitt
+som `AmbientOut`) fyller från händelseslingan på en kö 0,25 s fram, eftersom Pyodide saknar trådar och
+Web Audios ljudtråd inte kan anropa Python; en AudioWorklet i `web/index.html` spelar kön i 22 050 Hz.
+Står slingan still längre än kön räcker blir det tyst en stund och kön börjar om. Ännu inte inkopplat i
+spelet (W3). Mätt i Pyodide: ~0,3 ms per block om 46 ms, syntesen av bakgrundsljuden 0,2 s, menyns 1 s.
+Provat i panelen: ljudklockan går efter ett klick och kön hålls vid 0,25 s. Tester med låtsad sida i
+`tests/test_webb.py`.
+
 ## 2026-11-21 – webbversionen (GitHub Pages)
 
 Spelet går att spela i webbläsaren, utan ljud. Pyodide kör samma `sim/` och `ui/`, och Textual ritar i

@@ -23,6 +23,53 @@ laddar …</div>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.29.5/full/pyodide.js"></script>
 <script>
 const TEXTUAL = "textual==8.2.8";
+
+// Ljudet: Python (web_audio.WebOut) fyller på en kö i förväg, och den här processorn spelar
+// den i Web Audios ljudtråd. Stereo sammanflätat; tom kö ger tystnad.
+const WORKLET = `
+class K114Out extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.q = []; this.pos = 0;
+    this.port.onmessage = (e) => {
+      if (e.data === "clear") { this.q = []; this.pos = 0; return; }
+      this.q.push(e.data);
+      if (this.q.length > 64) { this.q.shift(); this.pos = 0; }   // högst ~3 s i kö
+    };
+  }
+  process(_in, outputs) {
+    const l = outputs[0][0], r = outputs[0][1] || outputs[0][0];
+    let i = 0;
+    while (i < l.length && this.q.length) {
+      const b = this.q[0];
+      while (i < l.length && this.pos < b.length) {
+        l[i] = b[this.pos]; r[i] = b[this.pos + 1]; this.pos += 2; i++;
+      }
+      if (this.pos >= b.length) { this.q.shift(); this.pos = 0; }
+    }
+    for (; i < l.length; i++) { l[i] = 0; r[i] = 0; }
+    return true;
+  }
+}
+registerProcessor("k114-out", K114Out);`;
+
+async function makeAudio() {
+  // Webbläsaren tillåter ljud först efter en tangent eller ett klick: till dess står klockan still.
+  if (!window.AudioWorkletNode) return null;
+  const ctx = new AudioContext({ sampleRate: 22050 });
+  const url = URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" }));
+  await ctx.audioWorklet.addModule(url);
+  const node = new AudioWorkletNode(ctx, "k114-out", { outputChannelCount: [2] });
+  node.connect(ctx.destination);
+  const wake = () => { if (ctx.state !== "running") ctx.resume(); };
+  for (const t of ["keydown", "pointerdown"]) addEventListener(t, wake, true);
+  return {
+    rate: ctx.sampleRate,
+    time: () => ctx.currentTime,
+    push: (buf) => node.port.postMessage(buf, [buf.buffer]),
+    clear: () => node.port.postMessage("clear"),
+  };
+}
 const status = document.getElementById("status");
 const say = (s) => { status.textContent = "K-114\n" + s; };
 
@@ -53,7 +100,10 @@ async function start() {
   term.onData((d) => game.feed(d));
   new ResizeObserver(() => { fit.fit(); game.resize(term.cols, term.rows); })
     .observe(document.getElementById("term"));
+  let audio = null;
+  try { audio = await makeAudio(); } catch (e) { console.warn("inget ljud:", e); }
   const bridge = {
+    audio,
     write: (s) => term.write(s),
     exit: () => { say("Spelet är avslutat. Ladda om sidan för att spela igen."); status.classList.remove("done"); },
   };
