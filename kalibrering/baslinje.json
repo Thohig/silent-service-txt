@@ -28,10 +28,12 @@
   },
   "ja": {
    "utfall": {
+    "patrol_end": 1,
     "report_missed": 3,
-    "reported": 5
+    "reported": 4
    },
    "minuter": {
+    "patrol_end": 45,
     "report_missed": 35,
     "reported": 35
    }
@@ -48,14 +50,14 @@
   },
   "ja": {
    "utfall": {
-    "lost": 2,
-    "patrol_end": 1,
+    "lost": 1,
+    "patrol_end": 2,
     "station_reached": 5
    },
    "minuter": {
-    "lost": 242,
+    "lost": 206,
     "patrol_end": 360,
-    "station_reached": 336
+    "station_reached": 270
    }
   }
  },
@@ -70,12 +72,12 @@
   },
   "ja": {
    "utfall": {
-    "patrol_end": 4,
-    "station_reached": 4
+    "patrol_end": 5,
+    "station_reached": 3
    },
    "minuter": {
     "patrol_end": 55,
-    "station_reached": 46
+    "station_reached": 47
    }
   }
  },
@@ -90,12 +92,12 @@
   },
   "ja": {
    "utfall": {
-    "escaped": 5,
-    "lost": 3
+    "escaped": 7,
+    "lost": 1
    },
    "minuter": {
-    "escaped": 35,
-    "lost": 74
+    "escaped": 34,
+    "lost": 49
    }
   }
  },
@@ -112,12 +114,10 @@
   },
   "ja": {
    "utfall": {
-    "escaped": 6,
-    "patrol_end": 2
+    "escaped": 8
    },
    "minuter": {
-    "escaped": 22,
-    "patrol_end": 30
+    "escaped": 22
    }
   }
  },
@@ -128,7 +128,7 @@
     "patrol_end": 4
    },
    "minuter": {
-    "forced": 218,
+    "forced": 220,
     "patrol_end": 420
    }
   },
@@ -192,7 +192,7 @@
     "patrol_end": 1
    },
    "minuter": {
-    "convoy_missed": 123,
+    "convoy_missed": 100,
     "patrol_end": 240
    }
   }
@@ -208,8 +208,8 @@
   },
   "ja": {
    "utfall": {
-    "convoy_missed": 1,
-    "patrol_end": 7
+    "convoy_missed": 3,
+    "patrol_end": 5
    },
    "minuter": {
     "convoy_missed": 75,
@@ -221,28 +221,26 @@
   "passiv": {
    "utfall": {
     "convoy_attacked": 2,
+    "convoy_missed": 1,
     "lost": 1,
-    "neutral_sunk": 1,
     "patrol_end": 4
    },
    "minuter": {
     "convoy_attacked": 22,
+    "convoy_missed": 40,
     "lost": 22,
-    "neutral_sunk": 6,
     "patrol_end": 34
    }
   },
   "ja": {
    "utfall": {
-    "convoy_attacked": 3,
-    "convoy_missed": 1,
-    "neutral_sunk": 1,
-    "patrol_end": 3
+    "convoy_attacked": 5,
+    "convoy_missed": 2,
+    "patrol_end": 1
    },
    "minuter": {
-    "convoy_attacked": 27,
-    "convoy_missed": 27,
-    "neutral_sunk": 6,
+    "convoy_attacked": 25,
+    "convoy_missed": 32,
     "patrol_end": 33
    }
   }
@@ -296,11 +294,11 @@
   },
   "ja": {
    "utfall": {
-    "escaped": 2,
-    "patrol_end": 6
+    "escaped": 1,
+    "patrol_end": 7
    },
    "minuter": {
-    "escaped": 113,
+    "escaped": 112,
     "patrol_end": 240
    }
   }
@@ -318,11 +316,11 @@
   },
   "ja": {
    "utfall": {
-    "lost": 4,
-    "patrol_end": 4
+    "lost": 5,
+    "patrol_end": 3
    },
    "minuter": {
-    "lost": 30,
+    "lost": 32,
     "patrol_end": 43
    }
   }
@@ -342,7 +340,7 @@
     "record_missed": 5
    },
    "minuter": {
-    "clyde_done": 419,
+    "clyde_done": 418,
     "record_missed": 433
    }
   }
@@ -378,12 +376,12 @@
   },
   "ja": {
    "utfall": {
-    "patrol_done": 6,
-    "patrol_end": 2
+    "lost": 1,
+    "patrol_done": 7
    },
    "minuter": {
-    "patrol_done": 664,
-    "patrol_end": 840
+    "lost": 554,
+    "patrol_done": 663
    }
   }
  },
@@ -404,7 +402,7 @@
     "patrol_end": 5
    },
    "minuter": {
-    "patrol_done": 143,
+    "patrol_done": 129,
     "patrol_end": 175
    }
   }
