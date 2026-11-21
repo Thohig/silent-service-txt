@@ -289,6 +289,10 @@ class Knowledge:
         """Har fienden troligen kontakt med oss (tecken hörda nyligen)?"""
         return now - self.hunt_t <= window
 
+    def charged_close(self, now: int, window: int = 300) -> bool:
+        """Skarpa sjunkbomber nära oss nyligen (sonar eller maskin): jagaren har ett bra läge på oss."""
+        return any(c.real and c.near and now - c.t <= window for c in self.charges)
+
     def threat_held(self) -> bool:
         return any(t.threat for t in self.tracks.values())
 

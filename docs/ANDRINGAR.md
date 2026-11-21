@@ -57,6 +57,10 @@ krigspatrullen i 14 h, gränssnittet i 80×24, 120×40 och 220×60) gav inga und
   radarstationer som förut" (`off.esm.same`). Clyde frö 29: 9 rader på 2 h i stället för 39.
 - **För nära för att skjuta:** ligger träffpunkten närmare än armeringssträckan + 0,15 nm frågar
   torpedrummet en gång ("exploderar inte", `torp.too_close`); boten sköt förut på 0,3 nm utan ett ord.
+- **Botten under anfall:** navigatören föreslår inte botten när skarpa sjunkbomber fallit nära de
+  senaste 5 min (`Knowledge.charged_close`), och ligger vi på botten när de bombar oss där föreslår
+  maskin att lätta (`eng.suggest.lift`: turbin och sprintfart). Kalibreringskontrollen visade det:
+  ja-boten i krig la sig på botten mitt i anfallet och dog där (2 av 8 förlorade).
 - **Prov:** `tests/test_playtest_fixes.py`.
 
 ## 2026-11-21 – trådstyrd torped (53-62T, försök)

@@ -217,6 +217,8 @@ PHRASES = {
     "eng.suggest.restart": lambda d: "Kapten, maskin. Föreslår omstart av reaktorn.",
     "eng.suggest.blow": lambda d: f"Kapten, maskin! Vi tar in vatten och sjunker, "
     f"{d['flooding']:.0f} ton ombord. Föreslår nödblåsning!",
+    "eng.suggest.lift": lambda d: f"Kapten, maskin! De bombar oss på botten, de har vårt läge. "
+    f"Föreslår att vi lättar: turbin och fart {d['speed']} på {d['depth']:.0f} meter, bort härifrån.",
     "eng.blow_confirm": lambda d: "Kapten, maskin. Ingen vatteninträngning och djupet är i ordning. "
     "Nödblåsningen tömmer högtrycksluften och tar oss rakt upp till ytan. Upprepa ordern om vi ska blåsa.",
     "eng.suggest.sprint": lambda d: "Kapten, maskin. De har oss redan på aktiv sonar, smygandet "
@@ -385,6 +387,8 @@ RU_PHRASES = {
     "eng.suggest.restart": lambda d: f"{R.CAPTAIN}, пульт. Предлагаю ввести реактор.",
     "eng.suggest.blow": lambda d: f"{R.CAPTAIN}, пульт! Принимаем воду и тонем, "
     f"{round(d['flooding'])} тонн внутри. Предлагаю аварийное продувание!",
+    "eng.suggest.lift": lambda d: f"{R.CAPTAIN}, пульт! Бомбят нас на грунте, место наше знают. "
+    f"Предлагаю отрываться: турбина, {R.count(d['speed'], R.KNOT)}, глубина {R.count(d['depth'], R.METER)}.",
     "eng.blow_confirm": lambda d: f"{R.CAPTAIN}, пульт. Поступления воды нет, глубина в норме. "
     "Аварийное продувание выбросит нас на поверхность. Повторите приказ, если продуваем.",
     "eng.suggest.sprint": lambda d: f"{R.CAPTAIN}, пульт. Нас уже держат гидролокатором, тишина "
@@ -606,10 +610,11 @@ class EngineeringStation(Station):
             self._hunted_t = self.now
         return self.now - getattr(self, "_hunted_t", -10**9) >= CREEP_AFTER_HUNT_S
 
-    def _sprint(self) -> tuple[str, dict] | None:
-        """Upptäckta: djupt och så fort det går utan kavitation. None om vi redan gör det."""
+    def _sprint(self, lift: bool = False) -> tuple[str, dict] | None:
+        """Upptäckta: djupt och så fort det går utan kavitation. None om vi redan gör det.
+        lift: vi ligger på botten och de bombar oss där: lätta och gå."""
         own, s, st = self.own, self.own.sys, self.own.state
-        if s.on_bottom or s.settle or not own.power:
+        if (s.on_bottom or s.settle) and not lift or not own.power:
             return None
         from .navigation import NavigationStation
         depth = SPRINT_DEPTH
@@ -730,6 +735,10 @@ class EngineeringStation(Station):
             self._hunted_t = self.now
         if self.game.knowledge.torpedo_alarm(self.now) or self.game.knowledge.doors_t >= self.now - 60:
             pass                            # torped i vattnet: sonars undanmanöver gäller
+        elif hunted and s.on_bottom and self.game.knowledge.charged_close(self.now, 120) and \
+                (p := self._sprint(lift=True)) is not None:
+            order, data = p
+            self.suggest("lift", "eng.suggest.lift", data, order=order, cooldown=300, alarm=True)
         elif hunted and (p := self._sprint()) is not None:
             order, data = p
             self.suggest("sprint", "eng.suggest.sprint", data, order=order, cooldown=600)

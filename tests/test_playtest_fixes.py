@@ -254,3 +254,18 @@ def test_radar_warner_does_not_repeat_known_radars():
     st.depth = st.ordered_depth = 17
     _run(g, 30)
     assert any(r.type == "off.esm.same" for r in reports)
+
+
+def test_no_settling_under_attack_and_lift_off_when_bombed_on_the_bottom():
+    from sim.events import ChargeHeard
+    from sim.stations.navigation import NavigationStation
+    g, reports = _game("jagad", 5)
+    k = g.knowledge
+    g.bus.publish(ChargeHeard(g.now, True, Quality.GOD, True, "sonar", 90.0))
+    assert k.charged_close(g.now)
+    assert g.station(NavigationStation)._settle_proposal() is None
+    s = g.world.own.sys
+    s.on_bottom = True
+    g.world.own.state.speed = g.world.own.state.ordered_speed = 0
+    order, data = g.station(EngineeringStation)._sprint(lift=True)
+    assert "fart" in order and "turbin" in order

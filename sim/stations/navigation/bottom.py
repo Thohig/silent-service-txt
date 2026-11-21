@@ -189,6 +189,8 @@ class BottomMixin:
             return None                 # hemkallade: vi ska ut, inte ligga still
         if not k.hunted(self.now) and self._radio_window_pending():
             return None                 # radion ska upp och ta emot: lägg oss inte på botten nu
+        if k.charged_close(self.now):
+            return None                 # de bombar redan där vi är: botten gömmer oss inte nu
         here = self.bottom_here()
         if here is None or here[1] is None or here[1] == "klippa" or here[0] > SETTLE_SUGGEST_MAX_M:
             return None
