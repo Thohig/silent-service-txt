@@ -3,6 +3,46 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-21 – provspel i 3 timmar: förslag med omdöme
+
+Ett provspel i 3 timmar speltid i alla långa scenarier (ja-kapten som också tittar, skjuter och ger
+rutinorder) gav en rad förslag som en riktig besättning inte hade gett. Rättat:
+- **Inte upp när de har oss.** Navigatören föreslog fix på periskopdjup och radion antenndjup för
+  sambandet med jagaren 0,3 nm bort och pingarna genom skrovet; den som sa ja jojade mellan 220 och 40 m
+  med skrovknak och kavitation. Nu säger vakthavande nej (`OfficerStation.vetoes`) till allt som tar oss
+  uppåt (periskop- och antenndjup, ytläge, `djup` ≤ 50 m grundare än beordrat, fix, vak, ventilation)
+  medan `Knowledge.hunted`; tät rök (≥ 0,7) och nödblåsning undantagna. Vetot prövas också när förslaget
+  levereras (`Game._suggestion_stale`), så ett förslag som låg i kön när jakten började släpps.
+- **Ingen periskopfix på väg ned.** "Vi är på periskopdjup, föreslår fix" kom sekunden efter en dykorder och
+  vägrades sedan. Villkoret ser nu det beordrade djupet, och navigatören säger nej till `fix` på väg ned.
+- **Ned, men inte i botten.** Vakthavandes, periskopets och bryggans "föreslår djup 60/100" följer nu
+  navigatörens djupgräns (`Station.dive_depth`, som sonar och maskin redan gjorde); i Clyde föreslogs djup
+  60 där kortet visade 40 m. Går det inte under periskopdjup föreslås inget djup.
+- **Skenmål bara mot oss.** Torpedrummet föreslog skenmål två sekunder efter att sonar sagt "de jagar
+  något långt bort, inte oss". Nu på jakttecken (`HuntSigns`), inte på varje tät ping.
+- **Samma förslag en gång.** Navigatören och maskin föreslog båda "fart 5, djup 60" inom sekunder; samma
+  order från en annan station inom 2 min (`SAME_SUGGESTION_S`) släpps.
+- **Rapporten före förslaget.** "Föreslår smygmotor" kom före "ny kontakt", "föreslår djup 60" före
+  radarvarnaren. `ReportQueue` lägger ett förslag efter rapporter som ligger inom 6 s i kön.
+- **Radions statusrad.** Sa "nästa sambandstillfälle kl 09:00:00" kl 09:15. Nu "pågår, från 09:00 till
+  09:20" eller nästa som inte börjat, utan sekunder, och "1 meddelande mottaget".
+- **Isen.** Navigatören varnar (`nav.suggest.ice_closing`) också medan vi stiger mot en öppning, och på väg
+  mot ytläge när för- eller akterskeppet fått is vi inte kan bryta; "för smal" sägs inte om en råk på 250 m
+  där vi bara står snett.
+- **Mindre tjat under lång jakt.** Plottet säger "har ändrat kurs" om jagaren högst var 30:e min när vi är
+  jagade (`HUNTED_MANEUVER_REPEAT_S`; `plot.hunter` säger hur han jagar), och samma förbättring
+  ("lösningen är nu säker") sägs inte igen inom 10 min. Torpedrummet säger ingen ny skjutlösning på ett mål
+  som våra torpeder är på väg mot; `skjutlösning` utan kontakt väljer hotkontakten med bäst lösning.
+- **Fartyg till ankars** fick kurs och fart ur vinkeln på bogen ("fart cirka 3 knop"). Nu "ligger still"
+  (ankarljus i mörker), fart 0 och ingen kurs till plottet, och nästa titt säger "som förut".
+- **Ärligare kvalitet.** En trupptransport i 6 kn skattad till 2 kn kallades god med "kurs och fart kan vi
+  inte säga", och den raka torpeden missade: kurstaket gällde bara skattad fart ≥ 3 kn. Nu när målet kan
+  gå (fart + 2σ ≥ 3 kn). `tma_kvalitet.py` (övning/kuba/konvoj-kort/sundet/krig-kort, 8 frön, 120 min):
+  god grova fel 6,5 % ⇒ 5,3 %, säker 2,5 % ⇒ 1,7 %, säker > 3σ 9,5 % ⇒ 5,1 %.
+Utrett och lämnat: i Arktis kom vi inte fram på 3 h, men navigatören höll kursen mot Nord-7 hela tiden;
+branden stoppar turbinen (5 kn) och vi stannar vid råkarna.
+Tester: `tests/test_suggestion_sense.py`, `tests/test_tma.py`. Kalibrering: KONTROLL
+
 ## 2026-11-21 – stridslarm bara när den pingande jagaren är nära
 
 Jagarens pingar hörs på 50–100 nm, och snabb pingtakt gav stridslarm och förslag om att undvika också

@@ -13,6 +13,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (masten fri, radion hel) ⇒ efter `LISTEN_S` (20 s) säger radiomannen en sändning för orderns datum
   (`order_day` ur `DATUM:`-raden, `broadcasts_for`); bara stämning, aldrig information. Den 28 okt bara
   bärvåg. Ljudet `shortwave` (menyns ratt och brus) före rösten.
+  `radio` (`RadioStatus`, `_status_data`): ett sambandstillfälle som pågår och inte är avklarat ("pågår,
+  från 09:00 till 09:20"), annars nästa som inte börjat, och hur många telegram som kommit (rätt böjt).
 - **Sambandstillfällena och långvågen** (L1–L4, 2026-11-19; `stations/radio/`): staben sänder vid
   scenariots sambandstillfällen (`Scenario.radio_windows`, 20 min, kuba-kort 15). Det vi missar sänds om
   vid nästa (`radio.missed` säger när: `_next_window_clock`); efter sista tillfället når det oss inte.

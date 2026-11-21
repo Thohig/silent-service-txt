@@ -60,7 +60,11 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   halva längden. Isekolodet lodar också för och akter (50 m från tornet; `_hull_ice`,
   `hull_clear()`): ytläge (vid stationen eller genom nyis) föreslås bara när båda visar is vi kan
   bryta. Annars står tornet i kanten eller på tvären: `nav.vak.reposition` och tillbaka mot öppningens
-  mitt, högst `VAK_TRIES` (2) gånger, sedan som en för smal öppning. Periskopdjup kräver bara tornet.
+  mitt, högst `VAK_TRIES` (2) gånger, sedan som en för smal öppning (`nav.vak.too_narrow` med `cramped`:
+  "för- och akterskeppet har tjock is över sig", inte "för smal" om en råk som är lång nog). Periskopdjup
+  kräver bara tornet. `nav.suggest.ice_closing` (djup 60, larm) kommer när isen ovanför blir tjock nära
+  ytan, och också medan vi stiger mot en öppning (beordrat ≤ antenndjup), eller på väg mot ytläge när för-
+  eller akterskeppet fått is vi inte kan bryta (isen driver medan vi stiger).
   Mätt (arktis-kort, ja-boten efter 1/5/20 s, 16 frön): stötar efter ytläge 7 ⇒ 3, "tjock is" efter
   ytläge 7 ⇒ 1, stationen nådd 17 ⇒ 13 av 48 (omläggningarna tar tid).
 - **Havsbotten:** `seabed.py` är sanning (`Environment.bottom_at`; bara ekolodet läser den).

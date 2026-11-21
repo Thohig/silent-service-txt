@@ -38,7 +38,10 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
    `Order.STANDING`). Ett larmförslag står 30 s mot vanliga förslag (`ALARM_HOLD_S`): ett vanligt
    förslag väntar då i `Game.held` (det nyaste vinner) och kommer när larmet är besvarat, om det inte
    är äldre än 60 s eller någon station säger nej (`vetoes`; `MAST_ORDERS` – sända, periskop, radar,
-   foto – föreslås inte när det beordrade djupet är under periskopdjup). Vid tystnad (10 min) tar vakthavande initiativ ur
+   foto – föreslås inte när det beordrade djupet är under periskopdjup; vakthavande säger nej till allt
+   som tar oss uppåt medan fienden har oss). Vetot prövas också när förslaget levereras, och samma order
+   från en annan station inom 2 min släpps (`Game._suggestion_stale`). Ett förslag kommer aldrig före en
+   rapport nära det i kön (`ReportQueue`). Gå-ned-förslag tar djupet ur `Station.dive_depth()`. Vid tystnad (10 min) tar vakthavande initiativ ur
    stationernas `idle_proposals()`.
 6. Fast tidssteg 1 s. All slump via seedade `random.Random` – inga globala `random.*`. Stationerna
    drar ur sin egen ström `game.rng_for("namn")` (aldrig `game.rng`), så att en ny dragning i en
@@ -182,13 +185,15 @@ för in varje färdigt steg där.
   tappade plottet patrulljagaren och radion gick upp för tidigt); mål som plottet vet sicksackar
   (konvojfartyg eller två märkta girar, `Knowledge.zigzags`) q = 30 (med q = 1 var konvojlösningar
   god/säker med σ 0,02–0,1 nm men 1–3 nm fel, för låg fart); kursens σ ≥ 15/30/60° ⇒ högst
-  god/osäker/dålig när målet går ≥ 3 kn. Brytpunktstestet räknar utan brus. Mot sanningen (ja-boten,
+  god/osäker/dålig när målet kan gå (fart + 2σ ≥ 3 kn; med bara farten ≥ 3 kn kallades ett mål
+  i 6 kn skattat till 2 kn god med okänd kurs). Brytpunktstestet räknar utan brus. Mot sanningen (ja-boten,
   övning/kuba/konvoj-kort/sundet, 8 frön): grova fel (avstånd > 50 % eller kurs > 90°) bland god/säker
   11 % ⇒ 9 %, fel > 3σ 18 % ⇒ 11 %; säkra lösningar med kurs > 90° fel 6 % ⇒ ~1 %. Efter slumpen per
   station och q för sicksack (2026-11-18): grova 6,9 % ⇒ 4,8 %, > 3σ 10,4 % ⇒ 7,9 % (konvoj-kort god
   grova 18 % ⇒ 8 %). Avståndets σ har ett golv på 0,05 nm (`RANGE_SIGMA_FLOOR_NM`, ~båtens längd): utan det
   kollapsade lösningar på patrullbåten i sundet mot oss med σ ≈ 0 och kallades säkra (sundet säker grova
-  18 % ⇒ 0); alla scenarier grova 4,8 % ⇒ 3,9 %, > 3σ 7,9 % ⇒ 6,0 %. Det som är kvar är mest girar de senaste minuterna som plottet inte hunnit se. Mätskriptet: `kalibrering/tma_kvalitet.py`.
+  18 % ⇒ 0); alla scenarier grova 4,8 % ⇒ 3,9 %, > 3σ 7,9 % ⇒ 6,0 %. Kurstaket när målet kan gå (2026-11-21, övning/kuba/konvoj-kort/sundet/krig-kort): god grova
+  6,5 % ⇒ 5,3 %, säker grova 2,5 % ⇒ 1,7 %, säker > 3σ 9,5 % ⇒ 5,1 %. Det som är kvar är mest girar de senaste minuterna som plottet inte hunnit se. Mätskriptet: `kalibrering/tma_kvalitet.py`.
 - Radion: rapporten 6 s + 4 s per femsiffergrupp (kort ~22 s); fiendens pejlnät pejlar aldrig under
   10 s, alltid över 25 s, σ = 1,5 nm · √(30 s / längd), 0,7–3 nm (`DF_*` i `enemy.py`).
 - Back i maskin: broms 0,15 kn/s mot farten, backfart 8 kn (turbin) / 3 kn (smygmotor), gir ⅓ och

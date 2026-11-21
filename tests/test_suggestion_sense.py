@@ -183,3 +183,4 @@ def test_an_anchored_ship_is_reported_lying_still():
                 "visible": "helt", "course": None, "speed": 0, "lights": ["topp"]})
     render(r, lambda t=None: "06:00:00")
     assert "ankarljus" in r.text and "Ligger still" in r.text
+

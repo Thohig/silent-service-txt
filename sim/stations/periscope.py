@@ -638,7 +638,7 @@ class PeriscopeWatch(Station):
             self._called.add(v.id)
             prev = self._last_call.get(v.id)
             if prev is not None and self.now - prev[0] <= RECALL_S \
-                    and abs(angle_diff(course, prev[1])) < RECALL_COURSE_DEG \
+                    and (moored or abs(angle_diff(course, prev[1])) < RECALL_COURSE_DEG) \
                     and abs(speed - prev[2]) <= RECALL_SPEED_KN:
                 self.say("off.periscope.again",
                          {"designation": desig_, "bearing": bearing, "range": r_meas},
