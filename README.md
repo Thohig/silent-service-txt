@@ -4,6 +4,9 @@ Du är kapten på en sovjetisk atomubåt. Du ger skrivna order och besättningen
 rapporterar. Fienden syns aldrig direkt, bara genom sonaroperatörens bäringar
 och plottlagets målrörelseanalys.
 
+**Spela i webbläsaren:** https://thohig.github.io/silent-service-txt/ (Safari eller Chrome, ingen
+installation; `?scenario=kuba` och `?seed=4` i adressen som flaggorna nedan; `ljud` slår på ljudet).
+
 Vad som ändrats och när: `docs/ANDRINGAR.md`.
 
 ## Köra
