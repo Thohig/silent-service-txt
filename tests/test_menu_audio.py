@@ -124,18 +124,6 @@ def test_radio_voice_is_narrow_band_and_bounded():
     assert power(1000) > 5 * power(120) and power(1000) > 5 * power(6000)
 
 
-def test_read_wav_resamples_to_the_mixer_rate(tmp_path):
-    import wave
-    path = tmp_path / "x.wav"
-    with wave.open(str(path), "wb") as w:
-        w.setnchannels(1)
-        w.setsampwidth(2)
-        w.setframerate(11025)
-        w.writeframes((np.full(11025, 0.5) * 32767).astype("<i2").tobytes())
-    x = menu_audio.read_wav(path)
-    assert abs(len(x) - RATE) <= 1 and abs(x.mean() - 0.5) < 0.01
-
-
 def test_broadcast_tunes_in_speaks_and_goes_quiet(tiny_samples):
     spoken = []
 

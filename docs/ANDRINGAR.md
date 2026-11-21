@@ -3,6 +3,15 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-21 – testerna rensade från överlapp
+
+Ingen exakt dubblett bland de 1 046 testerna (samma namn i samma fil, samma kropp eller > 90 % lika).
+Två överlapp rättade: det långsamma `test_game.py::test_reports_never_reveal_truth_ids` letade bara
+efter `DD1` och prövar nu alla sanningens id:n med samma mönster som torpedtestet (döpt om till
+`test_torpedo_reports_never_reveal_truth_ids`); `test_menu_audio.py` prövade inte längre `read_wav`, som
+bara skickar vidare till `voices.read_wav` (prövas i `test_voices.py`). Noterat: CI har bara kört de
+snabba testerna (alla körningar vid push); `--slow` körs bara lokalt.
+
 ## 2026-11-21 – ikonen i Safari
 
 Webbsidan länkade bara ikonen i 1024 px utan storlek, och Safari visade ingen. Nu finns en flikikon i

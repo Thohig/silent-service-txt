@@ -114,7 +114,7 @@ def test_homing_torpedo_turn_is_heard():
     assert turned >= 4
 
 
-def test_reports_never_reveal_truth_ids():
+def test_torpedo_reports_never_reveal_truth_ids():
     g, reports = _game(2)
     _setup(g)
     g.command("eld tub 1 mot S-1")

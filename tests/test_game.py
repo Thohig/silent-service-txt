@@ -1,5 +1,6 @@
 import pytest
 import random
+import re
 
 from sim.events import ReportDelivered, TimeScaleChanged
 from sim.game import Game
@@ -40,8 +41,10 @@ def test_new_contact_drops_time_compression_to_1x():
 
 @pytest.mark.slow
 def test_reports_never_reveal_truth_ids():
+    """Hela spelets rapporter; torpedernas egna prövas snabbt i test_torpedo_tracking."""
     g, reports = _game()
     for _ in range(3000):
         g.tick()
     assert reports
-    assert not any("DD1" in r.text for r in reports)
+    for r in reports:
+        assert not re.search(r"\b(T|DD|D)\d+\b", r.text), r.text
