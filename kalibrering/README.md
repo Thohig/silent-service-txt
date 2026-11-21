@@ -41,11 +41,18 @@ scratchpad (2026-11-14–15). En del läser sanningen (`sundet.py --orakel`, `su
 | `rad.py` | kuba, kuba-kort, jagad, jagad-kort (kommaseparerade) | hök-boten: ja-boten som laddar T-5, håller kärnvapenrådet vid varje bomb nära, går upp till skjutdjup och skjuter med nycklarna |
 | `starpom.py` | kuba, konvoj (kommaseparerade), frön, ev. `salva` | kaptenen lämnar över och sover, går till centralen för sina beslut; med `salva` skjuter han där (som `konvoj_salva.py`); mot samma kapten utan starpom |
 | `langvag.py` | scenarier (kommaseparerade), frön | ja-boten; radiogram med masten och på långvåg, stympade och missade sambandstillfällen |
+| `provspel.py` | scenarier (kommaseparerade), timmar, frö | provspelskaptenen: ja, rutinorder, vyer, periskop, eld på god lösning ≤ 3 nm; hela rapportflödet till `logs/provspel/` att läsa |
 
 Provkörda 2026-11-15 med ett frö var. Alla gick utan fel. `konvoj.py` och `kuba_jakt.py`
 kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 ## Siffrorna
+
+**Provspel i 3 timmar (2026-11-21, `provspel.py`, alla långa scenarier, frö 11):** gav förslagen som
+rättades den dagen (`docs/ANDRINGAR.md`). Efter rättelserna inga förslag uppåt under jakt (`upp`-kontroll i
+kuba, krig, konvoj, sundet), inga undantag. `tma_kvalitet.py` övning/kuba/konvoj-kort/sundet/krig-kort, 8 frön,
+120 min, kurstaket när målet kan gå: god grova 6,5 % ⇒ 5,3 %, säker grova 2,5 % ⇒ 1,7 %, säker > 3σ
+9,5 % ⇒ 5,1 %. `kontroll.py` som baslinjen (31 min på 4 kärnor).
 
 **Krigspatrullen (2026-11-20, `krig.py`, 8 frön 1–8; uppgifter a = anfall, f = foto, s = spaning):**
 - `krig` passiv: tiden ute 8 (hör aldrig telegrammen på 80 m; alla uppgifter missade). Ja-boten: hemma

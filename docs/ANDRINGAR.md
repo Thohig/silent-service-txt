@@ -42,6 +42,7 @@ rutinorder) gav en rad förslag som en riktig besättning inte hade gett. Rätta
   god grova fel 6,5 % ⇒ 5,3 %, säker 2,5 % ⇒ 1,7 %, säker > 3σ 9,5 % ⇒ 5,1 %.
 Utrett och lämnat: i Arktis kom vi inte fram på 3 h, men navigatören höll kursen mot Nord-7 hela tiden;
 branden stoppar turbinen (5 kn) och vi stannar vid råkarna.
+Provspelsboten: `kalibrering/provspel.py` (loggarna i `logs/provspel/`).
 Tester: `tests/test_suggestion_sense.py`, `tests/test_tma.py`. Kalibrering: `kontroll.py` (passiv och
 ja-boten, alla scenarier, 8 frön) som baslinjen: inget utfall flyttat (krig ja hemma 6, förlorad 1).
 
