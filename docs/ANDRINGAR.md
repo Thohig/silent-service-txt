@@ -28,7 +28,8 @@ laddade från början (`ladda tub 7 tråd`).
 - **Ytskott mot stillaliggande mål** (`kalibrering/ytskott.py`, 8 frön, radar varje minut i 10 min):
   träffar av 8 på 1–6 nm: ensam 53-61 8, 7, 2, 2, 2, 2; salva (tre 53-61) 8, 7, 4, 6, 5, 5; SET-53 8 ut
   till 4 nm (räckvidden); 53-62T 8, 8, 8, 8, 7, 7. Plottets fel i sidled växer med ungefär 0,7° i bäring
-  och passerar träffradien (0,03 nm) strax under 3 nm, även när lösningen är säker.
+  och passerar träffradien (0,03 nm) strax under 3 nm, även när lösningen är säker. Målsökarnas 8 av 8
+  mot stilla mål är troligen för högt (stoppad jagare 137 dB); se `docs/TODO.md`.
 
 ## 2026-11-21 – provspel i 3 timmar: förslag med omdöme
 

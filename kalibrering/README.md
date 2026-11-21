@@ -54,7 +54,9 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 53-62T 8/8/8/8/7/7. Plottets relativa lägesfel vid skottet (målet relativt oss mot sanningen) median
 0,008/0,015/0,039/0,050/0,061/0,072 nm, ungefär 0,7° i bäring (radarns σ 1°, tio svep), mot träffradien 0,03 nm:
 en ensam rak torped räcker till ~2 nm, längre bort behövs salva, målsökare eller tråd. Samma två frön
-träffar med den ensamma raka på alla avstånd (felet är systematiskt per frö, inte per skott).
+träffar med den ensamma raka på alla avstånd: samma frö ger troligen samma sensorslump på alla avstånd,
+så det är i praktiken 8 försök, inte 48. Bedömningen (stilla mål för högljudda för målsökarna, raka
+torpeder utan spridning, träffcirkel oavsett vinkel) står i `docs/TODO.md`.
 
 **Provspel i 3 timmar (2026-11-21, `provspel.py`, alla långa scenarier, frö 11):** gav förslagen som
 rättades den dagen (`docs/ANDRINGAR.md`). Efter rättelserna inga förslag uppåt under jakt (`upp`-kontroll i
