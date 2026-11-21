@@ -3,14 +3,8 @@
 # Kräver en gång: Settings › Pages › Source: GitHub Actions.
 name: pages
 
+# Körs bara för hand (Actions › pages › Run workflow), så att varje push inte kostar minuter.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "sim/**"
-      - "ui/**"
-      - "web/**"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:

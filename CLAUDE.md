@@ -137,7 +137,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   utanför den filen fångas av `tests/test_voices.py`.
 - **Webbversionen** (`web/`, GitHub Pages): samma `sim/` och `ui/` i Pyodide med en egen Textual-drivrutin
   (`web/pyodide_driver.py`) och xterm.js. Inga trådar och inget ljud där: det som körs i en tråd behöver
-  en väg utan (`ui/app.py`, `THREADS`; `Game.warm_up_steps`). `web/README.md`.
+  en väg utan (`ui/app.py`, `THREADS`; `Game.warm_up_steps`). Publiceras bara för hand
+  (`.github/workflows/pages.yml`, `workflow_dispatch`). `web/README.md`.
 - **Händelsebussen** (`events.py`) är synkron. `Knowledge` registreras före
   stationerna så att stationer alltid ser uppdaterad kunskap.
 - **Utbyggnadskrokar:** rapportfilter (`ReportQueue.filters`, ändrar `data`) för
@@ -157,7 +158,7 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
 - `docs/system/granssnitt.md`: Huvudmenyn, Ljud
 
 Avslagna förslag (föreslå inte igen): tal på Linux (piper/espeak-ng), animering på sjökortet, bilder i
-terminalen (Kitty/sixel) och webbklient, besättningsfigurer i centralen, reaktorpanel i centralen,
+terminalen (Kitty/sixel), besättningsfigurer i centralen, reaktorpanel i centralen,
 däckskanon, fler vyer (t.ex. plottbord, eldledning, besättningslista, hydrologi: det nya ska synas i
 de vyer som finns), vakter och trötthet som system, besättningen som människor (personligheter,
 moral; starpom räcker), scenarierna Haveri (K-19), Räddningen, Spaningen och Avhopp, slumpade
