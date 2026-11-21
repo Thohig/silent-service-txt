@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
+
 from ...geo import bearing_to, distance, norm360, offset_starboard
 from ...reports import Quality
 from .common import (
@@ -14,6 +16,9 @@ from .common import (
     ATTACK_PASSED_NM,
     ATTACK_REST_S,
     ATTACK_SUGGEST_S,
+    BANK_LOOK_NM,
+    BANK_MAX_M,
+    BANK_MIN_M,
     FAIRWAY_RIGHT_NM,
     FAIRWAY_SUGGEST_S,
     FAIRWAY_TURN_NM,
@@ -385,8 +390,12 @@ class SteeringMixin:
         key = name.strip().lower()
         wp = next((w for n, w in wps.items() if n.lower() == key), None) or \
             next((w for n, w in wps.items() if n.lower().startswith(key[:5])), None)
+        if wp is None and key.startswith(("bank", "grund")) and self._chart_has_bank():
+            self._steer_to_bank()
+            return
         if wp is None:
-            self.say("nav.steer.none", {"name": name, "known": sorted(wps)})
+            known = sorted(wps) + (["banken"] if self._chart_has_bank() else [])
+            self.say("nav.steer.none", {"name": name, "known": known})
             return
         wx, wy = wp.at(self.now)                # ett rörligt mål: framräknat med meddelad kurs
         c = round(bearing_to(self.est_x, self.est_y, wx, wy)) % 360
@@ -397,3 +406,34 @@ class SteeringMixin:
         self.say("nav.steer", {"name": wp.name, "course": c,
                                "range": distance(self.est_x, self.est_y, wx, wy),
                                "sigma": wp.sigma(self.now) + self.uncertainty()}, kind="ack")
+
+    def _chart_has_bank(self) -> bool:
+        from ...seabed import Bank
+        chart = self.game.knowledge.bathymetry
+        return chart is not None and any(isinstance(f, Bank) for f in chart.features)
+
+    def _steer_to_bank(self) -> None:
+        """Kurs mot närmaste vatten där kortet visar botten grundare än provdjupet (att lägga sig på)."""
+        chart = self.game.knowledge.bathymetry
+        here = float(chart.depth_at(self.est_x, self.est_y))
+        if BANK_MIN_M <= here <= BANK_MAX_M:
+            self.say("nav.steer.bank_here", {"depth": round(here, -1)}, kind="ack")
+            return
+        dist = np.arange(0.1, BANK_LOOK_NM + 0.01, 0.1)
+        best = None
+        for c in range(0, 360, 5):
+            b = math.radians(c)
+            z = chart.depths(self.est_x + dist * math.sin(b), self.est_y + dist * math.cos(b))
+            ok = np.nonzero((z >= BANK_MIN_M) & (z <= BANK_MAX_M))[0]
+            if len(ok) and (best is None or dist[ok[0]] < best[0]):
+                best = (float(dist[ok[0]]), c, float(z[ok[0]]))
+        if best is None:
+            self.say("nav.steer.none", {"name": "banken", "known": sorted(self.game.knowledge.waypoints)})
+            return
+        d, c, z = best
+        self.vak = None
+        self.steer = None
+        self.course_set_t = self.now
+        self.ship.order_course(c)
+        self.say("nav.steer.bank", {"course": c, "range": d, "depth": round(z, -1),
+                                    "sigma": self.uncertainty()}, kind="ack")

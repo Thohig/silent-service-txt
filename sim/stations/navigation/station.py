@@ -79,6 +79,16 @@ def _course(m: re.Match) -> Order:
     return SetCourse(int(round(c)) % 360)
 
 
+def _negative(m: re.Match) -> Order:
+    """Ett minustecken framför talet: säg vad som gäller i stället för bara "Kapten?"."""
+    what = m[1]
+    if what in ("kurs", "k", "styr"):
+        return Unknown("", "kursen måste vara 000–359")
+    if what in ("djup", "d"):
+        return Unknown("", "djupet räknas nedåt från ytan, 0 är ytläge")
+    return Unknown("", "farten kan inte vara negativ, för fart akterut: back 3")
+
+
 
 TASK_PLACE_TASKS = frozenset({"anfall", "rapport", "foto"})   # uppgifter med en plats att gå till
 TASK_NEAR_NM = 3.0          # så nära uppgiftens plats slutar navigatören föreslå kursen dit
@@ -101,6 +111,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                     lambda m: SetSpeed(0.0, astern=True, level="sakta")),
         CommandSpec(r"halv back", lambda m: SetSpeed(0.0, astern=True, level="halv")),
         CommandSpec(r"full back", lambda m: SetSpeed(0.0, astern=True, level="full")),
+        CommandSpec(r"(kurs|k|styr|fart|f|back|djup|d)\s*-\s*\d[\d,.]*.*", _negative),
         CommandSpec(rf"(?:djup|d)\s+{NUM}(?:\s*(?:m|meter))?",
                     lambda m: SetDepth(int(round(num(m[1])))), "djup 100"),
         CommandSpec(r"periskopdjup|pd", lambda m: SetDepth(int(PERISCOPE_DEPTH - 1)), "periskopdjup"),

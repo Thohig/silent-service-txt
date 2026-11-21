@@ -82,6 +82,11 @@ class ReportQueue:
             if near:
                 r.t_due = max(near)
         else:
+            if isinstance(r.data.get("telegram"), int):
+                # telegrammen i nummerordning, även när fraserna fördröjs olika länge
+                prev = [q.t_due for *_, q in self._heap if isinstance(q.data.get("telegram"), int)]
+                if prev:
+                    r.t_due = max(r.t_due, max(prev))
             moved = False
             for i, (t, k, n, q) in enumerate(self._heap):
                 if q.kind == "suggest" and r.t_due - SUGGEST_AFTER_S <= t < r.t_due:

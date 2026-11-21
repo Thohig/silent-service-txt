@@ -228,6 +228,12 @@ def _why_not(d: dict) -> str:
     return ""
 
 
+def _canon(order: str) -> str:
+    """Kaptenens order som besättningen säger den: kurser med tre siffror (\"kurs 0\" ⇒ kurs 000)."""
+    return re.sub(r"\b(kurs|k|styr)\s+(\d{1,3})\b", lambda m: f"kurs {int(m[2]) % 360:03d}",
+                  " ".join(order.strip().lower().split()))
+
+
 def _reasons(d: dict) -> str:
     return " ".join(reason_text(r) for r in d.get("reasons", ()))
 
@@ -357,7 +363,7 @@ class FirstOfficer(Station):
         """Kaptenens order per telefon: starpom ändrar dem inte själv på ett förslag."""
         if self.in_command and e.by == "captain":
             for slot in order_slots(e.order):
-                self.phone_orders[slot] = (e.t, e.text)
+                self.phone_orders[slot] = (e.t, _canon(e.text))
 
     # --- läget ------------------------------------------------------------------
     def status_fields(self) -> dict:
@@ -535,7 +541,7 @@ class FirstOfficer(Station):
             for slot in order_slots(self.game.registry.parse(part)):
                 if slot in self.phone_orders:
                     t, text = self.phone_orders[slot]
-                    if self.now - t <= PHONE_ORDER_S and text.strip() != part.strip():
+                    if self.now - t <= PHONE_ORDER_S and text != _canon(part):
                         return {"ordered": text, "clock": self.game.clock_str(t)[:5]}
         return None
 
@@ -613,7 +619,7 @@ class FirstOfficer(Station):
             d = {"reasons": [reason]}
             self.pending.remove(reason)     # sagt i högtalaren; upprepas inte
             self.say("xo.danger", d, alarm=True, extra_delay=-1)
-            self._arrive()
+            self._arrive(first=reason)
             return
         if self.ring_t is None:
             self.ring_t = self.now
@@ -699,11 +705,12 @@ class FirstOfficer(Station):
         if self.now % WATCH_S == 0:
             self._watch()
 
-    def _arrive(self) -> None:
-        """Kaptenen är i centralen: befälet tillbaka och lägesrapport."""
+    def _arrive(self, first: dict | None = None) -> None:
+        """Kaptenen är i centralen: befälet tillbaka och lägesrapport. first: larmet som kallade
+        kaptenen i högtalaren, först bland skälen."""
         d = self._situation()
         d["decisions"] = list(self.decisions)
-        d["reasons"] = list(self.pending)
+        d["reasons"] = ([first] if first else []) + list(self.pending)
         self.in_command = False
         self.captain_at = "central"
         self.sleeping = False

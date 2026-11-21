@@ -203,8 +203,12 @@ PHRASES = {
     f"Föreslår kurs mot {d['name']}"
     + (f", på turbinen i {d['speed']} knop, så är vi där om "
        f"{round(d['range'] / d['speed'] * 60 / 10) * 10} minuter." if d.get("speed") else "."),
-    "nav.steer.none": lambda d: f"Kapten, vi har ingen position för {d['name']}. "
-    + (f"Vi känner till: {', '.join(d['known'])}." if d["known"] else ""),
+    "nav.steer.none": lambda d: f"Kapten, vi har ingen position för {d['name']}."
+    + (f" Vi känner till: {', '.join(d['known'])}." if d["known"] else ""),
+    "nav.steer.bank": lambda d: f"Kurs {fmt_course(d['course'])} mot banken, {nm(d['range'])} sjömil "
+    f"till {d['depth']:.0f} meter enligt kortet, ± {nm(d['sigma'])}.",
+    "nav.steer.bank_here": lambda d: f"Kapten, vi är redan över banken. Kortet visar cirka "
+    f"{d['depth']:.0f} meter här.",
     "nav.suggest.land": lambda d: "Kapten, navigatören! "
     + ("Land" if d["shoal"] <= 0 else f"Bara {d['shoal']:.0f} meter vatten")
     + (" här enligt kortet" if d["dist"] < 0.15 else f" inom {nm(d['dist'])} sjömil framåt")
@@ -456,6 +460,10 @@ RU_PHRASES = {
     f"Последнее определение в {d['last_fix']}.",
     "nav.echo": lambda d: f"Эхолот: под килём {R.count(d['under_keel'], R.METER)}.",
     "nav.follow.none": lambda d: f"{R.CAPTAIN}, пеленга на {R.contact(d['designation'])} нет.",
+    "nav.steer.bank": lambda d: f"Курс {R.course(d['course'])} на банку, дистанция "
+    f"{R.dec(d['range'], R.MILE)}, глубина по карте {R.count(d['depth'], R.METER)}.",
+    "nav.steer.bank_here": lambda d: f"{R.CAPTAIN}, мы уже над банкой. По карте здесь "
+    f"{R.count(d['depth'], R.METER)}.",
     "nav.steer": lambda d: f"Курс {R.course(d['course'])}, дистанция {R.dec(d['range'], R.MILE)}, "
     f"ошибка {R.dec(d['sigma'], R.MILE)}.",
     "nav.suggest.task": lambda d: f"{R.CAPTAIN}, штурман. По данным штаба цель в "

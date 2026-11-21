@@ -143,6 +143,8 @@ class ReportLog(RichLog):
     can_focus = False
 
     def __init__(self, *args, **kwargs) -> None:
+        # RichLog bryter annars raderna vid minst 78 tecken: i smala fönster klipps loggen
+        kwargs.setdefault("min_width", 20)
         super().__init__(*args, **kwargs)
         self.entries: list = []
         self.mirror: ReportLog | None = None

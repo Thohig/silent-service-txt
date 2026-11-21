@@ -3,6 +3,23 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-21 – rättelser efter provspelet
+
+Ett provspel (~100 spel i alla scenarier: provspelsboten, en kaosbot med udda order, riktade lägen och
+krigspatrullen i 14 h, gränssnittet i 80×24, 120×40 och 220×60) gav inga undantag men felen nedan.
+- **Loggen i smala fönster:** `ReportLog` ärvde `RichLog`s minsta bredd 78, så i fönster upp till
+  ~100 kolumner bröts raderna vid 77 tecken i en 54–64 tecken bred panel och ord försvann. Nu
+  `min_width` 20 (`ui/widgets.py`).
+- **Telegrammen i nummerordning:** `ReportQueue` lägger ett telegram aldrig före ett tidigare
+  (radiogram 8 kom före 7 i krig frö 7).
+- **`kurs mot banken`:** navigatören styr mot närmaste vatten där hans sjökort visar 60–250 m botten
+  (att lägga sig på) i scenarier med en bank (kuba, jagad); står vi redan där säger han det
+  (`navigation/steering.py`, `BANK_*`). Utan känd plats slutar svaret inte längre med ett mellanslag.
+- **Minustecken:** `kurs -10`, `fart -3`, `djup -5` ger en förklaring i stället för "Kapten?".
+- **Starpom:** citerar kaptenens order med tresiffrig kurs ("kurs 000", inte "kurs 0"), och när
+  högtalaren kallat kaptenen står det larmet först i överlämnandet (förut ett senare plottlarm).
+- **Prov:** `tests/test_playtest_fixes.py`.
+
 ## 2026-11-21 – trådstyrd torped (53-62T, försök)
 
 En trådstyrd försökstorped. Trådstyrda torpeder fanns inte i sovjetisk tjänst 1962 (de kom i slutet
