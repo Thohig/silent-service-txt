@@ -10,6 +10,9 @@ from ...orders import Order, Unknown
 N_TUBES = 8
 TOO_CLOSE_MARGIN_NM = 0.15  # närmare än armeringssträckan plus detta: torpedrummet frågar en gång
 CONFIRM_S = 60          # en upprepad eldorder inom så här lång tid verkställs
+ASPECT_MIN_KN = 2.0     # skjutlösningen säger varifrån torpeden kommer in när målet går minst så fort ...
+ASPECT_MAX_SIGMA = 30.0 # ... och plottets kurs är bättre känd än så (grader)
+NARROW_DEG = 25.0       # så nära rakt för- eller akterifrån är målet smalt (en salva hjälper inte)
 HUNTING_RUN_S = 120     # ett mål som jagar oss girar hela tiden: varna för längre gångtid än så
 NEUTRAL_LANE_NM = 0.5   # ett känt handelsfartyg så nära en torpedbana (enligt plottet): varna
 NEUTRAL_CONE_DEG = 10.0  # ... eller, utan lösning, med bäringen så nära banan

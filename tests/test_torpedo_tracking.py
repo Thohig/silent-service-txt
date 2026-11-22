@@ -161,3 +161,25 @@ def test_reverse_tube_range_means_the_same_tubes():
     from sim.stations.torpedo_room import FireSalvo
     g, _ = _game(1)
     assert g.registry.parse("eld tub 3-1 mot S-1") == FireSalvo("S-1", (1, 2, 3))
+
+
+def test_the_solution_says_where_the_straight_torpedo_comes_in():
+    from types import SimpleNamespace
+    from sim.stations.torpedo_room.phrases import PHRASES
+    g, _ = _game(1)
+    room = g.station(TorpedoRoom)
+    sol = lambda course, sigma=5.0, speed=10.0: SimpleNamespace(course=course, course_sigma=sigma,
+                                                                 speed=speed)
+    # torpeden går norrut: målet på kurs 180 möter den rakt förifrån, på kurs 090 från sidan
+    bow = room._aspect(sol(180.0), 0.0)
+    assert bow["deg"] < 1 and bow["narrow"]
+    beam = room._aspect(sol(90.0), 0.0)
+    assert abs(beam["deg"] - 90) < 1 and not beam["narrow"] and beam["side"] == "styrbord"
+    stern = room._aspect(sol(10.0), 0.0)
+    assert stern["deg"] > 165 and stern["narrow"] and stern["side"] == "styrbord"
+    assert room._aspect(sol(90.0, sigma=40.0), 0.0) is None      # kursen okänd
+    assert room._aspect(sol(90.0, speed=0.5), 0.0) is None       # ligger still
+    d = {"designation": "S-1", "quality": Quality.SAKER, "aspect": stern,
+         "rows": [{"type": "53-61", "course": 0.0, "run_s": 200.0}]}
+    text = PHRASES["torp.solution"](d)
+    assert "10° från aktern, styrbord" in text and "salva hjälper inte" in text

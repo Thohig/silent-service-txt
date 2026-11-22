@@ -18,8 +18,6 @@ Inga just nu (långvågen byggd 2026-11-19, omladdningens slammer 2026-11-19).
 Ur provskjutningen på säkra lösningar 2026-11-22 (`kalibrering/README.md`):
 - **Torpedrummet varnar för målsökande torpeder nära andra fartyg.** `_neutrals_in_lane` hoppar över dem, men
   SET-53 tog ett annat fartyg i 19 av 148 skott (patrullbåten i sundet hörs mer än handelsfartyget).
-- **Anläggningsvinkeln i skjutlösningen**, och en varning för skott rakt för- eller akterifrån där målet är
-  smalt (48 % träff mot 60 % från sidan med samma sikte).
 
 ## Scenarier
 

@@ -3,6 +3,14 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-22 – anläggningsvinkeln i skjutlösningen
+
+`skjutlösning S-1` säger nu varifrån den raka torpeden kommer in: "Den raka torpeden kommer in 10° från aktern,
+styrbord: målet är smalt härifrån och en salva hjälper inte, bättre läge från sidan." (`FiringMixin._aspect`,
+`torp.solution` `aspect`). Bara när målet går minst 2 kn och plottets kurs-σ är under 30° (`ASPECT_MIN_KN`,
+`ASPECT_MAX_SIGMA`); smalt inom 25° från stäv eller akter (`NARROW_DEG`). I provskjutningen träffade 48 % av skotten
+0–20° från för eller akter mot 60 % från sidan med samma sikte.
+
 ## 2026-11-22 – benvarningen för alla mål som girar
 
 Torpedrummets varning för att målet kan gira innan torpeden är framme gällde bara konvojens fartyg. I

@@ -65,7 +65,21 @@ def _solution(d: dict) -> str:
         else:
             rows.append(f"{r['type']}: kurs {fmt_course(r['course'])}, gångtid {_mmss(r['run_s'])}")
     return (f"Skjutlösning {d['designation']} (lösning {Quality(d['quality']).label}): "
-            + "; ".join(rows) + ".")
+            + "; ".join(rows) + "." + _aspect(d.get("aspect")))
+
+
+def _aspect_deg(a: dict) -> str:
+    deg = a["deg"]
+    return (f"{round(deg / 5) * 5:.0f}° från stäven" if deg <= 90
+            else f"{round((180 - deg) / 5) * 5:.0f}° från aktern")
+
+
+def _aspect(a: dict | None) -> str:
+    if not a:
+        return ""
+    return (f" Den raka torpeden kommer in {_aspect_deg(a)}, {a['side']}"
+            + (": målet är smalt härifrån och en salva hjälper inte, bättre läge från sidan."
+               if a["narrow"] else "."))
 
 
 DECOY_RU = ("имитатор", "имитатора", "имитаторов")
@@ -208,8 +222,10 @@ def _ru_solution(d: dict) -> str:
         else:
             rows.append(f"{R.weapon(r['type'])}: курс {R.course(r['course'])}, время хода "
                         f"{R.mmss(r['run_s'])}")
+    a = d.get("aspect")
+    narrow = (" Цель узкая, залп не поможет, лучше с борта." if a and a["narrow"] else "")
     return (f"Решение по {R.contact(d['designation'], True)}, "
-            f"{R.QUALITY_RU[int(d['quality'])]}: " + "; ".join(rows) + ".")
+            f"{R.QUALITY_RU[int(d['quality'])]}: " + "; ".join(rows) + "." + narrow)
 
 
 def _ru_tubes(d: dict) -> str:

@@ -9,7 +9,7 @@ from ...firecontrol import intercept
 from ...reports import Quality
 from ...weapons import ARM_DISTANCE_NM, TORPEDO_TYPES, launch_torpedo
 from .common import (
-    CONFIRM_S, HUNTING_RUN_S, FireSalvo, FireTube, MAX_LAUNCH_DEPTH, MAX_LAUNCH_SPEED, NEUTRAL_CONE_DEG,
+    ASPECT_MAX_SIGMA, ASPECT_MIN_KN, CONFIRM_S, HUNTING_RUN_S, NARROW_DEG, FireSalvo, FireTube, MAX_LAUNCH_DEPTH, MAX_LAUNCH_SPEED, NEUTRAL_CONE_DEG,
     NEUTRAL_LANE_NM, NEUTRAL_STEP_S, N_TUBES, Running, SALVO_GAP_MAX_NM, SALVO_GAP_NM,
     SALVO_MAX, SALVO_STEP_DEG, TOO_CLOSE_MARGIN_NM, Tube,
 )
@@ -324,6 +324,16 @@ class FiringMixin:
             d.update(elapsed_s=elapsed, leg_s=leg_s)
         self.say("torp.leg_warning", d, quality=Quality.OSAKER)
 
+    def _aspect(self, sol, torpedo_course: float) -> dict | None:
+        """Varifrån den raka torpeden kommer in mot målet: grader från stäven (0 rakt förifrån, 180
+        rakt akterifrån) och sidan. Bara när plottet vet kursen (målet går, kursens σ under taket)."""
+        if sol.speed < ASPECT_MIN_KN or sol.course_sigma >= ASPECT_MAX_SIGMA:
+            return None
+        rel = angle_diff((torpedo_course + 180.0) % 360, sol.course)
+        deg = abs(rel)
+        return {"deg": deg, "side": "styrbord" if rel > 0 else "babord",
+                "narrow": deg < NARROW_DEG or deg > 180 - NARROW_DEG}
+
     def _best_target(self) -> str | None:
         """Utan angiven kontakt: den enda hållna, annars hotkontakten med bäst lösning (närmast
         vid lika)."""
@@ -357,10 +367,11 @@ class FiringMixin:
             else:
                 row["course"] = None
             rows.append(row)
-        self.say("torp.solution", {"designation": tr.designation, "quality": sol.quality,
-                                   "rows": rows}, quality=sol.quality)
         straight = [r for r in rows if r.get("course") is not None
                     and not TORPEDO_TYPES[r["type"]].homing]
+        aspect = self._aspect(sol, straight[0]["course"]) if straight else None
+        self.say("torp.solution", {"designation": tr.designation, "quality": sol.quality,
+                                   "rows": rows, "aspect": aspect}, quality=sol.quality)
         if straight:
             self._leg_warning(tr.designation, min(r["run_s"] for r in straight),
                               straight[0]["type"])
