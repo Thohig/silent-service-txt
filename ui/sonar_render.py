@@ -12,7 +12,7 @@ from rich.text import Text
 from sim.fmt import fmt_course
 from sim.geo import angle_diff, norm360
 from sim.sonar_view import (BearingTrace, ContactLine, drift_words, HeardMark, LostMark, OwnMark, OwnTurn, SolutionTrace,
-                            SonarView, TargetTurn)
+                            SonarView, TargetTurn, TorpedoTrace)
 
 from .canvas import Canvas, DotLayer
 from .widgets import QUALITY_STYLE
@@ -37,6 +37,8 @@ STYLE = {
     "civil": "#a8b890",
     "benign": "#5f7a68",
     "friendly": "bold #5fd7ff",
+    "torpedo": "bold #ff3f5f",          # fientlig torped: starkare än hoten
+    "own_torpedo": "#d0c8ff",           # vår egen
     "axis": "#7f9a80",
     "ruler": "#2f4a36",
     "grid": "#18241b",
@@ -63,6 +65,7 @@ SOLUTION_DASH = 2
 QUIET_MARKS = {"ping", "buoy_ping"}
 BACKGROUND = {"┊", "╌"}                 # rutnätet och girlinjen: bakom prickarna     # täta: ritas bara där inget annat står
 TRACE_PRIO = 2.0
+TORPEDO_PRIO = 3.0              # en fientlig torped vinner över allt där spåren korsar
 NEUTRAL_PRIO = 1.5              # neutrala spår under hotens (men över lösningarna)
 
 
@@ -131,8 +134,15 @@ def render_sonar(view: SonarView, width: int, height: int, window_s: int = 1800,
         for sol in view.of(SolutionTrace):
             _solution(dots, wf, sol)
     # hoten först: deras etiketter får platsen, och deras prickar vinner där spåren korsar
+    torpedoes = view.of(TorpedoTrace)
+    for tp in torpedoes:
+        if tp.hostile:
+            _torpedo(dots, over, wf, tp)
     for tr in sorted(view.traces, key=lambda tr: tr.kind in NEUTRAL_KINDS):
         _trace(dots, over, wf, tr)
+    for tp in torpedoes:
+        if not tp.hostile:
+            _torpedo(dots, over, wf, tp)
     _heard(dots, over, wf, view)
     _target_turns(dots, over, wf, view)
     _own_turns(dots, over, wf, view)
@@ -241,9 +251,28 @@ def _time_axis(canvas: Canvas, wf: Waterfall) -> None:
 def _trace(dots: DotLayer, over: dict, wf: Waterfall, tr: BearingTrace) -> None:
     style = kind_style(tr.kind, tr.held)
     prio = NEUTRAL_PRIO if tr.kind in NEUTRAL_KINDS else TRACE_PRIO
+    newest = _dots(dots, wf, tr.points, style, prio)
+    if newest is not None and tr.held:          # en tappad kontakt får sin etikett vid ∅
+        _label(over, wf, newest, tr.designation, style)
+
+
+def _torpedo(dots: DotLayer, over: dict, wf: Waterfall, tp: TorpedoTrace) -> None:
+    """En torped som sonar hör: fientliga i torpedfärg över allt annat, våra egna dämpade.
+    Etiketten står vid den nyaste bäringen, dämpad som spåret när sonar inte hör den längre."""
+    style = STYLE["torpedo" if tp.hostile else "own_torpedo"]
+    if not tp.held:
+        style += " dim"
+    newest = _dots(dots, wf, tp.points, style, TORPEDO_PRIO if tp.hostile else TRACE_PRIO)
+    if newest is not None:
+        _label(over, wf, newest, tp.label, style)
+
+
+def _dots(dots: DotLayer, wf: Waterfall, points, style: str, prio: float) -> tuple[float, float] | None:
+    """Bäringarna som prickar (bredare ju starkare), bundna med linjer där de ligger tätt;
+    ger den nyaste punkten (för etiketten)."""
     prev: tuple[int, float, float] | None = None
     newest: tuple[float, float] | None = None
-    for t, b, se in tr.points:
+    for t, b, se in points:
         y = wf.y(t)
         if y is None:
             prev = None
@@ -260,8 +289,7 @@ def _trace(dots: DotLayer, over: dict, wf: Waterfall, tr: BearingTrace) -> None:
         prev = (t, x, y)
         if newest is None or y < newest[1]:
             newest = (x, y)
-    if newest is not None and tr.held:          # en tappad kontakt får sin etikett vid ∅
-        _label(over, wf, newest, tr.designation, style)
+    return newest
 
 
 def _label(over: dict, wf: Waterfall, at: tuple[float, float], text: str, style: str) -> None:

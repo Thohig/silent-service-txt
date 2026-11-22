@@ -296,3 +296,52 @@ def test_neutral_contacts_are_toned_down_and_threats_win_where_traces_cross():
                                 and "dim" in str(s.style) for s in row.spans)
     assert "S-2" in civil_row.plain and whole_dim(civil_row)
     assert "S-1" in threat_row.plain and not whole_dim(threat_row)
+
+
+# --- torpederna ---------------------------------------------------------------------
+from sim.sonar import IncomingTorpedo  # noqa: E402
+from sim.sonar_view import TorpedoTrace  # noqa: E402
+from sim.stations import SonarRoom, TorpedoRoom  # noqa: E402
+
+
+def test_own_torpedo_on_the_waterfall_by_tube(perfect_torpedoes):
+    """Egen torped: sonars bäringar på vattenfallet med tubens nummer, aldrig sanningens id."""
+    g = _game("ovning", seed=1)
+    g.command("kurs 0")
+    for _ in range(5):
+        g.tick()
+    room = g.station(TorpedoRoom)
+    n = next(t.n for t in room.tubes if t.load)
+    g.command(f"eld tub {n} kurs 90")
+    for _ in range(120):
+        g.tick()
+    traces = g.sonar().of(TorpedoTrace)
+    assert [t.label for t in traces] == [f"tub {n}"]
+    tp = traces[0]
+    assert not tp.hostile and len(tp.points) >= 5
+    assert all(60 <= b <= 120 for _, b, _ in tp.points)        # den går österut
+    truth_ids = {e.id for e in g.world.contacts}
+    assert not any(f"'{i}'" in repr(traces) for i in truth_ids)
+    rows = _plain(render_sonar(g.sonar(), 100, 30))
+    assert any(f"tub {n}" in r for r in rows)
+
+
+def test_hostile_torpedo_on_the_waterfall():
+    """Fientlig torped: sonarrummets bäringar som `torped 1`, dämpad när den tystnat."""
+    g = _game("ovning", seed=1)
+    sonar = g.station(SonarRoom)
+    for k in range(12):
+        g.tick()
+        sonar._on_incoming(IncomingTorpedo(1, "new" if k == 0 else "bearing", 200.0 + k, 12.0, 120.0))
+    tp, = g.sonar().of(TorpedoTrace)
+    assert tp.label == "torped 1" and tp.hostile and tp.held and len(tp.points) == 12
+    v = _view(now=g.now, items=[tp])
+    assert any("torped 1" in r for r in _plain(render_sonar(v, 100, 30, window_s=600)))
+    sonar._on_incoming(IncomingTorpedo(1, "lost", 211.0))
+    g.invalidate_views()
+    tp, = g.sonar().of(TorpedoTrace)
+    assert not tp.held
+    v = _view(now=g.now, items=[tp])
+    lines = render_sonar(v, 100, 30, window_s=600)
+    row = next(line for line in lines if "torped 1" in line.plain)
+    assert any("dim" in str(span.style) for span in row.spans)

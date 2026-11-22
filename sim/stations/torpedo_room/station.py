@@ -8,6 +8,7 @@ from ...crew import Role
 from ...events import CouncilHeld, HuntSigns, OwnSoundMade, OwnTorpedoHeard
 from ...orders import DESIG, NUM, AskContact, CommandSpec, Order, desig, num
 from ...reports import Quality
+from ...sonar_view import TorpedoTrace
 from ...systems import INFO, OK, WARN, Gauge, TubeRack
 from ...entities import Transient
 from ... import acoustics
@@ -253,6 +254,12 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
         r.end_t, r.end = self.now, how
         self.finished.append(r)
 
+    def sonar_items(self) -> list:
+        """Vattenfallet: våra torpeders bäringar som sonar hört dem, med tubens nummer."""
+        return [TorpedoTrace(f"tub {r.tube}", tuple(r.heard), hostile=False,
+                             held=r in self.in_water and not r.lost)
+                for r in self.finished + self.in_water if r.heard]
+
     def chart_items(self) -> list:
         """Egna torpeder som eldledningen räknar dem: från avfyrningspunkten längs den
         inställda kursen så långt de hunnit, med minutstreck. Har en målsökande torped
@@ -301,6 +308,8 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
         if r is None:
             return
         d = {"tube": r.tube, "bearing": e.bearing if e.bearing is not None else r.bearing}
+        if e.kind in ("running", "turned") and e.bearing is not None:
+            r.heard.append((self.now, e.bearing, e.se))       # till vattenfallet
         match e.kind:
             case "running":
                 r.bearing, r.heard_t, r.lost = e.bearing, self.now, False

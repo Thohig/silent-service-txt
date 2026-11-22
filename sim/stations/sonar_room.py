@@ -341,7 +341,7 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
         """Vattenfallet: varje kontakts bäringar som vi tagit dem, det vi hört och tappat,
         och en rad per kontakt med klassning och bäringsdrift (operatörens egen räkning)."""
         cutoff = self.now - WATERFALL_KEEP_S
-        items: list = [*self.marks, *self.lost, *self.own_marks]
+        items: list = [*self.marks, *self.lost, *self.own_marks, *self.torpedo_traces()]
         for tr in self.game.knowledge.tracks.values():
             obs = [o for o in tr.observations if o.t >= cutoff and o.source in SONAR_SOURCES]
             if not obs:
@@ -507,7 +507,7 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
                 case OwnTorpedo():
                     # Torpedrummet rapporterar egna torpeder med tubnummer.
                     q = Quality.GOD if ev.se >= 6 else Quality.OSAKER
-                    bus.publish(OwnTorpedoHeard(self.now, ev.no, ev.kind, ev.bearing, q))
+                    bus.publish(OwnTorpedoHeard(self.now, ev.no, ev.kind, ev.bearing, q, ev.se))
 
     def idle_proposals(self) -> list[Proposal]:
         st, env = self.own.state, self.world.env

@@ -3,6 +3,13 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-23 – torpederna på vattenfallet
+
+Sonar hörde torpeder med bäring men ritade dem aldrig: nu står de på vattenfallet. En fientlig torped som
+`torped 1` i egen färg över allt annat (bäringen som står still syns), våra egna som `tub 2`, dämpade; etiketten
+dämpas när sonar tappat dem. Fientliga ur sonarrummets bäringar (`IncomingMixin.torpedo_traces`), egna ur
+torpedrummet (`Running.heard`, `OwnTorpedoHeard.se`), ritade i `ui/sonar_render.py` (`TorpedoTrace`).
+
 ## 2026-11-22 – skjutlösningen bara för torpeder ombord
 
 Skjutlösningen räknade kurs och gångtid för alla torpedtyper i spelet, så övningstorpeden stod med i varje

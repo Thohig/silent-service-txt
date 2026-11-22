@@ -36,7 +36,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `Station.sonar_items()` ⇒ `Game.sonar()` (`SonarView`), bara kunskap: sonarrummet ger bäringsspår ur
   `ContactTrack.observations` (källorna sonar/ping/aktiv; prickarna bredare efter `se`), hörda transienter med
   bäring (`HeardMark`; pingar bara där inget annat står), tappade (`∅`), egna ljud i marginalen och en rad per
-  kontakt (bäring, operatörens bäringsdrift över 3 min, lösningens kvalitet, klassning); plottet lösningens
+  kontakt (bäring, operatörens bäringsdrift över 3 min, lösningens kvalitet, klassning); torpederna sonar hör
+  (`TorpedoTrace`): fientliga ur sonarrummets bäringar (`torped 1`, starkast färg, över alla spår), våra egna ur
+  torpedrummet med tubens nummer (`tub 2`, dämpade), etiketten dämpad när sonar tappat dem; plottet lösningens
   förutsagda bäringar för benet (streckade i kvalitetens färg, på från början, ↑ döljer dem; neutrala kontakter, alltså handelsfartyg, isljud och drivstationen (`NEUTRAL_KINDS`), tonas ned: spår, lösning och kontaktrad dämpade, spåren under hotens där de korsar och hotens etiketter först, men inget döljs) och sina märkta girar (`‹gir`, högst
   var 5:e min); navigatören kursloggen (var 10:e s) och våra girar ≥ 15° (`↻`/`↺` och en svag linje). Vyn räknar
   inget själv och ger inga verktyg (designprincip 1). Tab-ordningen: sjökort → sonar → ubåten.

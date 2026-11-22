@@ -21,6 +21,7 @@ from ..reports import Quality
 from ..russian import ru
 from ..ownship import TEST_DEPTH
 from ..sonar import IncomingTorpedo
+from ..sonar_view import KEEP_S as WATERFALL_KEEP_S, TorpedoTrace
 
 CALL_EVERY_S = 20              # bäringen ropas så här ofta
 DEPTH_JUMP_M = 80              # så långt från vårt djup: ut ur torpedens höjdband
@@ -49,6 +50,7 @@ class _Heard:
     levels: list[tuple[int, float]] = field(default_factory=list)            # (t, avläst nivå)
     last_call: int = -10**9
     eta: tuple[int, Quality] | None = None     # senast sagda tid kvar (s) och kvaliteten
+    lost: bool = False                          # hörs inte längre
 
 
 def _drift(h: _Heard, now: int) -> float | None:
@@ -160,14 +162,26 @@ class IncomingMixin:
         self._heard_torpedoes: dict[int, _Heard] = {}
         self._dodge_depth: float | None = None    # djupet vi går till, så länge torpeden går
 
+    def torpedo_traces(self) -> list:
+        """Vattenfallet: de fientliga torpedernas bäringar (`torped 1` …), den senaste timmen."""
+        cutoff = self.now - WATERFALL_KEEP_S
+        out = []
+        for h in self._heard_torpedoes.values():
+            pts = tuple(b for b in h.bearings if b[0] >= cutoff)
+            if pts:
+                out.append(TorpedoTrace(f"torped {h.no}", pts, hostile=True, held=not h.lost))
+        return out
+
     def _on_incoming(self, ev: IncomingTorpedo) -> None:
         bus = self.game.bus
         h = self._heard_torpedoes.setdefault(ev.no, _Heard(ev.no))
         if ev.kind == "lost":
+            h.lost = True
             self.say("sonar.torpedo.lost", {"bearing": ev.bearing}, kind="contact")
             bus.publish(TorpedoInWater(self.now, ev.no, "lost", ev.bearing))
             return
         h.bearings.append((self.now, ev.bearing, ev.se))
+        h.lost = False
         if ev.level is not None:
             h.levels.append((self.now, ev.level + self.game.rng_for("incoming").gauss(0, LEVEL_READ_SIGMA)))
         bus.publish(TorpedoInWater(self.now, ev.no, ev.kind, ev.bearing))

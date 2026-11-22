@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ...orders import Order, Unknown
 
@@ -153,4 +153,5 @@ class Running:
     seeker_on: bool = False       # målsökaren släppt
     wire_end_t: int | None = None
     strain_said: str = ""         # varningen för tråden som redan sagts ("fart", "gir")
+    heard: list[tuple[int, float, float]] = field(default_factory=list)   # sonars bäringar (t, b, se)
     no_solution_said: bool = False

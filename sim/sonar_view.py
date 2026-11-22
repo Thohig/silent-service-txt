@@ -45,6 +45,16 @@ class BearingTrace:
 
 
 @dataclass(frozen=True)
+class TorpedoTrace:
+    """En torped som sonar hör: (t, bäring, signalöverskott dB). Egen (`tub 2`, torpedrummets
+    tubnummer) eller fientlig (`torped 1`, sonarrummets ordningsnummer, aldrig sanningens id)."""
+    label: str
+    points: tuple[tuple[int, float, float], ...]
+    hostile: bool
+    held: bool = True
+
+
+@dataclass(frozen=True)
 class HeardMark:
     """En transient som sonar hörde: ping, plask, detonation, boj …"""
     t: int
@@ -115,7 +125,7 @@ class ContactLine:
     held: bool = True
 
 
-SonarItem = (BearingTrace | HeardMark | LostMark | SolutionTrace | TargetTurn | OwnHeading
+SonarItem = (BearingTrace | TorpedoTrace | HeardMark | LostMark | SolutionTrace | TargetTurn | OwnHeading
              | OwnTurn | OwnMark | ContactLine)
 
 

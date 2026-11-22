@@ -220,6 +220,7 @@ class OwnTorpedoHeard(Event):
     kind: str
     bearing: float | None = None
     quality: Quality = Quality.OSAKER
+    se: float = 0.0               # signalöverskottet (vattenfallets prickar)
 
 
 @dataclass(frozen=True)
