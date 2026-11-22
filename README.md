@@ -11,6 +11,9 @@ Vad som ändrats och när: `docs/ANDRINGAR.md`.
 
 ## Köra
 
+Den nedladdade versionen är bara provad på macOS. Spelar du på Windows: använd webbversionen på
+GitHub Pages ovan (där fungerar också ljud och tal).
+
 ```bash
 uv run main.py                     # huvudmenyn, slumpat frö
 uv run main.py --scenario kuba     # hoppa över huvudmenyn (kuba, kuba-kort, jagad, jagad-kort, sundet, sundet-in, sundet-ut, clyde, clyde-in, konvoj, konvoj-kort, konvoj-mot, arktis, arktis-kort, duell, duell-kort, krig, krig-kort)
