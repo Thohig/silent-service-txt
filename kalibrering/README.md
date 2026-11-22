@@ -42,6 +42,7 @@ scratchpad (2026-11-14–15). En del läser sanningen (`sundet.py --orakel`, `su
 | `starpom.py` | kuba, konvoj (kommaseparerade), frön, ev. `salva` | kaptenen lämnar över och sover, går till centralen för sina beslut; med `salva` skjuter han där (som `konvoj_salva.py`); mot samma kapten utan starpom |
 | `langvag.py` | scenarier (kommaseparerade), frön | ja-boten; radiogram med masten och på långvåg, stympade och missade sambandstillfällen |
 | `ytskott.py` | (eget upplägg) typer, frön (24) | ytläge, stillaliggande jagare 1–6 nm, radar varje minut i 10 min, sedan ett skott (eller `salva`) per typ |
+| `skott_saker.py` | scenarier, frön (1-16 eller 1,4,7), minuter, typer (53-61, SET-53, salva), max skott per spel | ja-boten; vid varje säker lösning (högst var 5:e min per kontakt) spelas fröet om och kaptenen skjuter; lösningens fel, siktfelet och utfallet. `PYTHONHASHSEED=0` |
 | `provspel.py` | scenarier (kommaseparerade), timmar, frö | provspelskaptenen: ja, rutinorder, vyer, periskop, eld på god lösning ≤ 3 nm; hela rapportflödet till `logs/provspel/` att läsa |
 | `kaos.py` | scenarier, frön (kommaseparerade), minuter | kaosboten: slumpade, udda och felaktiga order, ja/nej/jest på förslagen, vyer varje minut; letar undantag, oifyllda fält, punktdecimaler, kurser utan tre siffror, NaN, sanningens id:n; flödet till `logs/kaos/` |
 
@@ -65,6 +66,19 @@ avstånd till konvojen ungefär som förut (median 2,4 ⇒ 2,6 nm; efter kommer 
 inget), men färre förslag om sprint (`djup 220, turbin, fart 13` bland de vanligaste förslagen i 6 av 8
 frön före, 2 av 8 efter; glesare larm under långa jakter)
 gör att boten inte jagar ikapp konvojen efteråt, så den hinner förbi i 3 frön i stället för 0–1.
+
+**Provskjutning på säkra lösningar (2026-11-22, `skott_saker.py`, före rättelserna samma dag):** kuba, kuba-kort,
+konvoj-kort, konvoj-mot, sundet, sundet-in, krig-kort, duell-kort, clyde-in, frön 1–30, 150 min, högst 8 skott per
+spel; 493 skott med en 53-61, 223 parade med salva, 148 med SET-53. 53-61 träffar 32 %: rakt gående mål 60 %,
+mål som girar under gången 4 %; gångtid < 2 min 69 %, > 6,5 min 10 %. Handelsfartyg 56 %, jagare 1 av 84 (99 % girar
+under gången), transporter och tankfartyg 4–11 % (konvojens sicksack). Mot rakt gående mål: siktfel mot den ideala
+kursen < 0,5° ger 71 % (gyrot och smala skott rakt för- eller akterifrån, 0–20° mellan banorna 48 %), 0,5–1° 51 %,
+1–2° 23 %, > 2° nästan aldrig. Salva mot ensam torped i samma lägen 35 % mot 23 %. SET-53 sänkte ett annat fartyg i
+19 av 148 skott (i sundet oftast patrullbåten: torpedrummet varnar inte för målsökande). Plottets säkra lösningar:
+läge > 3σ 7 %, kurs > 3σ 18 % (mål > 3 kn; kursfel > 30° i 36 % i konvoj-mot, 24 % i krig-kort), avståndet inte
+systematiskt för kort (median −0,3 %). Inget mål närmare än 0,5 nm blir säkert (golvet 0,05 nm ger 10 %). 14 % av
+de säkra lägena var för djupa eller för snabba för avfyring (spärren av i omspelningen). Skott som avbröts av
+tidsgränsen (mest clyde-in) räknas som missar.
 
 **Stilla fartyg tystare (2026-11-22, `acoustics.IDLE_KN`/`IDLE_DB`):** under 3 kn faller källnivån linjärt till
 12 dB under framdrivningens vid stopp (stoppad jagare 125 dB i stället för 137). `ytskott.py` 24 frön: målsökarna
