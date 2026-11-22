@@ -15,7 +15,7 @@ Körs från repots rot: PYTHONHASHSEED=0 uv run python kalibrering/skott_saker.p
 import sys as _sys
 from pathlib import Path as _Path
 _sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))  # repots rot
-import json, math, random, time
+import json, math, random, sys, time
 from multiprocessing import Pool
 
 from sim.events import ReportDelivered
