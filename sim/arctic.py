@@ -13,6 +13,8 @@ I krig (`roe = "attack"`, Duellen) går den närmare (`ATTACK_NM`), räknar vår
 sina senaste pejlingar, öppnar torpedluckorna (`DOORS_LEVEL`, hörs på några sjömil) och skjuter
 en Mk 37 med förhållning `DOORS_S` senare, om pejlingen är färsk och säker nog (`FIRE_SIGMA_NM`)
 och vi är inom `FIRE_NM`. Sedan väntar den `FIRE_EVERY_S` och har `torpedoes` kvar.
+`opening_shot_t` (torpeden i vattnet, `duell-torped`): den har redan sin lösning och öppnar luckorna
+då, vad den än hör.
 """
 from __future__ import annotations
 
@@ -110,6 +112,7 @@ class SubmarineAI:
         self.next_fire = 0
         self.doors_t: int | None = None          # skottet går då (luckorna är öppna)
         self.datums: list[SubDatum] = []         # senaste pejlingarna (kurs och fart ur dem)
+        self.opening_shot_t: int | None = None   # skjuter på lösningen den har, då (duell-torped)
 
     def aware(self) -> bool:
         """Har den oss: skuggar, och (i krig) med en pejling som inte är äldre än `AWARE_S`.
@@ -242,6 +245,11 @@ class SubmarineAI:
 
     def _attack(self, world: World, d: SubDatum, r: float, b: float) -> None:
         s, now = self.vessel.state, world.time
+        if self.opening_shot_t is not None and now >= self.opening_shot_t and self.doors_t is None \
+                and self.torpedoes > 0:
+            self.opening_shot_t = None          # lösningen är gjord: luckorna upp nu
+            self.doors_t = now + DOORS_S
+            world.emit(Transient("doors", s.x, s.y, s.depth, DOORS_LEVEL, self.vessel.id, now))
         if now - d.t > SEARCH_AFTER_S and self.doors_t is None:
             self._search(d, r, b, now)
             return

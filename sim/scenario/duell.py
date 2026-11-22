@@ -7,6 +7,10 @@ lämna området utan att den har oss (`escaped`).
 
 Kort variant (`duell-kort`): ubåten har redan pejlat oss och är ett par sjömil bort; vakten har
 gått på smygmotor i några minuter. Vi är närmare kanten, så att det går att komma undan.
+
+Torpeden i vattnet (`duell-torped`): som den korta, men ubåten har sin lösning klar. Luckorna öppnas
+strax efter att kaptenen tagit befälet (`TORPEDO_DOORS_AFTER_S`) och en Mk 37 är i vattnet en halv minut
+senare, 3–3,5 sjömil bort: undan först, sedan sänk den eller ta er ut.
 """
 from __future__ import annotations
 
@@ -14,7 +18,7 @@ import math
 import random
 from typing import Any
 
-from ..arctic import DriftStation, EnemySub, SubDatum, SubmarineAI
+from ..arctic import DOORS_S, FIRE_EVERY_S, DriftStation, EnemySub, SubDatum, SubmarineAI
 from ..environment import ArcticProfile, Environment
 from ..geo import bearing_to, distance
 from ..goals import EscapeGoal
@@ -53,13 +57,17 @@ DUEL_SHORT_SUB_NM = (3.0, 4.0)        # ubåten så långt bort när vakten tar 
 ESCAPE_MARGIN_NM = 1.0
 US_MAX_KN = 18                        # Skate-klassen 1962: inte fortare än vår SET-53 (23 kn)
 US_BASE_DB = 129.0                    # Skate-klassen: bullrigare än senare amerikanska ubåtar
+TORPEDO_WARM_S = 2 * 60               # duell-torped: vakten
+TORPEDO_SUB_NM = (3.0, 3.5)           # ubåten så långt bort: Mk 37 framme efter 7–8 min
+TORPEDO_DOORS_AFTER_S = 8             # luckorna öppnas så här länge efter överlämnandet
+TORPEDO_LIMIT_S = 20 * 60
 
 
 class IceIsland(DriftStation):
     """T-3: en amerikansk forskningsstation på en isö. Generatorn hörs genom isen."""
 
 
-def duel_scenario(rng: random.Random, short: bool = False) -> Scenario:
+def duel_scenario(rng: random.Random, short: bool = False, torpedo: bool = False) -> Scenario:
     start_clock = 3 * 3600
     ice = IceField(random.Random(rng.random()), drift_set=200.0, drift_kn=0.2)
     env = Environment(profile=ArcticProfile(), clock_start=start_clock, ice=ice, sea_state=1,
@@ -80,7 +88,7 @@ def duel_scenario(rng: random.Random, short: bool = False) -> Scenario:
     ix, iy = x + ir * math.sin(math.radians(ib)), y + ir * math.cos(math.radians(ib))
     island = IceIsland("T3", ix, iy)
     if short:
-        ur = rng.uniform(*DUEL_SHORT_SUB_NM)
+        ur = rng.uniform(*(TORPEDO_SUB_NM if torpedo else DUEL_SHORT_SUB_NM))
         ub = rng.uniform(-40, 40)
         ux, uy = x + ur * math.sin(math.radians(ub)), y + ur * math.cos(math.radians(ub))
     else:
@@ -103,6 +111,13 @@ def duel_scenario(rng: random.Random, short: bool = False) -> Scenario:
                             DUEL_SHORT_WARM_S - 60)
         ai.datums = [ai.datum]
         ai.next_fire = DUEL_SHORT_WARM_S + 120           # skjuter inte under vaktens minuter
+        if torpedo:
+            # lösningen är klar: luckorna strax efter överlämnandet, nästa skott efter omladdningen
+            ai.datum = SubDatum(x + rng.gauss(0, 0.2), y + rng.gauss(0, 0.2), 150.0, 0.3,
+                                TORPEDO_WARM_S - 30)
+            ai.datums = [ai.datum]
+            ai.opening_shot_t = TORPEDO_WARM_S + TORPEDO_DOORS_AFTER_S
+            ai.next_fire = TORPEDO_WARM_S + TORPEDO_DOORS_AFTER_S + DOORS_S + FIRE_EVERY_S
     world.ais.append(ai)
     world.goals.append(EscapeGoal(ESCAPE_MARGIN_NM, "escaped"))
 
@@ -151,4 +166,17 @@ def duel_short_scenario(rng: random.Random) -> Scenario:
                         "150 METER. KAPTENEN TAR BEFÄLET.\n")
     sc.outcome_text["patrol_end"] = ("Tiden är ute. Den amerikanska ubåten har fortfarande "
                                      "kontakt med K-114 i Nord-3.")
+    return sc
+
+
+def duel_torpedo_scenario(rng: random.Random) -> Scenario:
+    """Torpeden i vattnet: ubåten skjuter strax efter att kaptenen tagit befälet."""
+    sc = duel_scenario(rng, short=True, torpedo=True)
+    sc.warmup = Warmup(TORPEDO_WARM_S, _duel_watch_pilot)
+    sc.world.patrol_end = TORPEDO_WARM_S + TORPEDO_LIMIT_S
+    sc.secret_order += ("\nVAKTJOURNALEN, 03.02: AMERIKANSKA UBÅTEN HÖRS\n"
+                        "NÄRA OCH TYSTNAR. DEN STÅR STILL OCH LYSSNAR.\n"
+                        "SMYGMOTOR, 150 METER. KAPTENEN TAR BEFÄLET.\n")
+    sc.outcome_text["patrol_end"] = ("Tiden är ute. K-114 lever, men den amerikanska ubåten "
+                                     "har fortfarande kontakt i Nord-3.")
     return sc

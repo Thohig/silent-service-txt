@@ -156,10 +156,12 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (transient `doors`, 150 dB; sonar larmar och föreslår kurs tvärs och nytt djup) och skjuter 30 s senare
   med förhållning, högst var 8:e min, 3 torpeder. Tappar den oss söker den där vi hördes sist i 6 kn
   (`_search`); den har oss bara med en pejling ≤ 5 min gammal (`AWARE_S`), annars kommer vi undan.
-- **Duellen under isen** (`duell`, `duell-kort`, `scenario/duell.py`, D3): krig 28 okt 1962, Nord-3. En
+- **Duellen under isen** (`duell`, `duell-kort`, `duell-torped`, `scenario/duell.py`, D3): krig 28 okt 1962, Nord-3. En
   amerikansk Skate-ubåt (bas 129 dB, högst 18 kn) skyddar isön T-3 och har order att sänka oss. Sänk den
   (`sank`) eller lämna området utan att den har oss (`escaped`, marginal 1 nm); 4 h. Kort variant: den har
-  pejlat oss och är 3–4 nm bort, vakten 3 min på smygmotor, vi nära södra kanten, 40 min. För att skjuta
+  pejlat oss och är 3–4 nm bort, vakten 3 min på smygmotor, vi nära södra kanten, 40 min. Torpeden i vattnet
+  (`duell-torped`): som den korta men 3–3,5 nm, vakten 2 min, och ubåten har sin lösning (`SubmarineAI.opening_shot_t`):
+  luckorna 8 s efter överlämnandet, Mk 37 i vattnet 30 s senare, nästa skott efter `FIRE_EVERY_S`; 20 min. För att skjuta
   måste vi upp till ≤ 100 m. En rak torped går på 5 m och träffar bara inom 20 m i djup, så mot ubåten på
   djupet duger bara målsökarna (SET-53, 53-62T), som styr i djup mot den. Siffrorna i `kalibrering/README.md` (`kalibrering/duell.py`).
 

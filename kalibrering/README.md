@@ -188,6 +188,10 @@ föreslår fart 6 på väg upp till periskopdjup i 3 av 4; med ja bröt tornet a
 - `duell-kort`: passiv förlorad 6 (tiden ute 2); ja-boten överlever 3 (tiden ute), förlorad 5, varken sänker
   (avfyring är kaptenens) eller kommer undan; verktygsboten sänkt 1, överlever 2. Första rapport 8–93 s.
   Medvetet svår: ubåten har redan pejlat oss. Med tre torpeder och 8 min mellan skotten.
+- `duell-torped` (2026-11-23): passiv förlorad 8 (träffad efter 5–6 min, en efter 13); ja-boten överlever 8, undan 2
+  (tiden ute 6); verktygsboten som ja-boten (skjuter aldrig: ingen lösning ≥ osäker medan den springer). Luckorna
+  13–15 s efter överlämnandet; ubåten skjuter 2–3. `duell-kort` efter rättelsen av sammansatta förslag: ja oförändrad,
+  verktyg tiden ute 2, förlorad 5, sänkt 1 (förut 3/4/1).
 
 **Trim (2026-11-18, TR4):** efter trimmen (`sim/trim.py`, trimmaren) ger `kontroll.py` samma utfall som
 baslinjen i alla scenarier (passiv och ja-boten, 8 frön; inget flyttat ≥ 2 av 8 eller ≥ 25 % i tid).

@@ -320,8 +320,13 @@ class Game:
 
         Sant om en order av samma typ har getts sedan förslaget gjordes
         (förslaget är inaktuellt), eller om förslaget är exakt den bestående
-        order som redan gäller (t.ex. "fart 6" när fart 6 är beordrad).
+        order som redan gäller (t.ex. "fart 6" när fart 6 är beordrad). Ett sammansatt
+        förslag ("kurs 189, fart 28") är avgjort när varje del är det.
         """
+        parts = split_orders(order_text)
+        return bool(parts) and all(self._order_decided(p, made_t) for p in parts)
+
+    def _order_decided(self, order_text: str, made_t: int) -> bool:
         o = self.registry.parse(order_text)
         last = self._ordered.get(type(o))
         if last is None:

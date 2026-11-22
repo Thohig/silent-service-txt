@@ -5,7 +5,7 @@ Verktygsboten svarar ja som ja-boten och skjuter dessutom målsökande torpeder 
 Kolumnerna: frö, utfall, minuter efter överlämnandet, sekunder till första rapport (kontakt,
 förslag eller larm), US-ubåtens skott, våra skott.
 
-Användning (från repots rot): uv run python kalibrering/duell.py duell-kort passiv,ja,verktyg
+Användning (från repots rot): uv run python kalibrering/duell.py duell-kort,duell-torped passiv,ja,verktyg
 """
 import sys as _sys
 from pathlib import Path as _Path

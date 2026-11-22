@@ -69,6 +69,16 @@ def test_no_suggestion_of_standing_order_already_given():
     assert [r.data["order"] for r in _suggestions(reports)] == ["djup 200"]
 
 
+def test_compound_suggestion_is_redundant_only_when_every_part_is_decided():
+    """Undanmanövern "kurs, fart, djup" släpps när allt redan är beordrat (den kom förr igen)."""
+    g, _ = _game()
+    g.command("kurs 189, fart 20, djup 200")
+    _run(g, 5)
+    assert g.suggestion_redundant("kurs 189, fart 20, djup 200", g.now)
+    assert not g.suggestion_redundant("kurs 189, fart 20, djup 220", g.now)   # nytt djup
+    assert not g.suggestion_redundant("skenmål, kurs 189", g.now)            # skenmålet är nytt
+
+
 def test_one_shot_order_can_be_suggested_again_later():
     g, reports = _game()
     g.command("fix")

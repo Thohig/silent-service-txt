@@ -1,4 +1,4 @@
-"""D3: Duellen under isen (duell, duell-kort)."""
+"""D3: Duellen under isen (duell, duell-kort, duell-torped)."""
 import random
 
 import pytest
@@ -43,3 +43,19 @@ def test_sanker_vi_ubaten_ar_det_seger():
         if g.over:
             break
     assert g.world.outcome["outcome"] == "sank"
+
+
+@pytest.mark.slow
+def test_torpeden_i_vattnet_luckor_och_torped_strax_efter_overlamnandet():
+    """duell-torped: sonar hör luckorna inom en halv minut och torpeden inom en minut, efter
+    överlämnandet (aldrig under vakten), i alla frön."""
+    for seed in range(1, 5):
+        g = Game(build_scenario("duell-torped", random.Random(seed)), seed=seed, warm_up=False)
+        g.warm_up()
+        start, said = g.now, {}
+        g.bus.subscribe(ReportDelivered, lambda e: said.setdefault(e.report.type, g.now - start))
+        for _ in range(90):
+            g.tick()
+        assert said.get("sonar.doors", 99) <= 30, (seed, said)
+        assert said.get("sonar.torpedo", 99) <= 60, (seed, said)
+        assert g.world.mission.get("us_fired") == 1

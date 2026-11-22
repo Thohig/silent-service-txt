@@ -3,6 +3,18 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-23 – Torpeden i vattnet (`duell-torped`) och sammansatta förslag
+
+Ny kort variant i Duellen, ~15 min: den amerikanska ubåten har sin lösning klar och öppnar torpedrören några
+sekunder efter att kaptenen tagit befälet; en Mk 37 är i vattnet en halv minut senare, 3–3,5 nm bort. Undan
+först, sedan sänk den eller ta er ut. `SubmarineAI.opening_shot_t` (skjuter på lösningen den har, vad den än
+hör), `duel_torpedo_scenario`. Kalibrering: passiv förlorad 8 av 8, ja-boten överlever 8, undan 2.
+
+Fel som hittades på vägen: ett sammansatt förslag ("kurs 189, fart 28, djup 234", sonars undanmanöver) tolkades
+som en okänd order och släpptes aldrig som redundant, så sonar kunde föreslå samma undanmanöver igen fast allt
+redan var beordrat. Nu är det avgjort när varje del är det (`Game.suggestion_redundant`, `_order_decided`).
+duell-kort med ja-boten oförändrad.
+
 ## 2026-11-23 – huvudmenyn i avdelningar
 
 Uppdragen står i tre avdelningar: ÖVNING, KRISEN (fred, förbli oupptäckt) och KRIGET (vapen fria), med en röd

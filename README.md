@@ -23,8 +23,8 @@ Textual), sedan ligger det i webbläsarens cache.
   (`sjökort`, `sonar` … `central` tillbaka) eftersom tangentbordet saknar Tab och Esc.
 - **Direkt till ett scenario:** lägg till `?scenario=kuba-kort` i adressen, och `&seed=4` för ett
   reproducerbart frö. Scenarierna: kuba, kuba-kort, jagad, jagad-kort, sundet, sundet-in, sundet-ut,
-  clyde, clyde-in, konvoj, konvoj-kort, konvoj-mot, arktis, arktis-kort, duell, duell-kort, krig,
-  krig-kort. Utan `scenario` börjar spelet i huvudmenyn.
+  clyde, clyde-in, konvoj, konvoj-kort, konvoj-mot, arktis, arktis-kort, duell, duell-kort, duell-torped,
+  krig, krig-kort, ovning, ovning-kort. Utan `scenario` börjar spelet i huvudmenyn.
 
 När ett uppdrag är slut tar Enter dig tillbaka till huvudmenyn. Där finns också inställningar (ljud,
 tal, slumpfrö) och en lista över alla order och ryska ord. Med ljudet på spelar menyn egen musik,
@@ -159,6 +159,7 @@ en del säger de vilken, och resten verkställs ändå. Ett värde utanför det 
 | Krigspatrullen, kort (`krig-kort`) | Bara den första konvojen: vakthavande har följt den på periskopdjup i 35 minuter och ni tar befälet 07:05 med plottet på konvojen. Kvadraten är mindre och ni ligger nära nordkanten. När konvojen är avgjord kallar staben hem er vid nästa sambandstillfälle (var 30:e minut, senast 08.05); gå sedan ut ur kvadraten. Tiden är ute 09.25. Omkring en och en halv timmes spel. |
 | Arktis: Nord-7 | Drivstationen driver med isen. Huvudstaben ger en ungefärlig position; generatorn hörs på några sjömil och ljuset syns i periskopet. Målet är ytläge inom 1,5 sjömil. En amerikansk atomubåt hör oss före vi hör den och skuggar oss, men skjuter inte. |
 | Arktis, kort (`arktis-kort`) | Vakthavande har gått mot Nord-7 under isen i tjugo minuter på 60 meter, och iskartan har några öppningar bakom er. Stationen ligger ett par sjömil fram, en amerikansk ubåt är på väg dit, och branden i turbinrummet kommer inom en kvart. Målet är detsamma: ytläge inom en och en halv sjömil från stationen. Tiden är ute efter 35 minuter. Omkring 25 minuters spel. |
+| Duellen, torpeden i vattnet (`duell-torped`) | 28 oktober, kriget har börjat, under isen i Nord-3. Vakthavande har gått på smygmotor i två minuter med den amerikanska ubåten 3–3,5 sjömil bort. Den har redan sin lösning: några sekunder efter att ni tagit befälet ropar sonar att den öppnar torpedrören, och en halv minut senare är en Mk 37 i vattnet. Sonar föreslår undanmanövern och ropar bäringen; står den still kommer torpeden mot er. Kom undan, och sänk sedan ubåten eller ta er ut ur Nord-3 utan att den har er. Den skjuter igen efter omladdningen. Tiden är ute efter 20 minuter. Omkring en kvarts spel. |
 | Brand och rök (arktis) | En brand i turbinrummet stoppar turbinen. Röken stiger tills vi ventilerar i öppen luft och sänker besättningens förmåga; för tät rök kväver besättningen. |
 | Isljud (arktis) | Bakgrundsbruset beror på isen. Skruvis knakar och kan först tas för en kontakt. |
 | Packis (arktis) | Masterna kräver öppet vatten. Isekolodet lodar isen ovanför och navigatören loggar öppningar; deras läge blir osäkrare när isen driver. Kölar når 45 m: gå djupt i fart. Tunn is (≤ 1 m) kan brytas igenom i låg fart om råken är minst 120 m. Isekolodet lodar också för och akter: ytläge föreslås bara när hela skrovet har öppet vatten eller tunn is ovanför; står tornet i kanten av öppningen lägger navigatören om mot mitten först. Arktiskt hav saknar språngskikt; djupt gående hör och hörs längre. |
