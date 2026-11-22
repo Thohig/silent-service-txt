@@ -15,6 +15,13 @@ en Mk 37 med förhållning `DOORS_S` senare, om pejlingen är färsk och säker 
 och vi är inom `FIRE_NM`. Sedan väntar den `FIRE_EVERY_S` och har `torpedoes` kvar.
 `opening_shot_t` (torpeden i vattnet, `duell-torped`): den har redan sin lösning och öppnar luckorna
 då, vad den än hör.
+
+Skuggning (`state = "shadow"`, Svansen): den ligger `SHADOW_NM` akter om oss i vår döda sektor och styr
+mot där den senast medlat oss (förföljare hamnar akter om målet), med vår fart ur skruvens varvtal, som den
+märker med eftersläpning (`SHADOW_REACT_S`: saktar vi in hinner den komma närmare). Girar
+vi går den rakt en stund innan den följer, och då kommer den ut ur sektorn. Den går till anfall (`trail`)
+vid `shadow_until`, när den hör oss pinga, skjuta eller släppa skenmål, när den hör en torped, eller när
+vi kommer närmare än `SHADOW_ALERT_NM`.
 """
 from __future__ import annotations
 
@@ -54,6 +61,12 @@ SEARCH_AFTER_S = 120            # ingen ny pejling så länge: sök där vi hör
 SEARCH_KN = 6                   # tyst nog att höra
 ATTACK_KN = 8                   # på skjutavstånd, på sidan om oss
 SEARCH_RADIUS_NM = 0.8
+US_MAX_SHADOW_KN = 18             # Skate: högsta fart
+SHADOW_NM = 1.7                 # skuggning: så långt akter om oss
+SHADOW_BAND_NM = 0.3            # fart efter avståndet utanför bandet
+SHADOW_REACT_S = 90.0           # så länge innan den märkt att vi ändrat fart (tidskonstant)
+SHADOW_ALERT_NM = 1.0           # närmare än så: vi har den, anfall
+SHADOW_ALERT_SOUNDS = ("ping", "launch", "decoy")   # det från oss som säger att vi har den
 
 
 class DriftStation(Vessel):
@@ -113,11 +126,13 @@ class SubmarineAI:
         self.doors_t: int | None = None          # skottet går då (luckorna är öppna)
         self.datums: list[SubDatum] = []         # senaste pejlingarna (kurs och fart ur dem)
         self.opening_shot_t: int | None = None   # skjuter på lösningen den har, då (duell-torped)
+        self.shadow_until: int | None = None     # skuggning: anfaller då (Svansen)
+        self._our_speed: float | None = None     # skuggning: vår fart som den uppfattat den
 
     def aware(self) -> bool:
         """Har den oss: skuggar, och (i krig) med en pejling som inte är äldre än `AWARE_S`.
         Söker den bara där vi var har den oss inte."""
-        if self.state != "trail":
+        if self.state not in ("trail", "shadow"):
             return False
         if self.roe != "attack" or self.datum is None:
             return True
@@ -149,6 +164,8 @@ class SubmarineAI:
                 heard = True
                 if tr.kind == "launch" and self.roe != "attack":
                     self.roe = "evade"
+                if self.state == "shadow" and tr.kind in SHADOW_ALERT_SOUNDS:
+                    self.state = "trail"             # vi har den: anfall
         self._heard_for = self._heard_for + 1 if heard else 0
         if heard and (self._heard_for >= US_DETECT_S or self.datum is not None):
             r = distance(self.vessel.state.x, self.vessel.state.y, own.state.x, own.state.y)
@@ -157,9 +174,9 @@ class SubmarineAI:
                                   own.state.y + self.rng.gauss(0, err),
                                   own.depth + self.rng.gauss(0, 15), err, now)
             self.datums = [d for d in self.datums if now - d.t <= 180] + [self.datum]
-            if self.state != "trail":
+            if self.state not in ("trail", "shadow"):
                 world.mission["us_sub_contact"] = world.mission.get("us_sub_contact", 0) + 1
-            self.state = "trail"
+                self.state = "trail"
 
     def _threats(self, world: World) -> None:
         s = self.vessel.state
@@ -169,6 +186,8 @@ class SubmarineAI:
                 continue
             se = t.radiated_level(world.env) - self._tl(world, t.state.x, t.state.y, t.depth) - noise
             if se > 0:
+                if self.state == "shadow":
+                    self.state = "trail"
                 self.evade_until = world.time + 240
                 s.order_course(bearing_to(t.state.x, t.state.y, s.x, s.y))
                 s.order_speed(25)
@@ -190,6 +209,10 @@ class SubmarineAI:
             self.datum = None
             self.state = "patrol"
         st = self.station.state
+        if self.state == "shadow" and self.datum is not None:
+            self._shadow(world, now)
+            if self.state == "shadow":
+                return
         if self.state == "trail" and self.datum is not None:
             d = self.datum
             r = distance(s.x, s.y, d.x, d.y)
@@ -278,6 +301,31 @@ class SubmarineAI:
         else:
             s.order_course(norm360(b + 70))
             s.order_speed(ATTACK_KN)
+
+    def _shadow(self, world: World, now: int) -> None:
+        """Skugga: mot där vi medlat hördes senast, farten efter avståndet (se modulens text)."""
+        s = self.vessel.state
+        if self.shadow_until is not None and now >= self.shadow_until:
+            self.state = "trail"
+            return
+        d = self._fire_datum(now) or self.datum
+        r, b = distance(s.x, s.y, d.x, d.y), bearing_to(s.x, s.y, d.x, d.y)
+        if r < SHADOW_ALERT_NM:
+            self.state = "trail"
+            return
+        true = max(0.0, world.own.state.speed)           # skruvens varvtal, med eftersläpning
+        if self._our_speed is None:
+            self._our_speed = true
+        self._our_speed += (true - self._our_speed) / SHADOW_REACT_S
+        ours = self._our_speed
+        if r > SHADOW_NM + SHADOW_BAND_NM:
+            speed = ours + 3
+        elif r < SHADOW_NM - SHADOW_BAND_NM:
+            speed = ours - 2
+        else:
+            speed = ours
+        s.order_course(b)
+        s.order_speed(int(min(US_MAX_SHADOW_KN, max(3.0, speed))))
 
     def _search(self, d: SubDatum, r: float, b: float, now: int) -> None:
         """Tappat oss: dit vi hördes sist, tyst och lyssnande, sedan i en växande cirkel."""

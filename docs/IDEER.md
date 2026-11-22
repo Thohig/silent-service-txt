@@ -11,7 +11,11 @@ när något går fel, ger högst en ny order (helst ingen) och syns i de vyer so
 
 ## Nya system
 
-Inga just nu (långvågen byggd 2026-11-19, omladdningens slammer 2026-11-19).
+- **Döda sektorn akterut i alla scenarier** (2026-11-23, användarens önskan att anteckna): sonarns döda sektor
+  (`OwnShip.baffle_deg`, `sim/sonar.py` `baffle_loss`, sonars gir för att lyssna i `sim/stations/baffles.py`) finns
+  bara i Svansen. Realistiskt gäller den alltid: en jagare akterut hörs sämre när vi går fort, och sonar vill lyssna
+  akterut efter långa raka sträckor. Kräver omkalibrering av alla scenarier (`kalibrering/kontroll.py`, ny
+  baslinje) och en titt på jaktens förslag (undanmanövern bort från jagaren lägger den i sektorn).
 
 ## Spelidéer
 

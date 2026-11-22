@@ -1,11 +1,11 @@
-"""Duellen under isen: passiv, ja-boten och en bot med besättningens verktyg, 8 frön.
+"""Duellen under isen (och Svansen, samma ubåt): passiv, ja-boten och en bot med besättningens verktyg, 8 frön.
 
 Verktygsboten svarar ja som ja-boten och skjuter dessutom målsökande torpeder (tub 5, 6, sedan
 1–4) mot en hållen hotkontakt med lösning ≥ osäker; är vi under 100 m går den först upp till 90.
 Kolumnerna: frö, utfall, minuter efter överlämnandet, sekunder till första rapport (kontakt,
 förslag eller larm), US-ubåtens skott, våra skott.
 
-Användning (från repots rot): uv run python kalibrering/duell.py duell-kort,duell-torped passiv,ja,verktyg
+Användning (från repots rot): uv run python kalibrering/duell.py duell-kort,duell-torped,svansen-kort passiv,ja,verktyg
 """
 import sys as _sys
 from pathlib import Path as _Path

@@ -28,6 +28,7 @@ from ..sonar import (ClassificationUpdate, Detection, IncomingTorpedo, Lost, Own
                      SonarStation, TransientHeard)
 from ..tma import BearingObs
 from .base import Proposal, Station
+from .baffles import BafflesMixin
 from .incoming import IncomingMixin
 from .recording import RecordingMixin
 
@@ -269,7 +270,7 @@ RU_PHRASES = {
 phrases.register_ru(RU_PHRASES)
 
 
-class SonarRoom(IncomingMixin, RecordingMixin, Station):
+class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
     REACHES_WORLD = True        # hydrofonerna och aktiv sonar (sensor)
     role = Role.SONAR
     COMMANDS = [
@@ -281,6 +282,7 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
         self.sensor = SonarStation(self.member, game.rng_for("sonar"))
         self._incoming_init()
         self._recording_init()
+        self._baffles_init()
         self._last_called: dict[str, tuple[float, int]] = {}
         self._pings: dict[str, dict] = {}
         self._unknown_pingers = 0
@@ -458,6 +460,7 @@ class SonarRoom(IncomingMixin, RecordingMixin, Station):
         if self.now % AMBIENT_EVERY_S == 0:
             self._ambient_watch()
         self._recording_watch()
+        self._baffles_watch()
         own_xy = self.game.own_position_estimate()
         for ev in self.sensor.update(self.world, own_xy):
             match ev:

@@ -125,6 +125,9 @@ class OwnShip(Vessel):
         self._prev_depth: float | None = None   # djupet förra sekunden (skrovknaket)
         self.heave_amp_m = 0.0           # sjöns sug: utslaget just nu (djupmätaren visar det)
         self.heave_m = 0.0               # och hur högt sjön drar oss denna sekund
+        # sonarns döda sektor akterut, halva bredden i grader (0 = ingen; bara Svansen hittills,
+        # se sim/sonar.py `baffle_loss`)
+        self.baffle_deg = 0.0
         if state.depth <= 1.0:
             self.sys.bridge = "manned"       # börjar i ytläge med folk på bryggan
 

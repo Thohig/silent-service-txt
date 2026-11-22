@@ -3,6 +3,22 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-23 – Svansen (`svansen-kort`) och sonarns döda sektor
+
+Nytt kort krigsscenario, ~20 min: natt i Norska havet, vi går i 10 kn och en amerikansk Skate skuggar oss i
+döda sektorn akterut. Sonar föreslår efter tio minuter rakt en gir och fart 4 för att lyssna i kölvattnet och
+säger till om det är tomt; ubåten märker vår fartändring sent och kommer då fram. Sänk den eller skaka av den
+(ingen har haft oss på 10 min). Den skjuter när den har sin lösning (12–16 min) eller när vi röjt att vi har den.
+Var det bor: `sim/scenario/svansen.py`, döda sektorn `OwnShip.baffle_deg` och `sim/sonar.py` `baffle_loss`
+(bara Svansen; idén att införa den överallt i `docs/IDEER.md`), sonarrummets gir `sim/stations/baffles.py`,
+skuggningen `SubmarineAI.state = "shadow"` (`sim/arctic.py`), målet `ShakeGoal`. Kalibrering: första rapport
+~130 s, ja-boten skakar av 3 av 8, passiv förlorad 5 av 8.
+
+På vägen: utan fart 4 i giren hördes ubåten aldrig (vårt eget brus i 10 kn dränkte den även på sidan), och
+sonars utlåtande räknade först varje gir som en lyssning, tog kursen mitt i giren och sa "tomt" fast en kontakt
+hörts under lyssningen; nu gäller utlåtandet bara sonars egen gir, kursen tas när giren är klar och varje ny
+kontakt under lyssningen räknas.
+
 ## 2026-11-23 – Torpeden i vattnet (`duell-torped`) och sammansatta förslag
 
 Ny kort variant i Duellen, ~15 min: den amerikanska ubåten har sin lösning klar och öppnar torpedrören några
@@ -13,7 +29,11 @@ hör), `duel_torpedo_scenario`. Kalibrering: passiv förlorad 8 av 8, ja-boten �
 Fel som hittades på vägen: ett sammansatt förslag ("kurs 189, fart 28, djup 234", sonars undanmanöver) tolkades
 som en okänd order och släpptes aldrig som redundant, så sonar kunde föreslå samma undanmanöver igen fast allt
 redan var beordrat. Nu är det avgjort när varje del är det (`Game.suggestion_redundant`, `_order_decided`).
-duell-kort med ja-boten oförändrad.
+duell-kort med ja-boten oförändrad. Det förde fram ett äldre fel: en bestående order räknades som gällande
+bara för att kaptenen senast gett den, fast ett uppdrag (vaken, styrningen) sedan ändrat fart eller kurs; i
+Arktis släpptes då navigatörens "fart 5, djup 60" för att återuppta sökningen (ja-boten nådde öppet vatten i 6
+av 8 frön i stället för 8). Nu frågar Game stationerna (`Station.order_in_force`; navigatören svarar för kurs,
+fart och djup ur rodren och maskinen).
 
 ## 2026-11-23 – huvudmenyn i avdelningar
 

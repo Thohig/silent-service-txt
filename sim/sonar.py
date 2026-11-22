@@ -27,6 +27,13 @@ OWN_LOSE_AFTER = 60        # egen torped: sekunder tyst innan operatören tappar
 OWN_TURN_DEG = 20.0        # så mycket måste en egen torped svänga för att det ska höras
 OWN_END_WAIT = 2           # sekunder att vänta på detonation när en torped tystnar
 INCOMING_LOSE_AFTER = 15   # fientlig torped: så länge tyst innan den räknas som tappad
+# Döda sektorn akterut (`OwnShip.baffle_deg`, halva bredden): skrovet skymmer bogsonarn och skruven
+# bullrar. Förlusten är skrovets plus skruvens per knop över smygfart; kanten tonar över BAFFLE_EDGE_DEG.
+BAFFLE_HULL_DB = 12.0
+BAFFLE_SCREW_DB_PER_KN = 1.5
+BAFFLE_QUIET_KN = 4.0
+BAFFLE_MAX_DB = 25.0
+BAFFLE_EDGE_DEG = 10.0
 
 # Klassificeringsstadier per typ: (ackumulerad lyssning, text)
 _CLASS_STAGES = {
@@ -178,8 +185,9 @@ class SonarStation:
         return self.operator.detection_threshold() + (1.0 - world.own.sys.health["sonar"]) * 15.0
 
     def signal_excess(self, world: World, v: Vessel, t: _Tracking) -> float:
-        """SE inkl. operatörens tröskel och långsam fluktuation."""
-        return world.raw_signal_excess(v) - self.threshold(world) + t.fluct
+        """SE inkl. operatörens tröskel, döda sektorn och långsam fluktuation."""
+        return world.raw_signal_excess(v) - self.threshold(world) + t.fluct \
+            - baffle_loss(world, v.state.x, v.state.y)
 
     def bearing_sigma(self, se: float) -> float:
         return self.operator.bearing_sigma() * (1.0 + 1.5 / (1.0 + max(se, 0.0)))
@@ -320,7 +328,8 @@ class SonarStation:
         if tr.ended:
             return []
         out: list[SonarEvent] = []
-        se = -1.0 if getattr(v, "done", False) else world.raw_signal_excess(v) - self.threshold(world)
+        se = -1.0 if getattr(v, "done", False) else world.raw_signal_excess(v) - self.threshold(world) \
+            - baffle_loss(world, v.state.x, v.state.y)
         if se > 0:
             tr.silent_for = 0
             if not tr.held:
@@ -354,7 +363,7 @@ class SonarStation:
             if tr.source_id == world.own.id:
                 continue
             rl = tr.level - world.tl_to_own(tr.x, tr.y, tr.depth)
-            se = rl - noise - dt
+            se = rl - noise - dt - baffle_loss(world, tr.x, tr.y)
             if se <= 0:
                 continue
             true_b = bearing_to(o.x, o.y, tr.x, tr.y)
@@ -383,3 +392,20 @@ class SonarStation:
 
     def held_designations(self) -> list[str]:
         return [t.designation for t in self._tracks.values() if t.held and t.designation]
+
+
+def baffle_loss(world: World, x: float, y: float) -> float:
+    """Hur mycket sämre sonar hör en källa i (x, y) för att den ligger i döda sektorn akterut (dB).
+    Noll utanför sektorn och när båten inte har någon (`OwnShip.baffle_deg` 0)."""
+    half = world.own.baffle_deg
+    if half <= 0:
+        return 0.0
+    o = world.own.state
+    off_stern = abs(angle_diff(bearing_to(o.x, o.y, x, y), norm360(o.course + 180.0)))
+    if off_stern >= half + BAFFLE_EDGE_DEG:
+        return 0.0
+    full = min(BAFFLE_MAX_DB, BAFFLE_HULL_DB
+               + BAFFLE_SCREW_DB_PER_KN * max(0.0, abs(o.speed) - BAFFLE_QUIET_KN))
+    if off_stern <= half:
+        return full
+    return full * (half + BAFFLE_EDGE_DEG - off_stern) / BAFFLE_EDGE_DEG

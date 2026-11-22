@@ -16,7 +16,7 @@ scratchpad (2026-11-14–15). En del läser sanningen (`sundet.py --orakel`, `su
 | `kontroll.py` | alla | passiv och ja-boten, 8 frön, mot `baslinje.json` (`--spara` skriver den) |
 | `fingeravtryck.py` | alla | ja-boten, hash av rapporter, läge och vyer: samma frö ⇒ samma spel (omstruktureringar) |
 | `ja_bot.py` | alla (kommaseparerade) | ja-boten, parallellt |
-| `duell.py` | duell, duell-kort | passiv, ja, verktyg (ja + målsökande torpeder) |
+| `duell.py` | duell, duell-kort, duell-torped, svansen-kort | passiv, ja, verktyg (ja + målsökande torpeder) |
 | `ovning.py` | ovning | ja-boten: tid, grund, bestickfel |
 | `ovning_lyssna.py` | ovning | lyssningens längd, partnerns svar |
 | `ovning_torped.py` | ovning, ovning-kort | ja + skjuter övningstorped |
@@ -188,6 +188,9 @@ föreslår fart 6 på väg upp till periskopdjup i 3 av 4; med ja bröt tornet a
 - `duell-kort`: passiv förlorad 6 (tiden ute 2); ja-boten överlever 3 (tiden ute), förlorad 5, varken sänker
   (avfyring är kaptenens) eller kommer undan; verktygsboten sänkt 1, överlever 2. Första rapport 8–93 s.
   Medvetet svår: ubåten har redan pejlat oss. Med tre torpeder och 8 min mellan skotten.
+- `svansen-kort` (2026-11-23): passiv förlorad 5 (tiden ute 3); ja-boten skakad av 3, tiden ute 3, förlorad 2;
+  verktygsboten som ja-boten (skjuter en gång). Första rapport 128–130 s (sonars förslag att lyssna akterut).
+  Giren med fart 4 hittar ubåten inom 3 min i de flesta frön (`tests/test_tail.py`). Ubåten skjuter 0–3.
 - `duell-torped` (2026-11-23): passiv förlorad 8 (träffad efter 5–6 min, en efter 13); ja-boten överlever 8, undan 2
   (tiden ute 6); verktygsboten som ja-boten (skjuter aldrig: ingen lösning ≥ osäker medan den springer). Luckorna
   13–15 s efter överlämnandet; ubåten skjuter 2–3. `duell-kort` efter rättelsen av sammansatta förslag: ja oförändrad,

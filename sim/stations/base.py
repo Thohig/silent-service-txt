@@ -126,6 +126,12 @@ class Station:
         Game känner inga enskilda stationer: det stationen visar i statusraden lämnas här."""
         return {}
 
+    def order_in_force(self, order: Order) -> bool | None:
+        """Gäller en bestående order (STANDING) fortfarande, så som stationen ser det? None: inte
+        stationens order. Game frågar innan ett förslag om samma order släpps som redundant: en
+        uppgift (vaken, botten, styrningen) kan ha ändrat läget utan att kaptenen sagt något."""
+        return None
+
     def vetoes(self, order: str) -> bool:
         """Får inte ett förslag med denna order ges (t.ex. dykning där ordern förbjuder det)?
         Grunden: en mastorder (MAST_ORDERS) när det beordrade djupet är under periskopdjup."""

@@ -60,7 +60,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   i `DEFAULT_STATIONS`; `Game` ska inte behöva ändras. Krokar `Game` frågar alla stationer:
   `intercept` (order medan kaptenen går; `confirm_once` frågar en gång om en order som bryter mot
   uppdraget, aldrig om ett förslag kaptenen sagt ja till eller under uppvärmningen), `on_suggestion` (starpom beslutar), `vetoes` (förslag som
-  inte får ges), `keeps_time_scale` (ett larm som inte ska sänka tidskomprimeringen), `status_fields`
+  inte får ges), `order_in_force` (gäller en bestående order fortfarande, innan ett förslag om samma order släpps), `keeps_time_scale` (ett larm som inte ska sänka tidskomprimeringen), `status_fields`
   (stationens fält i `StatusSnapshot`; `Game.status()` hämtar bara egen ubåt själv och känner ingen enskild station).
 - **Navigatören** är paketet `sim/stations/navigation/`: `station.py` (stationen, bestick, order,
   `update`), `common.py` (konstanter och order), `phrases.py`, och delarna som `NavigationStation` ärver:
@@ -85,16 +85,16 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   för slutrapporten (`goals.report_summary`).
 - **Uppdragsmål** (`sim/goals.py`, sanning): scenariot lägger `Goal`-objekt i `World.goals`
   (`StrikeGoal`, `PhotoGoal`, `ReportGoal`, `SurfaceNearGoal`, `EscapeGoal`, `TrainingGoal`,
-  `GroundingFails`, `NoDiveInFjord`, `RecordGoal`); `World._check_outcome` prövar dem i `RANK`-ordning, efter
+  `GroundingFails`, `NoDiveInFjord`, `RecordGoal`, `ShakeGoal`); `World._check_outcome` prövar dem i `RANK`-ordning, efter
   sänkt neutralt/alla fiender och före `forced`/`patrol_end`. `World.goal(cls)` hittar ett mål.
   `World.mission` håller bara det som hänt (sänkt, `best_photo`, `last_report_t`, `grounded_t`,
   räknare). Nytt mål = ny klass i `goals.py`, `World` ändras inte.
 - **Importgränser** vaktas av `tests/test_import_boundaries.py`: kunskapsmodulerna når aldrig
   sanningen (importer under `TYPE_CHECKING` räknas inte), `sim/` importerar aldrig Textual.
 - **Scenarier** bor i paketet `sim/scenario/`: en modul per scenario med sina korta varianter
-  (`kuba`, `arktis`, `duell`, `jagad`, `sundet`, `clyde`, `konvoj`, `krig`, `ovning`), det delade i `common` (`Scenario`,
+  (`kuba`, `arktis`, `duell`, `jagad`, `sundet`, `clyde`, `konvoj`, `krig`, `ovning`, `svansen`), det delade i `common` (`Scenario`,
   `Warmup`, platserna, `_crew`, registret). De registreras i `__init__.py` (`register(ScenarioDef(...))`,
-  menyns ordning) och väljs i gränssnittets väljare eller med `--scenario`. Scenariot bär områdesnamn
+  ordningen inom menyns avdelning `section`) och väljs i gränssnittets väljare eller med `--scenario`. Scenariot bär områdesnamn
   och sluttexter; `Game` ska inte känna till enskilda scenarier.
 - **Krigsskådeplatsen** (`sim/theatre.py`, sanning, krigspatrullen `krig`): en spawner som lägger ut en
   uppgift i taget (`anfall`, `spaning`, `foto`) och skriver stabens telegram när radion tar emot det
@@ -111,7 +111,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   (uppvärmning + speltid). Piloten kan lämna över tidigare genom att returnera True (`seconds` är
   då ett tak). `ScenarioDef.minutes` visas i väljaren. Kort variant = egen nyckel
   (`konvoj-kort`) som bygger på det långa scenariot. Alla scenarier har en kort variant (`-kort`, `-mot`,
-  `-in`, `-ut`). Ny kort variant: provkör 8 frön med passiv bot, ja-boten och en bot med besättningens
+  `-in`, `-ut`, `-torped`); Svansen är bara kort. Ny kort variant: provkör 8 frön med passiv bot, ja-boten och en bot med besättningens
   verktyg; riktmärken: första förslag eller kontakt inom 3 min, ja-boten ~2–4 av 8 (utom där följandet
   är kaptenens sak), viktiga lösningar ≥ osäker vid överlämnandet. Siffrorna i `kalibrering/README.md`.
 - **Order i alla vyer** (`ui/viewbase.py`): vyerna ärver `ViewScreen` (rapportraden, `Esc`, orderrad
@@ -153,7 +153,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 
 Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där):
 - `docs/system/scenarier.md`: Civil trafik, Konvoj, Konvoj i plottet, Anfall, Övningen, Jagarkaptenerna,
-  Flyg, Fiendens torpeder (med nedräkningen), Clyde, Krigspatrullen
+  Flyg, Fiendens torpeder (med nedräkningen), Clyde, Krigspatrullen, Svansen (med döda sektorn)
 - `docs/system/hav.md`: Land skymmer, Ljuset, Molnen, Fyrarna, Firth of Clyde, Is, Havsbotten, Strömmen,
   Sjögången, Vädret
 - `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden
@@ -239,6 +239,9 @@ för in varje färdigt steg där.
   Skrovknak 132 dB var 25:e m vid djupändring > 1 m/s under 80 m (rodren i ≳ 6 kn); maskin säger det under jakt.
 - Trådstyrd 53-62T (försök): 35 kn, 7 nm, tråd 5,5 nm; styrs var 20:e s, målsökaren släpps 0,6 nm från
   målet; tråden av efter 15 s över 12 kn, gir > 90° från kursen vid skottet, ~1 %/min av sig själv.
+- Döda sektorn (bara Svansen, `OwnShip.baffle_deg` 30°): 12 dB + 1,5 dB/kn över 4 kn, högst 25; sonar
+  föreslår `kurs ±60°, fart 4` efter 10 min rakt i ≥ 6 kn. Skuggaren 1,6–1,9 nm akterut, märker vår fart med 90 s
+  eftersläpning, anfaller 12–16 min efter överlämnandet.
 - Fiendens torped Mk 37: 26 kn, 5 nm, 145 dB, söker passivt i 40° och aktivt inom 0,4 nm och ±50 m i höjd;
   skenmålet 135 dB och bubbelekot starkare än skrovet; en träff är förlusten. Vi går 28 kn på turbinen.
 - Trim (`sim/trim.py`): kompression 1 t/100 m, skiktet bär 3 t, smältvatten 1 t, torped netto 0,6 t förut,

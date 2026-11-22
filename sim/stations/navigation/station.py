@@ -453,6 +453,21 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                         "classification": tr.classification}
         return best
 
+    def order_in_force(self, order: Order) -> bool | None:
+        """Kurs, fart och djup gäller så länge rodren och maskinen står på dem och inget av våra
+        uppdrag (vaken, styrningen) styr; annars kan samma order behöva ges igen."""
+        s = self.ship
+        match order:
+            case SetCourse(course=c):
+                return self.steer is None and self.vak is None and s.ordered_course is not None \
+                    and abs(angle_diff(s.ordered_course, c)) < 1.0
+            case SetSpeed(speed=v, astern=a, level=None):
+                return self.vak is None and abs(s.ordered_speed - min(v, self.own.max_speed())) < 0.5 \
+                    and bool(s.ordered_astern) == a
+            case SetDepth(depth=d):
+                return abs(s.ordered_depth - d) < 1.0
+        return None
+
     def on_order(self, order: Order) -> None:
         s = self.ship
         match order:

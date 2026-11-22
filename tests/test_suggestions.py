@@ -79,6 +79,17 @@ def test_compound_suggestion_is_redundant_only_when_every_part_is_decided():
     assert not g.suggestion_redundant("skenmål, kurs 189", g.now)            # skenmålet är nytt
 
 
+def test_standing_order_changed_by_a_task_can_be_suggested_again():
+    """Kaptenen sa fart 5, men ett uppdrag (vaken, styrningen) har stoppat båten: då är förslaget
+    "fart 5, djup 60" inte redundant (navigatörens order_in_force)."""
+    g, _ = _game()
+    g.command("fart 5, djup 60")
+    _run(g, 5)
+    assert g.suggestion_redundant("fart 5, djup 60", g.now)
+    g.world.own.state.order_speed(0)            # som vaken gör, utan kaptenens order
+    assert not g.suggestion_redundant("fart 5, djup 60", g.now)
+
+
 def test_one_shot_order_can_be_suggested_again_later():
     g, reports = _game()
     g.command("fix")

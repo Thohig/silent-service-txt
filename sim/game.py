@@ -332,7 +332,8 @@ class Game:
         if last is None:
             return False
         last_order, t = last
-        return t >= made_t or (o.STANDING and last_order == o)
+        return t >= made_t or (o.STANDING and last_order == o
+                               and not any(st.order_in_force(o) is False for st in self.stations))
 
     def _deliver(self, r: Report) -> None:
         if r.kind == "suggest" and r.data.get("order") and self._suggestion_stale(r):

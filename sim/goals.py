@@ -230,6 +230,26 @@ class EscapeGoal(Goal):
         return False
 
 
+@dataclass
+class ShakeGoal(Goal):
+    """Skaka av en förföljare (Svansen): ingen jägare har haft oss på `quiet_s` sekunder, i
+    undervattensläge. Räknas från `since_t` (överlämnandet), så att vaktens minuter inte räknas."""
+    outcome: str
+    quiet_s: int = 600
+    since_t: int = 0
+    last_hunted_t: int = 0
+    RANK: ClassVar[int] = 90
+
+    def check(self, world: World) -> bool:
+        if world.own.surfaced or any(world._hunting_us(ai) for ai in world.ais):
+            self.last_hunted_t = world.time
+            return False
+        if world.time - max(self.last_hunted_t, self.since_t) >= self.quiet_s:
+            world.end(self.outcome)
+            return True
+        return False
+
+
 def report_summary(world: World, windows: list[int], window_len: int) -> dict:
     """Radions del i slutrapporten (sanning): sambandstillfällen med rapport och hur väl det vi
     rapporterade stämde (`mission["report_truth"]`, antecknat av radion när den sände)."""

@@ -49,6 +49,7 @@ from .duell import (  # noqa: F401
     duel_short_scenario,
     duel_torpedo_scenario,
 )
+from .svansen import TAIL_WARM_S, tail_short_scenario  # noqa: F401
 from .jagad import (  # noqa: F401
     HUNTED_AIR,
     HUNTED_ORDER,
@@ -189,6 +190,12 @@ register(ScenarioDef(
     "Kort variant. Den amerikanska ubåten har sin lösning klar och öppnar torpedrören just som ni "
     "tar befälet. Kom undan torpeden, sänk sedan ubåten eller ta er ut ur Nord-3.",
     duel_torpedo_scenario, minutes=15, section="krig"))
+register(ScenarioDef(
+    "svansen-kort", "Svansen – i kölvattnet, 28 oktober 1962",
+    "Kort variant. Krig, natt i Norska havet. Ni går mot patrullområdet i 10 knop och vakten hörde "
+    "något akterut, där sonar är döv. En amerikansk ubåt skuggar er och skjuter när den har sin "
+    "lösning: hitta den, sänk den eller skaka av den.",
+    tail_short_scenario, minutes=20, section="krig"))
 register(ScenarioDef(
     "jagad", "Jagade, natten till 27 oktober 1962",
     "En amerikansk jagare har just fått kontakt och en till är på väg. Bryt kontakten "
