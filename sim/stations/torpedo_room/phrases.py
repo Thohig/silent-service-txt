@@ -147,6 +147,8 @@ PHRASES = {
         f"Tub {d['tube']}: kärnladdningen har detonerat i bäring {fmt_course(d['bearing'])}."
         if d.get("nuclear") else
         f"Tub {d['tube']}: detonation i bäring {fmt_course(d['bearing'])}. Det var vår torped!"),
+    "torp.run.dud": lambda d: f"Tub {d['tube']}: en smäll mot ett skrov i bäring "
+    f"{fmt_course(d['bearing'])}, ingen detonation. Blindgångare, kapten. Målet är kvar.",
     "torp.run.silent": lambda d: f"Tub {d['tube']}: torpeden har tystnat"
     + (f" i bäring {fmt_course(d['bearing'])}" if d.get("bearing") is not None else "")
     + " utan detonation. Miss, kapten.",
@@ -276,6 +278,8 @@ RU_PHRASES = {
         f"{_ru_tube(d)}: ядерный заряд взорвался, пеленг {R.course(d['bearing'])}."
         if d.get("nuclear") else
         f"{_ru_tube(d)}: взрыв, пеленг {R.course(d['bearing'])}. Это наша торпеда!"),
+    "torp.run.dud": lambda d: f"{_ru_tube(d)}: удар о корпус, пеленг {R.course(d['bearing'])}, "
+    "взрыва нет. Отказ взрывателя, товарищ командир.",
     "torp.run.silent": lambda d: f"{_ru_tube(d)}: торпеда затихла"
     + (f", пеленг {R.course(d['bearing'])}" if d.get("bearing") is not None else "")
     + ", взрыва не было. Промах, товарищ командир.",

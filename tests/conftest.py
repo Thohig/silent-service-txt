@@ -14,3 +14,13 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "slow" in item.keywords:
             item.add_marker(skip)
+
+
+@pytest.fixture
+def perfect_torpedoes(monkeypatch):
+    """Egna torpeder utan gyrofel, blindgångare och förtidsdetonationer: för tester av geometri och
+    rapporter som annars skulle bero på slumpen."""
+    from sim import weapons
+    monkeypatch.setattr(weapons, "GYRO_SIGMA_DEG", 0.0)
+    monkeypatch.setattr(weapons, "DUD_P", 0.0)
+    monkeypatch.setattr(weapons, "PREMATURE_P", 0.0)

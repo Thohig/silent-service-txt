@@ -43,6 +43,7 @@ EXPLOSION_NUCLEAR = 270.0
 LAUNCH_LEVEL = 150.0
 UWT_LEVEL = 180.0
 BREAKUP_LEVEL = 165.0
+DUD_LEVEL = 150.0             # egen torped slår i ett skrov utan att detonera
 ECHO_SOUNDER_LEVEL = 175.0
 BLOW_LEVEL = 165.0
 BUOY_SPLASH_LEVEL = 135.0     # en sonoboj slår i vattnet

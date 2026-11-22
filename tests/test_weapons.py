@@ -1,5 +1,7 @@
 import random
 
+import pytest
+
 from sim.entities import Vessel
 from sim.environment import Environment
 from sim.firecontrol import intercept
@@ -8,6 +10,11 @@ from sim.ownship import OwnShip
 from sim.ship import ShipState
 from sim.weapons import TORPEDO_TYPES, drop_charges, launch_torpedo
 from sim.world import World
+
+
+@pytest.fixture(autouse=True)
+def _perfect(perfect_torpedoes):
+    """Torpedfelen provas för sig (test_torpedo_faults.py)."""
 
 
 def _world(target_course=90, target_speed=15, tx=6, ty=14):

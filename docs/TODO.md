@@ -27,10 +27,6 @@ lägen på tio minuter ger ~0,5 kn fel i farten även på ett stilla mål). Men:
   fartyg med bara hjälpmaskiner är troligen 10–15 dB tystare. Passiva målsökare (SET-53, 53-62T efter
   tråden) träffar därför 8 av 8 mot stilla mål, troligen för högt. Ändras det påverkas också sonarns
   hörbarhet för ankrade/stoppade fartyg: kör provspelen och `kontroll.py` efteråt.
-- **Raka torpeder går helt rakt** (`weapons.py`): ingen spridning från gyrot (σ ~0,3–0,5°), inga fel- eller
-  förtidsdetonationer. Gör dem något för träffsäkra på långt håll.
-- **Träffytan är en cirkel** (`HIT_RADIUS_NM` 0,03 nm, `HULL_HALF_NM`) oavsett vinkel mot målet; mot för
-  eller akter är en jagare ~12 m bred. En ellips efter längd och bredd vore riktigare, och strängare.
 
 ## Små brister i bilden
 

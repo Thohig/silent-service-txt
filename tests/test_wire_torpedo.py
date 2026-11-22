@@ -51,15 +51,18 @@ def _run_against_turning_target(seed, typ):
 
 
 @pytest.mark.slow
-def test_guided_torpedo_follows_a_turning_target_where_a_straight_one_misses():
+def test_guided_torpedo_follows_a_turning_target_where_a_straight_one_misses(perfect_torpedoes):
     wire = straight = 0
     for seed in range(1, 6):
         g, reports, dd = _run_against_turning_target(seed, "53-62T")
         wire += dd.sunk
         types = [r.type for r in reports]
+        if "torp.wire.broken" in types:
+            continue                                # tråden kan gå av av sig själv (~1 %/min)
         assert "torp.wire.guide" in types and "torp.wire.seeker" in types
         # en gir på vår styrorder är inte målsökaren
         assert "torp.run.turned" not in types[:types.index("torp.wire.seeker")]
+    for seed in range(1, 6):
         straight += _run_against_turning_target(seed, "53-61")[2].sunk
     assert wire >= 4 and straight <= 1
 

@@ -119,4 +119,5 @@ def test_convoy_counter_salvo_hits_within_minutes_over_seeds():
         while g.now - t0 < 180 and not g.over:
             g.tick()
         hits += any(v.sunk for v in g.world.contacts if v.id.startswith("K"))
-    assert hits >= 5
+    # 5 av 8 före torpedfelen och skrovets ellips (2026-11-22), nu 4: salvan träffar inte alltid
+    assert hits >= 4

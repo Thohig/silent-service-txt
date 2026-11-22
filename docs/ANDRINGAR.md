@@ -3,6 +3,20 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-22 – torpedfel och skrovets ellips
+
+Egna torpeder är inte längre perfekta (`sim/weapons.py`). Gyrot lägger torpeden på kursen med ett fel σ 0,4°
+(`GYRO_SIGMA_DEG`, ~40 m vid sidan på 3 nm), var tjugonde stridsspets klickar (`DUD_P`) och var femtionde
+går av för tidigt efter armeringen (`PREMATURE_P`); övningstorpeden och kärnladdningen har inga sådana fel.
+En blindgångare slår i skrovet med en smäll (`acoustics.DUD_LEVEL` 150 dB, transient `dud`); sonar hör den
+och torpedrummet säger "Blindgångare, kapten. Målet är kvar" (`torp.run.dud`). En förtidsdetonation hörs som
+en vanlig detonation, men inget brytningsljud följer. Träffytan är skrovets ellips (`HULL_M`, `hull_pass`):
+halva längden och bredden per typ plus 10 m, så ett skott rakt för- eller akterifrån måste ligga nästan
+mitt på. Övningens "under kölen" räknas likadant. Fiendens Mk 37 mot oss har kvar cirkeln. Provskjutningen
+(24 frön): en ensam 53-61 22/18/6/9/1/1 av 24 på 1–6 nm (förut 24/24/10/13/5/3), salvan 15/24 på 3 nm,
+målsökarna missar bara på felen. Tester som prövar geometri och rapporter stänger av felen med fixturen
+`perfect_torpedoes`; felen prövas i `tests/test_torpedo_faults.py`.
+
 ## 2026-11-22 – provskjutningen med eget frö per avstånd
 
 `kalibrering/ytskott.py` ger varje frö och avstånd ett eget spelfrö (`run_seed`) och visar andelen träffar

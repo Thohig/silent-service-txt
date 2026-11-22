@@ -311,6 +311,9 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
                 self._finish(r, "hit")
                 self.say("torp.run.hit", {**d, "nuclear": TORPEDO_TYPES[r.type].nuclear},
                          kind="contact", quality=Quality.SAKER, alarm=True)
+            case "dud":
+                self._finish(r, "dud")
+                self.say("torp.run.dud", d, kind="contact", quality=e.quality, alarm=True)
             case "silent":
                 self._finish(r, "silent")
                 self.say("torp.run.silent", d, quality=Quality.GOD)

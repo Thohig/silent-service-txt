@@ -88,7 +88,8 @@ class OwnTorpedo:
     no är ordningsnumret i avfyrningsordning (1, 2, …). Torpedrummet räknar
     sina avfyringar på samma sätt och knyter numret till en tub.
     kind: running (bäring), turned (har svängt), lost (hörs inte längre),
-    detonated (detonation från torpeden), silent (tystnade utan detonation).
+    detonated (detonation från torpeden), dud (smäll mot ett skrov utan detonation),
+    silent (tystnade utan detonation).
     """
     no: int
     kind: str
@@ -362,9 +363,10 @@ class SonarStation:
             track = self._tracks.get(tr.source_id)
             heard_b = norm360(true_b + self.rng.gauss(0, sig))
             own_t = self._own.get(tr.source_id)
-            if own_t is not None and tr.kind == "explosion" and not own_t.ended:
+            if own_t is not None and tr.kind in ("explosion", "dud") and not own_t.ended:
                 own_t.ended = True
-                out.append(OwnTorpedo(own_t.no, "detonated", heard_b, se))
+                out.append(OwnTorpedo(own_t.no, "detonated" if tr.kind == "explosion" else "dud",
+                                      heard_b, se))
             out.append(TransientHeard(tr.kind, heard_b, se,
                                       desig if track and track.held else None, rl,
                                       own_weapon=own_t is not None))

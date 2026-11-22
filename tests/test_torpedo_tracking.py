@@ -14,6 +14,11 @@ from sim.tma import BearingObs
 SEEDS = range(1, 6)
 
 
+@pytest.fixture(autouse=True)
+def _perfect(perfect_torpedoes):
+    """Torpedfelen provas för sig (test_torpedo_faults.py)."""
+
+
 def _game(seed):
     g = Game(default_scenario(random.Random(seed)), seed=seed)
     reports = []

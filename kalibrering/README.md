@@ -66,6 +66,14 @@ inget), men färre förslag om sprint (`djup 220, turbin, fart 13` bland de vanl
 frön före, 2 av 8 efter; glesare larm under långa jakter)
 gör att boten inte jagar ikapp konvojen efteråt, så den hinner förbi i 3 frön i stället för 0–1.
 
+**Ytskott efter torpedfelen och träffellipsen (2026-11-22, `ytskott.py`, 24 frön):** träffar av 24 på
+1/2/3/4/5/6 nm: 53-61 ensam 22/18/6/9/1/1, salva 21/17/15/9/5/5, SET-53 23/23/23/10 (resten utom räckhåll),
+53-62T 23/23/23/23/20/22. Gyrot (σ 0,4°), blindgångare (5 %), förtidsdetonationer (2 %) och skrovets ellips
+(`HULL_M`, rakt förifrån ~30 m bred, från sidan ~130 m) tar en ensam rak torped från säker till 2 nm till
+ungefär 3 av 4 på 2 nm och var tredje–fjärde på 3–4 nm; salvan håller ungefär 2 av 3 på 3 nm. Målsökarna
+missar bara på felen (1 av 24). Salvan är inte bättre än en ensam torped på 1–2 nm: solfjädern går minst
+150 m isär vid målet, så mot ett mål från för eller akter kan bara mittorpeden träffa. Före stegen:
+
 **Ytskott mot stillaliggande mål (2026-11-22, `ytskott.py`, 24 frön, eget spelfrö per frö och avstånd):**
 träffar av 24 på 1/2/3/4/5/6 nm: 53-61 ensam 24/24/10/13/5/3, salva med tre 53-61 24/24/19/19/9/10,
 SET-53 24/24/24/10 (resten utom räckhåll: 14 på 4 nm, alla på 5 och 6), 53-62T 24/24/24/24/24/23. Plottets
@@ -314,8 +322,8 @@ botarna är inte omkörda. `baslinje.json` är efter bytet.
   1 tanker) och 2 eskorter, baskurs 190–230°, start 16–20 nm bort, vägen passerar oss på 1,5–5 nm;
   ordern ger läge (±2 nm) och kurs avrundad. Mål `StrikeGoal`: minst ett mål sänkt och ingen
   jägare har oss 10 min efter senaste sänkningen ⇒ `convoy_attacked`; alla mål > 8 nm och förbi oss
-  ⇒ `convoy_missed`. Kuba-trafik och flyg finns kvar. Träffradie för stora fartyg = halva längden
-  (`HULL_HALF_NM`: transport 0,045, tanker 0,05 nm). Salva (`salva S-x`, `eld tub 1-3 mot S-x`):
+  ⇒ `convoy_missed`. Kuba-trafik och flyg finns kvar. Träffytan är skrovets ellips (`weapons.HULL_M`,
+  halva längden och bredden per typ, plus `FUZE_M` 10 m; sedan 2026-11-22, förut en cirkel med halva längden). Salva (`salva S-x`, `eld tub 1-3 mot S-x`):
   raka torpeder i solfjäder, avstånd vid målet = lägesfelet (σ avstånd, fart, kurs under gångtiden)
   inom 0,08–0,25 nm; hel eller inte alls (alla tuber prövas före första avfyringen, `_refusal`),
   omvänt intervall (`3-1`) = samma tuber. Sonar håller isär okända pingare på en utjämnad bäring (grind 8° + 0,15°/s sedan förra pingen, högst 20°). 8 frön: passiv 0, ja-boten 0,

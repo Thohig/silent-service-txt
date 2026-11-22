@@ -98,7 +98,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   inget att ladda om ⇒ inga omladdningsförslag). Steget `torped` har ingen order: vakthavande går
   igenom (`train.torpedo.brief`, var 5:e min) och kaptenen beordrar själv; klart en minut efter
   beräknad passage, eller hoppas över efter 15 min utan avfyring. Partnern svarar på
-  undervattenstelefonen (`exercise.torpedo_report`): träff = under kölen (halva längden), annars
+  undervattenstelefonen (`exercise.torpedo_report`): träff = under kölen (genom skrovets ellips, `weapons.hull_pass`), annars
   avstånd i meter. 8 frön, bot som skjuter en torped när lösningen är god: klar på 99–121 min,
   träff i 4, bom på 140 m i 1, långt bom (830 m, eller torpeden hördes aldrig) i 2, ingen avfyring i 1
   (omkört 2026-11-15; förut träff i 2, bom 70–90 m i 4).

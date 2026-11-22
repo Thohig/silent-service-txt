@@ -66,7 +66,7 @@ def test_passive_submarine_lets_the_convoy_pass():
     assert g.world.outcome["outcome"] in ("convoy_missed", "lost", "forced")
 
 
-def test_salvo_fans_out_around_the_solution():
+def test_salvo_fans_out_around_the_solution(perfect_torpedoes):
     g, reports = _game(3)
     w = g.world
     o = w.own.state

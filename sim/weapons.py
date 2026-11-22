@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 from . import acoustics
 from .entities import Transient, Vessel
-from .geo import NM_IN_M, angle_diff, bearing_to, distance
+from .geo import NM_IN_M, angle_diff, bearing_to, distance, norm360
 from .geo import velocity as _vel
 from .ship import ShipState
 
@@ -31,9 +31,17 @@ if TYPE_CHECKING:
 
 SINK_RATE = 3.5              # m/s för sjunkbomber
 ARM_DISTANCE_NM = 0.25       # torpeden armeras efter denna sträcka
-HIT_RADIUS_NM = 0.03         # ~55 m: halva jagarens längd
-# större fartyg: halva längden (trupptransport ~170 m, tanker ~185 m)
-HULL_HALF_NM = {"transport": 0.045, "tanker": 0.05}
+HIT_RADIUS_NM = 0.03         # ~55 m: fiendens målsökande torped mot oss
+# Skrovet som träffyta för våra torpeder: en ellips med halva längden och halva bredden (meter), plus
+# FUZE_M för pistolen och torpedens egen bredd. Rakt för- eller akterifrån är en jagare ~30 m bred att
+# träffa, från sidan ~130 m.
+HULL_M = {
+    "destroyer": (57.0, 6.0), "merchant": (70.0, 9.0), "transport": (85.0, 11.0),
+    "tanker": (92.0, 12.0), "patrol": (30.0, 4.0), "guardship": (45.0, 5.0),
+    "submarine": (50.0, 5.0), "ssbn": (65.0, 5.0), "fishing": (20.0, 4.0), "moored": (70.0, 9.0),
+}
+HULL_DEFAULT_M = (60.0, 8.0)
+FUZE_M = 10.0
 
 
 @dataclass(frozen=True)
@@ -46,7 +54,7 @@ class TorpedoSpec:
     nuclear: bool = False
     source_level: float = 150.0
     run_depth: float = 5.0
-    kill_radius_nm: float = HIT_RADIUS_NM
+    kill_radius_nm: float = 0.0  # kärnladdningen: sänker allt inom så här långt (andra: skrovets ellips)
     seeker_cone: float = 35.0
     seeker_noise: float = 70.0
     exercise: bool = False    # övningstorped: ingen stridsspets, går under målet
@@ -80,6 +88,11 @@ WIRE_MAX_SPEED = 12.0        # knop: fortare och tråden slits av mot skrovet ..
 WIRE_OVERSPEED_S = 15        # ... efter så här lång tid
 WIRE_MAX_TURN = 90.0         # grader från skjutkursen: tråden hamnar i propellern
 WIRE_FAIL_PER_S = 1 / 6000   # tråden går av av sig själv (skarvar, isolering): ~1 % per minut
+# Egna torpeder är inte perfekta. Gyrot lägger torpeden på kursen med ett litet fel (en rak torped går
+# ~40 m vid sidan på 3 nm), och stridsspetsen klickar ibland eller går av för tidigt (magnetpistolen).
+GYRO_SIGMA_DEG = 0.4
+DUD_P = 0.05                 # träffar skrovet utan att detonera
+PREMATURE_P = 0.02           # detonerar på vägen, efter armeringen
 
 
 
@@ -109,12 +122,15 @@ class Torpedo(Vessel):
         self.detonate_at_nm = detonate_at_nm
         self.done = False
         self.passed: dict[str, float] = {}   # övningstorped: närmaste passage per fartyg (nm)
+        self.under: dict[str, float] = {}    # ... och genom skrovets ellips (≤ 1: under kölen)
         self.locked_se = 0.0
         self.ignored: set[str] = set()       # skenmål som torpeden gått förbi
         self.wire_ok = spec.wire_nm > 0      # trådstyrd: tråden håller
         self.seeker_on = spec.wire_nm <= 0   # trådstyrd: målsökaren släpps av torpedrummet
         self.overspeed_s = 0
         self.wire_course = course            # vår kurs vid avfyringen: giren räknas därifrån
+        self.dud = False                     # stridsspetsen klickar vid träff
+        self.premature_nm: float | None = None   # går av för tidigt efter så här lång gång
 
     def radiated_level(self, env) -> float:
         return -999.0 if self.done else self.spec.source_level
@@ -171,8 +187,14 @@ def launch_torpedo(world: World, spec: TorpedoSpec, course: float,
     world.mission["torpedoes_fired"] = world.mission.get("torpedoes_fired", 0) + 1
     world.own.sys.trim.torpedo_fired()           # fören lättare: trimmarens sak
     tid = f"T{world.mission['torpedoes_fired']}"
+    rng = world.rng
+    course = norm360(course + rng.gauss(0.0, GYRO_SIGMA_DEG))
     t = Torpedo(tid, spec, o.x, o.y, course, world.time, detonate_at_nm)
     t.wire_course = o.course
+    if not spec.nuclear and not spec.exercise:
+        t.dud = rng.random() < DUD_P
+        if rng.random() < PREMATURE_P:
+            t.premature_nm = rng.uniform(ARM_DISTANCE_NM, spec.range_nm)
     world.contacts.append(t)
     world.emit(Transient("launch", o.x, o.y, o.depth, acoustics.LAUNCH_LEVEL, world.own.id, world.time))
     return t
@@ -308,6 +330,23 @@ def _seek(world: World, t: Torpedo) -> None:
         ts.order_course(bearing_to(ts.x, ts.y, best.state.x, best.state.y))
 
 
+def hull_pass(p0, p1, v: Vessel) -> float:
+    """Torpedens närmaste passage genom skrovets ellips, i ellipsens mått: ≤ 1 är träff. Banan p0 → p1
+    räknas om till fartygets egna axlar (längs och tvärs), skalade med halva längden och bredden."""
+    half_len, half_beam = HULL_M.get(v.kind, HULL_DEFAULT_M)
+    a = (half_len + FUZE_M) / NM_IN_M
+    b = (half_beam + FUZE_M) / NM_IN_M
+    c = math.radians(v.state.course)
+    fx, fy = math.sin(c), math.cos(c)               # för
+    sx, sy = math.cos(c), -math.sin(c)              # styrbord
+
+    def local(p):
+        dx, dy = p[0] - v.state.x, p[1] - v.state.y
+        return (dx * fx + dy * fy) / a, (dx * sx + dy * sy) / b
+
+    return _closest_approach(local(p0), local(p1), (0.0, 0.0))
+
+
 def _closest_approach(p0, p1, q) -> float:
     (x0, y0), (x1, y1), (qx, qy) = p0, p1, q
     dx, dy = x1 - x0, y1 - y0
@@ -342,6 +381,15 @@ def _detonate(world: World, t: Torpedo, target: Vessel | None) -> None:
                          t.id, world.time))
     if target is not None:
         _sink(world, target)
+
+
+def _dud(world: World, t: Torpedo, target: Vessel) -> None:
+    """Torpeden slår i skrovet utan att detonera: en metallisk smäll, och målet går vidare."""
+    t.done = True
+    t.sunk = True
+    ts = t.state
+    world.emit(Transient("dud", ts.x, ts.y, ts.depth, acoustics.DUD_LEVEL, t.id, world.time))
+    world.mission["duds"] = world.mission.get("duds", 0) + 1
 
 
 def _sink(world: World, v: Vessel) -> None:
@@ -382,6 +430,7 @@ def _step_torpedo(world: World, t: Torpedo, dt: int) -> None:
             d = _closest_approach(p0, p1, (v.state.x, v.state.y))
             if d < t.passed.get(v.id, 9.9):
                 t.passed[v.id] = d
+            t.under[v.id] = min(t.under.get(v.id, 9.9), hull_pass(p0, p1, v))
     elif t.side == "enemy":
         own = world.own
         if t.run_nm >= ARM_DISTANCE_NM and not own.sunk and \
@@ -394,13 +443,18 @@ def _step_torpedo(world: World, t: Torpedo, dt: int) -> None:
             own.apply_explosion(5.0, False, world.rng)
             own.sys.hull -= TORPEDO_HIT_HULL          # en träff är förlusten
             return
+    elif t.premature_nm is not None and t.run_nm >= t.premature_nm:
+        _detonate(world, t, None)                   # för tidigt: ingen i närheten
+        return
     elif t.run_nm >= ARM_DISTANCE_NM:
         for v in world.contacts:
             if v.side == "own" or v.sunk or not v.is_ship:
                 continue
-            radius = max(t.spec.kill_radius_nm, HULL_HALF_NM.get(v.kind, 0.0))
-            if _closest_approach(p0, p1, (v.state.x, v.state.y)) <= radius:
-                _detonate(world, t, v)
+            if hull_pass(p0, p1, v) <= 1.0:
+                if t.dud:
+                    _dud(world, t, v)
+                else:
+                    _detonate(world, t, v)
                 return
     if t.run_nm >= t.spec.range_nm:
         t.done = True
