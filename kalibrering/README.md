@@ -67,6 +67,14 @@ inget), men färre förslag om sprint (`djup 220, turbin, fart 13` bland de vanl
 frön före, 2 av 8 efter; glesare larm under långa jakter)
 gör att boten inte jagar ikapp konvojen efteråt, så den hinner förbi i 3 frön i stället för 0–1.
 
+**Plottets kurs med osedd gir (2026-11-22, `tma.RECENT_TURN_S`):** `tma_kvalitet.py` övning, kuba, konvoj-kort,
+sundet, krig-kort, 8 frön, 120 min: osäker n 913 grova 20,0 %, god n 1008 grova 5,8 % > 3σ 8,7 %, säker n 439 grova
+1,1 % > 3σ 5,7 % kurs > 90° 1,1 %. `skott_saker.py` kuba, konvoj-kort, konvoj-mot, sundet-in, krig-kort, frön 1–8,
+150 min, 53-61: 98 skott, 42 % träff (förut 38 %), kurs > 3σ 11 % (15 %), sundet-in 84 %, konvoj-kort 42 %,
+krig-kort 15 %. Mätningen före (80 spel, säkra och goda lösningar): kurs > 3σ 39 % när målet girat de senaste 5 min,
+4 % efter 20 min; varianterna "skala σ med anpassningen" och "anpassningen de senaste 3 min" flyttade under en
+procentenhet.
+
 **Provskjutning på säkra lösningar (2026-11-22, `skott_saker.py`, före rättelserna samma dag):** kuba, kuba-kort,
 konvoj-kort, konvoj-mot, sundet, sundet-in, krig-kort, duell-kort, clyde-in, frön 1–30, 150 min, högst 8 skott per
 spel; 493 skott med en 53-61, 223 parade med salva, 148 med SET-53. 53-61 träffar 32 %: rakt gående mål 60 %,

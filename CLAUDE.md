@@ -206,7 +206,10 @@ för in varje färdigt steg där.
   grova 18 % ⇒ 8 %). Avståndets σ har ett golv på 0,05 nm (`RANGE_SIGMA_FLOOR_NM`, ~båtens längd): utan det
   kollapsade lösningar på patrullbåten i sundet mot oss med σ ≈ 0 och kallades säkra (sundet säker grova
   18 % ⇒ 0); alla scenarier grova 4,8 % ⇒ 3,9 %, > 3σ 7,9 % ⇒ 6,0 %. Kurstaket när målet kan gå (2026-11-21, övning/kuba/konvoj-kort/sundet/krig-kort): god grova
-  6,5 % ⇒ 5,3 %, säker grova 2,5 % ⇒ 1,7 %, säker > 3σ 9,5 % ⇒ 5,1 %. Det som är kvar är mest girar de senaste minuterna som plottet inte hunnit se. Mätskriptet: `kalibrering/tma_kvalitet.py`.
+  6,5 % ⇒ 5,3 %, säker grova 2,5 % ⇒ 1,7 %, säker > 3σ 9,5 % ⇒ 5,1 %. Det som är kvar är mest girar de senaste minuterna som plottet inte hunnit se. Därför (2026-11-22): mål som girar ofta (q ≥ 30, sicksack eller jagare som jagar) kan ha girat
+  osett de senaste 3 min (`RECENT_TURN_S`, kortat till tiden sedan senaste titt med kurs): sannolikheten lag/(lag + 7,5 min), gir 50° (1σ);
+  säker bara med en färsk titt. Säkra lösningar på sicksackande mål med kurs > 3σ 28 % ⇒ 6 %; alla säkra grova 1,7 % ⇒ 1,1 %, > 3σ 5,1 % ⇒ 5,7 %.
+  Mätskripten: `kalibrering/tma_kvalitet.py`, `kalibrering/skott_saker.py`.
 - Radion: rapporten 6 s + 4 s per femsiffergrupp (kort ~22 s); fiendens pejlnät pejlar aldrig under
   10 s, alltid över 25 s, σ = 1,5 nm · √(30 s / längd), 0,7–3 nm (`DF_*` i `enemy.py`).
 - Back i maskin: broms 0,15 kn/s mot farten, backfart 8 kn (turbin) / 3 kn (smygmotor), gir ⅓ och

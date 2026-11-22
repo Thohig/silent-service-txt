@@ -14,8 +14,7 @@ Inget just nu (webbversionen provad av kaptenen 2026-11-22: fungerar bra).
 
 ## Utreda
 
-- Plottets kurs är för säker: i provskjutningen 2026-11-22 låg kursfelet utanför 3σ i 18 % av de säkra
-  lösningarna på mål > 3 kn (läget 7 %). `kalibrering/tma_kvalitet.py` och `skott_saker.py`.
+Inget just nu.
 
 ## Beslut som väntar på kaptenen
 

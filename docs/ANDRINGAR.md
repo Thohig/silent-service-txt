@@ -8,6 +8,23 @@ visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/READM
 Ingen ändring i spel. `ikon/bygg-app.sh` bygger `K-114.app` till `~/Applications` om inget mål anges, i stället
 för mappen `~/Projekt/Lokalt` som bara fanns på en dator. README säger inte längre att appen är avinstallerad.
 
+## 2026-11-22 – plottets kurs: en osedd gir hos mål som girar ofta
+
+Provskjutningen visade att plottets säkra lösningar hade kursen fel med mer än 3σ i 18 % av fallen på mål i rörelse.
+Mätningen (säkra och goda lösningar mot sanningen, 80 spel): felen satt där målet girat de senaste 5 minuterna (39 %
+utanför 3σ, mot 4 % efter 20 min) och hos mål som plottet vet sicksackar (28 %). En gir syns inte i bäringarna
+förrän efter några minuter, så den går inte att upptäcka tidigare; att skala osäkerheten med anpassningen eller
+pröva anpassningen på de senaste minuterna hjälpte knappt. Nu räknar `tma.solve` för mål med q ≥
+`ZIGZAG_MANEUVER_Q` (sicksack, jagare som jagar) med en gir som kan ha skett de senaste 3 minuterna utan att synas
+(`RECENT_TURN_S`, `ZIGZAG_LEG_S` 7,5 min, `ZIGZAG_TURN_DEG` 50°), kortat till tiden sedan senaste titten som visade
+kursen (periskop, brygga). I spel: konvojfartyg och sicksackande jagare blir säkra bara strax efter en periskoptitt,
+annars som bäst goda. Periskopet blir vägen till ett säkert skott mot konvojen.
+
+Mätt: säkra lösningar på sicksackande mål med kurs > 3σ 28 % ⇒ 6 % (antalet säkra där 185 ⇒ 17, goda kvar); alla
+säkra 10 % ⇒ 5 %. `tma_kvalitet.py` (övning, kuba, konvoj-kort, sundet, krig-kort, 8 frön): säker grova 1,7 % ⇒ 1,1 %,
+> 3σ 5,1 % ⇒ 5,7 %, god grova 5,3 % ⇒ 5,8 %. Provskjutningen (kuba, konvoj-kort, konvoj-mot, sundet-in, krig-kort,
+frön 1–8): 53-61 på säkra lösningar 38 % ⇒ 42 % träff, kurs > 3σ 15 % ⇒ 11 %. `kontroll.py`: som baslinjen.
+
 ## 2026-11-22 – målsökaren kan ta fel fartyg: torpedrummet varnar
 
 Varningen för handelsfartyg nära banan gällde bara raka torpeder. En målsökande tar det den hör bäst, och i

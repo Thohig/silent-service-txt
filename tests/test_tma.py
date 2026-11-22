@@ -328,3 +328,24 @@ def test_range_sigma_never_collapses_below_the_boats_length():
     s2 = solve(obs2, t_now=t2, own_now=(own2.x, own2.y))
     if s2 is not None and s2.range_nm < 0.1:
         assert s2.range_sigma >= RANGE_SIGMA_FLOOR_NM and s2.quality <= Quality.OSAKER
+
+
+def test_a_zigzagger_may_have_turned_unseen_unless_we_just_looked():
+    """Ett mål som girar ofta kan ha girat de senaste minuterna utan att bäringarna visat det än:
+    kursen kan inte vara säker. En färsk periskoptitt visar kursen och tar bort det tvivlet."""
+    from sim.tma import ZIGZAG_MANEUVER_Q
+    rng = random.Random(3)
+    own = ShipState(x=0, y=0, course=0, speed=3)
+    tgt = ShipState(x=-1.5, y=3.0, course=120, speed=12)
+    obs = []
+    _looks(own, tgt, 600, rng, obs, look_every=120)
+    t_end = obs[-1].t
+    straight = solve(obs, maneuver_q=1.0)
+    stale = [o for o in obs if not (o.course_obs is not None and o.t > t_end - 400)]
+    zig_stale = solve(stale, maneuver_q=ZIGZAG_MANEUVER_Q)
+    assert zig_stale.course_sigma >= 15.0 and zig_stale.quality <= Quality.GOD
+    fresh = stale + [dataclasses.replace(obs[-1], t=t_end + 1, source="periskop", course_obs=120.0,
+                                         course_sigma=8.0)]
+    zig_fresh = solve(fresh, maneuver_q=ZIGZAG_MANEUVER_Q)
+    assert zig_fresh.course_sigma < zig_stale.course_sigma - 5.0
+    assert straight.course_sigma < zig_stale.course_sigma

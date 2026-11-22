@@ -73,6 +73,14 @@ HUNTER_MANEUVER_Q = 400.0
 # Processbrus för ett mål som plottet vet sicksackar (konvojfartyg, eller girat minst två gånger):
 # en gir på 30–60° i 10 kn är en hastighetsändring på 5–10 kn några gånger i timmen.
 ZIGZAG_MANEUVER_Q = 30.0
+# Ett mål som girar ofta (q ≥ ZIGZAG_MANEUVER_Q) kan ha girat de senaste minuterna utan att det märks i
+# bäringarna än (brytpunktstestet behöver några minuter efter giren). Sannolikheten lag/(lag + ben) med
+# lag = RECENT_TURN_S, kortad till tiden sedan lösningens fönster började eller sedan senaste titten
+# (periskopet, bryggan: den visar kursen), och en gir på ZIGZAG_TURN_DEG (1σ). Utan detta låg kursfelet
+# utanför 3σ i 28 % av de säkra lösningarna på sicksackande mål (provskjutningen 2026-11-22).
+RECENT_TURN_S = 180
+ZIGZAG_LEG_S = 450
+ZIGZAG_TURN_DEG = 50.0
 # Kursens σ (grader) som tak för kvaliteten: ≥ 15 högst god, ≥ 30 högst osäker,
 # ≥ 60 dålig. Gäller mål som går minst COURSE_MATTERS_KN.
 COURSE_SIGMA_LIMITS = (15.0, 30.0, 60.0)
@@ -364,6 +372,11 @@ def solve(observations: Sequence[BearingObs], t_now: int | None = None,
         speed_sigma = math.sqrt(max(P[2, 2], 0.0))
         course_sigma = 180.0
     course_sigma = min(math.hypot(course_sigma, UNSEEN_TURN_DEG * math.sqrt(turn_p)), 180.0)
+    if maneuver_q >= ZIGZAG_MANEUVER_Q:
+        looks = [o.t for o in obs if o.course_obs is not None]
+        lag = max(min(RECENT_TURN_S, t_now - obs[0].t, t_now - looks[-1] if looks else RECENT_TURN_S), 0)
+        recent_p = lag / (lag + ZIGZAG_LEG_S)
+        course_sigma = min(math.hypot(course_sigma, ZIGZAG_TURN_DEG * math.sqrt(recent_p)), 180.0)
 
     # anpassningen mäts utan manöverbruset: den ska visa när målet girat
     e, _ = p_fit.residuals_and_jacobian(s)
