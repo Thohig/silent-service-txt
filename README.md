@@ -50,7 +50,7 @@ uv run main.py --tyst              # utan ljud
 uv run --extra fonster fonster.py  # i eget fönster med ubåtsikonen i Docken (macOS)
 ```
 
-Stäng programmet med `ctrl+q`. I eget fönster (`fonster.py`, samma flaggor som `main.py`) körs spelet i en webbterminal (textual-serve) i ett pywebview-fönster; `⌘Q` eller spelets eget slut stänger fönstret, och appen `K-114.app` startar det som en enda ikon i Docken. Appen är inte installerad (raderad 2026-11-21); `sh ikon/bygg-app.sh [mål]` bygger den igen (standard `~/Projekt/Lokalt`), ikonen ligger i `ikon/`. Sanningen (exakta positioner och TMA-lösningar) loggas
+Stäng programmet med `ctrl+q`. I eget fönster (`fonster.py`, samma flaggor som `main.py`) körs spelet i en webbterminal (textual-serve) i ett pywebview-fönster; `⌘Q` eller spelets eget slut stänger fönstret, och appen `K-114.app` startar det som en enda ikon i Docken. `sh ikon/bygg-app.sh [mål]` bygger den (standard `~/Applications`), ikonen ligger i `ikon/`. Sanningen (exakta positioner och TMA-lösningar) loggas
 till `logs/truth-*.log`; i webbläsaren hålls den bara i minnet och försvinner när sidan laddas om.
 
 ## Order

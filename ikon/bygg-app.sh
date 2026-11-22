@@ -1,7 +1,7 @@
 #!/bin/sh
 # Bygger K-114.app: spelet i eget fönster (fonster.py) med en enda ubåtsikon i Docken.
 #
-#   sh ikon/bygg-app.sh [mål]        # standard ~/Projekt/Lokalt/K-114.app
+#   sh ikon/bygg-app.sh [mål]        # standard ~/Applications/K-114.app
 #
 # Appens startskript gör `exec` till Python, så fönstret är samma process som appen
 # (en ikon, prick för "körs", ⌘Q och Dock-menyn träffar spelet). Python körs genom en
@@ -11,7 +11,7 @@
 set -eu
 
 PROJ="$(cd "$(dirname "$0")/.." && pwd)"
-DEST="${1:-$HOME/Projekt/Lokalt/K-114.app}"
+DEST="${1:-$HOME/Applications/K-114.app}"
 UV="$(command -v uv || echo /opt/homebrew/bin/uv)"
 
 cd "$PROJ"

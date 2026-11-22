@@ -3,6 +3,11 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-22 – appens standardmål ~/Applications
+
+Ingen ändring i spel. `ikon/bygg-app.sh` bygger `K-114.app` till `~/Applications` om inget mål anges, i stället
+för mappen `~/Projekt/Lokalt` som bara fanns på en dator. README säger inte längre att appen är avinstallerad.
+
 ## 2026-11-22 – målsökaren kan ta fel fartyg: torpedrummet varnar
 
 Varningen för handelsfartyg nära banan gällde bara raka torpeder. En målsökande tar det den hör bäst, och i
