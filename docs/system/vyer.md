@@ -17,10 +17,11 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `OwnActionLogged` från radion och periskopet, inte kikaren) där vi trodde att vi var: `!` aktiv ping,
   `≋` skenmål, `▲` nödblåsning, `R` rapport, `⊙` periskop (högst var 5:e min). Egna torpeder
   (`TorpedoRoom.chart_items`): från avfyrningspunkten (beräknad) längs inställd kurs så långt de hunnit,
-  `+` varje minut, huvud `•`/`✱` träff/`?`, kvar 30 min (`finished`); girad målsökare också med hörd bäring.
+  `+` varje minut, huvud `•`/`✱` detonation (träff eller i förtid, `torp.run.early`)/`?`, kvar 30 min (`finished`); girad målsökare också med hörd bäring.
   Besticket får `◦` var 10:e min på klockan (`dr_ticks`), klockslag varje halvtimme. Kontakter: `»` först
   hörd (bäringen, en gång per beteckning) och `∅` tappad (lösningen ≥ osäker, annars senaste bäringen;
-  inte isljud/civila), alltid med beteckningen. Etiketter: högre lager vinner där de krockar, inom ett
+  inte isljud/civila), alltid med beteckningen. En tappad kontakt som återfinns har ingen lösning förrän
+  plottet räknat om (högst 30 s): den gamla kastas (`Knowledge.on_detection`). Etiketter: högre lager vinner där de krockar, inom ett
   lager den som kom först (stationerna lägger det nyaste först); den som förlorar flyttas en rad upp
   eller ned (`LABEL_SHIFTS`) och försvinner bara om det är fullt där också (blyertsmärkets symbol, t.ex.
   `»`, är en del av etiketten). Teckenförklaringen har en tredje rad. Linjer (spår, djupkurvor, kust, farled streckad, bäringar,
