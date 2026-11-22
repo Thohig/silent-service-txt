@@ -172,12 +172,12 @@ register(ScenarioDef(
     "duell", "Duellen under isen, 28 oktober 1962",
     "Kriget har börjat. En amerikansk atomubåt skyddar isön T-3 i Nord-3 och har order att "
     "sänka sovjetiska ubåtar. Sänk den, eller ta er ut ur Nord-3 utan att den har er.",
-    duel_scenario))
+    duel_scenario, section="krig"))
 register(ScenarioDef(
     "duell-kort", "Duellen under isen – kontakt, 28 oktober 1962",
     "Kort variant. Den amerikanska ubåten har pejlat er och är ett par sjömil bort. Den "
     "kommer att skjuta: gå undan, sänk den eller ta er ut ur Nord-3.",
-    duel_short_scenario, minutes=40))
+    duel_short_scenario, minutes=40, section="krig"))
 register(ScenarioDef(
     "jagad", "Jagade, natten till 27 oktober 1962",
     "En amerikansk jagare har just fått kontakt och en till är på väg. Bryt kontakten "
@@ -218,37 +218,37 @@ register(ScenarioDef(
     "konvoj", "Konvojen, 28 oktober 1962",
     "Kriget har börjat. En eskorterad konvoj med trupper till Kuba sicksackar genom "
     "kvadrat 12. Kom i skjutläge, sänk minst ett fartyg och bryt kontakten.",
-    convoy_scenario))
+    convoy_scenario, section="krig"))
 register(ScenarioDef(
     "konvoj-kort", "Konvojen – skjutläge, 28 oktober 1962",
     "Kort variant. Vakten har följt konvojen i en halvtimme och plottet har den. Ni tar "
     "befälet med målen några sjömil bort: kom i skjutläge, sänk och bryt kontakten.",
-    convoy_short_scenario, minutes=30))
+    convoy_short_scenario, minutes=30, section="krig"))
 register(ScenarioDef(
     "konvoj-mot", "Konvojen – motanfallet, 28 oktober 1962",
     "Kort variant. Vakten har skjutit en salva mot konvojen och torpederna är framme om "
     "en knapp minut. Eskorten vänder redan mot er: bryt kontakten.",
-    convoy_counter_scenario, minutes=20))
+    convoy_counter_scenario, minutes=20, section="krig"))
 register(ScenarioDef(
     "ovning", "Övning – ut från Poljarnyj, oktober 1962",
     "Övning för att lära känna båten. Gå ut genom Kolafjorden i ytläge, möt trafiken, "
     "dyk utanför mynningen och gå igenom övningsprogrammet: periskop, fix, provdjup, "
     "smygmotor och lyssning mot ett eget bevakningsfartyg.",
-    training_scenario))
+    training_scenario, section="ovning"))
 register(ScenarioDef(
     "ovning-kort", "Övning – i övningsområdet, oktober 1962",
     "Kort variant. K-114 ligger redan på periskopdjup i övningsområdet. Gå igenom resten av "
     "programmet: djup 100, provdjup, smygmotor, lyssning, övningstorped och uppstigning.",
-    training_short_scenario, minutes=40))
+    training_short_scenario, minutes=40, section="ovning"))
 register(ScenarioDef(
     "krig", "Krigspatrullen, 28 oktober 1962",
     "Kriget har börjat. Patrullera kvadrat 14 norr om Kuba tills staben kallar hem er. Uppgifterna "
     "kommer vid sambandstillfällena: konvojer att anfalla, styrkor att rapportera, ankarplatser att "
     "fotografera. Pejlas en sändning kommer jaktgrupper och flyg.",
-    war_scenario))
+    war_scenario, section="krig"))
 register(ScenarioDef(
     "krig-kort", "Krigspatrullen – första konvojen, 28 oktober 1962",
     "Kort variant. Vakten har följt den första konvojen i en halvtimme och plottet har den. Anfall, "
     "bryt kontakten och ta emot stabens hemkallelse vid nästa sambandstillfälle; gå sedan ut ur "
     "kvadraten.",
-    war_short_scenario, minutes=90))
+    war_short_scenario, minutes=90, section="krig"))

@@ -2,7 +2,8 @@
 
 Spelaren kommer tillbaka hit när ett uppdrag är slut. Grupperingen härleds ur scenarierna:
 en kort variants nyckel är det långa scenariots nyckel plus "-x" (`kuba`, `kuba-kort`), och
-titeln är "Rubrik – variant, datum". Övningen står först, sedan i registreringsordning.
+titeln är "Rubrik – variant, datum". Uppdragen står i avdelningar (`ScenarioDef.section`, `SECTIONS`):
+övningen först, sedan krisen (fred, förbli oupptäckt) och kriget, inom avdelningen i registreringsordning.
 """
 from __future__ import annotations
 
@@ -20,12 +21,15 @@ from sim.scenario import SCENARIOS, ScenarioDef
 
 from .manual import ManualScreen
 from .menu_scene import scene_text
-from .menutext import (BG, DIM, HIGHLIGHT_BG, HIGHLIGHT_FG, INK, RULE, RadioState, TickerState,
+from .menutext import (BG, DIM, HIGHLIGHT_BG, HIGHLIGHT_FG, INK, RED, RULE, RadioState, TickerState,
                        header, radio_at, radio_text, stamp_for, stamp_text, ticker_at,
                        ticker_text)
 from .settings import SettingsScreen
 
-FIRST_GROUPS = ("ovning",)        # övningen först: den lär känna båten
+# menyns avdelningar i ordning: (nyckel, rubrik, vad som gäller). Övningen först: den lär känna båten.
+SECTIONS = (("ovning", "ÖVNING", "lär känna båten"),
+            ("kris", "KRISEN", "fred, förbli oupptäckt"),
+            ("krig", "KRIGET", "vapen fria"))
 QUIT_ID = "_avsluta"
 SETTINGS_ID = "_installningar"
 MANUAL_ID = "_ordlista"
@@ -43,6 +47,7 @@ class MissionGroup:
     key: str                      # det långa scenariots nyckel
     heading: str                  # "Kvadrat 7"
     date: str                     # "oktober 1962"
+    section: str = "kris"         # avdelningen (`SECTIONS`)
     variants: list[ScenarioDef] = field(default_factory=list)
 
     @property
@@ -65,11 +70,21 @@ def mission_groups() -> list[MissionGroup]:
         if gk not in groups:
             groups[gk] = MissionGroup(gk, "", "")
         groups[gk].variants.append(sd)
+    order = [k for k, _, _ in SECTIONS]
     for g in groups.values():
         g.variants.sort(key=lambda sd: (sd.minutes is not None, list(SCENARIOS).index(sd.key)))
         g.heading, _, g.date = split_title(g.main.title)
-    first = [groups[k] for k in FIRST_GROUPS if k in groups]
-    return first + [g for k, g in groups.items() if k not in FIRST_GROUPS]
+        g.section = g.main.section
+    return sorted(groups.values(), key=lambda g: order.index(g.section))   # stabil: registreringen
+
+
+def section_label(key: str) -> Text:
+    """Avdelningens rad i listan: "── KRIGET · vapen fria ──────"."""
+    _, name, what = next(s for s in SECTIONS if s[0] == key)
+    text = f"── {name} · {what} "
+    t = Text(text, style=f"bold {RED}")
+    t.append("─" * max(0, LIST_WIDTH - 2 - len(text)), style=RULE)
+    return t
 
 
 def variant_label(sd: ScenarioDef) -> Text:
@@ -94,8 +109,9 @@ def brief(sd: ScenarioDef, group: MissionGroup | None) -> Text:
     t.append(sd.title, style="bold")
     t.append("\n")
     short = sd.minutes is not None
+    sec = next((f"{n.capitalize()}: {w}" for k, n, w in SECTIONS if k == sd.section), "")
     t.append((f"Kort variant · ~{sd.minutes} min" if short else "Hela uppdraget · flera timmar")
-             + "\n\n", style="dim")
+             + (f" · {sec}" if sec else "") + "\n\n", style="dim")
     summary = sd.summary.removeprefix(SHORT_PREFIX) if short else sd.summary
     t.append(summary)
     if short and group is not None and group.main is not sd:
@@ -154,9 +170,13 @@ class MenuScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Static(header(), id="menu-title")
         options: list[Option | None] = []
+        section = None
         for g in self.groups:
             if options:
                 options.append(None)
+            if g.section != section:
+                section = g.section
+                options.append(Option(section_label(section), id=f"_avd_{section}", disabled=True))
             options.append(Option(heading_label(g), id=f"_grupp_{g.key}", disabled=True))
             options += [Option(variant_label(sd), id=sd.key) for sd in g.variants]
         options += [None, Option(Text("Inställningar", style="bold"), id=SETTINGS_ID),

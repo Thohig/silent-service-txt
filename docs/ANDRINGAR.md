@@ -3,6 +3,13 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-23 – huvudmenyn i avdelningar
+
+Uppdragen står i tre avdelningar: ÖVNING, KRISEN (fred, förbli oupptäckt) och KRIGET (vapen fria), med en röd
+avdelningsrad i listan; beskrivningen säger avdelningen ("Kriget: vapen fria"). `ScenarioDef.section`
+(standard krisen), `SECTIONS` och `section_label` i `ui/menu.py`; `FIRST_GROUPS` är borta. Ett uppdrag får
+vara bara kort (förberett för Svansen).
+
 ## 2026-11-23 – torpederna på vattenfallet
 
 Sonar hörde torpeder med bäring men ritade dem aldrig: nu står de på vattenfallet. En fientlig torped som

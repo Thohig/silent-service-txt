@@ -116,6 +116,7 @@ class ScenarioDef:
     summary: str
     build: Callable[[random.Random], Scenario]
     minutes: int | None = None                 # kort variant: ungefärlig speltid
+    section: str = "kris"                      # menyns avdelning: "ovning", "kris" eller "krig"
 
 
 SCENARIOS: dict[str, ScenarioDef] = {}

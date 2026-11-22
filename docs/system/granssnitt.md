@@ -4,12 +4,14 @@ Flyttat ur CLAUDE.md (2026-11-18). Arbetsreglerna står kvar där; här är hur 
 fungerar och deras siffror. Uppdatera här när systemet ändras.
 
 - **Huvudmenyn** (`ui/menu.py`, `MenuScreen`): uppdragen grupperade (`mission_groups`: kort variants nyckel
-  = lång nyckel + "-x", titeln "Rubrik – variant, datum", det långa först, `FIRST_GROUPS` övningen först),
-  rubriker är avstängda alternativ, beskrivningen (`brief`) bredvid, sist Inställningar, Order och
+  = lång nyckel + "-x", titeln "Rubrik – variant, datum", det långa först; ett uppdrag kan vara bara kort) i
+  avdelningar (`SECTIONS`, `ScenarioDef.section`): ÖVNING, KRISEN (fred, förbli oupptäckt), KRIGET (vapen fria),
+  i den ordningen och inom avdelningen i registreringsordning; beskrivningen säger avdelningen. Rubriker och
+  avdelningsrader är avstängda alternativ, beskrivningen (`brief`) bredvid, sist Inställningar, Order och
   ordlista, Avsluta. Inställningar (`ui/settings.py`): ljud, talets språk, slumpfrö (`SubApp.sound_wanted`,
   `language`, `fixed_seed`; `--seed`/`--tyst` sätter startvärdena, fröet gäller alla uppdrag tills det
   ändras). Order och ordlista (`ui/manual.py`) hämtar orderna ur stationernas `COMMANDS` per roll. Nytt scenario hamnar
-  i menyn av sig självt om nyckel och titel följer mönstret. Stämningen (`ui/menutext.py`): sidhuvud som
+  i menyn av sig självt om nyckel och titel följer mönstret (avdelningen `section`, standard krisen). Stämningen (`ui/menutext.py`): sidhuvud som
   hemlig handling på rött fält (ryska med svensk översättning), stämpel per uppdrag efter datumet
   (`stamp_for`: övning ДСП, före 22 okt СЕКРЕТНО, 22–26 СОВ. СЕКРЕТНО, 27– ОСОБОЙ ВАЖНОСТИ), fjärrskrivarremsa
   (`DISPATCHES`, `ticker_at(t)`: kalendern 1–28 okt, 24 tecken/s, börjar om) och stridsberedskapen i

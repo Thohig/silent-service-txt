@@ -13,10 +13,23 @@ def test_every_scenario_is_in_exactly_one_group_with_one_long_variant():
     assert sorted(keys) == sorted(SCENARIOS)
     for g in groups:
         longs = [sd for sd in g.variants if sd.minutes is None]
-        assert len(longs) == 1, g.key
-        assert g.variants[0] is longs[0]            # det långa först
+        assert len(longs) <= 1, g.key               # ett uppdrag kan vara bara kort (svansen)
+        assert g.variants[0] is g.main              # det långa först
         assert all(sd.key.split("-")[0] == g.key for sd in g.variants)
         assert g.heading and g.date
+
+
+def test_missions_stand_in_sections_training_crisis_war():
+    from ui.menu import SECTIONS, section_label
+    groups = mission_groups()
+    order = [k for k, _, _ in SECTIONS]
+    idx = [order.index(g.section) for g in groups]
+    assert idx == sorted(idx)                       # avdelningarna i följd
+    assert all(sd.section == g.section for g in groups for sd in g.variants)
+    war = {g.key for g in groups if g.section == "krig"}
+    assert {"duell", "konvoj", "krig"} <= war and "kuba" not in war
+    assert "KRIGET" in section_label("krig").plain
+    assert "Kriget: vapen fria" in brief(SCENARIOS["duell"], None).plain
 
 
 def test_training_comes_first_and_headings_come_from_titles():
@@ -48,7 +61,7 @@ def test_menu_skips_headings_and_marks_the_last_mission(tmp_path):
             await pilot.pause()
             options = app.screen.query_one("#scenarios")
             assert options.highlighted_option.id == "ovning"
-            await pilot.press("down", "down")       # över rubriken till nästa grupp
+            await pilot.press("down", "down")       # över rubrikerna till nästa grupp
             assert options.highlighted_option.id == "kuba"
             assert "Kvadrat 7" in str(app.screen.query_one("#brief").render())
             app.switch_screen(MenuScreen(selected="konvoj-mot"))
