@@ -110,7 +110,7 @@ def compose(k: Knowledge, now: int, position: tuple[float, float, float], kind: 
                       number)
 
 
-EVENT_TEXT = {"photo": "SPANINGSFOTO TAGET", "hit": "TORPEDTRÄFF HÖRD",
+EVENT_TEXT = {"photo": "SPANINGSFOTO TAGET", "hit": "FARTYG SÄNKT, BRYTNINGSLJUD HÖRT",
               "hunted": "VI HAR VARIT JAGADE"}
 
 

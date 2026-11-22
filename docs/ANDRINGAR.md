@@ -3,6 +3,12 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-22 – rapporten säger sänkt, inte träff
+
+Rapporten till staben tog med "TORPEDTRÄFF HÖRD" efter varje detonation av en egen torped, också en som gått av
+i förtid eller på grund. Nu räknar radion det sonar hör sjunka (`ContactSunk`, brytningsljudet) och skriver
+"FARTYG SÄNKT, BRYTNINGSLJUD HÖRT" (`radio/station.py`, `dispatch.EVENT_TEXT`).
+
 ## 2026-11-22 – provskjutning på säkra lösningar: torpederna går på grund, djupet och för tidiga detonationer
 
 En timmes provskjutningar (`kalibrering/skott_saker.py`, nytt: ja-boten spelar, och vid varje säker lösning

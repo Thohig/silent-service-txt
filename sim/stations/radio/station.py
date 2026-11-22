@@ -6,7 +6,7 @@ from ...crew import Role
 from ...broadcasts import broadcasts_for, order_day
 from ...dispatch import SentReport, report_text
 from ...headquarters import Headquarters
-from ...events import (Handover, InterceptHeard, NuclearOrderRead, OwnActionLogged, OwnTorpedoHeard, PhotoTaken, ReportTransmitted)
+from ...events import (ContactSunk, Handover, InterceptHeard, NuclearOrderRead, OwnActionLogged, PhotoTaken, ReportTransmitted)
 from ...icemap import thickness_words
 from ...orders import DESIG, CommandSpec, Order, desig
 from ...reports import Quality
@@ -88,8 +88,9 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
         bus.subscribe(Handover, self._on_handover)
         self.hq.attach(bus)
         bus.subscribe(PhotoTaken, lambda e: setattr(self, "_photo_t", e.t))
-        bus.subscribe(OwnTorpedoHeard,
-                      lambda e: setattr(self, "_hit_t", e.t) if e.kind == "detonated" else None)
+        # sänkt är det sonar hör sjunka (brytningsljudet), inte varje detonation: en torped som gått av
+        # i förtid eller på grund är ingen träff
+        bus.subscribe(ContactSunk, lambda e: setattr(self, "_hit_t", e.t))
 
     def _on_handover(self, e: Handover) -> None:
         """Förvarningar under vakten hörde kaptenen inte: ge dem igen."""

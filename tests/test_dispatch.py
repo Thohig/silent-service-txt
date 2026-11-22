@@ -166,3 +166,14 @@ def test_intercept_hears_aircraft_and_hunting_destroyers_at_antenna_depth():
     r = next(r for r in reports if r.type == "radio.intercept")
     assert r.alarm and "rapporterar kontakt" in r.text
     assert g.knowledge.intercept is heard[-1]
+
+
+def test_a_hit_in_the_report_is_a_sinking_heard_not_any_detonation():
+    from sim.events import ContactSunk, OwnTorpedoHeard
+    g = Game(build_scenario("kuba", random.Random(1)), seed=1)
+    radio = g.station(RadioStation)
+    g.bus.publish(OwnTorpedoHeard(g.now, 1, "detonated", 10.0))     # förtidsdetonation: inget sjönk
+    assert "hit" not in radio.draft("full").events
+    g.bus.publish(ContactSunk(g.now, "S-1"))
+    r = radio.draft("full")
+    assert "hit" in r.events and "FARTYG SÄNKT" in report_text(r)

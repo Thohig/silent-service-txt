@@ -37,8 +37,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
 - **Rapporten till staben** (`sim/dispatch.py`, kunskap; R1–R2 2026-11-19): `sänd rapport` (allt),
   `sänd kort rapport` (eget läge och det som hänt), `sänd rapport S-3` (en kontakt). Radiomannen sätter
   ihop `SentReport` ur kunskapen: bestick med σ, kontakter med lösning ≥ osäker (hot först, högst 5;
-  isljud och drivstation utelämnas), konvojens baskurs, händelser sedan förra rapporten (foto, hörd
-  torpedträff, jagade). Längden i femsiffergrupper (anrop 2, läge 2, kontakt 3, konvoj 2, händelse 1)
+  isljud och drivstation utelämnas), konvojens baskurs, händelser sedan förra rapporten (foto, hört
+  brytningsljud efter ett fartyg som sjunker (`ContactSunk`; en detonation utan det räknas inte), jagade). Längden i femsiffergrupper (anrop 2, läge 2, kontakt 3, konvoj 2, händelse 1)
   ger sändningstiden i morse: 6 s + 4 s per grupp (kort rapport ~22 s, två kontakter ~46 s).
   `radio.sending` säger grupper, sekunder och pejlrisken (`RadioStation.risk`: stor vid ≥ 45 s eller
   hot i plottet ≤ 8 nm, måttlig vid ≥ 25 s eller ≤ 15 nm, kvalitet ur hotets lösning). Förslaget
