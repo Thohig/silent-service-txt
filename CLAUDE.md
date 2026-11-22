@@ -213,6 +213,9 @@ för in varje färdigt steg där.
   steg från 5, mastradar ×0,5 vid 4 och ×0,25 vid 6, sikt ×0,6 vid 6; sjön suger från 4 (2,4 m per meter
   våghöjd i ≤ 2 kn), tornet bryter ytan med kölen grundare än 13 m. Kuba 3, konvoj 5, övning/sundet 2.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m, torpedavfyring ≤ 100 m och ≤ 12 kn.
+- Egna torpeder (`weapons.py`): gyrofel σ 0,4°, 5 % blindgångare, 2 % förtidsdetonationer (inte övning eller
+  kärnladdning); träff när banan går genom skrovets ellips (`HULL_M`, halva längden och bredden + 10 m). Tester
+  av geometri och rapporter stänger av felen med fixturen `perfect_torpedoes`. Provskjutningen: `ytskott.py`.
   Långvåg med flytkabeln ≤ 50 m och ≤ 5 kn, 5 min; hel med två av mörker, ≤ 3 kn och ≤ 40 m.
 - Clyde: Polarisbåten 130 + 2·fart dB i ytläge; bandet 10 min med SE ≥ 8 dB (`stations/recording.py`);
   fyrfix σ 0,1 (två) / 0,2 (en); moln ≥ 0,6 stänger stjärnfixen. Firth-bottnen i ett rutnät 0,05 nm.
