@@ -97,7 +97,9 @@ PHRASES = {
     + ", ".join(f"{n['designation']} ({n['classification']}, bäring {fmt_course(n['bearing'])}"
                 + (f", {nm(n['range'])} sjömil" if n.get("range") is not None else ", avståndet okänt")
                 + ")" for n in d["ships"])
-    + " ligger nära torpedernas bana. En rak torped som missar går vidare och kan träffa."
+    + (f" ligger nära {d['target']} när den målsökande torpeden är framme. Målsökaren tar det den hör "
+       "bäst och kan ta fel fartyg." if d.get("homing") else
+       " ligger nära torpedernas bana. En rak torped som missar går vidare och kan träffa.")
     + ("" if d.get("preview") else " Upprepa ordern om vi ska skjuta."),
     "torp.fired": lambda d: f"{ru('Torpeda vysjla')}! Tub {d['tube']} avfyrad, {d['type']}, kurs {fmt_course(d['course'])}"
     + (f", beräknad gångtid {_mmss(d['run_s'])}" if d.get("run_s") else "")
@@ -270,8 +272,8 @@ RU_PHRASES = {
     "torp.salvo": lambda d: f"Залп по {R.contact(d['designation'], True)}: "
     f"{R.count(d['n'], ('торпеда', 'торпеды', 'торпед'))} веером.",
     "torp.neutral": lambda d: f"{R.CAPTAIN}, торпедный отсек. Внимание: "
-    + ("торговое судно" if len(d["ships"]) == 1 else "торговые суда")
-    + " рядом с курсом торпед."
+    + ("рядом с целью другие суда, головка самонаведения может взять не ту цель." if d.get("homing")
+       else ("торговое судно" if len(d["ships"]) == 1 else "торговые суда") + " рядом с курсом торпед.")
     + ("" if d.get("preview") else " Повторите приказ, если стреляем."),
     "torp.leg_warning": lambda d: f"{R.CAPTAIN}, торпедный отсек. Внимание: "
     + ("цель нас ищет и всё время маневрирует, успеет отвернуть." if d.get("kind") == "hunting" else

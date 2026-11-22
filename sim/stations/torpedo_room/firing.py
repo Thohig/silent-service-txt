@@ -9,8 +9,9 @@ from ...firecontrol import intercept
 from ...reports import Quality
 from ...weapons import ARM_DISTANCE_NM, TORPEDO_TYPES, launch_torpedo
 from .common import (
-    ASPECT_MAX_SIGMA, ASPECT_MIN_KN, CONFIRM_S, HUNTING_RUN_S, NARROW_DEG, FireSalvo, FireTube, MAX_LAUNCH_DEPTH, MAX_LAUNCH_SPEED, NEUTRAL_CONE_DEG,
-    NEUTRAL_LANE_NM, NEUTRAL_STEP_S, N_TUBES, Running, SALVO_GAP_MAX_NM, SALVO_GAP_NM,
+    ASPECT_MAX_SIGMA, ASPECT_MIN_KN, CONFIRM_S, HUNTING_RUN_S, NARROW_DEG, FireSalvo, FireTube,
+    MAX_LAUNCH_DEPTH, MAX_LAUNCH_SPEED, NEUTRAL_CONE_DEG, NEUTRAL_LANE_NM, NEUTRAL_STEP_S, N_TUBES,
+    RIVAL_NM, Running, SALVO_GAP_MAX_NM, SALVO_GAP_NM,
     SALVO_MAX, SALVO_STEP_DEG, TOO_CLOSE_MARGIN_NM, Tube,
 )
 
@@ -237,10 +238,13 @@ class FiringMixin:
 
     def _neutrals_in_lane(self, target: str | None, courses: list[float],
                           type_key: str) -> list[dict]:
-        """Kända handelsfartyg nära någon av torpedernas banor, hela vägen ut (kunskap)."""
+        """Kända handelsfartyg nära någon av torpedernas banor, hela vägen ut (kunskap). En målsökande
+        torped tar det den hör bäst: för den gäller i stället andra fartyg nära målet (`_seeker_rivals`)."""
         spec = TORPEDO_TYPES[type_key]
-        if spec.homing or spec.exercise:
+        if spec.exercise or spec.nuclear:
             return []
+        if spec.homing:
+            return self._seeker_rivals(target, courses[0], type_key) if target else []
         k = self.game.knowledge
         ex, ey = self.game.own_position_estimate()
         run_s = spec.range_nm / spec.speed * 3600
@@ -277,6 +281,37 @@ class FiringMixin:
                                 "bearing": b, "range": None})
         return out
 
+    def _seeker_rivals(self, target: str, course: float, type_key: str) -> list[dict]:
+        """Andra kända fartyg som enligt plottet ligger nära målet när den målsökande torpeden är
+        framme (inom RIVAL_NM), eller utan lösning i bäring nära torpedens kurs: målsökaren kan ta dem."""
+        k = self.game.knowledge
+        tr_t, sol_t = self._solution_for(target)
+        aim = self._aim(sol_t, type_key) if sol_t is not None else None
+        if aim is None:
+            return []
+        ex, ey = self.game.own_position_estimate()
+        h = aim[1] / 3600.0
+        tx, ty = sol_t.x + sol_t.state[2] * h, sol_t.y + sol_t.state[3] * h
+        out = []
+        for tr in k.tracks.values():
+            if not tr.held or tr.designation == tr_t.designation or not tr.observations \
+                    or tr.sunk_t is not None or tr.friendly and not tr.civil:
+                continue
+            sol = tr.solution
+            if sol is not None and sol.quality >= Quality.OSAKER:
+                dt0 = (self.now - sol.t) / 3600.0
+                sx, sy = sol.x + sol.state[2] * (dt0 + h), sol.y + sol.state[3] * (dt0 + h)
+                d = math.hypot(sx - tx, sy - ty)
+                if d <= RIVAL_NM:
+                    nx, ny = sol.x + sol.state[2] * dt0 - ex, sol.y + sol.state[3] * dt0 - ey
+                    out.append({"designation": tr.designation, "classification": tr.classification,
+                                "bearing": math.degrees(math.atan2(nx, ny)) % 360,
+                                "range": math.hypot(nx, ny), "from_target": d})
+            elif abs(angle_diff(tr.last_bearing, course)) <= NEUTRAL_CONE_DEG:
+                out.append({"designation": tr.designation, "classification": tr.classification,
+                            "bearing": tr.last_bearing, "range": None, "from_target": None})
+        return out
+
     def _neutrals_clear(self, target: str | None, courses: list[float], type_key: str) -> bool:
         """Varna en gång för kända handelsfartyg i banan; samma order inom en minut skjuter.
         Varningen räknas också som bekräftelse av målet (ingen andra fråga)."""
@@ -287,7 +322,8 @@ class FiringMixin:
         self._neutral_warned[key] = self.now
         if target:
             self._confirmed[target] = self.now
-        self.say("torp.neutral", {"ships": ships}, quality=Quality.GOD)
+        self.say("torp.neutral", {"ships": ships, "homing": TORPEDO_TYPES[type_key].homing,
+                                  "target": target}, quality=Quality.GOD)
         return False
 
     def _turn_rhythm(self, tr) -> tuple[str, int | None, int | None] | None:
@@ -378,3 +414,10 @@ class FiringMixin:
             if ships := self._neutrals_in_lane(tr.designation, [straight[0]["course"]],
                                                straight[0]["type"]):
                 self.say("torp.neutral", {"ships": ships, "preview": True}, quality=Quality.GOD)
+        loaded = {t.load for t in self.tubes if t.load and not t.loading}
+        homing = [r for r in rows if r.get("course") is not None and r["type"] in loaded
+                  and TORPEDO_TYPES[r["type"]].homing]
+        if homing and (ships := self._seeker_rivals(tr.designation, homing[0]["course"],
+                                                    homing[0]["type"])):
+            self.say("torp.neutral", {"ships": ships, "preview": True, "homing": True,
+                                      "target": tr.designation}, quality=Quality.GOD)

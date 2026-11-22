@@ -17,6 +17,7 @@ HUNTING_RUN_S = 120     # ett mål som jagar oss girar hela tiden: varna för l�
 NEUTRAL_LANE_NM = 0.5   # ett känt handelsfartyg så nära en torpedbana (enligt plottet): varna
 NEUTRAL_CONE_DEG = 10.0  # ... eller, utan lösning, med bäringen så nära banan
 NEUTRAL_STEP_S = 10      # banan prövas så här tätt
+RIVAL_NM = 0.6           # ett annat fartyg så nära målet när en målsökande torped är framme: varna
 SALVO_MAX = 3
 SALVO_GAP_NM = 0.08     # torpederna i en salva går minst så här långt isär vid målet (~150 m)
 SALVO_GAP_MAX_NM = 0.25 # ... och högst så här (lägesfelet vid målet bestämmer)

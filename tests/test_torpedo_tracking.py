@@ -183,3 +183,34 @@ def test_the_solution_says_where_the_straight_torpedo_comes_in():
          "rows": [{"type": "53-61", "course": 0.0, "run_s": 200.0}]}
     text = PHRASES["torp.solution"](d)
     assert "10° från aktern, styrbord" in text and "salva hjälper inte" in text
+
+
+def test_a_homing_torpedo_warns_about_another_ship_near_the_target():
+    from sim.tma import Solution
+    from sim.weapons import Torpedo
+    g, reports = _game(1)
+    dd = _setup(g, range_nm=2.0)
+    ex, ey = g.own_position_estimate()
+    g.bus.publish(ContactDetected(g.now, "S-2", 0.0, "patrullbåt", Quality.GOD))
+    tr2 = g.knowledge.track("S-2")
+    tr2.observations.append(BearingObs(g.now, 5.0, 0.5, ex, ey, 0.0, designation="S-2"))
+    x2, y2 = dd.state.x + 0.3, dd.state.y          # 0,3 nm öster om målet, still
+    tr2.solution = Solution(t=g.now, t_ref=g.now, state=(x2, y2, 0.0, 0.0), x=x2, y=y2, course=0.0,
+                            speed=0.0, range_nm=2.0, bearing=5.0, range_sigma=0.1, course_sigma=180.0,
+                            speed_sigma=0.5, quality=Quality.GOD, n_obs=20, span_s=900,
+                            own_maneuvered=True, rms_residual=1.0)
+    room = g.station(TorpedoRoom)
+    for t in room.tubes:
+        t.load = None
+    room.tubes[0].load = "SET-53"
+    torps = lambda: [v for v in g.world.contacts if isinstance(v, Torpedo)]
+    g.command("eld tub 1 mot S-1")
+    assert not torps()
+    for _ in range(20):
+        g.tick()
+        if any(r.type == "torp.neutral" for r in reports):
+            break
+    warn = [r for r in reports if r.type == "torp.neutral"]
+    assert warn and "S-2" in warn[0].text and "kan ta fel fartyg" in warn[0].text
+    g.command("eld tub 1 mot S-1")
+    assert len(torps()) == 1

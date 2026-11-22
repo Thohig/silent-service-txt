@@ -9,7 +9,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   räknas inte som hot men plottas tyst för kortet. Torpedrummet (`torp.neutral`) varnar före ett skott
   med rak torped och i `skjutlösning` när ett känt handelsfartyg ligger inom 0,5 nm från en bana hela
   vägen ut (plottets lösning ≥ osäker), eller utan lösning med bäringen inom 10°; upprepad order inom
-  en minut skjuter (varning, inte vägran). `skjutlösning` utan kontakt tar den enda hållna kontakten, annars hotkontakten
+  en minut skjuter (varning, inte vägran). Med målsökande torped gäller i stället andra kända fartyg inom
+  0,6 nm från målet när torpeden är framme (`_seeker_rivals`): målsökaren tar det den hör bäst. `skjutlösning` utan kontakt tar den enda hållna kontakten, annars hotkontakten
   med bäst lösning (närmast vid lika, `_best_target`). Torpedrummet säger ingen ny skjutlösning (`torp.ready`)
   på ett mål som våra torpeder är på väg mot.
 - **Konvoj:** `convoy.py` (sanning). `Convoy` är en spawner med en ledpunkt som sicksackar efter

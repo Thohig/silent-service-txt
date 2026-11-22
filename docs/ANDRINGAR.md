@@ -3,6 +3,17 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-22 – målsökaren kan ta fel fartyg: torpedrummet varnar
+
+Varningen för handelsfartyg nära banan gällde bara raka torpeder. En målsökande tar det den hör bäst, och i
+provskjutningen tog SET-53 ett annat fartyg i 19 av 148 skott (i sundet oftast patrullbåten). Nu varnar
+torpedrummet före skottet med en målsökande torped (SET-53, 53-62T) när ett annat känt fartyg (inte egna
+örlogsfartyg) enligt plottet ligger inom 0,6 nm från målet när torpeden är framme, eller utan lösning i bäring
+inom 10° från kursen (`FiringMixin._seeker_rivals`, `RIVAL_NM`): "S-2 (patrullbåt, bäring 005, 2,0 sjömil) ligger
+nära S-1 när den målsökande torpeden är framme. Målsökaren tar det den hör bäst och kan ta fel fartyg. Upprepa
+ordern om vi ska skjuta." Samma fråga en gång som för handelsfartygen; `skjutlösning` säger det när en
+målsökande torped är laddad.
+
 ## 2026-11-22 – anläggningsvinkeln i skjutlösningen
 
 `skjutlösning S-1` säger nu varifrån den raka torpeden kommer in: "Den raka torpeden kommer in 10° från aktern,
