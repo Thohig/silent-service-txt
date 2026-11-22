@@ -156,7 +156,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   amerikansk Skate-ubåt (bas 129 dB, högst 18 kn) skyddar isön T-3 och har order att sänka oss. Sänk den
   (`sank`) eller lämna området utan att den har oss (`escaped`, marginal 1 nm); 4 h. Kort variant: den har
   pejlat oss och är 3–4 nm bort, vakten 3 min på smygmotor, vi nära södra kanten, 40 min. För att skjuta
-  måste vi upp till ≤ 100 m. Siffrorna i `kalibrering/README.md` (`kalibrering/duell.py`).
+  måste vi upp till ≤ 100 m. En rak torped går på 5 m och träffar bara inom 20 m i djup, så mot ubåten på
+  djupet duger bara målsökarna (SET-53, 53-62T), som styr i djup mot den. Siffrorna i `kalibrering/README.md` (`kalibrering/duell.py`).
 
 - **Clyde** (`clyde`, `clyde-in`, `scenario/clyde.py`, `sim/clyde.py`, N2–N6): 20 okt 1962, brittisk
   sommartid. Lång: 21:30 öster om Pladda på 60 m; Polarisbåten (`TransitAI`, kind `ssbn`, 130 + 2·fart dB i

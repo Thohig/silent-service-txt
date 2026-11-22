@@ -3,6 +3,29 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-22 – provskjutning på säkra lösningar: torpederna går på grund, djupet och för tidiga detonationer
+
+En timmes provskjutningar (`kalibrering/skott_saker.py`, nytt: ja-boten spelar, och vid varje säker lösning
+spelas fröet om och kaptenen skjuter) gav fyra buggar, rättade här:
+
+- **Torpederna gick genom land.** En 53-61 mot land i Clyde gick 223 s över land och vidare. Nu går alla
+  torpeder på grund där botten är mer än 1 m grundare än deras djup (`weapons._ground`, `GROUND_MARGIN_M`);
+  en armerad stridsspets detonerar där, en oarmerad, blindgångare eller övningstorped stannar bara.
+- **Raka torpeder sänkte ubåtar på djupet.** Egna torpeder träffar nu bara inom `DEPTH_HIT_M` (20 m) i djup,
+  som fiendens redan gjorde: 53-61 på 5 m går över amerikanska ubåten på 150 m i duellen. Målsökarna (SET-53,
+  53-62T med målsökaren släppt) styr i djup mot det de låst på (`_seek`), aldrig grundare än sitt gångdjup.
+- **En gammal "säker" lösning när en kontakt återfanns.** Knowledge behöll lösningen medan kontakten var tappad;
+  när sonar fick tillbaka den visade sjökortet i upp till 30 s (till plottets nästa omräkning) en lösning från när
+  den tappades (i kuba frö 21: 55 min gammal, 13 nm fel, "S-3 säker, 14 kn"). Nu kastas den när en tappad
+  kontakt återfinns (`Knowledge.on_detection`); plottet räknar om ur bäringarna.
+- **En förtidsdetonation kallades träff.** En detonation mer än 30 s och en fjärdedel av gångtiden före beräknad
+  träfftid ger nu "Tub 1: detonation i bäring 012, 2 min 20 s före beräknad tid. Den har inte nått S-1: den gick
+  av i förtid eller tog något annat." (`torp.run.early`, `EARLY_MIN_S`, `EARLY_FRACTION`) i stället för
+  `torp.run.hit`. Samma sak när torpeden går på grund före målet.
+
+Provskjutningen före rättelserna (986 skott, 9 scenarier, 32 frön) står i `kalibrering/README.md`.
+`kontroll.py` efter rättelserna: som baslinjen.
+
 ## 2026-11-22 – webbversionen först i README
 
 README börjar med "Spela": länken till GitHub Pages, ljud med `ljud`, tangenterna i webbläsaren, skärmstorlek

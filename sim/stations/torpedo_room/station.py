@@ -14,7 +14,7 @@ from ... import acoustics
 from ...weapons import TORPEDO_TYPES, launch_decoy
 from ..base import Proposal, Station
 from .common import (
-    DECOY_SUGGEST_S, END_GRACE_S, CutWire, FireAt, FireSalvo, FireTube, FiringSolution, LaunchDecoy, LoadTube, N_TUBES,
+    DECOY_SUGGEST_S, EARLY_FRACTION, EARLY_MIN_S, END_GRACE_S, CutWire, FireAt, FireSalvo, FireTube, FiringSolution, LaunchDecoy, LoadTube, N_TUBES,
     RELOAD_CLANK_S, RELOAD_QUIET_S, RELOAD_S, RUN_REPORT_AFTER, Running, TRACK_FADE_S,
     TRACK_KEEP_S, TorpedoReport, TorpedoStatus, Tube, TubeStatus, load_order,
 )
@@ -238,6 +238,14 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
                 + (" (tråd)" if r.wired else "") for r in self.in_water), INFO))
         return items
 
+    def _early_s(self, r: Running) -> int | None:
+        """Hur långt före beräknad träfftid torpeden detonerade, om det är tydligt för tidigt
+        (mer än EARLY_MIN_S och en fjärdedel av gångtiden); annars None."""
+        if r.t_hit is None or TORPEDO_TYPES[r.type].nuclear:
+            return None
+        early = r.t_hit - self.now
+        return early if early > max(EARLY_MIN_S, EARLY_FRACTION * (r.t_hit - r.launch_t)) else None
+
     def _finish(self, r: Running, how: str) -> None:
         self.in_water.remove(r)
         self._wire_truth.pop(r.no, None)
@@ -267,7 +275,7 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
             for m in range(1, int((t - r.launch_t) // 60) + 1):
                 mx, my = dr_position(r, r.launch_t + 60 * m)
                 items.append(Mark(mx, my, "+", "torpedo", faded=True, layer=LAYER_RAY + 0.1))
-            head = "✱" if r.end == "hit" else "?" if done or r.lost else "•"
+            head = "✱" if r.end in ("hit", "early") else "?" if done or r.lost else "•"
             items.append(Mark(hx, hy, head, "torpedo", f"tub {r.tube}", faded=faded))
             if r.turned and r.bearing is not None and not done:
                 items.append(Ray(x, y, r.bearing, max(run, 0.1), "torpedo", "hörd",
@@ -307,6 +315,11 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
             case "lost":
                 r.lost = True
                 self.say("torp.run.lost", d)
+            case "detonated" if (early := self._early_s(r)) is not None:
+                # långt före beräknad tid: inte vid målet (förtidsdetonation, grund, annat fartyg)
+                self._finish(r, "early")
+                self.say("torp.run.early", {**d, "early_s": early, "designation": r.designation},
+                         kind="contact", quality=Quality.GOD, alarm=True)
             case "detonated":
                 self._finish(r, "hit")
                 self.say("torp.run.hit", {**d, "nuclear": TORPEDO_TYPES[r.type].nuclear},

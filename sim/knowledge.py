@@ -262,6 +262,10 @@ class Knowledge:
         if tr is None:
             tr = ContactTrack(designation, first_t=t)
             self.tracks[designation] = tr
+        elif not tr.held:
+            # återfunnen: lösningen är från när vi tappade den (kanske en timme sedan). Plottet
+            # räknar om ur bäringarna vid nästa omräkning; till dess finns ingen lösning att visa.
+            tr.solution = None
         tr.held = True
         return tr
 

@@ -1,4 +1,5 @@
 """Egna torpeder: gyrofel, blindgångare och förtidsdetonationer."""
+import math
 import random
 import statistics
 
@@ -7,7 +8,11 @@ import pytest
 from sim import weapons
 from sim.entities import Vessel
 from sim.environment import Environment
-from sim.events import ReportDelivered
+from sim.events import BearingObserved, ContactDetected, ReportDelivered
+from sim.geo import bearing_to
+from sim.reports import Quality
+from sim.scenario import build_scenario
+from sim.tma import BearingObs
 from sim.game import Game
 from sim.geo import angle_diff
 from sim.ownship import OwnShip
@@ -124,3 +129,97 @@ def test_the_hull_is_long_and_narrow():
     assert _passes(70, "beam") > 1.0
     assert _passes(12, "bow") <= 1.0           # förifrån: bara mitt på
     assert _passes(20, "bow") > 1.0
+
+
+def _sub_world(depth, kind_speed=8.0):
+    """Ubåten rakt norr om oss på 1 nm, på djupet, i 8 kn österut."""
+    own = OwnShip(ShipState(x=10, y=10, course=0, speed=0, depth=15))
+    sub = Vessel("SS1", "submarine", ShipState(x=10, y=11, course=90, speed=kind_speed,
+                                               depth=depth, max_depth=450))
+    sub.state.order_depth(depth)
+    return World(own=own, contacts=[sub], env=Environment(current_kn=0.0), rng=random.Random(1)), sub
+
+
+def test_a_straight_torpedo_runs_over_a_deep_submarine(perfect_torpedoes):
+    for depth, sunk in ((150.0, False), (12.0, True)):
+        w, sub = _sub_world(depth, kind_speed=0.0)
+        launch_torpedo(w, TORPEDO_TYPES["53-61"], 0.0)
+        _run(w, 200)
+        assert sub.sunk is sunk
+
+
+def test_a_homing_torpedo_follows_a_submarine_down(perfect_torpedoes):
+    # ubåten i 15 kn rakt norrut på 150 m; torpeden (armerad) 0,2 nm akter om den, på 5 m
+    w, sub = _sub_world(150.0, kind_speed=15.0)
+    sub.state.course = sub.state.ordered_course = 0.0
+    sub.state.max_speed = 20.0
+    t = launch_torpedo(w, TORPEDO_TYPES["SET-53"], 0.0)
+    t.state.x, t.state.y, t.run_nm = 10.0, 10.8, 0.5
+    deepest = 0.0
+    for _ in range(600):
+        w.tick()
+        deepest = max(deepest, t.state.depth)
+        if sub.sunk or t.done:
+            break
+    assert deepest > 100.0
+    assert sub.sunk
+
+
+def _clyde_toward_land():
+    """Clyde: egen båt och en kurs där land ligger 2–5 nm bort."""
+    g = Game(build_scenario("clyde", random.Random(1)), seed=1)
+    w = g.world
+    o, sb = w.own.state, w.env.seabed
+    for d in [x / 10 for x in range(20, 50)]:
+        for c in range(0, 360, 3):
+            b = math.radians(c)
+            if sb.depth_at(o.x + d * math.sin(b), o.y + d * math.cos(b)) <= 0:
+                return g, c, d
+    raise AssertionError("inget land inom 5 nm")
+
+
+def test_a_torpedo_stops_on_land_and_its_warhead_goes_off(perfect_torpedoes):
+    g, course, land_nm = _clyde_toward_land()
+    w = g.world
+    t = launch_torpedo(w, TORPEDO_TYPES["53-61"], course)
+    for _ in range(int(TORPEDO_TYPES["53-61"].range_nm / 45 * 3600)):
+        w.tick()
+        if t.done:
+            break
+    assert t.done and t.run_nm < land_nm + 0.1
+    assert w.env.bottom_at(t.state.x, t.state.y) < t.state.depth
+    heard = w.transients + w._pending_t
+    assert any(tr.kind == "explosion" and tr.source_id == t.id for tr in heard)
+
+
+def test_an_early_detonation_is_not_called_a_hit():
+    g = Game(default_scenario(random.Random(4)), seed=4)
+    reports = []
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    w = g.world
+    w.ais.clear()
+    w.spawners.clear()
+    w.contacts = [v for v in w.contacts if v.side != "neutral"]
+    dd = w.contacts[0]
+    o = w.own.state
+    dd.state.x, dd.state.y, dd.state.speed = o.x, o.y + 3.0, 0.0
+    dd.state.order_speed(0)
+    ex, ey = g.own_position_estimate()
+    g.bus.publish(ContactDetected(g.now, "S-1", 0.0, "jagare", Quality.GOD))
+    for k in range(8):
+        g.bus.publish(BearingObserved(g.now, BearingObs(
+            g.now + k, bearing_to(ex, ey, dd.state.x, dd.state.y), 0.5, ex, ey, o.course,
+            designation="S-1", range_nm=3.0 if k == 0 else None, range_sigma=0.02)))
+    tor = g.station(TorpedoRoom)
+    tor.tubes[0].load = "53-61"
+    g.command("eld tub 1 mot S-1")
+    t = next(v for v in w.contacts if isinstance(v, weapons.Torpedo))
+    t.dud, t.premature_nm = False, 0.6
+    for _ in range(200):
+        g.tick()
+        dd.state.speed = 0.0
+    types = [r.type for r in reports]
+    assert not dd.sunk
+    assert "torp.run.early" in types and "torp.run.hit" not in types
+    r = next(r for r in reports if r.type == "torp.run.early")
+    assert "före beräknad tid" in r.text and "S-1" in r.text

@@ -8,6 +8,9 @@ våra skenmål: passivt mot det som låter mest i konen, aktivt nära (`active_n
 band i höjd (`ACTIVE_DEPTH_M`), där skrovet ekar och skenmålets bubbelmoln ekar mer. En låsning hålls tills något annat hörs klart bättre
 (`RELOCK_DB`); ett skenmål som torpeden passerat bortser den från. En träff på oss är förlusten.
 
+Egna torpeder träffar bara inom `DEPTH_HIT_M` i djup: en rak torped på 5 m går över en ubåt på
+djupet, målsökarna styr också i djup mot det de låst på. Alla torpeder går på grund mot land och
+grund (`_ground`): en armerad stridsspets detonerar där.
 Trådstyrda torpeder (`wire_nm` > 0, försökstorpeden 53-62T): torpedrummet styr dem med
 `guide_torpedo` medan tråden håller och släpper målsökaren (`release_seeker`) nära målet; förut
 söker de inte. Tråden går av (`_step_wire`) när den är utspelad, när vi går fortare än
@@ -82,7 +85,8 @@ ACTIVE_ECHO_SE = 15.0        # ett skrov inom aktiva räckvidden: så tydligt ek
 DECOY_ECHO_SE = 18.0         # skenmålets gasbubblor ekar mer än skrovet
 ACTIVE_DEPTH_M = 50.0        # den aktiva målsökaren ser bara så långt upp och ned
 RELOCK_DB = 6.0              # något annat måste höras så mycket bättre för att byta mål
-DEPTH_HIT_M = 20.0           # träff bara om djupet stämmer så här nära
+DEPTH_HIT_M = 20.0           # träff bara om djupet stämmer så här nära (alla torpeder)
+GROUND_MARGIN_M = 1.0        # botten så här mycket grundare än torpedens djup: den går på grund
 TORPEDO_HIT_HULL = 0.7       # en Mk 37 i skrovet: tillsammans med tryckvågen är det slutet
 WIRE_MAX_SPEED = 12.0        # knop: fortare och tråden slits av mot skrovet ...
 WIRE_OVERSPEED_S = 15        # ... efter så här lång tid
@@ -328,6 +332,7 @@ def _seek(world: World, t: Torpedo) -> None:
     if best is not None:
         t.locked = best.id
         ts.order_course(bearing_to(ts.x, ts.y, best.state.x, best.state.y))
+        ts.order_depth(max(best.depth, t.spec.run_depth))   # efter en ubåt nedåt, aldrig över ytläget
 
 
 def hull_pass(p0, p1, v: Vessel) -> float:
@@ -402,6 +407,15 @@ def _sink(world: World, v: Vessel) -> None:
     world.mission["last_sink_t"] = world.time
 
 
+def _ground(world: World, t: Torpedo) -> None:
+    """Torpeden går upp på land eller ett grund: en armerad stridsspets detonerar där (ingen i
+    närheten), annars (oarmerad, blindgångare, övningstorped) stannar den bara."""
+    if t.run_nm >= ARM_DISTANCE_NM and not t.spec.exercise and not t.dud:
+        _detonate(world, t, None)
+    else:
+        t.done = t.sunk = True
+
+
 def _step_torpedo(world: World, t: Torpedo, dt: int) -> None:
     ts = t.state
     if t.wire_ok:
@@ -415,6 +429,9 @@ def _step_torpedo(world: World, t: Torpedo, dt: int) -> None:
     ts.y += cvy * dt
     t.run_nm += ts.speed * dt / 3600.0
     p1 = (ts.x, ts.y)
+    if world.env.bottom_at(ts.x, ts.y) < ts.depth - GROUND_MARGIN_M:
+        _ground(world, t)
+        return
 
     if t.spec.nuclear:
         limit = t.detonate_at_nm if t.detonate_at_nm is not None else t.spec.range_nm
@@ -449,6 +466,9 @@ def _step_torpedo(world: World, t: Torpedo, dt: int) -> None:
     elif t.run_nm >= ARM_DISTANCE_NM:
         for v in world.contacts:
             if v.side == "own" or v.sunk or not v.is_ship:
+                continue
+            # en ubåt på djupet går den raka torpeden (5 m) över
+            if abs(v.depth - ts.depth) > DEPTH_HIT_M:
                 continue
             if hull_pass(p0, p1, v) <= 1.0:
                 if t.dud:

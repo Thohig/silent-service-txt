@@ -217,7 +217,11 @@ för in varje färdigt steg där.
 - Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m, torpedavfyring ≤ 100 m och ≤ 12 kn.
 - Egna torpeder (`weapons.py`): gyrofel σ 0,4°, 5 % blindgångare, 2 % förtidsdetonationer (inte övning eller
   kärnladdning); träff när banan går genom skrovets ellips (`HULL_M`, halva längden och bredden + 10 m). Tester
-  av geometri och rapporter stänger av felen med fixturen `perfect_torpedoes`. Provskjutningen: `ytskott.py`.
+  av geometri och rapporter stänger av felen med fixturen `perfect_torpedoes`. Träff bara inom 20 m i djup
+  (`DEPTH_HIT_M`: den raka går på 5 m över en ubåt på djupet, målsökarna styr i djup); alla torpeder går på grund
+  mot botten > 1 m grundare än de själva (`GROUND_MARGIN_M`), armerade detonerar där. Detonation mer än 30 s och
+  en fjärdedel av gångtiden före beräknad tid: torpedrummet säger `torp.run.early`, inte träff.
+  Provskjutningen: `ytskott.py` (ytläge, stilla mål), `skott_saker.py` (säkra lösningar i scenarierna).
   Långvåg med flytkabeln ≤ 50 m och ≤ 5 kn, 5 min; hel med två av mörker, ≤ 3 kn och ≤ 40 m.
 - Clyde: Polarisbåten 130 + 2·fart dB i ytläge; bandet 10 min med SE ≥ 8 dB (`stations/recording.py`);
   fyrfix σ 0,1 (två) / 0,2 (en); moln ≥ 0,6 stänger stjärnfixen. Firth-bottnen i ett rutnät 0,05 nm.
