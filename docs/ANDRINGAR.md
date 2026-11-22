@@ -3,6 +3,12 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-22 – skjutlösningen bara för torpeder ombord
+
+Skjutlösningen räknade kurs och gångtid för alla torpedtyper i spelet, så övningstorpeden stod med i varje
+scenario fast den bara finns ombord i övningen. Nu räknar torpedrummet bara på typerna i tuberna eller i stället
+(`FiringMixin._aboard`, `firing.py`). Test: `test_the_solution_lists_only_torpedoes_aboard`.
+
 ## 2026-11-22 – appens standardmål ~/Applications
 
 Ingen ändring i spel. `ikon/bygg-app.sh` bygger `K-114.app` till `~/Applications` om inget mål anges, i stället

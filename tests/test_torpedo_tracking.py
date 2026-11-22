@@ -214,3 +214,17 @@ def test_a_homing_torpedo_warns_about_another_ship_near_the_target():
     assert warn and "S-2" in warn[0].text and "kan ta fel fartyg" in warn[0].text
     g.command("eld tub 1 mot S-1")
     assert len(torps()) == 1
+
+
+def test_the_solution_lists_only_torpedoes_aboard():
+    """Övningstorpeden finns bara i övningen: skjutlösningen räknar bara på det vi har ombord."""
+    g, reports = _game(1)
+    _setup(g)
+    room = g.station(TorpedoRoom)
+    g.command("skjutlösning S-1")
+    _run_until(g, reports, {"torp.solution"}, 10)
+    sol = next(r for r in reports if r.type == "torp.solution")
+    types = [row["type"] for row in sol.data["rows"]]
+    assert "övning" not in types and "övning" not in sol.text
+    assert set(types) == {t.load for t in room.tubes if t.load} | {
+        k for k, n in room.inventory.items() if n > 0}

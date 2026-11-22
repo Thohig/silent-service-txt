@@ -46,6 +46,12 @@ class FiringMixin:
             return "kärnladdningen kräver kärnvapenråd, nycklarna är inte vridna"
         return None
 
+    def _aboard(self) -> list[str]:
+        """Torpedtyperna vi har ombord (i tuberna eller i stället), i `TORPEDO_TYPES` ordning:
+        skjutlösningen räknar bara på dem (övningstorpeden finns bara i övningen)."""
+        have = {t.load for t in self.tubes if t.load} | {k for k, n in self.inventory.items() if n > 0}
+        return [k for k in TORPEDO_TYPES if k in have]
+
     def _keys(self) -> bool:
         from ..council import NuclearCouncil
         c = self.game.station(NuclearCouncil)
@@ -394,7 +400,7 @@ class FiringMixin:
             self.say("torp.refused", {"reason": f"vi har ingen lösning på {designation}"})
             return
         rows = []
-        for key in TORPEDO_TYPES:
+        for key in self._aboard():
             row = {"type": key}
             if b := self._blocked(key):
                 row["blocked"] = b
