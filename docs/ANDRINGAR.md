@@ -3,6 +3,13 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-22 – webbversionen först i README
+
+README börjar med "Spela": länken till GitHub Pages, ljud med `ljud`, tangenterna i webbläsaren, skärmstorlek
+och `?scenario=`/`&seed=` med alla scenarier. Nedladdat (`uv run main.py`, `fonster.py`) står under "Spela utan
+webbläsare" som reserv, med `git clone` och uv; testerna och bygget av webben under "Utveckling". `web/README.md`
+hänvisar spelare till sidan och `CLAUDE.md` säger att det ska förbli så.
+
 ## 2026-11-22 – stilla fartyg hörs mindre
 
 Ett fartyg som ligger still eller glider under 3 kn har bara hjälpmaskinerna igång: källnivån faller linjärt

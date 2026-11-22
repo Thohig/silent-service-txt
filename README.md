@@ -4,29 +4,54 @@ Du är kapten på en sovjetisk atomubåt. Du ger skrivna order och besättningen
 rapporterar. Fienden syns aldrig direkt, bara genom sonaroperatörens bäringar
 och plottlagets målrörelseanalys.
 
-**Spela i webbläsaren:** https://thohig.github.io/silent-service-txt/ (Safari eller Chrome, ingen
-installation; `?scenario=kuba` och `?seed=4` i adressen som flaggorna nedan; `ljud` slår på ljudet).
-
 Vad som ändrats och när: `docs/ANDRINGAR.md`.
 
-## Köra
+## Spela
 
-Den nedladdade versionen är bara provad på macOS. Spelar du på Windows: använd webbversionen på
-GitHub Pages ovan (där fungerar också ljud och tal).
+**https://thohig.github.io/silent-service-txt/**
+
+Spelet körs direkt i webbläsaren, utan installation: Safari eller Chrome på en dator, oavsett om
+den kör macOS, Windows eller Linux. Första gången hämtar sidan ungefär 15 MB (Python, numpy och
+Textual), sedan ligger det i webbläsarens cache.
+
+- **Ljud:** av från början. Skriv ordern `ljud` (eller välj Inställningar i huvudmenyn) för musik,
+  bakgrundsljud och besättningens tal. Besättningen talar ryska om webbläsaren har en rysk röst
+  (Safari och Chrome på Mac har Milena), annars svenska; `tal svenska` och `tal ryska` byter.
+- **Tangenter:** `Tab` växlar vy, `Esc` går tillbaka och `ctrl+q` avslutar. Chrome tar själv `ctrl+t`
+  och `ctrl+w`, så använd orden i stället.
+- **Skärm:** spelet behöver tangentbord och minst 100×30 tecken. På telefon nås vyerna med ord
+  (`sjökort`, `sonar` … `central` tillbaka) eftersom tangentbordet saknar Tab och Esc.
+- **Direkt till ett scenario:** lägg till `?scenario=kuba-kort` i adressen, och `&seed=4` för ett
+  reproducerbart frö. Scenarierna: kuba, kuba-kort, jagad, jagad-kort, sundet, sundet-in, sundet-ut,
+  clyde, clyde-in, konvoj, konvoj-kort, konvoj-mot, arktis, arktis-kort, duell, duell-kort, krig,
+  krig-kort. Utan `scenario` börjar spelet i huvudmenyn.
+
+När ett uppdrag är slut tar Enter dig tillbaka till huvudmenyn. Där finns också inställningar (ljud,
+tal, slumpfrö) och en lista över alla order och ryska ord. Med ljudet på spelar menyn egen musik,
+hamnen i Poljarnyj och ibland Radio Moskva; fjärrskrivaren längst ned skriver flottans meddelanden
+fram mot den 28 oktober.
+
+## Spela utan webbläsare
+
+Behövs bara om webbversionen inte fungerar för dig, till exempel utan nät eller i en webbläsare som
+inte klarar den. Den nedladdade versionen är bara provad på macOS; på Windows, använd webbversionen.
+Det som skiljer: ljudet är på från början (`ctrl+t` slår av och på), talet går genom samma
+ljudeffekter som resten (telefon, skott) och sanningsloggen sparas på disk.
+
+Du behöver [uv](https://docs.astral.sh/uv/) (`brew install uv`) och en klon av repot:
 
 ```bash
+git clone https://github.com/Thohig/silent-service-txt.git
+cd silent-service-txt
 uv run main.py                     # huvudmenyn, slumpat frö
-uv run main.py --scenario kuba     # hoppa över huvudmenyn (kuba, kuba-kort, jagad, jagad-kort, sundet, sundet-in, sundet-ut, clyde, clyde-in, konvoj, konvoj-kort, konvoj-mot, arktis, arktis-kort, duell, duell-kort, krig, krig-kort)
+uv run main.py --scenario kuba     # hoppa över huvudmenyn (samma scenarier som ovan)
 uv run main.py --seed 4            # reproducerbart scenario
 uv run main.py --tyst              # utan ljud
 uv run --extra fonster fonster.py  # i eget fönster med ubåtsikonen i Docken (macOS)
-uv run python web/bygg.py          # webbversionen till web/dist (GitHub Pages, se web/README.md)
-uv run pytest             # snabba tester
-uv run pytest --slow      # alla tester
 ```
 
-När ett uppdrag är slut tar Enter dig tillbaka till huvudmenyn. Där finns också inställningar (ljud, tal, slumpfrö) och en lista över alla order och ryska ord. Med ljudet på (`ctrl+t` eller Inställningar; i webbläsaren ordern `ljud`, eftersom Chrome tar `ctrl+t`) spelar menyn egen musik, hamnen i Poljarnyj och ibland Radio Moskva; fjärrskrivaren längst ned skriver flottans meddelanden fram mot den 28 oktober. Stäng programmet med `ctrl+q`. I eget fönster (`fonster.py`, samma flaggor som `main.py`) körs spelet i en webbterminal (textual-serve) i ett pywebview-fönster; `⌘Q` eller spelets eget slut stänger fönstret, och appen `K-114.app` startar det som en enda ikon i Docken. Appen är inte installerad (raderad 2026-11-21); `sh ikon/bygg-app.sh [mål]` bygger den igen (standard `~/Projekt/Lokalt`), ikonen ligger i `ikon/`. Sanningen (exakta positioner och TMA-lösningar) loggas
-till `logs/truth-*.log`.
+Stäng programmet med `ctrl+q`. I eget fönster (`fonster.py`, samma flaggor som `main.py`) körs spelet i en webbterminal (textual-serve) i ett pywebview-fönster; `⌘Q` eller spelets eget slut stänger fönstret, och appen `K-114.app` startar det som en enda ikon i Docken. Appen är inte installerad (raderad 2026-11-21); `sh ikon/bygg-app.sh [mål]` bygger den igen (standard `~/Projekt/Lokalt`), ikonen ligger i `ikon/`. Sanningen (exakta positioner och TMA-lösningar) loggas
+till `logs/truth-*.log`; i webbläsaren hålls den bara i minnet och försvinner när sidan laddas om.
 
 ## Order
 
@@ -44,7 +69,7 @@ lämnat tuben). Betydelsen framgår alltid av den svenska texten bredvid, och `h
 har en ordlista. Siffror och bedömningar är alltid på svenska. `jest` fungerar som `ja`.
 Efter ett haverilarm rapporterar avdelningarna inom en minut vad de har inspekterat.
 
-Med ljudet på talar besättningen ryska (macOS-rösten Milena), medan loggen alltid är
+Med ljudet på talar besättningen ryska (rösten Milena), medan loggen alltid är
 på svenska. Alla repliker som läses upp har ryskt tal; det som bara står i loggen (hjälpen,
 plottabellen) läses inte. `tal svenska` byter till svenskt tal, `tal ryska` tillbaka. Saknas Milena
 talar besättningen svenska.
@@ -81,7 +106,7 @@ De gamla ordformerna (`läge S-1`, `plot S-1`, `skjutlösning S-1`, `stjärnfix`
 | Vakthavande | `läget` (djup, kurs, fart, kontakter och besticket) · `periskop` (svep runt i låg förstoring, 15 s) · `periskop S-3` eller `periskop 047` (kort titt: söker ±16° i låg och mäter i hög förstoring med stadimetern); att hissa, fälla, vrida och byta förstoring görs med tangenterna i periskopbilden · i ytläge med folk på bryggan tittar vakthavande med kikaren i stället, utan mast och fartgräns · `radar` (periskopdjup; radarvarnaren är automatisk) · `foto` (periskopfoto av ankarplatsen) |
 | Radio | `sänd rapport` (allt besättningen vet; periskopdjup, kan pejlas) · `sänd kort rapport` (eget läge och det som hänt, kortast) · `avlyssna` (amerikansk trafik en minut, antenndjup) · `radio moskva` · `radio` |
 | Torped | `torped` (tuberna och torpederna i vattnet) · `eld S-1` (torpedrummet väljer tub: målsökande före raka, aldrig kärnladdningen) · `salva S-1` (raka torpeder i solfjäder efter lösningens osäkerhet) · `eld tub 1 kurs 045` · `ladda tub 7 SET-53` · `kapa tråden` (trådstyrd torped: målsökaren tar över) · `skenmål` · `kärnvapenråd` |
-| Ljud | `ctrl+t` eller `ljud` (av och på): besättningen talar (macOS-rösten Alva, de ryska fraserna med Milena om den finns), larmen går det sonaren hör spelas i stereo (babord till vänster) och båten låter: reaktor, turbin, skrov, is, brand och kontakternas propellrar |
+| Ljud | `ljud` (av och på; nedladdat också `ctrl+t`): besättningen talar (svenska rösten Alva, de ryska fraserna med Milena om den finns), larmen går det sonaren hör spelas i stereo (babord till vänster) och båten låter: reaktor, turbin, skrov, is, brand och kontakternas propellrar |
 | Vyer | `Tab` växlar logg → sjökort → sonar → ubåten → periskopbild → logg; med tornluckan öppen kommer bryggan före periskopbilden; `Esc` eller `logg` går tillbaka till loggen. Orden `sjökort`, `sonar` (eller `vattenfall`), `ubåt` (eller `profil`, `system`), `periskopbild` och `brygga` öppnar en vy direkt; `telegram` öppnar loggboken med bara telegrammen (ordern, stabens radiogram och Radio Moskva, som också står som remsor i loggen), och mellanslag växlar till hela loggen. Order kan ges i alla vyer: varje vy har en orderrad, som också visar ett väntande förslag (`ja`/`nej`). Vyns tangenter (pilar, `+`/`-`, mellanslag, `Esc`) styr vyn när orderraden är tom; har den text redigerar de texten och `Esc` tömmer den. I periskopbilden hissar ↑ periskopet och ↓ fäller det; medan det är uppe vrider ← → okularet 5°, mellanslag vänder det förut och `+`/`-` byter förstoring när det hålls uppe, när det är nere byter ← → föremål i okularet, och med bryggan bemannad visar periskopbilden bryggans kikare mot det bryggvyn tittar på; på bryggan vrider ← → blicken 15°, mellanslag tittar rakt förut igen, `+` visar kikaren (7×, 7°) och `-` ögat; i sonarvyn (vattenfallet: bäring mot tid, bara det sonarrummet hört) vrider ← → 30°, `+`/`-` byter tidsfönster (10, 30, 60 min), ↓ växlar sann och relativ bäring, ↑ döljer eller visar plottets lösning (på från början) och mellanslag sätter norr (eller fören) i mitten; neutrala kontakter (handelsfartyg, isljud) är nedtonade men syns; i ubåtsvyn byter `+`/`-` djupskala och ← → tidsskala, som annars väljs så att historiken fyller profilen, och mellanslag går tillbaka till automatiskt |
 | Centralen | Huvudvyn i stora fönster: instrumenten på väggarna (gyro, sidroder, telegraf, djup, fart, klocka, djuproder). Plottets kontakter står som nummer på gyrots ring (bäringsrepeatern, hot i rött). Julgranen under högra pulpeten visar lucka, periskop, radar, antenn och ventil (rött öppet) och blåsning (gult). När periskopet är uppe vrids okularet dit det ser, och bäringen och förstoringen står under det |
 | Sjökort | Navigatörens sjökort i helskärm; `+`/`-` zoomar, pilarna flyttar, mellanslag centrerar |
@@ -170,6 +195,16 @@ loggboken (`sim/logbook.py`), alltså på vad besättningen rapporterat. Under
 den står sambandet: hur många sambandstillfällen som fick en rapport, och hur
 fel det vi rapporterade var mot sanningen (eget läge, kontakternas läge och
 kurs). Felen visas bara här; staben får aldrig veta dem.
+
+## Utveckling
+
+```bash
+uv run pytest             # snabba tester
+uv run pytest --slow      # alla tester, även hela spel
+uv run python web/bygg.py # webbversionen till web/dist
+```
+
+Hur webbversionen är byggd och publiceras står i `web/README.md`; arbetsreglerna i `CLAUDE.md`.
 
 ## Arkitektur
 

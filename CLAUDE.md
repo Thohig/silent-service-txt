@@ -9,6 +9,8 @@ oktober 1962. Python 3.12, Textual, numpy, uv. Användaren kör macOS (Apple Sil
 - Allt spelaren ser är svenska: fraser, order, rapporter. Kod, identifierare och
   kommentarer får vara svenska eller engelska, men följ omgivande fil.
 - Decimaltal i spelet med komma (`fmt.nm`, `fmt.kn`), kurser tresiffriga (`fmt_course`).
+- Spelarens dokumentation (README, Spela) leder till webbversionen på GitHub Pages; att ladda ner
+  och köra med `uv` är reserven när webben inte fungerar. Håll det så när README ändras.
 
 ## Kommandon
 ```bash

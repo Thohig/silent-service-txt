@@ -1,5 +1,8 @@
 # K-114 i webbläsaren
 
+Så är webbversionen byggd och publicerad. För att spela behövs bara sidan:
+https://thohig.github.io/silent-service-txt/ (se README.md, Spela).
+
 Spelet körs i webbläsaren med [Pyodide](https://pyodide.org) (CPython i WebAssembly) och
 [xterm.js](https://xtermjs.org). Det är samma `sim/` och `ui/` som i terminalen; nytt är bara
 drivrutinen som ritar och läser tangenter, ljudutgången och talet. Sidan är statisk och ligger på
