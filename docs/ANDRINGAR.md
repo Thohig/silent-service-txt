@@ -3,6 +3,15 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-22 – benvarningen för alla mål som girar
+
+Torpedrummets varning för att målet kan gira innan torpeden är framme gällde bara konvojens fartyg. I
+provskjutningen träffades jagare 1 gång av 84 med 53-61, eftersom de girade under gången. Nu varnar det också för
+mål med två märkta girar (benlängden ur plottets girar, `FiringMixin._turn_rhythm`) och för en jagare som jagar
+oss (`Knowledge.hunting`, utbruten ur `resolve`): "S-2 jagar och girar hela tiden, och en 53-61 är framme om
+5 min 10 s. Den hinner gira. En målsökande torped har större chans." Gångtid under 2 min ger ingen varning
+(`HUNTING_RUN_S`). Varningen är aldrig ett förslag att skjuta.
+
 ## 2026-11-22 – rapporten säger sänkt, inte träff
 
 Rapporten till staben tog med "TORPEDTRÄFF HÖRD" efter varje detonation av en egen torped, också en som gått av

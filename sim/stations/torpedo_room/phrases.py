@@ -112,10 +112,14 @@ PHRASES = {
     "kapar tråden, så att vi kan gå undan fritt.",
     "torp.salvo": lambda d: f"Salva mot {d['designation']}: {d['n']} torpeder i solfjäder, "
     f"{nm(d['step'])} grader isär.",
-    "torp.leg_warning": lambda d: f"Kapten, torpedrummet. Varning: {d['designation']} sicksackar. "
-    f"Benet har gått {round(d['elapsed_s'] / 60)} minuter av ungefär {round(d['leg_s'] / 60)}, och en "
-    f"{d['type']} är framme om {_mmss(d['run_s'])}. Konvojen kan ha girat innan dess."
-    + (" Den målsökande torpeden söker själv efter giren." if d.get("homing") else ""),
+    "torp.leg_warning": lambda d: f"Kapten, torpedrummet. Varning: "
+    + (f"{d['designation']} jagar och girar hela tiden, och en {d['type']} är framme om "
+       f"{_mmss(d['run_s'])}. Den hinner gira." if d.get("kind") == "hunting" else
+       f"{d['designation']} sicksackar. Benet har gått {round(d['elapsed_s'] / 60)} minuter av ungefär "
+       f"{round(d['leg_s'] / 60)}, och en {d['type']} är framme om {_mmss(d['run_s'])}. "
+       + ("Konvojen" if d.get("kind", "convoy") == "convoy" else "Den") + " kan ha girat innan dess.")
+    + (" Den målsökande torpeden söker själv efter giren." if d.get("homing")
+       else " En målsökande torped har större chans."),
     "torp.time": lambda d: f"Tid för torpeden från tub {d['tube']}"
     + (f" mot {d['designation']}" if d.get("designation") else "") + "!",
     "torp.too_close": lambda d: f"Kapten, torped! {d['designation']} är för nära, cirka "
@@ -253,8 +257,11 @@ RU_PHRASES = {
     + ("торговое судно" if len(d["ships"]) == 1 else "торговые суда")
     + " рядом с курсом торпед."
     + ("" if d.get("preview") else " Повторите приказ, если стреляем."),
-    "torp.leg_warning": lambda d: f"{R.CAPTAIN}, торпедный отсек. Внимание: цель идёт "
-    f"зигзагом, конвой может повернуть раньше, чем дойдёт торпеда.",
+    "torp.leg_warning": lambda d: f"{R.CAPTAIN}, торпедный отсек. Внимание: "
+    + ("цель нас ищет и всё время маневрирует, успеет отвернуть." if d.get("kind") == "hunting" else
+       "цель идёт зигзагом, "
+       + ("конвой" if d.get("kind", "convoy") == "convoy" else "она")
+       + " может повернуть раньше, чем дойдёт торпеда."),
     "torp.too_close": lambda d: f"{R.CAPTAIN}, минёр! {R.contact(d['designation']).capitalize()} "
     "слишком близко, торпеда не успеет взвестись. Повторите приказ, если стреляем.",
     "torp.time.sunk": lambda d: f"Время торпеды из аппарата {d['tube']}, но цель уже тонет.",

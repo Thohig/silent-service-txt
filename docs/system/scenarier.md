@@ -43,7 +43,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   är tvärs 4 min efter att vi är framme; omräkning var 30:e s. Hinns det inte i vår fart föreslås
   lägsta fart som räcker (inom 1,5 h). I skjutläge (tvärs inom 8 min, ≤ 2,5 nm från vägen) föreslås
   fart 3. Passerat (bakom, två gånger i rad, säkert bara med baskurs eller < 3 nm) ⇒ slutar.
-  Torpedrummet (`_leg_warning`) varnar när gångtiden är längre än det som är kvar av benet.
+  Torpedrummet (`_leg_warning`) varnar när gångtiden är längre än det som är kvar av benet. Samma varning
+  gäller varje mål med två märkta girar (benet ur girarna, `_turn_rhythm`) och en jagare som jagar oss
+  (`Knowledge.hunting`: girar hela tiden, varning vid gångtid över 2 min, `HUNTING_RUN_S`); med en rak torped
+  säger den att en målsökande har större chans.
   Fyra provkörningar (periskop var 4:e min): framme i alla, närmaste passage 0,2–3,3 nm.
   Besättningen visar vägen (aldrig avfyring): navigatören (`_convoy_watch`, var 30:e s) föreslår
   `anfall S-x` när plottet har konvojen, eller ett ensamt stort fartyg med färsk lösning ≥ osäker, och

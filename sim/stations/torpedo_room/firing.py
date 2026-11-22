@@ -9,7 +9,7 @@ from ...firecontrol import intercept
 from ...reports import Quality
 from ...weapons import ARM_DISTANCE_NM, TORPEDO_TYPES, launch_torpedo
 from .common import (
-    CONFIRM_S, FireSalvo, FireTube, MAX_LAUNCH_DEPTH, MAX_LAUNCH_SPEED, NEUTRAL_CONE_DEG,
+    CONFIRM_S, HUNTING_RUN_S, FireSalvo, FireTube, MAX_LAUNCH_DEPTH, MAX_LAUNCH_SPEED, NEUTRAL_CONE_DEG,
     NEUTRAL_LANE_NM, NEUTRAL_STEP_S, N_TUBES, Running, SALVO_GAP_MAX_NM, SALVO_GAP_NM,
     SALVO_MAX, SALVO_STEP_DEG, TOO_CLOSE_MARGIN_NM, Tube,
 )
@@ -290,21 +290,39 @@ class FiringMixin:
         self.say("torp.neutral", {"ships": ships}, quality=Quality.GOD)
         return False
 
+    def _turn_rhythm(self, tr) -> tuple[str, int | None, int | None] | None:
+        """Hur målet girar, enligt plottet: konvojens sicksack (benlängd, senaste gir), ett mål som
+        jagar oss (girar hela tiden), eller ett mål med två märkta girar (benet ur dem). Annars None."""
+        k = self.game.knowledge
+        c = k.convoy
+        if c is not None and tr.designation in c.members and c.mean_leg_s is not None \
+                and c.last_turn_t is not None:
+            return "convoy", c.mean_leg_s, c.last_turn_t
+        if k.hunting(tr, self.now):
+            return "hunting", None, None
+        gaps = sorted(b - a for a, b in zip(tr.turns, tr.turns[1:]) if b > a)
+        if gaps:
+            return "zigzag", gaps[len(gaps) // 2], tr.turns[-1]
+        return None
+
     def _leg_warning(self, designation: str, run_s: float, type_key: str) -> None:
-        """Ett sicksackande mål kan gira innan torpeden är framme: säg det."""
-        c = self.game.knowledge.convoy
+        """Ett mål som girar kan gira innan torpeden är framme: säg det."""
         tr = self.game.knowledge.track(designation)
-        if c is None or tr is None or tr.designation not in c.members \
-                or c.mean_leg_s is None or c.last_turn_t is None:
+        rhythm = self._turn_rhythm(tr) if tr is not None else None
+        if rhythm is None:
             return
-        elapsed = self.now - c.last_turn_t
-        left = c.mean_leg_s - elapsed
-        if run_s <= left:
-            return
-        self.say("torp.leg_warning", {"designation": tr.designation, "elapsed_s": elapsed,
-                                      "leg_s": c.mean_leg_s, "run_s": run_s, "type": type_key,
-                                      "homing": TORPEDO_TYPES[type_key].homing},
-                 quality=Quality.OSAKER)
+        kind, leg_s, last_t = rhythm
+        d = {"designation": tr.designation, "run_s": run_s, "type": type_key, "kind": kind,
+             "homing": TORPEDO_TYPES[type_key].homing}
+        if kind == "hunting":
+            if run_s <= HUNTING_RUN_S:
+                return
+        else:
+            elapsed = self.now - last_t
+            if run_s <= leg_s - elapsed:
+                return
+            d.update(elapsed_s=elapsed, leg_s=leg_s)
+        self.say("torp.leg_warning", d, quality=Quality.OSAKER)
 
     def _best_target(self) -> str | None:
         """Utan angiven kontakt: den enda hållna, annars hotkontakten med bäst lösning (närmast

@@ -284,3 +284,43 @@ def test_no_look_before_the_shot_on_a_far_target_or_a_poor_solution():
     _plotted(g, "S-8", 0.0, 2.0, "stort fartyg, trolig transport", quality=Quality.DALIG)
     _ticks(g, 70)
     assert not any(r.type == "off.suggest.fire_look" for r in reports)
+
+
+def _room_with_track(seed=1):
+    from sim.events import ContactDetected
+    from sim.stations import TorpedoRoom
+    g = Game(default_scenario(random.Random(seed)), seed=seed)
+    reports = []
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    g.bus.publish(ContactDetected(g.now, "S-1", 10.0, "jagare", Quality.GOD))
+    return g, g.station(TorpedoRoom), g.knowledge.track("S-1"), reports
+
+
+def _warnings(g, reports):
+    for _ in range(5):
+        g.tick()
+    return [r for r in reports if r.type == "torp.leg_warning"]
+
+
+def test_a_ship_with_two_marked_turns_gets_the_leg_warning_too():
+    g, room, tr, reports = _room_with_track()
+    tr.turns = [g.now - 900, g.now - 400]               # ben ~8 min, senaste giren för 400 s sedan
+    room._leg_warning("S-1", 300.0, "53-61")            # 100 s kvar av benet, gångtid 5 min
+    w = _warnings(g, reports)
+    assert len(w) == 1 and "sicksackar" in w[0].text and "Den kan ha girat" in w[0].text
+    assert "målsökande torped har större chans" in w[0].text
+    room._leg_warning("S-1", 60.0, "53-61")             # hinner fram
+    assert len(_warnings(g, reports)) == 1
+
+
+def test_a_hunting_destroyer_turns_all_the_time():
+    from sim.tma import BearingObs
+    g, room, tr, reports = _room_with_track()
+    g.knowledge.hunt_t = g.now
+    tr.observations.append(BearingObs(g.now, 10.0, 0.5, 0.0, 0.0, 0.0, designation="S-1",
+                                      source="ping"))
+    room._leg_warning("S-1", 90.0, "53-61")             # kort gångtid: ingen varning
+    room._leg_warning("S-1", 300.0, "SET-53")
+    w = _warnings(g, reports)
+    assert len(w) == 1 and "jagar och girar hela tiden" in w[0].text
+    assert "söker själv" in w[0].text

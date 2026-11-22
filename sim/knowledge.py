@@ -305,6 +305,13 @@ class Knowledge:
         c = self.convoy
         return (c is not None and tr.designation in c.members) or len(tr.turns) >= 2
 
+    def hunting(self, tr: ContactTrack, t_now: int) -> bool:
+        """Jagar målet oss? Ett mål som pingar medan vi är jagade (snabb pingtakt, plask) girar hela
+        tiden; en jagare som pingar i lugn patrull går sina ben."""
+        return self.hunted(t_now) and any(
+            o.source == "ping" and o.t >= t_now - HUNTER_PING_S and o.t >= tr.tma_from_t
+            for o in tr.observations)
+
     def track(self, designation: str) -> ContactTrack | None:
         return self.tracks.get(_normalize(designation))
 
@@ -314,11 +321,7 @@ class Knowledge:
         if tr is None:
             return None
         obs = [o for o in tr.observations if o.t >= tr.tma_from_t]
-        # ett mål som pingar medan vi är jagade (snabb pingtakt, plask) girar hela tiden;
-        # en jagare som pingar i lugn patrull går sina ben
-        hunting = self.hunted(t_now) and \
-            any(o.source == "ping" and o.t >= t_now - HUNTER_PING_S for o in obs)
-        q = HUNTER_MANEUVER_Q if hunting else \
+        q = HUNTER_MANEUVER_Q if self.hunting(tr, t_now) else \
             tma.ZIGZAG_MANEUVER_Q if self.zigzags(tr) else None
         tr.solution = solve(obs, t_now=t_now, own_now=own_now, maneuver_q=q)
         return tr.solution
