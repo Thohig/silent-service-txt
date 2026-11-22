@@ -3,6 +3,14 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-22 – stilla fartyg hörs mindre
+
+Ett fartyg som ligger still eller glider under 3 kn har bara hjälpmaskinerna igång: källnivån faller linjärt
+till 12 dB under framdrivningens vid stopp (`acoustics.source_level`, `IDLE_KN`, `IDLE_DB`; ankrade `moored`
+som förut). En stoppad jagare är 125 dB i stället för 137, så sonar hör den kortare och en jagare som stannar
+för att lyssna blir svårare att hålla kvar. Målsökarna träffar som förut inom 3 nm men sämre längre ut (53-62T
+på 5–6 nm 20–22 ⇒ 14–16 av 24). `kontroll.py`: som baslinjen.
+
 ## 2026-11-22 – torpedfel och skrovets ellips
 
 Egna torpeder är inte längre perfekta (`sim/weapons.py`). Gyrot lägger torpeden på kursen med ett fel σ 0,4°

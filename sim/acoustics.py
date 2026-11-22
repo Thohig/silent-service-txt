@@ -53,9 +53,19 @@ CREAK_LEVEL = 132.0           # skrovet knakar vid snabb djupändring (kompressi
 RELOAD_QUIET_DB = 12.0        # försiktig omladdning (smygmotor, jagade)
 
 
+# Ett fartyg som ligger still eller glider har bara hjälpmaskinerna igång (generatorer, pumpar):
+# under IDLE_KN faller nivån linjärt till IDLE_DB under det framdrivningen ger vid den farten.
+IDLE_KN = 3.0
+IDLE_DB = 12.0
+
+
 def source_level(kind: str, speed: float) -> float:
     base, slope = _SOURCE.get(kind, (130.0, 1.0))
-    return base + slope * max(speed, 0.0)
+    v = max(speed, 0.0)
+    level = base + slope * v
+    if slope > 0 and v < IDLE_KN:
+        level -= IDLE_DB * (1.0 - v / IDLE_KN)
+    return level
 
 
 def own_noise(speed: float) -> float:

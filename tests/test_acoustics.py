@@ -23,3 +23,11 @@ def test_own_speed_deafens_sonar():
 def test_slow_speed_limited_by_background():
     # under ~4 knop dominerar havsbruset: långsammare hjälper knappt
     assert ac.total_noise(60, 0) - ac.total_noise(60, 2) < 1.5
+
+
+def test_a_stopped_ship_runs_only_its_auxiliaries():
+    for kind in ("destroyer", "merchant", "patrol", "tanker"):
+        assert ac.source_level(kind, 0) == ac.source_level(kind, 3) - 3 * ac._SOURCE[kind][1] - ac.IDLE_DB
+        assert ac.source_level(kind, 1.5) < ac.source_level(kind, 3)
+        assert ac.source_level(kind, 3) < ac.source_level(kind, 4)     # samma lutning som förut över 3 kn
+    assert ac.source_level("moored", 0) == 100.0                        # redan bara hjälpmaskiner

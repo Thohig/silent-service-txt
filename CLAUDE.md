@@ -180,7 +180,8 @@ för in varje färdigt steg där.
 - Språngskikt 60 m, 7 dB (`Thermocline` i `environment.py`). Arktis (`ArcticProfile`):
   inget skikt, sfäriskt till 1 nm sedan cylindriskt, isstudsar 2,4 dB/nm som halveras
   vid 150 m medeldjup. Kavitationsfart `6 + djup/25` kn.
-- Jagare: källnivå `137 + 1,25·fart`; ping 230 dB; aktiv räckvidd ~4,4 nm över
+- Jagare: källnivå `137 + 1,25·fart`, under 3 kn linjärt ned till 12 dB lägre vid stopp (alla fartyg:
+  `IDLE_KN`, `IDLE_DB`, bara hjälpmaskinerna); ping 230 dB; aktiv räckvidd ~4,4 nm över
   skiktet, ~2 nm under. Passivt hör den oss sällan om vi inte kaviterar.
 - Egen ubåt: turbin 128 dB, smygmotor 112, reaktorpumpar 120 (går alltid när
   reaktorn är i drift). Vi hör jagaren på ~5–6 nm under skiktet i 5 kn.

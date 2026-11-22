@@ -66,6 +66,13 @@ inget), men färre förslag om sprint (`djup 220, turbin, fart 13` bland de vanl
 frön före, 2 av 8 efter; glesare larm under långa jakter)
 gör att boten inte jagar ikapp konvojen efteråt, så den hinner förbi i 3 frön i stället för 0–1.
 
+**Stilla fartyg tystare (2026-11-22, `acoustics.IDLE_KN`/`IDLE_DB`):** under 3 kn faller källnivån linjärt till
+12 dB under framdrivningens vid stopp (stoppad jagare 125 dB i stället för 137). `ytskott.py` 24 frön: målsökarna
+påverkas knappt inom 3 nm (SET-53 23/23/23 på 1–3 nm, 125 dB hörs väl så nära), men längre ut: SET-53 på 4 nm
+10 ⇒ 7 av 24, 53-62T på 5/6 nm 20/22 ⇒ 14/16. Raka torpeder som förut (inom slumpen). `kontroll.py` (alla
+scenarier, 8 frön, efter torpedfelen, ellipsen och de tystare stilla fartygen): som baslinjen, inget flyttat ≥ 2;
+konvoj-mot ja anfallen 5 ⇒ 4.
+
 **Ytskott efter torpedfelen och träffellipsen (2026-11-22, `ytskott.py`, 24 frön):** träffar av 24 på
 1/2/3/4/5/6 nm: 53-61 ensam 22/18/6/9/1/1, salva 21/17/15/9/5/5, SET-53 23/23/23/10 (resten utom räckhåll),
 53-62T 23/23/23/23/20/22. Gyrot (σ 0,4°), blindgångare (5 %), förtidsdetonationer (2 %) och skrovets ellips
