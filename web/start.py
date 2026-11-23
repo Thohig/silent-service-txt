@@ -58,7 +58,7 @@ async def main(bridge, cols: int, rows: int, seed: int | None = None,
     ui.ambience.OUTPUT = WebOut
     from ui.voices import WebSpeech
     WebSpeech.bridge = getattr(bridge, "speech", None)
-    app = SubApp(seed=seed, scenario=scenario or None, sound=False, log_dir=LOG_DIR)
+    app = SubApp(seed=seed, scenario=scenario or None, sound=True, log_dir=LOG_DIR)
     await app.run_async(size=(cols, rows))
 
 

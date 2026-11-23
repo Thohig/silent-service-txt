@@ -20,7 +20,7 @@ GitHub Pages: https://thohig.github.io/silent-service-txt/
   `speechSynthesis`) och lämnar dem till Python i bryggan (`bridge.audio`, `bridge.speech`).
 - `start.py`: väljer drivrutinen (`TEXTUAL_DRIVER`), lappar Pyodide 0.29:s `WebLoop.create_task`
   (anropar `asyncio.tasks._set_task_name`, som Python 3.13 saknar), kopplar sidans ljud och
-  tal (`WebOut.sink`, `ui.ambience.OUTPUT = WebOut`, `WebSpeech.bridge`) och startar `SubApp` med ljudet av.
+  tal (`WebOut.sink`, `ui.ambience.OUTPUT = WebOut`, `WebSpeech.bridge`) och startar `SubApp` med ljudet på.
 - `pyodide_driver.py`: Textual-drivrutinen. Skriver till terminalen i sidan, tar tangenter och
   storlek från den på samma händelseslinga (inga trådar). Provas i CPython i `tests/test_webb.py`.
 - `web_audio.py`: ljudutgången (`WebOut`, samma gränssnitt som `ui.ambience.AmbientOut`). Fyller var
@@ -40,10 +40,10 @@ GitHub Pages: https://thohig.github.io/silent-service-txt/
 ## Skillnader mot terminalen
 - **Inga trådar:** en kort variants uppvärmning körs i bitar (`Game.warm_up_steps`) mellan
   ritningarna i stället för i en tråd (`ui/app.py`, `THREADS`).
-- **Ljudet** startar av (i terminalen är det på utan `--tyst`); `ljud` eller Inställningar slår på det (`ctrl+t` tar Chrome
-  själv). Allt utom talet går genom mixern som vanligt (`ui.audio.WebPlayer`); talet är webbläsarens
+- **Ljudet** startar på, som i terminalen (sedan 2026-11-24; hörs först efter en tangent eller ett klick); `ljud` eller
+  Inställningar slår av och på (`ctrl+t` tar Chrome själv). Allt utom talet går genom mixern som vanligt (`ui.audio.WebPlayer`); talet är webbläsarens
   (`voices.WebSpeech`), utan telefon- och skotteffekt, och Radio Moskva i menyn är bara brus. Menyns
-  syntes görs utan tråd och låser sidan ~1 s när ljudet slås på i menyn.
+  syntes görs utan tråd och låser sidan ~1 s när menyn visas med ljudet på.
 - **Tangenter:** webbläsaren tar vissa själv (`ctrl+t` och `ctrl+w` i Chrome); `ctrl+q` och menyns
   Avsluta stänger spelet. Sanningsloggen skrivs i minnet och försvinner när sidan laddas om.
 - **Fart:** simuleringen går 1–2 gånger långsammare än i CPython (övning ~8 ms per tick mot ~4).

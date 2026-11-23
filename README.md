@@ -14,8 +14,8 @@ Spelet körs direkt i webbläsaren, utan installation: Safari eller Chrome på e
 den kör macOS, Windows eller Linux. Första gången hämtar sidan ungefär 15 MB (Python, numpy och
 Textual), sedan ligger det i webbläsarens cache.
 
-- **Ljud:** av från början. Skriv ordern `ljud` (eller välj Inställningar i huvudmenyn) för musik,
-  bakgrundsljud och besättningens tal. Besättningen talar ryska om webbläsaren har en rysk röst
+- **Ljud:** på från början: musik, bakgrundsljud och besättningens tal. Webbläsaren släpper fram ljudet
+  först efter en tangent eller ett klick. Ordern `ljud` (eller Inställningar i huvudmenyn) slår av och på. Besättningen talar ryska om webbläsaren har en rysk röst
   (Safari och Chrome på Mac har Milena), annars svenska; `tal svenska` och `tal ryska` byter.
 - **Tangenter:** `Tab` växlar vy, `Esc` går tillbaka och `ctrl+q` avslutar. Chrome tar själv `ctrl+t`
   och `ctrl+w`, så använd orden i stället.
@@ -36,7 +36,7 @@ fram mot den 28 oktober.
 
 Behövs bara om webbversionen inte fungerar för dig, till exempel utan nät eller i en webbläsare som
 inte klarar den. Den nedladdade versionen är bara provad på macOS; på Windows, använd webbversionen.
-Det som skiljer: ljudet är på från början (`ctrl+t` slår av och på), talet går genom samma
+Det som skiljer: `ctrl+t` slår också av och på ljudet, talet går genom samma
 ljudeffekter som resten (telefon, skott) och sanningsloggen sparas på disk.
 
 Du behöver [uv](https://docs.astral.sh/uv/) (`brew install uv`) och en klon av repot:
