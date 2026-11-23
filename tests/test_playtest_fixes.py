@@ -140,6 +140,26 @@ def test_sprint_accepts_a_deeper_ordered_depth():
     assert eng._sprint()[0].startswith("djup 220")
 
 
+def test_no_new_sprint_when_we_already_run_fast_on_the_turbine():
+    """Krig-kort frö 31: sprint 13 knop på 220, sonar bytte till 280, maskin föreslog fart 16 och sa
+    'smygandet hjälper inte nu' fast vi redan sprang (åtta gånger på 90 min)."""
+    g, _ = _game("kuba", 2)
+    eng = g.station(EngineeringStation)
+    st, s = g.world.own.state, g.world.own.sys
+    s.propulsion = "turbine"
+    st.ordered_depth, st.ordered_speed = 280, 13
+    assert eng._sprint() is None
+    st.ordered_speed = 6
+    assert eng._sprint() is not None
+
+
+def test_attack_slow_says_what_going_up_costs_when_they_have_us():
+    from sim.phrases import PHRASES
+    d = {"slow": True, "fire_depth": 90, "max_depth": 100}
+    assert "De har oss" not in PHRASES["nav.suggest.attack_slow"](d)
+    assert "De har oss" in PHRASES["nav.suggest.attack_slow"]({**d, "hunted": True})
+
+
 def test_evasive_depth_names_its_cause_and_stays_under_the_layer():
     g, reports = _game("kuba", 2)
     sonar = g.station(SonarRoom)

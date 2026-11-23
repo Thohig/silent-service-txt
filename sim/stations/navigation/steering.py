@@ -139,6 +139,8 @@ class SteeringMixin:
                     data["fire_depth"] = MAX_LAUNCH_DEPTH - ATTACK_DEPTH_MARGIN_M
                     data["max_depth"] = MAX_LAUNCH_DEPTH
                     parts.append(f"djup {data['fire_depth']}")
+                    # de har oss (krig-kort: sjunkbomber en minut före): kaptenen ska veta vad det kostar
+                    data["hunted"] = self.game.knowledge.hunted(self.now)
                 if parts:
                     data["slow"] = s.speed > 3.5
                     self.suggest("attack_slow", "nav.suggest.attack_slow", data,

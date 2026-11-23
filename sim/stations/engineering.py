@@ -402,6 +402,7 @@ phrases.register_ru(RU_PHRASES)
 TORPEDO_SPEED_S = 300      # så länge efter senaste torpedbäringen gäller farten före tystnaden
 SPRINT_DEPTH = 220          # upptäckta: så djupt vi vill springa (under skiktet, över provdjup)
 SPRINT_MIN_DEPTH = 100
+SPRINT_RUNNING_KN = 10      # så fort på turbinen: vi springer redan
 SPRINT_DEEPEST = 290        # ett beordrat djup ned hit duger lika bra (sonars undanmanöver går ofta djupare)
 CREEP_AFTER_HUNT_S = 600    # smygmotor föreslås inte förrän jakten varit tyst så här länge
 SMOKE_SEARCH_AFTER_VAK_S = 300   # röken: "ingen öppning" sägs inte så nyss efter förslaget om en
@@ -634,7 +635,9 @@ class EngineeringStation(Station):
         speed = int(acoustics.cavitation_speed(depth)) - 1
         if speed <= 6:
             return None
-        if s.propulsion == "turbine" and st.ordered_speed >= speed - 1 and depth_ok:
+        # redan djupt och fort på turbinen: ett par knop till på ett nytt djup är inget nytt förslag
+        # (krig-kort: sprint åtta gånger på 90 min, varje gång sonars undanmanöver bytte djup)
+        if s.propulsion == "turbine" and st.ordered_speed >= min(speed - 1, SPRINT_RUNNING_KN) and depth_ok:
             return None
         parts = [] if depth_ok else [f"djup {depth:.0f}"]
         # alltid med: förslaget levereras med fördröjning, och smygmotor kan ha

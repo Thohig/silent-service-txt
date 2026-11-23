@@ -194,7 +194,9 @@ PHRASES = {
     + ("fart 3, tyst medan de kommer" if d.get("slow", True) else "")
     + (("" if not d.get("slow", True) else ", och ")
        + f"djup {d['fire_depth']}: torpederna går inte ut djupare än {d['max_depth']} meter"
-       if d.get("fire_depth") else "") + ".",
+       if d.get("fire_depth") else "") + "."
+    + (" De har oss, så uppe på skjutdjupet är vi lättare att höra och närmare deras laddningar."
+       if d.get("hunted") and d.get("fire_depth") else ""),
     "nav.suggest.attack": lambda d: f"Kapten, navigatören. Plottet har "
     f"{'konvojen' if d.get('convoy') else d['designation']} på kurs "
     f"{fmt_course(d['course'])}, och vi ligger framför. Föreslår att vi går till skjutläge "
@@ -608,7 +610,8 @@ RU_PHRASES = {
     "nav.suggest.attack_slow": lambda d: f"{R.CAPTAIN}, штурман. Предлагаю "
     + ("ход три узла" if d.get("slow", True) else "")
     + ((" и " if d.get("slow", True) else "") + f"глубину {d['fire_depth']} метров"
-       if d.get("fire_depth") else "") + ".",
+       if d.get("fire_depth") else "") + "."
+    + (" Нас держат, наверху нас легче услышать." if d.get("hunted") and d.get("fire_depth") else ""),
     "nav.suggest.attack": lambda d: f"{R.CAPTAIN}, штурман. "
     f"{'Конвой' if d.get('convoy') else R.contact(d['designation']).capitalize()} идёт курсом "
     f"{R.course(d['course'])}, мы впереди. Предлагаю выйти в атаку по "
