@@ -50,12 +50,12 @@
   },
   "ja": {
    "utfall": {
-    "lost": 1,
+    "lost": 2,
     "patrol_end": 2,
-    "station_reached": 5
+    "station_reached": 4
    },
    "minuter": {
-    "lost": 206,
+    "lost": 232,
     "patrol_end": 360,
     "station_reached": 270
    }
@@ -188,12 +188,10 @@
   },
   "ja": {
    "utfall": {
-    "convoy_missed": 7,
-    "patrol_end": 1
+    "convoy_missed": 8
    },
    "minuter": {
-    "convoy_missed": 100,
-    "patrol_end": 240
+    "convoy_missed": 114
    }
   }
  },
@@ -212,7 +210,7 @@
     "patrol_end": 5
    },
    "minuter": {
-    "convoy_missed": 75,
+    "convoy_missed": 71,
     "patrol_end": 80
    }
   }
@@ -221,26 +219,24 @@
   "passiv": {
    "utfall": {
     "convoy_attacked": 2,
-    "convoy_missed": 1,
-    "lost": 1,
+    "convoy_missed": 2,
     "patrol_end": 4
    },
    "minuter": {
-    "convoy_attacked": 22,
-    "convoy_missed": 40,
-    "lost": 22,
+    "convoy_attacked": 24,
+    "convoy_missed": 36,
     "patrol_end": 34
    }
   },
   "ja": {
    "utfall": {
-    "convoy_attacked": 5,
-    "convoy_missed": 2,
+    "convoy_attacked": 4,
+    "convoy_missed": 3,
     "patrol_end": 1
    },
    "minuter": {
-    "convoy_attacked": 25,
-    "convoy_missed": 32,
+    "convoy_attacked": 26,
+    "convoy_missed": 27,
     "patrol_end": 33
    }
   }
@@ -294,11 +290,11 @@
   },
   "ja": {
    "utfall": {
-    "escaped": 1,
-    "patrol_end": 7
+    "escaped": 5,
+    "patrol_end": 3
    },
    "minuter": {
-    "escaped": 112,
+    "escaped": 206,
     "patrol_end": 240
    }
   }
@@ -376,12 +372,14 @@
   },
   "ja": {
    "utfall": {
-    "lost": 1,
-    "patrol_done": 7
+    "lost": 2,
+    "patrol_done": 5,
+    "patrol_end": 1
    },
    "minuter": {
-    "lost": 554,
-    "patrol_done": 663
+    "lost": 634,
+    "patrol_done": 674,
+    "patrol_end": 840
    }
   }
  },
@@ -402,8 +400,52 @@
     "patrol_end": 5
    },
    "minuter": {
-    "patrol_done": 129,
+    "patrol_done": 137,
     "patrol_end": 175
+   }
+  }
+ },
+ "duell-torped": {
+  "passiv": {
+   "utfall": {
+    "lost": 8
+   },
+   "minuter": {
+    "lost": 8
+   }
+  },
+  "ja": {
+   "utfall": {
+    "escaped": 1,
+    "patrol_end": 7
+   },
+   "minuter": {
+    "escaped": 17,
+    "patrol_end": 22
+   }
+  }
+ },
+ "svansen-kort": {
+  "passiv": {
+   "utfall": {
+    "lost": 5,
+    "patrol_end": 3
+   },
+   "minuter": {
+    "lost": 29,
+    "patrol_end": 33
+   }
+  },
+  "ja": {
+   "utfall": {
+    "lost": 2,
+    "patrol_end": 2,
+    "shaken": 4
+   },
+   "minuter": {
+    "lost": 30,
+    "patrol_end": 33,
+    "shaken": 26
    }
   }
  }

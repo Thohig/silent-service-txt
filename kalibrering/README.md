@@ -138,6 +138,11 @@ kuba, krig, konvoj, sundet), inga undantag. `tma_kvalitet.py` övning/kuba/konvo
   sambandstillfälle väntar): `kontroll.py` alla scenarier som baslinjen utom kuba-kort ja rapporterad 3 ⇒ 5
   (plottet drar inte bort båten med fyra benförslag) och krig ja hemma 6 (median 664 min; utan bottenregeln
   3: båten la sig på botten en minut efter radions "djup 40" och missade hemkallelsen). Baslinjen uppdaterad.
+- Efter sammansatta förslag och `order_in_force` (2026-11-23, frön 0–7): alla scenarier som baslinjen utom duell
+  ja undan 1 ⇒ 5 (sonar föreslår inte samma undanmanöver igen) och krig ja hemma 7 ⇒ 5, förlorad 1 ⇒ 2 (före
+  ändringarna redan 6/1; frö 0 skiljer sig från 483 min: trimmarens "fart 6" ges nu när ett uppdrag ändrat
+  farten, och resten är en annan väg i ett spel på 14 timmar). Nya: duell-torped passiv förlorad 8, ja undan 1
+  (tiden ute 7); svansen-kort passiv förlorad 5, ja skakad av 4, förlorad 2. Baslinjen sparad.
 - Vägen dit: utan marschfart till ankarplatsen och ut efter hemkallelsen, och med plottets TMA-ben efter
   hemkallelsen, kom ja-boten hem i 2 av 8 (foto 0); vaktjagaren som pingade i patrull hittade oss 6 nm från
   ankarplatsen (nu lyssnar den). Verktygsboten förlorades i 7 av 8 när den avböjde maskins förslag att gå
@@ -188,10 +193,10 @@ föreslår fart 6 på väg upp till periskopdjup i 3 av 4; med ja bröt tornet a
 - `duell-kort`: passiv förlorad 6 (tiden ute 2); ja-boten överlever 3 (tiden ute), förlorad 5, varken sänker
   (avfyring är kaptenens) eller kommer undan; verktygsboten sänkt 1, överlever 2. Första rapport 8–93 s.
   Medvetet svår: ubåten har redan pejlat oss. Med tre torpeder och 8 min mellan skotten.
-- `svansen-kort` (2026-11-23): passiv förlorad 5 (tiden ute 3); ja-boten skakad av 3, tiden ute 3, förlorad 2;
+- `svansen-kort` (2026-11-23, frön 1–8): passiv förlorad 5 (tiden ute 3); ja-boten skakad av 3, tiden ute 3, förlorad 2;
   verktygsboten som ja-boten (skjuter en gång). Första rapport 128–130 s (sonars förslag att lyssna akterut).
   Giren med fart 4 hittar ubåten inom 3 min i de flesta frön (`tests/test_tail.py`). Ubåten skjuter 0–3.
-- `duell-torped` (2026-11-23): passiv förlorad 8 (träffad efter 5–6 min, en efter 13); ja-boten överlever 8, undan 2
+- `duell-torped` (2026-11-23, frön 1–8): passiv förlorad 8 (träffad efter 5–6 min, en efter 13); ja-boten överlever 8, undan 2
   (tiden ute 6); verktygsboten som ja-boten (skjuter aldrig: ingen lösning ≥ osäker medan den springer). Luckorna
   13–15 s efter överlämnandet; ubåten skjuter 2–3. `duell-kort` efter rättelsen av sammansatta förslag: ja oförändrad,
   verktyg tiden ute 2, förlorad 5, sänkt 1 (förut 3/4/1).
