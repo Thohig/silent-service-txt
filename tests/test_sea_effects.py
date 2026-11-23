@@ -209,3 +209,15 @@ def test_periscope_is_washed_over_part_of_the_time_in_a_gale():
         assert ("off.periscope.washed" in [r.type for r in reports]) == washed_any
         if washed_any:
             assert n < 40
+
+
+def test_trim_never_suggests_more_speed_than_the_motor_has():
+    """Konvoj frö 51: 'fart 6' på smygmotorn (högst 5 kn) nekades."""
+    g, reports = _pd_game(5, 2.0)
+    g.command("smygmotor")
+    for _ in range(40):
+        g.tick()
+    sug = [r for r in reports if r.type == "trim.heave"]
+    assert sug
+    for r in sug:
+        assert r.data["speed"] is None or r.data["speed"] <= g.world.own.max_speed()

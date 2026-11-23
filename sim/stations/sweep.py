@@ -76,9 +76,10 @@ def _warship(label: str | None) -> bool:
 class SweepCalls:
     """Utropen i ett svep för en station (`who`: periscope, bridge, active)."""
 
-    def __init__(self, station, who: str):
+    def __init__(self, station, who: str, quiet_s: int = QUIET_S):
         self.station = station
         self.who = who
+        self.quiet_s = quiet_s
         self._calls: list[tuple[str, dict, Quality | None, dict]] = []   # (typ, data, kvalitet, say-argument)
         self._last_t: int | None = None
 
@@ -89,7 +90,7 @@ class SweepCalls:
 
     def flush(self, force: bool = False) -> None:
         """Säg det som samlats om svepet är slut (eller force)."""
-        if not self._calls or (not force and self.station.now - self._last_t < QUIET_S):
+        if not self._calls or (not force and self.station.now - self._last_t < self.quiet_s):
             return
         calls, self._calls = self._calls, []
         if len(calls) < BATCH_MIN:

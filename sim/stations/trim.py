@@ -356,7 +356,9 @@ class TrimStation(Station):
         if target - amp_t - BROACH_DEPTH_M >= HEAVE_MARGIN_M:
             return
         now_f = heave_speed_f(st.speed)
-        speed = next((v for v in range(max(int(st.speed) + 1, 3), HEAVE_MAX_KN + 1)
+        # inte fortare än maskinen går nu (på smygmotorn 5 kn: "fart 6" nekades, konvoj frö 51)
+        top = min(HEAVE_MAX_KN, int(own.max_speed()))
+        speed = next((v for v in range(max(int(st.speed) + 1, 3), top + 1)
                       if target - amp_t * heave_speed_f(v) / now_f - BROACH_DEPTH_M >= HEAVE_MARGIN_M),
                      None)
         data = {"amp": amp_t, "speed": speed, "depth": HEAVE_SAFE_DEPTH}

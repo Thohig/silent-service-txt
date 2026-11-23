@@ -54,6 +54,7 @@ from .officer import PHOTO_TARGET_KIND, SIGHTED, OfficerStation, _view_object, m
 from .sonar_room import SonarRoom
 
 LOOK_S = 15                  # ett svep runt
+PERISCOPE_QUIET_S = 6        # svepets utrop samlas tills inget nytt ropats så länge
 SHORT_LOOK_S = 8             # kort titt mot en bäring: mindre tid med masten uppe
 FOV_HALF_DEG = SECTOR_HALF_DEG
 SWEEP_DEG_S = 360.0 / LOOK_S
@@ -264,7 +265,9 @@ class PeriscopeWatch(Station):
         self._land_seen_t = -10**9          # senast land syntes i okularet
         self._sea_seen = self.world.env.sea_state   # sjögången man såg senast (vid start: känd)
         self._column_t = -10**9             # senast en vattenpelare ropades ut
-        self._sweep_calls = SweepCalls(self, "periscope")
+        # svepet tar LOOK_S och fartygen ropas när okularet passerar dem: vänta tills det gått ett tag
+        # utan nytt (förut 2 s: konvoj frö 51 gav en sammanfattning och tre rader till)
+        self._sweep_calls = SweepCalls(self, "periscope", quiet_s=PERISCOPE_QUIET_S)
         self._new_raising()
 
 
