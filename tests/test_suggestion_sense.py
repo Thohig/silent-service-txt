@@ -210,3 +210,18 @@ def test_an_anchored_ship_is_reported_lying_still():
     render(r, lambda t=None: "06:00:00")
     assert "ankarljus" in r.text and "Ligger still" in r.text
 
+
+
+def test_no_slow_down_offered_while_they_have_us_and_no_calm_said():
+    """Kuba frö 31: på 'förslag' under jakten föreslog sonar fart 4 och vakthavande kallade läget lugnt."""
+    from sim.stations import SonarRoom
+    g, reports = _game()
+    st = g.world.own.state
+    st.speed = st.ordered_speed = 13
+    sonar = g.station(SonarRoom)
+    assert any(p.key == "idle_slow" for p in sonar.idle_proposals())
+    g.knowledge.hunt_t = g.now
+    assert not any(p.key == "idle_slow" for p in sonar.idle_proposals())
+    from sim.phrases import PHRASES
+    assert "lugnt" not in PHRASES["off.suggest.none"]({"calm": False})
+    assert "lugnt" in PHRASES["off.suggest.none"]({"calm": True})

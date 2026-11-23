@@ -218,7 +218,7 @@ PHRASES = {
     "off.suggest.none": lambda d: (
         f"Kapten, vakthavande. {d['station']} har inget att föreslå just nu." if d.get("station")
         else "Kapten, vakthavande. Inget annat att föreslå just nu." if d.get("other")
-        else "Kapten, vakthavande. Inga förslag just nu, läget är lugnt."),
+        else "Kapten, vakthavande. Inga förslag just nu" + (", läget är lugnt." if d.get("calm", True) else ".")),
     "off.suggest.look": lambda d: "Kapten, vakthavande. Vi är på periskopdjup och har inte "
     "tittat på en stund. Föreslår ett periskopsvep.",
     "off.suggest.convoy_up": lambda d: "Kapten, vakthavande. Sonar hör stora fartyg, men bara "
@@ -274,7 +274,7 @@ def _none_ru(d: dict) -> str:
         return f"{_OFF} Других предложений нет."
     if d.get("other"):
         return f"{_OFF} Больше предложений нет."
-    return f"{_OFF} Предложений нет, обстановка спокойная."
+    return f"{_OFF} Предложений нет" + (", обстановка спокойная." if d.get("calm", True) else ".")
 
 
 RU_PHRASES = {
@@ -550,8 +550,10 @@ class OfficerStation(Station):
             if st.suggest(p.key, p.type, p.data, order=p.order, cooldown=0, quality=p.quality):
                 g.log(f"FÖRSLAG på begäran: {p.key} -> {p.order!r}")
                 return
+        k = g.knowledge
         self.say("off.suggest.none",
-                 {"station": ROLE_LABEL[role] if role else None, "other": other})
+                 {"station": ROLE_LABEL[role] if role else None, "other": other,
+                  "calm": not k.hunted(self.now) and not k.threat_held() and not k.torpedo_alarm(self.now)})
 
     def _convoy_watch(self) -> None:
         """Konvojen känd: utkiken ger plottet kursen, så föreslå periskopdjup och korta tittar.

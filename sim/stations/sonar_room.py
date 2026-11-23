@@ -552,7 +552,9 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                 and not self._up_for_radio():
             out.append(Proposal(2, "idle_layer", "sonar.suggest.layer",
                                 f"djup {d:.0f}", {"layer": env.layer_depth, "depth": d}))
-        if not held and st.ordered_speed > 6 and not self.own.bridge_open:
+        # inte under jakt: då vill maskin springa (Kuba frö 31: fart 4, och 25 s senare fart 16)
+        if not held and st.ordered_speed > 6 and not self.own.bridge_open and \
+                not self.game.knowledge.hunted(self.now):
             out.append(Proposal(4, "idle_slow", "sonar.suggest.slow", "fart 4",
                                 {"speed": st.ordered_speed}))
         return out
