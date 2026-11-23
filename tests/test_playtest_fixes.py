@@ -289,3 +289,13 @@ def test_no_settling_under_attack_and_lift_off_when_bombed_on_the_bottom():
     g.world.own.state.speed = g.world.own.state.ordered_speed = 0
     order, data = g.station(EngineeringStation)._sprint(lift=True)
     assert "fart" in order and "turbin" in order
+
+
+def test_cavitation_advice_uses_the_depth_we_are_going_to():
+    g, _ = _game("kuba", 2)
+    eng = g.station(EngineeringStation)
+    st = g.world.own.state
+    st.depth, st.ordered_depth = 200.0, 90.0
+    st.speed = st.ordered_speed = 16.0
+    order, data = eng._cavitation_advice()
+    assert data["speed"] == 9 and order == "fart 9"

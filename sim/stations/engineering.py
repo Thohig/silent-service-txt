@@ -602,7 +602,9 @@ class EngineeringStation(Station):
         if st.astern:
             safe = max(1, int(acoustics.cavitation_speed(st.depth, True)))
             return f"back {safe}", {"speed": safe, "astern": True}
-        safe = max(3.0, int(acoustics.cavitation_speed(st.depth)))
+        # på väg upp: farten som inte kaviterar där vi ska vara (sundet: fart 12 på väg till 90 m,
+        # där gränsen är 9,6)
+        safe = max(3.0, int(acoustics.cavitation_speed(min(st.depth, st.ordered_depth))))
         return f"fart {safe}", {"speed": safe}
 
     def _hunt_quiet(self) -> bool:
