@@ -10,7 +10,7 @@ from ..chart import LAYER_MARK, LAYER_TRACK, Mark, Ray, Ring
 from ..events import (ContactDetected, ContactLost, ConvoyAssessed, EventSighted, OwnActionLogged, OwnSoundMade,
                       ReportDelivered, SoundHeard)
 from ..crew import Role
-from ..fmt import fmt_course
+from ..fmt import count, fmt_course
 from ..geo import angle_diff, norm360
 from ..knowledge import ContactTrack
 from ..orders import DESIG, AskContact, CommandSpec, Order, desig
@@ -812,7 +812,7 @@ PHRASES = {
     "plot.hunter": _hunter,
     "plot.convoy.found": lambda d: (
         f"Kapten, plottet! {', '.join(d['members'])} går tillsammans, samma kurs och fart. "
-        f"Det är en konvoj" + (f" med {d['escorts']} jagare som eskort" if d["escorts"] else "")
+        f"Det är en konvoj" + (f" med {count(d['escorts'], 'jagare', 'jagare', neuter=False)} som eskort" if d["escorts"] else "")
         + f". Just nu kurs {fmt_course(d['course'])}, {d['speed']:.0f} knop."),
     "plot.convoy.turn": lambda d: "Kapten, plottet. Konvojen girar, nytt ben. "
     + _base_text(d["base"]) + _leg_text(d.get("mean_leg_s")),

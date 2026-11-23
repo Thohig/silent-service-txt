@@ -80,3 +80,15 @@ def test_active_sonar_many_echoes_one_report():
     said = [r for r in reports if r.type.startswith("sonar.active")]
     assert [r.type for r in said] == ["sonar.active.sweep"]
     assert said[0].text.startswith("Aktiv sonar: fem ekon. Närmast S-1, bäring 030, cirka 2,0 sjömil.")
+
+
+def test_counts_are_words_with_the_right_form():
+    """'Dessutom 1 civila fartyg', 'med 1 jagare som eskort' (provspel 2026-11-23)."""
+    from sim.fmt import count
+    from sim.phrases import PHRASES
+    assert count(1, "civilt fartyg", "civila fartyg") == "ett civilt fartyg"
+    assert count(3, "civilt fartyg", "civila fartyg") == "tre civila fartyg"
+    assert count(1, "jagare", "jagare", neuter=False) == "en jagare"
+    assert count(14, "torped", "torpeder", neuter=False) == "14 torpeder"
+    text = PHRASES["plot.convoy.found"]({"members": ["S-1", "S-2"], "escorts": 1, "course": 90, "speed": 8})
+    assert "med en jagare som eskort" in text

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from .. import phrases
 from .. import russian as R
-from ..fmt import fmt_course, kn, nm
+from ..fmt import count, fmt_course, kn, nm
 from ..reports import Quality
 
 BATCH_MIN = 4          # så många eller fler i samma svep: en rad och en tabell
@@ -21,12 +21,10 @@ QUIET_S = 2            # svepet är slut när inget nytt ropats så här länge
 WHO = {"periscope": "Periskop", "bridge": "Bryggan", "active": "Aktiv sonar"}
 WHO_RU = {"periscope": "Перископ", "bridge": "Мостик", "active": "Активный поиск"}
 WHAT = {"periscope": ("fartyg", "fartyg"), "bridge": ("fartyg", "fartyg"), "active": ("eko", "ekon")}
-NUMBERS = ["noll", "ett", "två", "tre", "fyra", "fem", "sex", "sju", "åtta", "nio", "tio", "elva", "tolv"]
 
 
 def _count(n: int, forms: tuple[str, str]) -> str:
-    word = NUMBERS[n] if n < len(NUMBERS) else str(n)
-    return f"{word} {forms[0] if n == 1 else forms[1]}"
+    return count(n, *forms)
 
 
 def _summary(d: dict) -> str:

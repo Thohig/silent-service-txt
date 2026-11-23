@@ -3,7 +3,7 @@ from __future__ import annotations
 
 
 from ... import phrases
-from ...fmt import fmt_course, nm
+from ...fmt import count, fmt_course, nm
 from ... import russian as R
 from ...russian import ru
 from ...reports import Quality
@@ -132,7 +132,7 @@ PHRASES = {
     + ". Målsökaren tar över, vi är fria att manövrera.",
     "torp.suggest.cut_wire": lambda d: "Kapten, torped. Vi har en torped på tråd. Föreslår att vi "
     "kapar tråden, så att vi kan gå undan fritt.",
-    "torp.salvo": lambda d: f"Salva mot {d['designation']}: {d['n']} torpeder i solfjäder, "
+    "torp.salvo": lambda d: f"Salva mot {d['designation']}: {count(d['n'], 'torped', 'torpeder', neuter=False)} i solfjäder, "
     f"{nm(d['step'])} grader isär.",
     "torp.salvo_single": lambda d: f"Ingen salva mot {d['designation']}: bara tub {d['tube']} hade "
     "en rak torped, den gick ensam.",

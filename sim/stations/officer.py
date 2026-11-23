@@ -24,7 +24,7 @@ from ..entities import Emission
 from ..events import (AirRadarHeard, BearingObserved, Handover, ClassificationChanged,
                       ContactDetected, PhotoTaken)
 from ..knowledge import AIR_CLOSE
-from ..fmt import fmt_course, kn, nm
+from ..fmt import count, fmt_course, kn, nm
 from ..geo import angle_diff, bearing_to, distance, norm360
 from ..orders import AskSuggestion, CommandSpec, Order
 from ..ownship import PERISCOPE_DEPTH
@@ -162,7 +162,7 @@ def situation(d: dict) -> list[str]:
             where += f", cirka {nm(t['range'])} sjömil ({Quality(t['quality']).label})"
         out.append(f"{t['designation']}, {t['label']}, {where}.")
     if d["civil"]:
-        out.append(f"Dessutom {d['civil']} civila fartyg i plottet.")
+        out.append(f"Dessutom {count(d['civil'], 'civilt fartyg', 'civila fartyg')} i plottet.")
     if not c and not d["contacts"]:
         out.append("Inga kontakter just nu.")
     if d.get("sigma") is not None:
@@ -192,7 +192,7 @@ PHRASES = {
     "off.photo.nothing": lambda d: "Kapten, bilderna visar inget. "
     + ("Ankarplatsen är för långt bort." if d.get("far") else "Inga fartyg i sikte.")
     + ("" if d["day"] else " Det är för mörkt."),
-    "off.photo.done": lambda d: f"Bilder tagna, kapten. {d['count']} fartyg till ankars på cirka "
+    "off.photo.done": lambda d: f"Bilder tagna, kapten. {count(d['count'], 'fartyg', 'fartyg').capitalize()} till ankars på cirka "
     f"{nm(d['range'])} sjömil. Bildkvaliteten är {d['quality']}"
     + ("." if d["day"] else ", i mörker.") + " Periskop ner.",
     "off.suggest.photo_up": lambda d: f"Kapten, vakthavande. Enligt besticket är vi cirka "
