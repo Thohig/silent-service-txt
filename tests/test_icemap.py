@@ -290,10 +290,20 @@ def test_no_exit_suggestion_while_going_to_an_opening():
     g.escape_ready = lambda: True
     nav.outside_area = lambda: False
     nav.exit_route = lambda: (180.0, 5.0, False)
+    for _ in range(200):                        # förbi EXIT_FIRST_SUGGEST_S
+        g.tick()
     nav._exit_cache = None
-    nav.vak = object()
-    g.world.time = 10**6
+    from sim.icemap import IceSoundingObs as _Obs
+    o = _Obs(g.now, nav.est_x, nav.est_y + 0.05, 0.0, 0.0)
+    from sim.icemap import Opening as _Opening
+    nav.vak, nav._vak_t = _Opening(99, o, o), g.now
+    nav._escape_watch()
+    for _ in range(10):
+        nav._vak_t = g.now
+        g.tick()
+    assert not any(r.type == "nav.suggest.exit" for r in reports)
+    nav.vak = None
     nav._escape_watch()
     for _ in range(10):
         g.tick()
-    assert not any(r.type == "nav.suggest.exit" for r in reports)
+    assert any(r.type == "nav.suggest.exit" for r in reports)
