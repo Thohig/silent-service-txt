@@ -22,6 +22,10 @@ Oraklets kvarvarande larm (2026-11-23, `skytt.py ja alla`):
   Mätt 2026-11-23 (ovning, 12 frön): de goda lösningarna med kursen ~100° fel kommer alla i minuten efter att
   fartyget girat 130° (2°/s); bryggans nästa titt (var 60:e s) ser den nya kursen. Kvar är de säkra med lucka.
 
+- **Ny pingare mitt i jakten** (jagad-kort frö 51, provspel 2026-11-23, före rättelsen av pingargrinden): "Aktiv
+  sonar i bäring 019, någon söker" medan jagaren S-1 pingade från 013 och kontakten var tappad. Kör om
+  `provspel.py jagad-kort 1 51` och se om den känns igen nu.
+
 ## Beslut som väntar på kaptenen
 
 Inget just nu.

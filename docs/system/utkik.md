@@ -38,6 +38,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (`periscope.Judges`, delad med bryggan) dras en gång per hissning och föremål, i hålläge om var 60:e s;
   då får plottet en observation (bäring och avstånd efter förstoringen, `AOB_SIGMA`, fart 2). Nytt i
   okularet ropas ut en gång per hissning. Egen slumpström (`game.rng_for("periscope")`). Övningsledaren räknar bara `live=False`.
+  Utropen samlas i ett svep (`stations/sweep.py`, `SweepCalls`, 2026-11-23) tills inget nytt ropats på
+  `PERISCOPE_QUIET_S` (6 s): fyra eller fler blir `off.periscope.sweep` (hur många, närmast, örlogsfartygen) med en
+  tabell, färre sägs var för sig som förut. Bryggan (en titt, `flush(force=True)`), radarn och den aktiva sonarn
+  samlar på samma sätt (`bridge.sweep`, `off.radar.sweep`, `sonar.active.sweep`).
   Radarvarnaren (vakthavande, `OfficerStation`, var 10:e s på periskopdjup) ropar ut en fartygsradar igen
   bara när styrkan ändrats, den flyttat sig mer än `ESM_MOVED_DEG` (15°) eller efter `ESM_REPEAT_S`
   (30 min; `_esm_said`). Känner den bara igen dem när vi kommer upp säger den "samma N radarstationer som

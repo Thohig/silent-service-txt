@@ -252,6 +252,34 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
     föreslås omladdningen genast, också under jakt (högst var 2:e min). Tystnadens förslag som förut. Vad
     minören föreslår (`_reload_offer`): en 53-62T om ingen tub har eller laddar en (en i taget står redo),
     annars det vi har mest av av SET-53 och 53-61, och 53-61 när en salva nekats.
+- **Förslag som krockade** (provspelet 2026-11-23, alla scenarier; `tests/test_suggestion_sense.py`,
+  `test_playtest_fixes.py`):
+  - *Samma order:* `Game._suggestion_stale` släpper samma order som står obesvarad sedan < 30 s, också från samma
+    station med ett annat skäl (vakthavande: flygradar, 11 s senare "radarn mycket stark", båda djup 60); ett larm
+    släpps ändå fram om det som står inte är ett. Ett förslag som bara går ned släpps när det obesvarade redan tar
+    oss minst lika djupt (`_deeper_pending`; maskins sprint till 220 m skrevs över av "djup 60").
+  - *Ned betyder ned:* de första `DOWN_ORDER_HOLD_S` (2 min) efter att kaptenen beordrat oss djupare än antenndjup
+    säger navigatören nej till förslag om antenndjup eller grundare och fix i periskopet (`down_ordered_t`,
+    `_goes_to_masts`).
+  - *Jagade:* maskin säger nej till ett rent `smygmotor` när de har oss (maskin uppdateras före sonar, och förslaget
+    gjordes samma sekund som jakten började); sonars `fart 4` (lyssna) ges inte på begäran under jakt, och
+    vakthavande säger "läget är lugnt" bara när det är det (`calm`). Maskins sprint föreslås inte igen när vi redan
+    går på turbinen i minst `SPRINT_RUNNING_KN` (10 kn); kavitationsrådet räknar farten på djupet vi är på väg
+    till. `nav.suggest.attack_slow` säger risken när de har oss ("uppe på skjutdjupet är vi lättare att höra").
+  - *Navigatören styr:* plottet föreslår inget nytt ben medan navigatören styr eller går till en öppning
+    (`PlotTeam._navigator_steers`; plottets ben avbröt anfallet, som föreslogs tre gånger), navigatören föreslår
+    inte vägen ut under vaken, och sonars lyssningsgir kommer inte medan vi håller `kurs mot …`
+    (`NavigationStation.heading_for`). Anfallet styr på lösningen `ATTACK_UNHELD_S` (5 min) efter tappad kontakt och
+    säger varför det slutar (`why`: tappad, för osäker, för gammal).
+  - *Ytläge:* sonar föreslår inte skiktet i ytläge med bryggan bemannad; trimmaren föreslår aldrig mer fart än
+    maskinen har (på smygmotorn `djup 30` i stället för `fart 6`).
+- **Torpeden i döda sektorn och kring skenmålet** (`stations/incoming.py`, 2026-11-23): se Fiendens torpeder i
+  `scenarier.md`. Tappad akterut ⇒ larmet gäller `TORPEDO_RUN_S`; stilla bäring men nivån stiger inte över
+  `HOLDING_WINDOW_S` (90 s) två rop i rad ⇒ "den kommer inte närmare", inget larm, ingen ny undanmanöver
+  (`level_slope`, `_Heard.flat_n`). En salva säger sina tuber på en rad (`TorpedoRoom._say_tube`, `TUBE_BATCH_S`).
+- **Okända pingare** (`SonarRoom._on_sound`): grinden för samma pingare räknar med pingarens egen bäringsdrift
+  (`rate`, `PING_RATE_GAIN`, högst `PING_RATE_MAX` 2°/s) och `PING_DRIFT_DEG_PER_S` 0,4°/s; sundet: ett nära fartyg
+  som drog 0,8°/s gav fem "Någon söker" och fem stridslarm på två minuter.
 - **Fråga en gång** (`Station.confirm_once`, anropas i `intercept`; `CONFIRM_S` 60 s): en order som bryter
   mot uppdraget eller saknar skäl stoppas första gången med skälet, och samma order inom en minut
   verkställs. Navigatören: dykning i fjorden (`nav.fjord_dive`, övningen) och ytläge när plottet har en

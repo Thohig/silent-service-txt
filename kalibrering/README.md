@@ -65,6 +65,17 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 ## Siffrorna
 
+**Provspelet i alla scenarier (2026-11-23 kväll, baslinjens commit cc8eb9e):** `skytt.py` ja/skjut/lyssna frön
+8–15, `provspel.py` alla 22 scenarier (frö 31, 41, 51), `kaos.py` 88 spel utan undantag. Torpeden i döda sektorn
+(larmet gäller 12 min): duell-kort ja förlorad 13 ⇒ 6 av 16 (60 min), Svansen-kort 3 ⇒ 2, jagad oförändrad; försök
+utan döda sektorn för torpeder bara 13 ⇒ 11 (förslagen efteråt var det som dödade). TMA (`tma_kvalitet.py`):
+ubåt i undervattensläge som sicksack, duell-kort god grova 69 % ⇒ 50 %, kurs > 90° 56 % ⇒ 17 % (12 frön, 60 min);
+konvojens eskort som sicksack, konvoj/konvoj-kort/krig-kort/konvoj-mot god grova 7,3 % ⇒ 5,8 %, > 3σ 8,0 % ⇒ 7,0 %,
+säkra grova på jagarna (skyttebot, 32 spel) 7 ⇒ 3; arktis, övning, Clyde-in oförändrade. Övningens bevakningsfartyg
+(kursen ~100° fel med rätt avstånd) är minuten efter en gir på 130°, inte ett fel. `kontroll.py`: arktis ja stationen
+3 ⇒ 6 av 8, duell-kort ja förlorad 6 ⇒ 4, konvoj-kort ja missad 4 ⇒ 1 av 16, duell ja ute 6 ⇒ 4 (ingen förlorad),
+arktis-kort 3 ⇒ 2. Lyssningsgirens upptrappning: svansen-kort, clyde-in, ovning-kort oförändrade (16 frön).
+
 **Rättelser efter provspelet (2026-11-21, `kontroll.py` frön 0–7):** jagad ja undan 5 ⇒ 7, förlorad 3 ⇒ 1
 (median 74 ⇒ 49 min); jagad-kort ja undan 6 ⇒ 8; konvoj-mot ja anfallen 3 ⇒ 5; konvoj-kort ja konvojen
 passerad 1 ⇒ 3 (tiden ute 7 ⇒ 5; ja-boten skjuter aldrig, se nedan); krig ja hemma 7, förlorad 1 (efter första omgången 2: båten la sig på botten

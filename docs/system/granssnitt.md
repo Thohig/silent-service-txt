@@ -40,7 +40,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `report_header` (ДОНЕСЕНИЕ till samma stab, stämpeln; `ReportLog.add_ending(summary, header=...)`).
   `avbryt uppdraget`/`avsluta` ⇒ vakthavande frågar (`off.confirm_quit`, förslag `avbryt uppdraget
   bekräftat`), `ja` ⇒ utfallet `quit`.
-- **Ljud** (`ui/audio.py`): `SoundBoard` lyssnar bara på bussen – `ReportDelivered` ger tal
+- **Ljud** (`ui/audio.py`): `SoundBoard` lyssnar bara på bussen – `ReportDelivered` ger tal (`spoken`: inte
+  systemrader eller rapporter med tabell, utom de som säger `data["spoken"]`, svepets rad)
   (rösterna i `ui/voices.py`, takt per roll) och larm (`CUE_BY_TYPE`); `SoundHeard` (med sensorns `se`) ger
   hydrofonljud panorerade efter relativ bäring (`TRANSIENT_SOUND`); `OwnSoundMade` ger egna
   ljud (ping, avfyring, skenmål, nödblåsning). Syntetiserade wav. Av som standard i `SubApp`.

@@ -244,7 +244,7 @@ för in varje färdigt steg där.
 - Jakten (`docs/system/besattning.md`): maskins sprint 220 m, godtar beordrat 180–290 m; smygmotor tidigast
   10 min efter senaste jakttecknet; sonars undanmanöver uppåt bara till skiktet + 60 m; undervattenstelefonen
   och "mycket starka" 2, 4, 8 … högst 30 min emellan; skenmål högst var 20:e min; nära pingare (≥ 142 dB)
-  1,5°/s, högst 60°; ingen botten när skarpa laddningar fallit nära de senaste 5 min. Radarvarnaren
+  1,5°/s, högst 60°, okända 0,4°/s plus pingarens egen skattade drift (`rate`); ingen botten när skarpa laddningar fallit nära de senaste 5 min. Radarvarnaren
   upprepar en fartygsradar efter 30 min (eller ny styrka, > 15° i bäring). Ytläge sedda: 60 s att dyka.
 - Tystnad i båten: jagade och på smygmotorn eller ≤ 6 kn (`OfficerStation._hush_watch`, hävs efter 60 s).
   Skrovknak 132 dB var 25:e m vid djupändring > 1 m/s under 80 m (rodren i ≳ 6 kn); maskin säger det under jakt.
