@@ -7,7 +7,7 @@ ingen referens till världen.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from .events import (AirRadarHeard, BearingObserved, ChargeHeard, InterceptHeard, BridgeSighted, ClassificationChanged, ContactDetected,
                      ConvoyAssessed, ContactLost, ContactSunk, EventBus, HuntSigns, IceSounded, OpeningNotFound,
@@ -38,6 +38,8 @@ class ContactTrack:
     turns: list[int] = field(default_factory=list)     # när plottet märkt att målet girat
     leg_sol: Solution | None = None                    # benets senaste användbara lösning
     sunk_t: int | None = None                          # när sonar hörde den sjunka
+    ref_sol: Solution | None = None    # lösningen hoppet jämförs med (högst var JUMP_DT_S)
+    jump_t: int = -10**9               # senast lösningen hoppade mer än JUMP_SIGMA
 
     @property
     def civil(self) -> bool:
@@ -82,6 +84,16 @@ TORPEDO_ALARM_S = 60           # så länge efter senaste bäringen på en fient
 WAYPOINT_DRIFT_KN = 0.3          # isdrift åt okänt håll: så växer osäkerheten
 WAYPOINT_MOTION_KN = 2.0         # ett mål som rör sig: fel i meddelad kurs och fart, sicksack
 HUNTER_PING_S = 300            # ett mål som pingat så nyss räknas som jagande
+# En lösning som flyttat sig mer än JUMP_SIGMA (förra lösningen, framräknad, mot den nya, i deras
+# sammanlagda σ) sedan den förra (minst JUMP_DT_S gammal) har inte satt sig: ett steg lägre i
+# kvalitet i JUMP_HOLD_S. Likaså en lösning byggd över en lucka i bäringarna på mer än GAP_S som
+# slutade för mindre än GAP_HOLD_S sedan: målet kan ha girat i luckan. Mätt 2026-11-23 (ja-boten,
+# 7 scenarier × 8 frön): hopp > 1σ ⇒ säker grovt fel 13 % (annars 1,2 %), god 33 % (6 %).
+JUMP_SIGMA = 1.0
+JUMP_DT_S = 20
+JUMP_HOLD_S = 120
+GAP_S = 600
+GAP_HOLD_S = 300
 
 
 @dataclass
@@ -323,8 +335,35 @@ class Knowledge:
         obs = [o for o in tr.observations if o.t >= tr.tma_from_t]
         q = HUNTER_MANEUVER_Q if self.hunting(tr, t_now) else \
             tma.ZIGZAG_MANEUVER_Q if self.zigzags(tr) else None
-        tr.solution = solve(obs, t_now=t_now, own_now=own_now, maneuver_q=q)
-        return tr.solution
+        sol = solve(obs, t_now=t_now, own_now=own_now, maneuver_q=q)
+        if sol is not None:
+            sol = self._settled(tr, sol, obs, t_now)
+        tr.solution = sol
+        return sol
+
+    def _settled(self, tr: ContactTrack, sol: Solution, obs: list[BearingObs],
+                 t_now: int) -> Solution:
+        """Kvaliteten ett steg lägre (god och säker) när lösningen inte satt sig: ett hopp från
+        den förra eller en lång lucka i bäringarna nyss (se JUMP_SIGMA)."""
+        ref = tr.ref_sol
+        if ref is not None and t_now - ref.t >= JUMP_DT_S:
+            if t_now - ref.t <= 6 * JUMP_DT_S:
+                h = (t_now - ref.t_ref) / 3600.0
+                px, py = ref.state[0] + ref.state[2] * h, ref.state[1] + ref.state[3] * h
+                if math.hypot(px - sol.x, py - sol.y) > \
+                        JUMP_SIGMA * math.hypot(ref.range_sigma, sol.range_sigma):
+                    tr.jump_t = t_now
+            tr.ref_sol = sol
+        elif ref is None:
+            tr.ref_sol = sol
+        ts = [o.t for o in obs[-tma.MAX_OBS:]]
+        ts = [t for t in ts if t >= ts[-1] - tma.MAX_SPAN_S]
+        gap_end = max((b for a, b in zip(ts, ts[1:]) if b - a > GAP_S), default=None)
+        unsettled = t_now - tr.jump_t <= JUMP_HOLD_S or \
+            (gap_end is not None and t_now - gap_end < GAP_HOLD_S)
+        if unsettled and sol.quality >= Quality.GOD:
+            sol = replace(sol, quality=Quality(int(sol.quality) - 1))
+        return sol
 
 
 def _normalize(designation: str) -> str:

@@ -10,9 +10,9 @@ from ...reports import Quality
 from ...war import assess
 from ...weapons import ARM_DISTANCE_NM, TORPEDO_TYPES, launch_torpedo
 from .common import (
-    ASPECT_MAX_SIGMA, ASPECT_MIN_KN, CONFIRM_S, HUNTING_RUN_S, NARROW_DEG, FireSalvo, FireTube,
+    ASPECT_MAX_SIGMA, ASPECT_MIN_KN, CONFIRM_S, HUNTING_RUN_S, LONG_RUN_S, NARROW_DEG, FireSalvo, FireTube,
     MAX_LAUNCH_DEPTH, MAX_LAUNCH_SPEED, NEUTRAL_CONE_DEG, NEUTRAL_LANE_NM, NEUTRAL_STEP_S, N_TUBES,
-    RIVAL_NM, Running, SALVO_GAP_MAX_NM, SALVO_GAP_NM,
+    RIVAL_NM, Running, SALVO_GAP_MAX_NM, SALVO_GAP_NM, SEEKER_LANE_NM,
     SALVO_MAX, SALVO_STEP_DEG, TOO_CLOSE_MARGIN_NM, Tube,
 )
 
@@ -241,6 +241,9 @@ class FiringMixin:
             t_hit=int(self.now + run_s) if run_s else None,
             t_end=int(self.now + run_nm / spec.speed * 3600), launch_x=lx, launch_y=ly)
         self.in_water.append(run)
+        if o.designation:       # ett köat "skjutlösning på S-x" från före skottet gäller inte längre
+            self.game.queue.drop(lambda r: r.type == "torp.ready"
+                                 and r.data.get("designation") == o.designation)
         if spec.wire_nm:
             self._wire_launched(run, torp)
         self.say("torp.fired", {"tube": o.tube, "type": spec.key, "course": course,
@@ -283,13 +286,24 @@ class FiringMixin:
         if spec.exercise or spec.nuclear:
             return []
         if spec.homing:
-            return self._seeker_rivals(target, courses[0], type_key) if target else []
+            # nära målet, och handelsfartyg längs hela banan: missar den målet söker den vidare
+            near = self._seeker_rivals(target, courses[0], type_key) if target else []
+            seen = {r["designation"] for r in near}
+            return near + [r for r in self._lane_ships(target, courses, spec, SEEKER_LANE_NM)
+                           if r["designation"] not in seen]
+        return self._lane_ships(target, courses, spec, NEUTRAL_LANE_NM)
+
+    def _lane_ships(self, target: str | None, courses: list[float], spec,
+                    lane_nm: float) -> list[dict]:
+        """Kända handelsfartyg som enligt plottet kommer inom `lane_nm` från någon av banorna under
+        hela räckvidden (utan lösning: bäringen nära en bana)."""
         k = self.game.knowledge
         ex, ey = self.game.own_position_estimate()
         run_s = spec.range_nm / spec.speed * 3600
         out = []
         for tr in k.tracks.values():
-            if not tr.held or not tr.civil or tr.designation == target or not tr.observations:
+            if not tr.held or not tr.civil or tr.designation == target or not tr.observations \
+                    or tr.sunk_t is not None:
                 continue
             sol = tr.solution
             if sol is not None and sol.quality >= Quality.OSAKER:
@@ -302,7 +316,7 @@ class FiringMixin:
                         h = t / 3600.0
                         dx = sx + sol.state[2] * h - spec.speed * h * math.sin(b)
                         dy = sy + sol.state[3] * h - spec.speed * h * math.cos(b)
-                        if math.hypot(dx, dy) <= NEUTRAL_LANE_NM:
+                        if math.hypot(dx, dy) <= lane_nm:
                             near = True
                             break
                     if near:
@@ -359,10 +373,14 @@ class FiringMixin:
         if not ships or self._neutral_warned.get(key, -10**9) >= self.now - CONFIRM_S:
             return True
         self._neutral_warned[key] = self.now
+        d = {"ships": ships, "homing": TORPEDO_TYPES[type_key].homing, "target": target}
         if target:
+            # varningen räknas som frågan om målet också: säg då vad målet självt är
             self._confirmed[target] = self.now
-        self.say("torp.neutral", {"ships": ships, "homing": TORPEDO_TYPES[type_key].homing,
-                                  "target": target}, quality=Quality.GOD)
+            tr = self.game.knowledge.track(target)
+            if tr is not None and not tr.warship and not tr.friendly:
+                d.update(target_class=tr.classification, target_civil=tr.civil)
+        self.say("torp.neutral", d, quality=Quality.GOD)
         return False
 
     def _turn_rhythm(self, tr) -> tuple[str, int | None, int | None] | None:
@@ -383,8 +401,16 @@ class FiringMixin:
     def _leg_warning(self, designation: str, run_s: float, type_key: str) -> None:
         """Ett mål som girar kan gira innan torpeden är framme: säg det."""
         tr = self.game.knowledge.track(designation)
-        rhythm = self._turn_rhythm(tr) if tr is not None else None
+        if tr is None:
+            return
+        rhythm = self._turn_rhythm(tr)
         if rhythm is None:
+            # ingen känd rytm: en lång gångtid räcker för en gir eller fartändring
+            if run_s > LONG_RUN_S and not tr.friendly:
+                self.say("torp.leg_warning", {"designation": tr.designation, "run_s": run_s,
+                                              "type": type_key, "kind": "long",
+                                              "homing": TORPEDO_TYPES[type_key].homing},
+                         quality=Quality.OSAKER)
             return
         kind, leg_s, last_t = rhythm
         d = {"designation": tr.designation, "run_s": run_s, "type": type_key, "kind": kind,

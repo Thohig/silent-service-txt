@@ -237,3 +237,29 @@ def test_no_warning_when_the_merchant_is_well_off_the_lane():
     _run(g, 5)
     assert room.tubes[0].load is None
     assert not any(r.type == "torp.neutral" for r in reports)
+
+
+def test_a_homing_torpedo_warns_about_a_merchant_far_beyond_the_target():
+    """Målsökaren söker vidare om den missar: ett handelsfartyg 2 nm bortom målet i banan."""
+    g, reports = _game()
+    room = _target_and_merchant_behind(g)
+    for t in room.tubes:
+        t.load = None
+    room.tubes[0].load = "SET-53"
+    g.command("eld tub 1 mot S-7")
+    _run(g, 5)
+    assert room.tubes[0].load == "SET-53"
+    warn = [r for r in reports if r.type == "torp.neutral"]
+    assert warn and "S-8" in warn[0].text and "längs den målsökande torpedens bana" in warn[0].text
+
+
+def test_the_lane_warning_also_says_what_the_target_itself_is():
+    """Varningen räknas som frågan om målet: ett mål som inte är säkert örlogsfartyg nämns."""
+    g, reports = _game()
+    _target_and_merchant_behind(g)
+    tr = g.knowledge.track("S-7")
+    tr.classification, tr.class_quality = "stort fartyg", Quality.OSAKER
+    g.command("eld tub 1 mot S-7")
+    _run(g, 5)
+    warn = [r for r in reports if r.type == "torp.neutral"]
+    assert warn and "S-7 själv är inte säkert klassad som örlogsfartyg" in warn[0].text

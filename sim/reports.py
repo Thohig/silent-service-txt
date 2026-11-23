@@ -106,6 +106,16 @@ class ReportQueue:
     def __len__(self) -> int:
         return len(self._heap)
 
+    def drop(self, pred: Callable[[Report], bool]) -> int:
+        """Släpp köade rapporter som inte längre stämmer (t.ex. ett förslag som hunnit bli
+        inaktuellt innan det levererats). Returnerar hur många."""
+        keep = [e for e in self._heap if not pred(e[3])]
+        n = len(self._heap) - len(keep)
+        if n:
+            self._heap = keep
+            heapq.heapify(self._heap)
+        return n
+
     def has_kind(self, kind: str) -> bool:
         """Finns en rapport av detta slag i kön (ännu inte levererad)?"""
         return any(r.kind == kind for *_, r in self._heap)

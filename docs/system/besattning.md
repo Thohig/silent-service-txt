@@ -137,7 +137,11 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   damm från rören när vi är jagade och dis av rök; dörren (`StatusSnapshot.door` ur starpom: `steps` fötter i
   ljusstrimman 4 s före ordonnansens knackning, `ajar` 12 s med honom i springan); mindre fönster den enkla bilden) öppnas
   av sig själv (`SubApp._follow_command`) och står först i Tab-ordningen; visar bara starpoms och telefonens
-  rapporter (fyra rader), Enter svarar. Raden ovanför (`call_line`) blinkar RINGER medan telefonen ringer och visar
+  rapporter (fyra rader), Enter svarar. Mitt i bilden (`_decision_card`, 2026-11-23): ringer telefonen en lapp nederst
+  ("☎ SNABBTELEFONEN RINGER · Enter svarar"), och när starpom väntar på ert beslut kortet ERT BESLUT med vem som
+  föreslår vad, stationens egna ord (`StatusSnapshot.decision_why`, `starpom.suggestion_why`: förslagets typ och data
+  sparade i skälet, `_why_of`, utan tilltal och ja-order) och "Skriv ja … nej …, sedan Enter". Starpom läser upp
+  samma ord i telefonen ("Han säger: »…«"). Raden ovanför (`call_line`) blinkar RINGER medan telefonen ringer och visar
   sedan ERT BESLUT med förslaget starpom bad om (`StatusSnapshot.decision`, `FirstOfficer.asking`, så länge det är
   det väntande förslaget); `ja`/`nej` medan det ringer lyfter luren först (`intercept`), så ordonnansen kommer inte. Ljudet i hytten (`ambience.muffled`, `audio.from_central`): båten ×0,55, mumlet
   svagt, inga hydrofonljud eller sväv, centralens repliker dämpade genom skottet (`muffled_voice`; utan mixern
@@ -218,12 +222,20 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   - *Sjunkna kontakter:* brytningsljud från en känd kontakt ⇒ `ContactSunk`; `Knowledge` sätter
     `ContactTrack.sunk_t` (inte hållen, inget hot), sonar glömmer pingaren (andras pingar får inte dess
     namn) och säger inte "Har tappat", torpedrummet säger `torp.time.sunk` i stället för "Tid för torpeden".
+  - *Flera tappade:* kontakter som tappas inom `LOST_BATCH_S` (5 s, t.ex. när vi går under skiktet) sägs på en
+    rad (`sonar.lost.many`: "Har tappat S-3 (060), S-5 (072) och S-6."); en som hörs igen inom tiden nämns inte.
   - *Botten under anfall:* navigatören föreslår inte `botten` när skarpa laddningar fallit nära de senaste
     5 min (`Knowledge.charged_close`); ligger vi på botten och de bombar oss där föreslår maskin att lätta
     (`eng.suggest.lift`, larm: turbin och sprintfart, `_sprint(lift=True)`).
   - *För nära för att skjuta:* träffpunkten närmare än `ARM_DISTANCE_NM` + `TOO_CLOSE_MARGIN_NM` (0,25 +
     0,15 nm) ⇒ torpedrummet frågar en gång (`torp.too_close`, `_too_close`; också före en salva, inte
     kärnladdningen). En salva med bara en rak tub blir ett vanligt skott (`torp.salvo_single`).
+  - *Målsökaren och handelsfartyg:* utöver fartyg nära målet (`RIVAL_NM`) varnar torpedrummet för kända
+    handelsfartyg inom `SEEKER_LANE_NM` (1 nm) från den målsökandes bana hela vägen ut (`_lane_ships`): missar den
+    söker den vidare. Varningen räknas som frågan om målet, så den säger också vad målet självt är när det inte är
+    säkert örlogsfartyg (`target_class`).
+  - *Lång gångtid:* utan känd girrytm varnar torpedrummet för gångtid över `LONG_RUN_S` (5 min, `torp.leg_warning`
+    kind long). Ett köat `torp.ready` mot målet släpps när vi skjuter på det (`ReportQueue.drop`).
   - *Omladdning:* en tub vi skjutit tom föreslås laddad `RELOAD_SUGGEST_S` (60 s) efter skottet, inte medan
     de har oss, igen efter `RELOAD_COOLDOWN_S` (10 min); nekas ett skott för att ingen tub kan (`eld`, `salva`)
     föreslås omladdningen genast, också under jakt (högst var 2:e min). Tystnadens förslag som förut.

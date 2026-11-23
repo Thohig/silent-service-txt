@@ -33,6 +33,7 @@ from .incoming import IncomingMixin
 from .recording import RecordingMixin
 
 BEARING_REPORT_DELTA = 5.0
+LOST_BATCH_S = 5           # kontakter som tappas inom så här kort tid sägs på en rad
 BEARING_REPORT_MAX_AGE = 300
 BEARING_MIN_GAP_S = 60       # samma kontakts bäring ropas inte oftare (jakt nära: annars var 5:e s)
 SMOOTH_OBS = 6
@@ -127,6 +128,10 @@ NEAR_SE = 110                            # så starkt: nära
 AMBIENT_EVERY_S = 60        # havsbruset läses av så här ofta
 AMBIENT_REPORT_DB = 2.0     # så stor ändring säger sonaren till om
 
+def _and(items: list[str]) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " och " + items[-1]
+
+
 PHRASES = {
     "sonar.ambient": lambda d: f"Kapten, sonar. Havsbruset har {'ökat' if d['db'] > 0 else 'minskat'} "
     f"cirka {abs(d['db']):.0f} dB. " + ("Vi hör sämre, kontakterna hörs kortare." if d["db"] > 0
@@ -140,6 +145,9 @@ PHRASES = {
     "sonar.lost": lambda d: f"Kapten, sonar. Har tappat {d['designation']}"
     + (f", sista bäring {fmt_course(d['last_bearing'])}" if d.get("last_bearing") is not None else "")
     + ".",
+    "sonar.lost.many": lambda d: "Kapten, sonar. Har tappat "
+    + _and([c["designation"] + (f" ({fmt_course(c['last_bearing'])})" if c.get("last_bearing")
+                                is not None else "") for c in d["contacts"]]) + ".",
     "sonar.regained": lambda d: f"{d['designation']} hörs igen, bäring {fmt_course(d['bearing'])}.",
     "sonar.ping.first": lambda d: f"Kapten, sonar! Aktiv sonar i bäring {fmt_course(d['bearing'])}"
     f"{_src(d)}. Någon söker." + (f" Svaga pingar, {_far(d)}." if d.get("far") else ""),
@@ -222,6 +230,8 @@ RU_PHRASES = {
     "sonar.lost": lambda d: f"{R.CAPTAIN}, акустик. {_ru_cap(R.contact(d['designation']))} потеряна"
     + (f", последний пеленг {R.course(d['last_bearing'])}" if d.get("last_bearing") is not None
        else "") + ".",
+    "sonar.lost.many": lambda d: f"{R.CAPTAIN}, акустик. Потеряны: "
+    + ", ".join(R.contact(c["designation"]) for c in d["contacts"]) + ".",
     "sonar.regained": lambda d: f"{_ru_cap(R.contact(d['designation']))} снова слышна, пеленг "
     f"{R.course(d['bearing'])}.",
     "sonar.ping.first": lambda d: f"{R.CAPTAIN}, акустик! Работа гидролокатора, пеленг "
@@ -293,6 +303,8 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         self.lost: list[LostMark] = []
         self.own_marks: list[OwnMark] = []
         self._ambient: float | None = None         # havsbruset sonaren senast sagt (dB)
+        self._lost_batch: list[tuple[str, float | None]] = []   # tappade, ännu inte sagda
+        self._lost_t = 0
 
     def attach(self, bus) -> None:
         super().attach(bus)
@@ -469,6 +481,10 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                     bus.publish(ContactDetected(self.now, ev.designation, ev.bearing,
                                                 ev.classification, ev.quality))
                     self._last_called[ev.designation] = (ev.bearing, self.now)
+                    if any(d == ev.designation for d, _ in self._lost_batch):
+                        # tappad och hörd igen innan det sagts: ingenting att säga
+                        self._lost_batch = [x for x in self._lost_batch if x[0] != ev.designation]
+                        continue
                     if known is not None:
                         self.say("sonar.regained", {"designation": ev.designation,
                                                     "bearing": ev.bearing}, kind="contact")
@@ -492,9 +508,9 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                     tr = self.game.knowledge.tracks.get(ev.designation)
                     if tr is not None and tr.sunk:
                         continue        # den sjönk: brytningsljudet är redan rapporterat
-                    self.say("sonar.lost", {"designation": ev.designation,
-                                            "last_bearing": tr.last_bearing if tr else None},
-                             kind="contact")
+                    if not self._lost_batch:
+                        self._lost_t = self.now
+                    self._lost_batch.append((ev.designation, tr.last_bearing if tr else None))
                     if self.own.state.speed > 6 and not self.game.knowledge.hunted(self.now) \
                             and not self.own.bridge_open:   # i ytläge ser bryggan
                         self.suggest("slow", "sonar.suggest.slow",
@@ -511,6 +527,18 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                     # Torpedrummet rapporterar egna torpeder med tubnummer.
                     q = Quality.GOD if ev.se >= 6 else Quality.OSAKER
                     bus.publish(OwnTorpedoHeard(self.now, ev.no, ev.kind, ev.bearing, q, ev.se))
+        if self._lost_batch and self.now - self._lost_t >= LOST_BATCH_S:
+            self._say_lost()
+
+    def _say_lost(self) -> None:
+        """De tappade kontakterna: en rad för en, en samlad rad för flera (t.ex. under skiktet)."""
+        batch, self._lost_batch = self._lost_batch, []
+        if len(batch) == 1:
+            d, b = batch[0]
+            self.say("sonar.lost", {"designation": d, "last_bearing": b}, kind="contact")
+        else:
+            self.say("sonar.lost.many", {"contacts": [{"designation": d, "last_bearing": b}
+                                                      for d, b in batch]}, kind="contact")
 
     def idle_proposals(self) -> list[Proposal]:
         st, env = self.own.state, self.world.env

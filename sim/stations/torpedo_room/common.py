@@ -14,10 +14,13 @@ ASPECT_MIN_KN = 2.0     # skjutlösningen säger varifrån torpeden kommer in n�
 ASPECT_MAX_SIGMA = 30.0 # ... och plottets kurs är bättre känd än så (grader)
 NARROW_DEG = 25.0       # så nära rakt för- eller akterifrån är målet smalt (en salva hjälper inte)
 HUNTING_RUN_S = 120     # ett mål som jagar oss girar hela tiden: varna för längre gångtid än så
+LONG_RUN_S = 300        # utan känd girrytm: varna för gångtid över så här länge (skyttebotens
+                        # säkra lösningar: under 2 min 69 % träff, över 6,5 min 10 %)
 NEUTRAL_LANE_NM = 0.5   # ett känt handelsfartyg så nära en torpedbana (enligt plottet): varna
 NEUTRAL_CONE_DEG = 10.0  # ... eller, utan lösning, med bäringen så nära banan
 NEUTRAL_STEP_S = 10      # banan prövas så här tätt
 RIVAL_NM = 0.6           # ett annat fartyg så nära målet när en målsökande torped är framme: varna
+SEEKER_LANE_NM = 1.0     # ... och ett handelsfartyg så nära den målsökandes bana hela vägen ut
 SALVO_MAX = 3
 SALVO_GAP_NM = 0.08     # torpederna i en salva går minst så här långt isär vid målet (~150 m)
 SALVO_GAP_MAX_NM = 0.25 # ... och högst så här (lägesfelet vid målet bestämmer)

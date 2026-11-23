@@ -3,6 +3,30 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-23 – Utredningarna efter skyttebotens körning, och beslutet i hytten
+
+- **Säkra lösningar som inte satt sig.** Plottet kallade en lösning säker strax efter att den hoppat (kuba-kort 5:
+  god 6,2 nm ⇒ säker 4,4 nm på 90 s, sanningen 6,3 nm och kursen 148° fel) och strax efter en lång lucka i
+  bäringarna (krig 2). Mätning (ja-boten, 7 scenarier × 8 frön): efter ett hopp > 1σ var säkra grovt fel i 13 %
+  (annars 1,2 %), goda i 33 % (6 %). Nu ett steg lägre i 2 min efter ett hopp och i 5 min efter en lucka > 10 min
+  (`Knowledge._settled`, kunskap; `tma.solve` orörd). `tma_kvalitet.py` övning/kuba/konvoj-kort/sundet/krig-kort:
+  frön 1–8 säker grova 1,1 % ⇒ 0,5 %, god 5,8 % ⇒ 2,8 %; frön 9–16 säker 2,4 % ⇒ 0,2 %, god 6,5 % ⇒ 4,7 %;
+  ~10 % färre säkra, osäker 20 % som förut.
+- **Målsökaren tar en neutral bortom målet.** Varningen gäller nu också kända handelsfartyg inom 1 nm från den
+  målsökandes bana hela vägen ut (`SEEKER_LANE_NM`, `_lane_ships`); i konvoj-kort 1 varnar torpedrummet nu för S-2.
+- **Varningen för en annan neutral räknades som bekräftelse av målet** utan att säga vad målet är: nu säger den
+  det ("Och S-7 själv är inte säkert klassad som örlogsfartyg, bara …").
+- **Lång gångtid.** Bara 7 av 65 skott med ≥ 4 min gångtid fick en varning (den krävde känd girrytm); nu varnar
+  torpedrummet för gångtid över 5 min mot alla mål (`LONG_RUN_S`).
+- **Småsaker:** ett köat "skjutlösning på S-x" från före skottet släpps när vi skjuter (`ReportQueue.drop`);
+  kontakter som tappas inom 5 s sägs på en rad (`sonar.lost.many`). Navigatörens upprepade kvittens av ett djup
+  som redan gäller får vara: en upprepad order upprepas tillbaka.
+- **Hytten.** Förslaget starpom ringer om syntes bara som en rad längst ned, och skälen inte alls (hytten visar
+  bara starpoms rader, och han sa bara "Radio föreslår sänd rapport. Det beslutet är ert."). Nu: en lapp
+  nederst i bilden medan det ringer ("Enter svarar"), och sedan kortet ERT BESLUT mitt i bilden med vem som
+  föreslår vad, stationens egna ord och "Skriv ja … nej …, sedan Enter"; starpom läser upp stationens ord i
+  telefonen (`ui/cabin_render._decision_card`, `StatusSnapshot.decision_why`, `starpom.suggestion_why`).
+
 ## 2026-11-23 – Skyttebotens fynd: vapen i fredstid, salvan, omladdningen
 
 En skyttebot (ja-boten som skjuter `eld`/`salva` på varje säker lösning) spelade alla 22 scenarier × 8 frön.

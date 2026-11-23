@@ -97,9 +97,15 @@ PHRASES = {
     + ", ".join(f"{n['designation']} ({n['classification']}, bäring {fmt_course(n['bearing'])}"
                 + (f", {nm(n['range'])} sjömil" if n.get("range") is not None else ", avståndet okänt")
                 + ")" for n in d["ships"])
-    + (f" ligger nära {d['target']} när den målsökande torpeden är framme. Målsökaren tar det den hör "
-       "bäst och kan ta fel fartyg." if d.get("homing") else
+    + ((f" ligger nära {d['target']} när den målsökande torpeden är framme" if all(
+        n.get("from_target") is not None for n in d["ships"]) else
+        f" ligger nära {d['target']} eller längs den målsökande torpedens bana")
+       + ". Målsökaren tar det den hör bäst och söker vidare om den missar, den kan ta fel fartyg."
+       if d.get("homing") else
        " ligger nära torpedernas bana. En rak torped som missar går vidare och kan träffa.")
+    + ("" if not d.get("target_class") else
+       f" Och {d['target']} själv är klassad som {d['target_class']}." if d.get("target_civil") else
+       f" Och {d['target']} själv är inte säkert klassad som örlogsfartyg, bara {d['target_class']}.")
     + ("" if d.get("preview") else " Upprepa ordern om vi ska skjuta."),
     "torp.fired": lambda d: f"{ru('Torpeda vysjla')}! Tub {d['tube']} avfyrad, {d['type']}, kurs {fmt_course(d['course'])}"
     + (f", beräknad gångtid {_mmss(d['run_s'])}" if d.get("run_s") else "")
@@ -136,6 +142,8 @@ PHRASES = {
     "torp.leg_warning": lambda d: f"Kapten, torpedrummet. Varning: "
     + (f"{d['designation']} jagar och girar hela tiden, och en {d['type']} är framme om "
        f"{_mmss(d['run_s'])}. Den hinner gira." if d.get("kind") == "hunting" else
+       f"en {d['type']} är framme vid {d['designation']} om {_mmss(d['run_s'])}. Girar eller ändrar "
+       "den fart under tiden går torpeden fel." if d.get("kind") == "long" else
        f"{d['designation']} sicksackar. Benet har gått {round(d['elapsed_s'] / 60)} minuter av ungefär "
        f"{round(d['leg_s'] / 60)}, och en {d['type']} är framme om {_mmss(d['run_s'])}. "
        + ("Konvojen" if d.get("kind", "convoy") == "convoy" else "Den") + " kan ha girat innan dess.")
@@ -283,9 +291,11 @@ RU_PHRASES = {
     "torp.neutral": lambda d: f"{R.CAPTAIN}, торпедный отсек. Внимание: "
     + ("рядом с целью другие суда, головка самонаведения может взять не ту цель." if d.get("homing")
        else ("торговое судно" if len(d["ships"]) == 1 else "торговые суда") + " рядом с курсом торпед.")
+    + (" Цель не опознана как военный корабль." if d.get("target_class") else "")
     + ("" if d.get("preview") else " Повторите приказ, если стреляем."),
     "torp.leg_warning": lambda d: f"{R.CAPTAIN}, торпедный отсек. Внимание: "
     + ("цель нас ищет и всё время маневрирует, успеет отвернуть." if d.get("kind") == "hunting" else
+       "торпеда идёт долго, цель может отвернуть." if d.get("kind") == "long" else
        "цель идёт зигзагом, "
        + ("конвой" if d.get("kind", "convoy") == "convoy" else "она")
        + " может повернуть раньше, чем дойдёт торпеда."),

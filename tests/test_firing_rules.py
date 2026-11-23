@@ -145,3 +145,42 @@ def test_no_loaded_tube_gives_a_reload_suggestion_at_once():
     _run(g, 10)
     assert any(r.type == "torp.refused" for r in reports)
     assert any(r.type == "torp.suggest.reload" for r in reports)
+
+
+# --- varningen för lång gångtid och skjutlösningen efter skottet ---------------------------
+def test_a_long_run_warns_even_without_a_known_turn_rhythm():
+    from sim.stations.torpedo_room.common import LONG_RUN_S
+    g, reports = _game("konvoj")
+    torp = g.station(TorpedoRoom)
+    g.knowledge.on_detection("S-9", g.now)
+    torp._leg_warning("S-9", LONG_RUN_S + 60, "53-61")
+    torp._leg_warning("S-9", LONG_RUN_S - 60, "53-61")
+    _run(g, 5)
+    warn = [r for r in reports if r.type == "torp.leg_warning"]
+    assert len(warn) == 1 and warn[0].data["kind"] == "long" and "S-9" in warn[0].text
+
+
+def test_a_queued_firing_solution_is_dropped_when_we_fire_at_the_target():
+    from sim.reports import Report
+    g, reports = _game("konvoj")
+    torp = _mock_target(g)
+    g.queue.submit(Report(g.now + 3, "Torped (Ivanov)", "torp.ready",
+                          {"designation": "S-1", "tube": 1, "type": "53-61", "run_s": 120},
+                          role="torpedo", kind="suggest"))
+    g.command("eld tub 1 mot S-1")
+    _run(g, 10)
+    assert torp.in_water
+    assert not any(r.type == "torp.ready" for r in reports)
+
+
+# --- sonar: flera tappade på en rad ------------------------------------------------------
+def test_contacts_lost_together_are_reported_on_one_line():
+    from sim.stations.sonar_room import LOST_BATCH_S, SonarRoom
+    g, reports = _game("konvoj")
+    sonar = g.station(SonarRoom)
+    sonar._lost_batch = [("S-3", 60.0), ("S-5", 72.0), ("S-6", None)]
+    sonar._lost_t = g.now
+    _run(g, LOST_BATCH_S + 20)
+    many = [r for r in reports if r.type == "sonar.lost.many"]
+    assert len(many) == 1 and many[0].text == "Kapten, sonar. Har tappat S-3 (060), S-5 (072) och S-6."
+    assert not any(r.type == "sonar.lost" for r in reports)

@@ -210,6 +210,10 @@ för in varje färdigt steg där.
   6,5 % ⇒ 5,3 %, säker grova 2,5 % ⇒ 1,7 %, säker > 3σ 9,5 % ⇒ 5,1 %. Det som är kvar är mest girar de senaste minuterna som plottet inte hunnit se. Därför (2026-11-22): mål som girar ofta (q ≥ 30, sicksack eller jagare som jagar) kan ha girat
   osett de senaste 3 min (`RECENT_TURN_S`, kortat till tiden sedan senaste titt med kurs): sannolikheten lag/(lag + 7,5 min), gir 50° (1σ);
   säker bara med en färsk titt. Säkra lösningar på sicksackande mål med kurs > 3σ 28 % ⇒ 6 %; alla säkra grova 1,7 % ⇒ 1,1 %, > 3σ 5,1 % ⇒ 5,7 %.
+  En lösning som inte satt sig (2026-11-23, `Knowledge._settled`) är ett steg lägre (god ⇒ osäker, säker ⇒ god): hopp > 1σ
+  (`JUMP_SIGMA`, mot lösningen minst 20 s före, i deras sammanlagda σ) de senaste 2 min, eller en lucka > 10 min i
+  bäringarna som slutade för < 5 min sedan. Säkra grova 1,1 % ⇒ 0,5 % (frön 9–16: 2,4 % ⇒ 0,2 %), goda 5,8 % ⇒ 2,8 %
+  (6,5 % ⇒ 4,7 %), ~10 % färre säkra.
   Mätskripten: `kalibrering/tma_kvalitet.py`, `kalibrering/skott_saker.py`.
 - Radion: rapporten 6 s + 4 s per femsiffergrupp (kort ~22 s); fiendens pejlnät pejlar aldrig under
   10 s, alltid över 25 s, σ = 1,5 nm · √(30 s / längd), 0,7–3 nm (`DF_*` i `enemy.py`).
