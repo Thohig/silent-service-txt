@@ -26,7 +26,8 @@ Textual), sedan ligger det i webbläsarens cache.
   clyde, clyde-in, konvoj, konvoj-kort, konvoj-mot, arktis, arktis-kort, duell, duell-kort, duell-torped,
   svansen-kort, krig, krig-kort, ovning, ovning-kort. Utan `scenario` börjar spelet i huvudmenyn.
 
-När ett uppdrag är slut tar Enter dig tillbaka till huvudmenyn. Där finns också inställningar (ljud,
+Huvudmenyn delar uppdragen i tre avdelningar: ÖVNING, KRISEN (fred: förbli oupptäckt) och KRIGET
+(vapen fria). När ett uppdrag är slut tar Enter dig tillbaka till huvudmenyn. Där finns också inställningar (ljud,
 tal, slumpfrö) och en lista över alla order och ryska ord. Med ljudet på spelar menyn egen musik,
 hamnen i Poljarnyj och ibland Radio Moskva; fjärrskrivaren längst ned skriver flottans meddelanden
 fram mot den 28 oktober.
