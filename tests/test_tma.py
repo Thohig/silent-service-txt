@@ -349,3 +349,14 @@ def test_a_zigzagger_may_have_turned_unseen_unless_we_just_looked():
     zig_fresh = solve(fresh, maneuver_q=ZIGZAG_MANEUVER_Q)
     assert zig_fresh.course_sigma < zig_stale.course_sigma - 5.0
     assert straight.course_sigma < zig_stale.course_sigma
+
+
+def test_a_submerged_submarine_is_expected_to_turn():
+    """Ubåten i duellen manövrerar när den söker eller anfaller oss: plottet räknar med giren (q som
+    för sicksack); Polarisbåten i ytläge och ytfartyg gör det inte."""
+    from sim.knowledge import submerged_submarine
+    for c in ("möjlig undervattenskontakt", "trolig ubåt", "ubåt, atomdriven"):
+        assert submerged_submarine(c), c
+    for c in ("ubåt i ytläge, en axel, trolig Polarisbåt", "Polarisubåt i ytläge, atomdriven, en axel",
+              "ytfartyg", "okänd kontakt", "jagare, ångturbiner, två axlar", None):
+        assert not submerged_submarine(c), c

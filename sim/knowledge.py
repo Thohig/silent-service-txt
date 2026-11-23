@@ -124,6 +124,14 @@ class Waypoint:
 AIR_CLOSE = ("stark", "mycket stark")    # flygradarns styrka då masterna kan synas
 
 
+def submerged_submarine(classification: str | None) -> bool:
+    """En ubåt i undervattensläge (sonars klassning): den manövrerar i tre dimensioner och
+    girar när den söker eller anfaller oss, så plottet räknar med giren som för ett sicksackande mål
+    (duell-kort: goda lösningar på ubåten var grovt fel i 69 %, kursen > 90° fel i 56 %)."""
+    c = classification or ""
+    return "undervattens" in c or ("ubåt" in c and "ytläge" not in c)
+
+
 @dataclass
 class Knowledge:
     tracks: dict[str, ContactTrack] = field(default_factory=dict)
@@ -340,7 +348,7 @@ class Knowledge:
             return None
         obs = [o for o in tr.observations if o.t >= tr.tma_from_t]
         q = HUNTER_MANEUVER_Q if self.hunting(tr, t_now) else \
-            tma.ZIGZAG_MANEUVER_Q if self.zigzags(tr) else None
+            tma.ZIGZAG_MANEUVER_Q if self.zigzags(tr) or submerged_submarine(tr.classification) else None
         sol = solve(obs, t_now=t_now, own_now=own_now, maneuver_q=q)
         if sol is not None:
             sol = self._settled(tr, sol, obs, t_now)
