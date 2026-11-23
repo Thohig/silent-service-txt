@@ -41,6 +41,7 @@ from .common import (
 from .tasks import Station as StationSteer
 
 VAK_TRIES = 2                   # så många gånger lägger vi om mot mitten innan vi tar det vi har
+NARROW_STATION_S = 600          # så länge efter "för smal vid stationen" föreslås inget nytt stopp där
 
 
 class IceMixin:
@@ -204,12 +205,17 @@ class IceMixin:
             return
         if latest is not None and latest.open:
             if near and (o.length_m < MIN_SURFACE_LEN_M or cramped):
-                # masterna kommer upp, men skrovet ryms inte: leta vidare runt stationen
-                self.suggest("vak_narrow_station", "nav.vak.narrow_station",
-                             {"length": round_m(o.length_m), "name": STATION_NAME,
-                              "depth": SAFE_ICE_DEPTH},
-                             order=f"fart 4, djup {SAFE_ICE_DEPTH}", cooldown=0)
-                return
+                if o.no not in self._narrow_at_station:
+                    # masterna kommer upp, men skrovet ryms inte: leta vidare runt stationen
+                    self._narrow_at_station.add(o.no)
+                    self._narrow_station_t = self.now
+                    self.suggest("vak_narrow_station", "nav.vak.narrow_station",
+                                 {"length": round_m(o.length_m), "name": STATION_NAME,
+                                  "depth": SAFE_ICE_DEPTH},
+                                 order=f"fart 4, djup {SAFE_ICE_DEPTH}", cooldown=0)
+                    return
+                # redan sagt att den är för smal: vi stoppade här för masterna (fix, radio)
+                near = False
             if near and isinstance(self.steer, StationSteer):
                 # framme: annars startar sökspiralen nästa sekund och kör oss ur öppningen
                 self.steer = None
@@ -366,7 +372,11 @@ class IceMixin:
             self.suggest("bumped", "nav.suggest.bumped", {"depth": SAFE_ICE_DEPTH},
                          order=f"djup {SAFE_ICE_DEPTH}", cooldown=60, alarm=True)
         self._touching = touching
-        if self.opening_now() is not None and self.near_station():
+        cur = self.opening_now()
+        if cur is not None and self.near_station() and \
+                getattr(cur, "no", None) not in self._narrow_at_station and \
+                self.now - self._narrow_station_t > NARROW_STATION_S:
+            # (inte strax efter "för smal": öppningen vi passerar har kanske inget nummer än)
             latest = self.icemap.latest(self.now)
             self.suggest("station_stop", "nav.suggest.station_stop",
                          {"kind": thickness_words(latest.thickness), "name": STATION_NAME},

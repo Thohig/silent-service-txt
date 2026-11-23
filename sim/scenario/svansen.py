@@ -50,7 +50,6 @@ TAIL_SPEED_KN = 10
 TAIL_DEPTH_M = 100.0
 SHADOW_START_NM = (1.6, 1.9)
 TAIL_ATTACK_MIN = (12, 16)            # minuter efter överlämnandet: den har sin lösning
-BAFFLE_DEG = 30.0                     # döda sektorn akterut, halva bredden
 SHAKE_QUIET_S = 600
 US_BASE_DB = 131.0                    # Skate-klassen, i marschfart (bullrigare än i duellens smygläge)
 US_MAX_KN = 18
@@ -74,7 +73,6 @@ def tail_short_scenario(rng: random.Random) -> Scenario:
     x, y = size / 2 + rng.uniform(-2, 2), size / 2 + rng.uniform(-2, 2)
     own = OwnShip(ShipState(x=x, y=y, course=course, speed=TAIL_SPEED_KN, depth=TAIL_DEPTH_M,
                             max_depth=400))
-    own.baffle_deg = BAFFLE_DEG
 
     # ubåten rakt akterut, samma kurs och fart
     r = rng.uniform(*SHADOW_START_NM)

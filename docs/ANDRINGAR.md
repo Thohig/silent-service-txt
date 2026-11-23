@@ -3,6 +3,47 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-23 – Döda sektorn akterut i alla scenarier, buggjaktens verktyg och det de hittade
+
+**Döda sektorn överallt** (`OwnShip.baffle_deg` = `BAFFLE_DEG` 30°, förut bara Svansen): rakt akterut hör sonar
+12 dB + 1,5 dB/kn över 4 kn sämre. Det som behövdes för att det skulle fungera i alla scenarier:
+- Sonars lyssningsgir (`sim/stations/baffles.py`) föreslås inte när navigatören styr (anfall, följa, farleden,
+  vaken), medan ett hot hålls i plottet (Kuba: 4 kn med jagaren pingande på 2 nm) eller mot kortets land (båda
+  sidorna prövas med `course_safe`).
+- Ny: en kontakt vi tappat nyss som ligger akterut ger en gir som lägger den tvärs (`sonar.suggest.astern_lost`),
+  en gång per tappning, bara för fartyg vi vill höra (övningsfartyget, stora fartyg, Polarisbåten i ytläge; inte
+  jagare, ubåtar under ytan eller handel: i Svansen gav giren tillbaka lösningen och ubåten sköt). Utan den låg
+  övningens bevakningsfartyg akterut hela lyssningsövningen (ovning-kort klar 8 ⇒ 3).
+- Bandspelaren: Polarisbåten akterut utan färsk bäring ⇒ sonar föreslår kursen mot sista bäringen.
+- **Gammal bugg:** lyssningsgirens plan glömdes 5 s efter förslaget (tiden räknades från när vi började gå rakt,
+  inte från förslaget), så "tomt akterut, tillbaka till kursen" kom aldrig och farten blev 4 kn. Nu räknas tiden
+  från förslaget; väljer kaptenen en annan kurs föreslår sonar den gamla farten (`sonar.baffles.speed`); kontakter
+  sonar redan kände, handel och övningsfartyget räknas inte som "hört något akterut".
+
+**Buggar som hittades på vägen** (med oraklet och `skillnad.py`):
+- Navigatören såg kortet framåt med bestickets osäkerhet åt sidorna men inte framåt: ja-boten gick på grund mot en
+  brant strand i Clyde 0,25 nm från besticket. Nu `chart_ahead` med σ framåt.
+- Pingpong: navigatören föreslog fix på periskopdjup, vakthavande "radarn mycket stark, djup 50", om och om igen.
+  Vakthavande säger nu nej till periskopdjup under en mycket stark radar (`_radar_sees_masts`), navigatören tar
+  bottenfixen i stället, och hans två fixförslag har en spärr. Vakthavande föreslår inte samma djup två gånger
+  samma sekund (flyg- och fartygsradar).
+- Övningen: navigatören föreslog farleden och vakthavande "kurs mot övningsområdet" om vartannat; nu inget
+  farledsförslag på sista benet när farleden leder till ett känt mål, och inget områdesförslag när vi styr dit.
+- Arktis: "stoppa här" vid stationen i en råk navigatören just sagt var för smal, om och om igen; och vaken till nyis
+  kortare än båten (går inte att bryta igenom). Båda borta (`_narrow_at_station`, `IceMap.best`).
+- Testet att ja-boten når drivstationen i minst 5 av 8 frön föll på brus: på 16 frön når båda versionerna
+  stationen i 11 (gränsen nu 3 av 8).
+
+**Kalibreringen** (ny baslinje, med utfall per frö och 16 frön i Clyde, Clyde-in, konvoj, konvoj-kort och krig-kort):
+ja-boten i clyde-in inspelad 3 av 8 ⇒ 11 av 16, krig hemma 5 ⇒ 8 och förlorad 2 ⇒ 0, arktis stationen median 270 ⇒
+179 min, jagad förlorad median 49 ⇒ 64 min; övrigt som förut. Clyde 3–4 av 16 klara med och utan sektorn (brus).
+Oraklet (ja-boten, alla scenarier, 8 frön): tjat 25 ⇒ 7, skjutläge för djupt 13 ⇒ 0 (larmet räknar nu förslaget),
+låg fart kvar 4 ⇒ 0; kvar säker men fel på övningens bevakningsfartyg (TODO).
+
+**Verktygen** (`kalibrering/README.md`, Buggjakt): `skillnad.py` (första rapport som skiljer mellan arbetskopian och
+en commit, `spela.py`), `kontroll.py` med utfall per frö, baslinjens commit och 16 frön där slumpen avgör
+(`FLER_FRÖN`), `orakel.py` (larm mot sanningen) och `skytt.py` (ja, skjut, lyssna, JSON-loggar) med `sok.py`.
+
 ## 2026-11-23 – Minören föreslår den trådstyrda 53-62T
 
 De två 53-62T låg i reserven i alla scenarier utom Övningen men laddades aldrig av sig själv: minörens förslag

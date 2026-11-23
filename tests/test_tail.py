@@ -37,10 +37,10 @@ def test_registrerad_i_kriget_med_mal_och_dod_sektor():
     assert g.world.own.baffle_deg > 0
     assert g.world.goal(ShakeGoal) is not None
     assert _ai(g).state == "shadow" and _ai(g).roe == "attack"
-    # de andra scenarierna har ingen död sektor (idén att införa den överallt står i IDEER)
+    # sedan 2026-11-23 har alla scenarier döda sektorn
     other = Game(build_scenario("duell-kort", random.Random(1)), seed=1, warm_up=False)
-    assert other.world.own.baffle_deg == 0
-    assert baffle_loss(other.world, *_put_astern(other, 0)) == 0
+    assert other.world.own.baffle_deg == g.world.own.baffle_deg
+    assert baffle_loss(other.world, *_put_astern(other, 0)) > 0
 
 
 def test_dod_sektor_akterut_tonar_vid_kanten_och_vaxer_med_farten():

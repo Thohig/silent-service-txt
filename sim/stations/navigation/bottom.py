@@ -83,12 +83,14 @@ class BottomMixin:
     # --- grunt vatten -------------------------------------------------------------
     def chart_ahead(self, course: float | None = None) -> tuple[float, float] | None:
         """Grundaste kortdjup framåt längs kursen (akterut när vi backar), med bestickets
-        osäkerhet åt sidorna: (djup, avstånd nm). None om kortet saknar djup."""
+        osäkerhet åt sidorna och framåt (vi kan vara längre fram än besticket säger; utan den gick
+        ja-boten i Clyde på grund mot en brant strand 0,25 nm från besticket): (djup, avstånd nm).
+        None om kortet saknar djup."""
         chart = self.game.knowledge.bathymetry
         if chart is None:
             return None
         s, sigma = self.ship, self.uncertainty()
-        reach = max(SHOAL_LOOK_MIN_NM, s.speed * SHOAL_LOOK_MIN / 60)
+        reach = max(SHOAL_LOOK_MIN_NM, s.speed * SHOAL_LOOK_MIN / 60) + sigma
         dist = np.arange(0.0, reach + 0.05, 0.1)
         side = np.array([-sigma, 0.0, sigma])
         b = math.radians(s.track if course is None else course)

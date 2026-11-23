@@ -18,6 +18,8 @@ from .trim import TrimState
 if TYPE_CHECKING:
     from .world import World
 
+BAFFLE_DEG = 30.0     # sonarns döda sektor akterut, halva bredden (skrovet och skruven)
+
 TEST_DEPTH = 300.0
 GROAN_MIN_DEPTH = 80.0     # skrovknak vid snabb djupändring: bara så här djupt
 GROAN_RATE_MPS = 1.0       # ... och fortare än så (≈ 6 kn och uppåt med rodren)
@@ -125,9 +127,8 @@ class OwnShip(Vessel):
         self._prev_depth: float | None = None   # djupet förra sekunden (skrovknaket)
         self.heave_amp_m = 0.0           # sjöns sug: utslaget just nu (djupmätaren visar det)
         self.heave_m = 0.0               # och hur högt sjön drar oss denna sekund
-        # sonarns döda sektor akterut, halva bredden i grader (0 = ingen; bara Svansen hittills,
-        # se sim/sonar.py `baffle_loss`)
-        self.baffle_deg = 0.0
+        # sonarns döda sektor akterut, halva bredden i grader (0 = ingen; se sim/sonar.py `baffle_loss`)
+        self.baffle_deg = BAFFLE_DEG
         if state.depth <= 1.0:
             self.sys.bridge = "manned"       # börjar i ytläge med folk på bryggan
 

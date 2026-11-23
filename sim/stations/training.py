@@ -18,7 +18,7 @@ from ..events import ListeningExercise, OwnSoundMade, PeriscopeSighted, TorpedoE
 from ..goals import TrainingGoal
 from ..exercise import partner_report, torpedo_report
 from ..fmt import fmt_course, kn, nm
-from ..geo import bearing_to, distance
+from ..geo import angle_diff, bearing_to, distance
 from ..ownship import TEST_DEPTH
 from ..reports import Quality
 from .base import Station
@@ -27,6 +27,7 @@ from .navigation import NavigationStation
 CHECK_S = 5                  # stegen kontrolleras så här ofta
 PAUSE_S = 30                 # efter ett avklarat steg: så länge innan nästa föreslås
 SUGGEST_S = 300              # obesvarat förslag upprepas (glesas ut av Station.suggest)
+AREA_HEADING_DEG = 20      # vi styr redan mot övningsområdet: inget förslag om kursen dit
 AREA_NM = 1.5                # inom så här långt från övningsområdets mitt är vi framme
 AREA_LEAVE_NM = 3.0          # ... och kvar i området tills vi är så här långt bort
 PROOF_MARGIN_M = 40          # provdjup bara där kortet visar så här mycket vatten under
@@ -201,7 +202,10 @@ class TrainingOfficer(Station):
         if self._in_fjord():
             return                          # ordern: dykning först utanför mynningen
         if step.area and not self._in_area:
-            if a is not None and self.done:     # vi har dykt men är inte i området
+            st = self.own.state
+            heading_there = a is not None and \
+                abs(angle_diff(st.ordered_course, bearing_to(x, y, a.x, a.y))) <= AREA_HEADING_DEG
+            if a is not None and self.done and not heading_there:   # utanför området, styr inte dit
                 self.suggest("train_area", "train.suggest.area",
                              {"name": a.name, "course": bearing_to(x, y, a.x, a.y), "range": d},
                              order=f"kurs mot {a.name.lower()}", cooldown=SUGGEST_S)

@@ -228,13 +228,16 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
 - **Svansen** (`svansen-kort`, `scenario/svansen.py`, 2026-11-23): krig 28 okt 1962, Norska havet 02:43, bara kort
   variant (~20 min). Vi går på turbinen i 10 kn på 100 m (under skiktet, Beaufort 3) mot patrullområdet. En
   Skate-ubåt (131 dB + 1,5·fart, högst 18 kn) skuggar oss 1,6–1,9 nm rakt akterut. **Döda sektorn**
-  (`OwnShip.baffle_deg` = 30°, bara här; `sim/sonar.py` `baffle_loss`): ±30° akterut hör sonar sämre, 12 dB
+  (`OwnShip.baffle_deg` = 30°, i alla scenarier sedan 2026-11-23; `sim/sonar.py` `baffle_loss`): ±30° akterut hör sonar sämre, 12 dB
   (skrovet) + 1,5 dB per knop över 4 kn, högst 25 dB, kanten tonar över 10°; gäller kontakter, transienter och
   fiendens torpeder. I marschfart hörs ubåten ändå inte ens på sidan (vårt eget brus): 1,7 nm, båda i 10 kn,
   SE −6 dB; vi i 4 kn och den i 10 kn +4 dB. **Lyssna akterut** (`sim/stations/baffles.py`, `BafflesMixin`
-  i sonarrummet, bara med död sektor): har vi gått rakt (±20°) i 10 min i ≥ 6 kn föreslår sonar `kurs ±60°,
-  fart 4`; ligger vi 2 min på den kursen utan ny kontakt säger sonar att det är tomt och föreslår kursen och
-  farten tillbaka (`sonar.baffles.clear`). Går kaptenen annanstans glöms giren. **Skuggningen**
+  i sonarrummet): har vi gått rakt (±20°) i 10 min i ≥ 6 kn föreslår sonar `kurs ±60°,
+  fart 4` (inte medan de har oss, när navigatören styr, `steer`/`vak`, eller mot kortets land, `course_safe`); ligger vi 2 min på den kursen utan ny kontakt säger sonar att det är tomt och föreslår kursen och
+  farten tillbaka (`sonar.baffles.clear`). Går kaptenen annanstans glöms giren. **Tappad akterut**
+  (`_astern_lost_watch`): en kontakt sonar tappat de senaste 30 min som enligt plottet (annars sista bäringen) ligger
+  i sektorn + 10° ger en gir som lägger den tvärs (`sonar.suggest.astern_lost`), en gång per tappning, med samma skydd.
+  Utan den gick övningens lyssning med bevakningsfartyget akterut i 25 min (ovning-kort 8 ⇒ 3 klara). **Skuggningen**
   (`SubmarineAI.state = "shadow"`): styr mot sin medlade pejling (förföljaren hamnar akterut) med vår fart ur
   varvtalet, som den märker med 90 s tidskonstant (`SHADOW_REACT_S`), så när vi saktar in och girar kommer den
   närmare och ut ur sektorn. Anfaller (`trail`, som i duellen) vid `shadow_until` (12–16 min efter

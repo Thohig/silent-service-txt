@@ -367,6 +367,8 @@ class OfficerStation(Station):
         öppningen i isen och ventilation väntar tills jakten är över (nödblåsning och tät rök undantagna)."""
         if super().vetoes(order):
             return True
+        if self._radar_sees_masts() and self._goes_to_periscope(order):
+            return True     # mycket stark radar nyss: masterna syns (fixen tas mot botten i stället)
         if not self.game.knowledge.hunted(self.now) or self.own.sys.smoke >= SMOKE_MUST_VENT:
             return False
         from ..orders import split_orders
@@ -378,6 +380,24 @@ class OfficerStation(Station):
             if isinstance(o, (TakeFix, GoToOpening, Ventilate)):
                 return True
             if isinstance(o, SetDepth) and o.depth <= HUNTED_UP_DEPTH and o.depth < ordered:
+                return True
+        return False
+
+    def _radar_sees_masts(self) -> bool:
+        """En radar har varit mycket stark de senaste ESM_STRONG_S: masterna kan ses."""
+        return any(strength == "mycket stark" and self.now - t <= ESM_STRONG_S
+                   for strength, t in self._esm_last.values())
+
+    def _goes_to_periscope(self, order: str) -> bool:
+        """Tar ordern oss upp till periskopdjup (eller är det en fix i periskopet)?"""
+        from ..orders import split_orders
+        from .navigation.common import SetDepth, TakeFix
+        ordered = self.own.state.ordered_depth
+        for part in split_orders(order):
+            o = self.game.registry.parse(part)
+            if isinstance(o, TakeFix):
+                return True
+            if isinstance(o, SetDepth) and 1 <= o.depth <= PERISCOPE_DEPTH + 1 and o.depth < ordered:
                 return True
         return False
 
@@ -791,7 +811,9 @@ class OfficerStation(Station):
                     b = norm360(true_b + rng.gauss(0, 3))
                     self.say("off.esm", {"bearing": b, "strength": strength}, kind="contact",
                              alarm=strength == "mycket stark")
-                if strength == "mycket stark" and (d := self.dive_depth(60)) is not None:
+                if strength == "mycket stark" and (d := self.dive_depth(60)) is not None and \
+                        self._suggested.get("down_air", -10**9) < self.now - 5:
+                    # (inte samma sekund som flygradarns förslag om samma djup: ett räcker)
                     self.suggest("down_esm", "off.suggest.down",
                                  {"reason": "Radarn är mycket stark.", "why": "esm", "depth": d},
                                  order=f"djup {d}", cooldown=300, alarm=True)

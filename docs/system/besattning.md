@@ -222,6 +222,12 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   - *Sjunkna kontakter:* brytningsljud från en känd kontakt ⇒ `ContactSunk`; `Knowledge` sätter
     `ContactTrack.sunk_t` (inte hållen, inget hot), sonar glömmer pingaren (andras pingar får inte dess
     namn) och säger inte "Har tappat", torpedrummet säger `torp.time.sunk` i stället för "Tid för torpeden".
+  - *Periskopdjup under stark radar:* vakthavande säger nej till förslag om periskopdjup och fix i periskopet medan
+    en radar varit mycket stark de senaste `ESM_STRONG_S` (`OfficerStation._radar_sees_masts`); navigatören föreslår
+    då bottenfixen om den hjälper (`_periscope_vetoed`), och hans två fixförslag (tystnaden och det löpande) har
+    samma spärr. Förut gick förslagen fram och tillbaka (Clyde-in: periskopdjup, "radarn mycket stark, djup 50", …).
+  - *Kortet framåt:* navigatören tittar så långt framåt som farten kräver plus bestickets osäkerhet (`chart_ahead`);
+    förut bara åt sidorna, och ja-boten i Clyde gick på grund mot en brant strand 0,25 nm från besticket.
   - *Flera tappade:* kontakter som tappas inom `LOST_BATCH_S` (5 s, t.ex. när vi går under skiktet) sägs på en
     rad (`sonar.lost.many`: "Har tappat S-3 (060), S-5 (072) och S-6."); en som hörs igen inom tiden nämns inte.
   - *Botten under anfall:* navigatören föreslår inte `botten` när skarpa laddningar fallit nära de senaste

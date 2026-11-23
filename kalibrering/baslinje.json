@@ -4,6 +4,16 @@
    "utfall": {
     "patrol_end": 8
    },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_end"
+   },
    "minuter": {
     "patrol_end": 210
    }
@@ -11,6 +21,16 @@
   "ja": {
    "utfall": {
     "patrol_end": 8
+   },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_end"
    },
    "minuter": {
     "patrol_end": 210
@@ -22,6 +42,16 @@
    "utfall": {
     "report_missed": 8
    },
+   "frön": {
+    "0": "report_missed",
+    "1": "report_missed",
+    "2": "report_missed",
+    "3": "report_missed",
+    "4": "report_missed",
+    "5": "report_missed",
+    "6": "report_missed",
+    "7": "report_missed"
+   },
    "minuter": {
     "report_missed": 35
    }
@@ -29,8 +59,18 @@
   "ja": {
    "utfall": {
     "patrol_end": 1,
-    "report_missed": 3,
-    "reported": 4
+    "report_missed": 4,
+    "reported": 3
+   },
+   "frön": {
+    "0": "reported",
+    "1": "report_missed",
+    "2": "reported",
+    "3": "report_missed",
+    "4": "reported",
+    "5": "report_missed",
+    "6": "patrol_end",
+    "7": "report_missed"
    },
    "minuter": {
     "patrol_end": 45,
@@ -44,6 +84,16 @@
    "utfall": {
     "lost": 8
    },
+   "frön": {
+    "0": "lost",
+    "1": "lost",
+    "2": "lost",
+    "3": "lost",
+    "4": "lost",
+    "5": "lost",
+    "6": "lost",
+    "7": "lost"
+   },
    "minuter": {
     "lost": 210
    }
@@ -51,13 +101,23 @@
   "ja": {
    "utfall": {
     "lost": 2,
-    "patrol_end": 2,
-    "station_reached": 4
+    "patrol_end": 3,
+    "station_reached": 3
+   },
+   "frön": {
+    "0": "lost",
+    "1": "patrol_end",
+    "2": "station_reached",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "station_reached",
+    "6": "station_reached",
+    "7": "lost"
    },
    "minuter": {
-    "lost": 232,
+    "lost": 278,
     "patrol_end": 360,
-    "station_reached": 270
+    "station_reached": 179
    }
   }
  },
@@ -65,6 +125,16 @@
   "passiv": {
    "utfall": {
     "patrol_end": 8
+   },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_end"
    },
    "minuter": {
     "patrol_end": 55
@@ -75,9 +145,19 @@
     "patrol_end": 5,
     "station_reached": 3
    },
+   "frön": {
+    "0": "patrol_end",
+    "1": "station_reached",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "station_reached",
+    "5": "patrol_end",
+    "6": "station_reached",
+    "7": "patrol_end"
+   },
    "minuter": {
     "patrol_end": 55,
-    "station_reached": 47
+    "station_reached": 48
    }
   }
  },
@@ -86,18 +166,38 @@
    "utfall": {
     "lost": 8
    },
+   "frön": {
+    "0": "lost",
+    "1": "lost",
+    "2": "lost",
+    "3": "lost",
+    "4": "lost",
+    "5": "lost",
+    "6": "lost",
+    "7": "lost"
+   },
    "minuter": {
     "lost": 50
    }
   },
   "ja": {
    "utfall": {
-    "escaped": 7,
-    "lost": 1
+    "escaped": 6,
+    "lost": 2
+   },
+   "frön": {
+    "0": "escaped",
+    "1": "escaped",
+    "2": "lost",
+    "3": "lost",
+    "4": "escaped",
+    "5": "escaped",
+    "6": "escaped",
+    "7": "escaped"
    },
    "minuter": {
-    "escaped": 34,
-    "lost": 49
+    "escaped": 32,
+    "lost": 64
    }
   }
  },
@@ -106,6 +206,16 @@
    "utfall": {
     "lost": 3,
     "patrol_end": 5
+   },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "lost",
+    "5": "lost",
+    "6": "patrol_end",
+    "7": "lost"
    },
    "minuter": {
     "lost": 19,
@@ -116,8 +226,18 @@
    "utfall": {
     "escaped": 8
    },
+   "frön": {
+    "0": "escaped",
+    "1": "escaped",
+    "2": "escaped",
+    "3": "escaped",
+    "4": "escaped",
+    "5": "escaped",
+    "6": "escaped",
+    "7": "escaped"
+   },
    "minuter": {
-    "escaped": 22
+    "escaped": 20
    }
   }
  },
@@ -127,6 +247,16 @@
     "forced": 4,
     "patrol_end": 4
    },
+   "frön": {
+    "0": "forced",
+    "1": "patrol_end",
+    "2": "forced",
+    "3": "patrol_end",
+    "4": "forced",
+    "5": "patrol_end",
+    "6": "forced",
+    "7": "patrol_end"
+   },
    "minuter": {
     "forced": 220,
     "patrol_end": 420
@@ -135,6 +265,16 @@
   "ja": {
    "utfall": {
     "patrol_end": 8
+   },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_end"
    },
    "minuter": {
     "patrol_end": 420
@@ -146,6 +286,16 @@
    "utfall": {
     "patrol_end": 8
    },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_end"
+   },
    "minuter": {
     "patrol_end": 45
    }
@@ -153,6 +303,16 @@
   "ja": {
    "utfall": {
     "patrol_end": 8
+   },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_end"
    },
    "minuter": {
     "patrol_end": 45
@@ -164,6 +324,16 @@
    "utfall": {
     "patrol_end": 8
    },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_end"
+   },
    "minuter": {
     "patrol_end": 34
    }
@@ -171,6 +341,16 @@
   "ja": {
    "utfall": {
     "patrol_end": 8
+   },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_end"
    },
    "minuter": {
     "patrol_end": 34
@@ -180,25 +360,79 @@
  "konvoj": {
   "passiv": {
    "utfall": {
-    "convoy_missed": 8
+    "convoy_missed": 16
+   },
+   "frön": {
+    "0": "convoy_missed",
+    "1": "convoy_missed",
+    "2": "convoy_missed",
+    "3": "convoy_missed",
+    "4": "convoy_missed",
+    "5": "convoy_missed",
+    "6": "convoy_missed",
+    "7": "convoy_missed",
+    "8": "convoy_missed",
+    "9": "convoy_missed",
+    "10": "convoy_missed",
+    "11": "convoy_missed",
+    "12": "convoy_missed",
+    "13": "convoy_missed",
+    "14": "convoy_missed",
+    "15": "convoy_missed"
    },
    "minuter": {
-    "convoy_missed": 105
+    "convoy_missed": 101
    }
   },
   "ja": {
    "utfall": {
-    "convoy_missed": 8
+    "convoy_missed": 16
+   },
+   "frön": {
+    "0": "convoy_missed",
+    "1": "convoy_missed",
+    "2": "convoy_missed",
+    "3": "convoy_missed",
+    "4": "convoy_missed",
+    "5": "convoy_missed",
+    "6": "convoy_missed",
+    "7": "convoy_missed",
+    "8": "convoy_missed",
+    "9": "convoy_missed",
+    "10": "convoy_missed",
+    "11": "convoy_missed",
+    "12": "convoy_missed",
+    "13": "convoy_missed",
+    "14": "convoy_missed",
+    "15": "convoy_missed"
    },
    "minuter": {
-    "convoy_missed": 114
+    "convoy_missed": 106
    }
   }
  },
  "konvoj-kort": {
   "passiv": {
    "utfall": {
-    "patrol_end": 8
+    "patrol_end": 16
+   },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_end",
+    "8": "patrol_end",
+    "9": "patrol_end",
+    "10": "patrol_end",
+    "11": "patrol_end",
+    "12": "patrol_end",
+    "13": "patrol_end",
+    "14": "patrol_end",
+    "15": "patrol_end"
    },
    "minuter": {
     "patrol_end": 80
@@ -206,11 +440,29 @@
   },
   "ja": {
    "utfall": {
-    "convoy_missed": 3,
-    "patrol_end": 5
+    "convoy_missed": 4,
+    "patrol_end": 12
+   },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "convoy_missed",
+    "5": "convoy_missed",
+    "6": "patrol_end",
+    "7": "patrol_end",
+    "8": "patrol_end",
+    "9": "convoy_missed",
+    "10": "patrol_end",
+    "11": "patrol_end",
+    "12": "convoy_missed",
+    "13": "patrol_end",
+    "14": "patrol_end",
+    "15": "patrol_end"
    },
    "minuter": {
-    "convoy_missed": 71,
+    "convoy_missed": 73,
     "patrol_end": 80
    }
   }
@@ -222,6 +474,16 @@
     "convoy_missed": 2,
     "patrol_end": 4
    },
+   "frön": {
+    "0": "patrol_end",
+    "1": "convoy_attacked",
+    "2": "patrol_end",
+    "3": "convoy_missed",
+    "4": "convoy_attacked",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "convoy_missed"
+   },
    "minuter": {
     "convoy_attacked": 24,
     "convoy_missed": 36,
@@ -231,13 +493,21 @@
   "ja": {
    "utfall": {
     "convoy_attacked": 4,
-    "convoy_missed": 3,
-    "patrol_end": 1
+    "convoy_missed": 4
+   },
+   "frön": {
+    "0": "convoy_attacked",
+    "1": "convoy_attacked",
+    "2": "convoy_missed",
+    "3": "convoy_missed",
+    "4": "convoy_attacked",
+    "5": "convoy_missed",
+    "6": "convoy_attacked",
+    "7": "convoy_missed"
    },
    "minuter": {
     "convoy_attacked": 26,
-    "convoy_missed": 27,
-    "patrol_end": 33
+    "convoy_missed": 30
    }
   }
  },
@@ -245,6 +515,16 @@
   "passiv": {
    "utfall": {
     "grounded": 8
+   },
+   "frön": {
+    "0": "grounded",
+    "1": "grounded",
+    "2": "grounded",
+    "3": "grounded",
+    "4": "grounded",
+    "5": "grounded",
+    "6": "grounded",
+    "7": "grounded"
    },
    "minuter": {
     "grounded": 18
@@ -254,8 +534,18 @@
    "utfall": {
     "training_done": 8
    },
+   "frön": {
+    "0": "training_done",
+    "1": "training_done",
+    "2": "training_done",
+    "3": "training_done",
+    "4": "training_done",
+    "5": "training_done",
+    "6": "training_done",
+    "7": "training_done"
+   },
    "minuter": {
-    "training_done": 116
+    "training_done": 123
    }
   }
  },
@@ -263,6 +553,16 @@
   "passiv": {
    "utfall": {
     "patrol_end": 8
+   },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_end"
    },
    "minuter": {
     "patrol_end": 64
@@ -272,8 +572,18 @@
    "utfall": {
     "training_done": 8
    },
+   "frön": {
+    "0": "training_done",
+    "1": "training_done",
+    "2": "training_done",
+    "3": "training_done",
+    "4": "training_done",
+    "5": "training_done",
+    "6": "training_done",
+    "7": "training_done"
+   },
    "minuter": {
-    "training_done": 48
+    "training_done": 53
    }
   }
  },
@@ -283,6 +593,16 @@
     "escaped": 2,
     "lost": 6
    },
+   "frön": {
+    "0": "lost",
+    "1": "lost",
+    "2": "lost",
+    "3": "lost",
+    "4": "lost",
+    "5": "escaped",
+    "6": "lost",
+    "7": "escaped"
+   },
    "minuter": {
     "escaped": 126,
     "lost": 30
@@ -290,11 +610,21 @@
   },
   "ja": {
    "utfall": {
-    "escaped": 5,
-    "patrol_end": 3
+    "escaped": 6,
+    "patrol_end": 2
+   },
+   "frön": {
+    "0": "escaped",
+    "1": "patrol_end",
+    "2": "escaped",
+    "3": "escaped",
+    "4": "escaped",
+    "5": "patrol_end",
+    "6": "escaped",
+    "7": "escaped"
    },
    "minuter": {
-    "escaped": 206,
+    "escaped": 190,
     "patrol_end": 240
    }
   }
@@ -305,6 +635,16 @@
     "lost": 6,
     "patrol_end": 2
    },
+   "frön": {
+    "0": "lost",
+    "1": "lost",
+    "2": "lost",
+    "3": "lost",
+    "4": "lost",
+    "5": "patrol_end",
+    "6": "lost",
+    "7": "patrol_end"
+   },
    "minuter": {
     "lost": 12,
     "patrol_end": 43
@@ -312,11 +652,21 @@
   },
   "ja": {
    "utfall": {
-    "lost": 5,
-    "patrol_end": 3
+    "lost": 6,
+    "patrol_end": 2
+   },
+   "frön": {
+    "0": "lost",
+    "1": "lost",
+    "2": "lost",
+    "3": "patrol_end",
+    "4": "lost",
+    "5": "patrol_end",
+    "6": "lost",
+    "7": "lost"
    },
    "minuter": {
-    "lost": 32,
+    "lost": 34,
     "patrol_end": 43
    }
   }
@@ -324,27 +674,81 @@
  "clyde": {
   "passiv": {
    "utfall": {
-    "grounded": 8
+    "grounded": 16
+   },
+   "frön": {
+    "0": "grounded",
+    "1": "grounded",
+    "2": "grounded",
+    "3": "grounded",
+    "4": "grounded",
+    "5": "grounded",
+    "6": "grounded",
+    "7": "grounded",
+    "8": "grounded",
+    "9": "grounded",
+    "10": "grounded",
+    "11": "grounded",
+    "12": "grounded",
+    "13": "grounded",
+    "14": "grounded",
+    "15": "grounded"
    },
    "minuter": {
-    "grounded": 134
+    "grounded": 142
    }
   },
   "ja": {
    "utfall": {
     "clyde_done": 3,
-    "record_missed": 5
+    "record_missed": 13
+   },
+   "frön": {
+    "0": "record_missed",
+    "1": "record_missed",
+    "2": "record_missed",
+    "3": "record_missed",
+    "4": "record_missed",
+    "5": "record_missed",
+    "6": "record_missed",
+    "7": "record_missed",
+    "8": "clyde_done",
+    "9": "record_missed",
+    "10": "record_missed",
+    "11": "record_missed",
+    "12": "clyde_done",
+    "13": "record_missed",
+    "14": "clyde_done",
+    "15": "record_missed"
    },
    "minuter": {
-    "clyde_done": 418,
-    "record_missed": 433
+    "clyde_done": 480,
+    "record_missed": 417
    }
   }
  },
  "clyde-in": {
   "passiv": {
    "utfall": {
-    "patrol_end": 8
+    "patrol_end": 16
+   },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_end",
+    "8": "patrol_end",
+    "9": "patrol_end",
+    "10": "patrol_end",
+    "11": "patrol_end",
+    "12": "patrol_end",
+    "13": "patrol_end",
+    "14": "patrol_end",
+    "15": "patrol_end"
    },
    "minuter": {
     "patrol_end": 48
@@ -353,11 +757,29 @@
   "ja": {
    "utfall": {
     "patrol_end": 5,
-    "recorded": 3
+    "recorded": 11
+   },
+   "frön": {
+    "0": "recorded",
+    "1": "recorded",
+    "2": "recorded",
+    "3": "recorded",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "recorded",
+    "8": "recorded",
+    "9": "recorded",
+    "10": "recorded",
+    "11": "patrol_end",
+    "12": "recorded",
+    "13": "patrol_end",
+    "14": "recorded",
+    "15": "recorded"
    },
    "minuter": {
     "patrol_end": 48,
-    "recorded": 29
+    "recorded": 31
    }
   }
  },
@@ -366,41 +788,95 @@
    "utfall": {
     "patrol_end": 8
    },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_end"
+   },
    "minuter": {
     "patrol_end": 840
    }
   },
   "ja": {
    "utfall": {
-    "lost": 2,
-    "patrol_done": 5,
-    "patrol_end": 1
+    "patrol_done": 8
+   },
+   "frön": {
+    "0": "patrol_done",
+    "1": "patrol_done",
+    "2": "patrol_done",
+    "3": "patrol_done",
+    "4": "patrol_done",
+    "5": "patrol_done",
+    "6": "patrol_done",
+    "7": "patrol_done"
    },
    "minuter": {
-    "lost": 634,
-    "patrol_done": 674,
-    "patrol_end": 840
+    "patrol_done": 635
    }
   }
  },
  "krig-kort": {
   "passiv": {
    "utfall": {
-    "patrol_done": 1,
-    "patrol_end": 7
+    "lost": 1,
+    "patrol_done": 2,
+    "patrol_end": 13
+   },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_done",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_end",
+    "8": "patrol_end",
+    "9": "patrol_end",
+    "10": "patrol_end",
+    "11": "patrol_end",
+    "12": "patrol_end",
+    "13": "lost",
+    "14": "patrol_end",
+    "15": "patrol_done"
    },
    "minuter": {
-    "patrol_done": 169,
+    "lost": 156,
+    "patrol_done": 170,
     "patrol_end": 175
    }
   },
   "ja": {
    "utfall": {
     "patrol_done": 3,
-    "patrol_end": 5
+    "patrol_end": 13
+   },
+   "frön": {
+    "0": "patrol_end",
+    "1": "patrol_end",
+    "2": "patrol_done",
+    "3": "patrol_end",
+    "4": "patrol_done",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_done",
+    "8": "patrol_end",
+    "9": "patrol_end",
+    "10": "patrol_end",
+    "11": "patrol_end",
+    "12": "patrol_end",
+    "13": "patrol_end",
+    "14": "patrol_end",
+    "15": "patrol_end"
    },
    "minuter": {
-    "patrol_done": 137,
+    "patrol_done": 147,
     "patrol_end": 175
    }
   }
@@ -410,17 +886,37 @@
    "utfall": {
     "lost": 8
    },
+   "frön": {
+    "0": "lost",
+    "1": "lost",
+    "2": "lost",
+    "3": "lost",
+    "4": "lost",
+    "5": "lost",
+    "6": "lost",
+    "7": "lost"
+   },
    "minuter": {
     "lost": 8
    }
   },
   "ja": {
    "utfall": {
-    "escaped": 1,
-    "patrol_end": 7
+    "escaped": 2,
+    "patrol_end": 6
+   },
+   "frön": {
+    "0": "escaped",
+    "1": "patrol_end",
+    "2": "escaped",
+    "3": "patrol_end",
+    "4": "patrol_end",
+    "5": "patrol_end",
+    "6": "patrol_end",
+    "7": "patrol_end"
    },
    "minuter": {
-    "escaped": 17,
+    "escaped": 19,
     "patrol_end": 22
    }
   }
@@ -430,6 +926,16 @@
    "utfall": {
     "lost": 5,
     "patrol_end": 3
+   },
+   "frön": {
+    "0": "lost",
+    "1": "patrol_end",
+    "2": "patrol_end",
+    "3": "lost",
+    "4": "patrol_end",
+    "5": "lost",
+    "6": "lost",
+    "7": "lost"
    },
    "minuter": {
     "lost": 29,
@@ -442,11 +948,22 @@
     "patrol_end": 2,
     "shaken": 4
    },
+   "frön": {
+    "0": "shaken",
+    "1": "patrol_end",
+    "2": "lost",
+    "3": "shaken",
+    "4": "lost",
+    "5": "shaken",
+    "6": "patrol_end",
+    "7": "shaken"
+   },
    "minuter": {
     "lost": 30,
     "patrol_end": 33,
     "shaken": 26
    }
   }
- }
+ },
+ "_commit": "09baead+ändrad"
 }

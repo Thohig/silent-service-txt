@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from .. import phrases
 from .. import russian as R
 from ..events import RecordingMade
+from ..geo import angle_diff, norm360
 
 RECORD_SE = 8.0            # dB över tröskeln: gott nog för bandet
 RECORD_S = 600             # så länge med gott ljud för en användbar inspelning
@@ -25,6 +26,7 @@ HELD_BEFORE_SUGGEST_S = 60  # kontakten hållen så länge innan sonar föreslå
 LISTEN_DEPTH_M = 40         # över skiktet
 CLOSE_SPEED_KN = 5          # smygmotorns bästa
 RECORD_CLASS = "Polaris"
+BAFFLE_MARGIN_DEG = 10.0    # ... och så här långt utanför döda sektorn räknas som akterut
 
 
 @dataclass
@@ -45,8 +47,10 @@ PHRASES = {
     f"{d['minutes']} minuter av {d['need']} inspelade. Vi måste närmare, eller låta den komma till oss.",
     "sonar.suggest.record_up": lambda d: f"Kapten, sonar. Under skiktet hör vi {d['designation']} "
     f"för svagt för bandet. Föreslår djup {d['depth']}, över skiktet.",
-    "sonar.suggest.record_close": lambda d: f"Kapten, sonar. {d['designation']} är för svag för "
-    f"bandet, bäring {d['bearing']:03d}. Föreslår kurs {d['bearing']:03d} och fart {d['speed']} mot den.",
+    "sonar.suggest.record_close": lambda d: f"Kapten, sonar. {d['designation']} "
+    + ("ligger akterut, där skymmer skrovet och skruven bandet. Sista bäringen" if d.get("astern")
+       else "är för svag för bandet, bäring") + f" {d['bearing']:03d}. Föreslår kurs "
+    f"{d['bearing']:03d} och fart {d['speed']} mot den.",
     "sonar.record.done": lambda d: f"Kapten, sonar! Inspelningen av {d['designation']} är klar: "
     f"{d['minutes']} minuter med gott ljud, skruven och maskinen hörs tydligt.",
 }
@@ -114,12 +118,25 @@ class RecordingMixin:
                                                "need": RECORD_S // 60}, kind="info")
 
     def _suggest_closer(self, tr, obs) -> None:
-        """För svagt för bandet: över skiktet om vi är under det, annars mot kontakten."""
+        """För svagt för bandet: över skiktet om vi är under det, annars mot kontakten (mot sista bäringen
+        när den ligger akterut i döda sektorn och vi inte har någon färsk)."""
         k = self.game.knowledge
-        if not obs or self.now - tr.first_t < HELD_BEFORE_SUGGEST_S or k.hunted(self.now) or \
+        if self.now - tr.first_t < HELD_BEFORE_SUGGEST_S or k.hunted(self.now) or \
                 k.torpedo_alarm(self.now):
             return
         st = self.own.state
+        if not obs:
+            # ingen färsk bäring: ligger den akterut i döda sektorn går vi mot sista bäringen
+            b = tr.last_bearing
+            if b is None or abs(angle_diff(b, norm360(st.course + 180.0))) > \
+                    self.own.baffle_deg + BAFFLE_MARGIN_DEG:
+                return
+            b = round(b) % 360
+            self.suggest("record_close", "sonar.suggest.record_close",
+                         {"designation": tr.designation, "bearing": b, "speed": CLOSE_SPEED_KN,
+                          "astern": True},
+                         order=f"kurs {b:03d}, fart {CLOSE_SPEED_KN}", cooldown=300)
+            return
         layer = self.layer_depth()
         d = {"designation": tr.designation}
         if layer is not None and st.ordered_depth >= layer:

@@ -358,6 +358,11 @@ class SteeringMixin:
             return
         if not self._fairway_left():
             return
+        k = self.game.knowledge
+        if k.fairway_to in k.waypoints and \
+                self._fairway_index() >= len(self._fairway_points()) - 1:
+            return      # bara sista benet kvar och farleden leder till ett känt mål: gå dit direkt
+                        # (förut gick förslagen fram och tillbaka med övningens "kurs mot området")
         self.suggest("fairway", "nav.suggest.fairway",
                      {"to": self.game.knowledge.fairway_to, "surfaced": self.own.surfaced},
                      order="farleden", cooldown=FAIRWAY_SUGGEST_S)

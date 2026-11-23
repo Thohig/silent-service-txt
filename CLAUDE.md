@@ -154,7 +154,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 
 Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där):
 - `docs/system/scenarier.md`: Civil trafik, Konvoj, Konvoj i plottet, Anfall, Övningen, Jagarkaptenerna,
-  Flyg, Fiendens torpeder (med nedräkningen), Clyde, Krigspatrullen, Svansen (med döda sektorn)
+  Flyg, Fiendens torpeder (med nedräkningen), Clyde, Krigspatrullen, Svansen (döda sektorn är beskriven där)
 - `docs/system/hav.md`: Land skymmer, Ljuset, Molnen, Fyrarna, Firth of Clyde, Is, Havsbotten, Strömmen,
   Sjögången, Vädret
 - `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden
@@ -244,8 +244,9 @@ för in varje färdigt steg där.
   Skrovknak 132 dB var 25:e m vid djupändring > 1 m/s under 80 m (rodren i ≳ 6 kn); maskin säger det under jakt.
 - Trådstyrd 53-62T (försök): 35 kn, 7 nm, tråd 5,5 nm; styrs var 20:e s, målsökaren släpps 0,6 nm från
   målet; tråden av efter 15 s över 12 kn, gir > 90° från kursen vid skottet, ~1 %/min av sig själv.
-- Döda sektorn (bara Svansen, `OwnShip.baffle_deg` 30°): 12 dB + 1,5 dB/kn över 4 kn, högst 25; sonar
-  föreslår `kurs ±60°, fart 4` efter 10 min rakt i ≥ 6 kn. Skuggaren 1,6–1,9 nm akterut, märker vår fart med 90 s
+- Döda sektorn (alla scenarier sedan 2026-11-23, `OwnShip.baffle_deg` 30°): 12 dB + 1,5 dB/kn över 4 kn, högst 25; sonar
+  föreslår `kurs ±60°, fart 4` efter 10 min rakt i ≥ 6 kn (inte när navigatören styr eller mot kortets land), och en gir
+  som lägger en nyss tappad kontakt tvärs när den ligger akterut (`sonar.suggest.astern_lost`, en gång per tappning). Skuggaren 1,6–1,9 nm akterut, märker vår fart med 90 s
   eftersläpning, anfaller 12–16 min efter överlämnandet.
 - Fiendens torped Mk 37: 26 kn, 5 nm, 145 dB, söker passivt i 40° och aktivt inom 0,4 nm och ±50 m i höjd;
   skenmålet 135 dB och bubbelekot starkare än skrovet; en träff är förlusten. Vi går 28 kn på turbinen.
@@ -270,6 +271,11 @@ för in varje färdigt steg där.
   bara rör `.md` och `docs/` kör inget. Repot är offentligt sedan 2026-11-21 (minuterna är
   gratis). `setup-uv` har inga flyttande huvudtaggar: exakt version (`@v10.3.3`); övriga actions på huvudversion. Scenariotestet hoppar över de korta
   varianternas uppvärmning utan `--slow`.
+- Buggjakt efter en ändring (`kalibrering/README.md`, Buggjakt): `kontroll.py` säger vad som flyttat och vilka
+  frön; `skillnad.py scenario frö --mot <commit>` visar första rapporten som skiljer (sparar timmar av spårande);
+  `skytt.py ja|skjut|lyssna alla` kör botarna med oraklet (larm mot sanningen: grund utan varning, tjat, låg
+  fart kvar, säker men fel …) och skriver JSON-loggar som `sok.py` söker i. Nytt fel hittat för hand ⇒ nytt larm
+  i `orakel.py`.
 - Verifiera spelkänslan med en huvudlös genomspelning: skapa `Game`, prenumerera
   på `ReportDelivered`, skriv ut rapporter, kör `g.tick()` i en loop (gärna med
   en bot som svarar `ja` på förslag). Tillfälliga skript i scratchpad; botar som ger siffrorna ligger i

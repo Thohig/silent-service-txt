@@ -145,11 +145,14 @@ class IceMap:
         return [o for o in self.openings if not o.dropped and now - o.last.t <= FORGET_S]
 
     def best(self, now: int, x: float, y: float) -> Opening | None:
-        """Bästa öppningen att gå till: högst kvalitet, sedan närmast."""
+        """Bästa öppningen att gå till: högst kvalitet, sedan närmast. Nyis kortare än båten tas inte
+        med (den går inte att bryta igenom, och masterna går inte genom is); öppet vatten räcker för
+        masterna. Förut skickades vaken till 100 m nyis, och maskin föreslog den om och om igen."""
         def key(o: Opening):
             cx, cy = o.center
             return (-int(o.quality(now)), distance(x, y, cx, cy))
-        cands = [o for o in self.candidates(now) if o.quality(now) >= Quality.OSAKER]
+        cands = [o for o in self.candidates(now) if o.quality(now) >= Quality.OSAKER
+                 and (o.open or o.length_m >= MIN_SURFACE_LEN_M)]
         return min(cands, key=key, default=None)
 
     @staticmethod

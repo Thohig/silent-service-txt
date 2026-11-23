@@ -14,7 +14,11 @@ Inget just nu (webbversionen provad av kaptenen 2026-11-22: fungerar bra).
 
 ## Utreda
 
-Inget just nu (skyttebotens fynd 2026-11-23 utredda, se `docs/ANDRINGAR.md`).
+Oraklets kvarvarande larm (2026-11-23, `skytt.py ja alla`):
+- **Säker men fel på övningens bevakningsfartyg** (ovning 0, 2, 7): plottet säker på 5,9 nm när det låg på 2,3,
+  kursen 150° fel; lösningen spänner 30 min med en lucka på 18 min och ett par girar. Att räkna fartyget som
+  sicksackande (q = 30) tog bort felet men gjorde lösningen så sällan god att övningstorpeden inte sköts
+  (`test_short_variant_with_a_captain_who_fires`). Kanske: kortare fönster efter en märkt gir för mål som girar.
 
 ## Beslut som väntar på kaptenen
 

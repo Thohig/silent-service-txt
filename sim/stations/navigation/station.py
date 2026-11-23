@@ -226,6 +226,8 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         self._vak_here = False
         self._hull_ice: tuple[int, float, float] | None = None   # isekolodet för och akter (t, m, m)
         self._vak_tries = 0                 # gånger vi lagt om mot mitten för att skrovet inte rymdes
+        self._narrow_at_station: set[int] = set()   # öppningar vid stationen för smala för ytläge
+        self._narrow_station_t = -10**9           # senast vi sa att en öppning vid stationen var för smal
         self._prev_usable = False
         self._told_out = False                # har sagt att vi lämnat området
         self.exit_via: str | None = None      # vägen ut går först runt land
@@ -592,6 +594,10 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         else:
             self._pending.add(what)
 
+    def _periscope_vetoed(self) -> bool:
+        """Säger någon nej till periskopdjup just nu (vakthavande: mycket stark radar)?"""
+        return any(st.vetoes("periskopdjup") for st in self.game.stations if st is not self)
+
     def vetoes(self, order: str) -> bool:
         """Ingen i besättningen föreslår dykning där ordern förbjuder det, och ingen föreslår en fix
         i periskopet när kaptenen just beordrat oss ned."""
@@ -656,8 +662,9 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                 out.append(Proposal(4, "idle_fix_now", "nav.suggest.fix_now", "fix",
                                     {"sigma": sigma}, cooldown=900))
             elif s.depth > PERISCOPE_DEPTH:
-                out.append(Proposal(4, "idle_fix", "nav.suggest.fix", "periskopdjup",
-                                    {"sigma": sigma}))
+                # samma nyckel som det vanliga fixförslaget: en spärr för båda
+                out.append(Proposal(4, "fix", "nav.suggest.fix", "periskopdjup",
+                                    {"sigma": sigma}, cooldown=1800))
         if self.game.escape_nm is None and self._quiet_contact_picture() \
                 and self.now - self.course_set_t >= SEARCH_LEG_S \
                 and self.vak is None and self.goal is None and s.ordered_speed > 0:
@@ -790,7 +797,8 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                 self.suggest("bfix", "nav.suggest.bfix", {"sigma": sigma}, order="bottenfix",
                              cooldown=1800)
         elif sigma > 1.0 and s.depth > PERISCOPE_DEPTH and \
-                (self.under_ice() or self.game.knowledge.threat_held()) and self._bfix_worthwhile():
+                (self.under_ice() or self.game.knowledge.threat_held() or self._periscope_vetoed()) \
+                and self._bfix_worthwhile():
             self.suggest("bfix", "nav.suggest.bfix", {"sigma": sigma}, order="bottenfix",
                          cooldown=1800)
         elif sigma > 1.0 and s.depth > PERISCOPE_DEPTH:
