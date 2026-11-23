@@ -1,6 +1,6 @@
 """Ett svep med många kontakter blir en rad och en tabell (2026-11-23).
 
-Periskopet, bryggan och den aktiva sonarn ropade förut varje kontakt för sig: ett svep över en konvoj
+Periskopet, bryggan, radarn och den aktiva sonarn ropade förut varje kontakt för sig: ett svep över en konvoj
 gav sju rader på tio sekunder (och sju upplästa meningar). `SweepCalls` samlar utropen i ett svep: är
 de färre än `BATCH_MIN` sägs de var för sig som förut; annars en rapport med det viktiga i texten
 (hur många, närmast, jagarna) och alla i tabellen under. Bara texten läses upp (`data["spoken"]`).
@@ -18,9 +18,10 @@ from ..reports import Quality
 BATCH_MIN = 4          # så många eller fler i samma svep: en rad och en tabell
 QUIET_S = 2            # svepet är slut när inget nytt ropats så här länge
 
-WHO = {"periscope": "Periskop", "bridge": "Bryggan", "active": "Aktiv sonar"}
-WHO_RU = {"periscope": "Перископ", "bridge": "Мостик", "active": "Активный поиск"}
-WHAT = {"periscope": ("fartyg", "fartyg"), "bridge": ("fartyg", "fartyg"), "active": ("eko", "ekon")}
+WHO = {"periscope": "Periskop", "bridge": "Bryggan", "active": "Aktiv sonar", "radar": "Radar"}
+WHO_RU = {"periscope": "Перископ", "bridge": "Мостик", "active": "Активный поиск", "radar": "Радар"}
+WHAT = {"periscope": ("fartyg", "fartyg"), "bridge": ("fartyg", "fartyg"), "active": ("eko", "ekon"),
+        "radar": ("eko", "ekon")}
 
 
 def _count(n: int, forms: tuple[str, str]) -> str:
@@ -31,7 +32,7 @@ def _summary(d: dict) -> str:
     who = WHO[d["who"]]
     near = d["nearest"]
     out = f"{who}: {_count(d['n'], WHAT[d['who']])}"
-    out += " i sikte." if d["who"] != "active" else "."
+    out += " i sikte." if d["who"] in ("periscope", "bridge") else "."
     label = f", {near['label']}" if near.get("label") else ""
     out += f" Närmast {near['designation']}{label}, bäring {fmt_course(near['bearing'])}, " \
            f"cirka {nm(near['range'])} sjömil."
@@ -47,7 +48,8 @@ def _summary_ru(d: dict) -> str:
             f"дистанция {R.dec(near['range'], R.MILE)}.")
 
 
-SUMMARY_TYPES = {"periscope": "off.periscope.sweep", "bridge": "bridge.sweep", "active": "sonar.active.sweep"}
+SUMMARY_TYPES = {"periscope": "off.periscope.sweep", "bridge": "bridge.sweep", "active": "sonar.active.sweep",
+                 "radar": "off.radar.sweep"}
 phrases.register({t: _summary for t in SUMMARY_TYPES.values()})
 phrases.register_ru({t: _summary_ru for t in SUMMARY_TYPES.values()})
 

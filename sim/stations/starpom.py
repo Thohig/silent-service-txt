@@ -124,7 +124,7 @@ def _wake_at(m: re.Match) -> Order:
 # konvoj, telegram). Allt annat larm (torped, sjunkbomb, snabb pingtakt, skada,
 # läcka, brand, stridslarm …) är fara: kaptenen till centralen.
 ALARM_LEVELS = {
-    "sonar.new_contact": "info", "sonar.regained": "info", "plot.maneuver": "info",
+    "sonar.new_contact": "info", "sonar.regained": "info", "sonar.regained.many": "info", "plot.maneuver": "info",
     "radio.message": None, "plot.convoy.found": None,
     "sonar.ping.first": "question", "nav.wait.arrived": "question",
     "nav.attack.arrived": "danger", "nav.attack.passed": "question",

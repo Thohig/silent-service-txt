@@ -35,6 +35,7 @@ from ..russian import ru
 from ..tma import BearingObs
 from .base import Proposal, Station
 from .sonar_room import SonarRoom
+from .sweep import SweepCalls
 
 BIG_SHIP_WORDS = ("stort", "transport", "tank")   # sonarns klassning av stora fartyg (mål)
 
@@ -782,10 +783,12 @@ class OfficerStation(Station):
             hits = [v for v in self._surface_ships() if world.true_range(v) <= RADAR_RANGE_NM]
             if not hits:
                 self.say("off.radar.none")
+            calls = SweepCalls(self, "radar")    # många ekon: en rad och en tabell
             for v in hits:
                 r = world.true_range(v)
                 d = self._observe(v, 1.0, 0.01 * r + 0.01, "radar", "ytfartyg (radar)")
-                self.say("off.radar.contact", d, kind="contact", quality=Quality.SAKER)
+                calls.add("off.radar.contact", d, kind="contact", quality=Quality.SAKER)
+            calls.flush(force=True)
 
         # radarvarnare: automatiskt på periskopdjup
         if st.depth > PERISCOPE_DEPTH + 1:

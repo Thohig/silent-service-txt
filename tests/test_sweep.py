@@ -109,3 +109,32 @@ def test_one_minute_is_singular():
     assert "en minut av 10 inspelade" in PHRASES["sonar.record.weak"]({"designation": "S-1", "minutes": 1,
                                                                        "need": 10})
     assert "3 minuter av 10" in PHRASES["sonar.record.weak"]({"designation": "S-1", "minutes": 3, "need": 10})
+
+
+def test_many_contacts_heard_again_on_one_line():
+    """Krig-kort: sex 'hörs igen' samma minut (under skiktet, ur döda sektorn)."""
+    from sim.sonar import Detection
+    g, reports = _game()
+    sonar = g.station(SonarRoom)
+    for i in (1, 2, 3):
+        g.knowledge.on_detection(f"S-{i}", g.now)
+    sonar._regained_t = g.now
+    sonar._regained_batch = [("S-1", 10.0), ("S-2", 20.0), ("S-3", 30.0)]
+    for _ in range(12):
+        g.tick()
+    said = [r for r in reports if r.type.startswith("sonar.regained")]
+    assert [r.type for r in said] == ["sonar.regained.many"]
+    assert said[0].text == "Kapten, sonar. S-1 (010), S-2 (020) och S-3 (030) hörs igen."
+
+
+def test_radar_many_echoes_one_report():
+    g, reports = _game()
+    calls = SweepCalls(g.station(SonarRoom), "radar")
+    for i in range(1, 5):
+        calls.add("off.radar.contact", {"designation": f"S-{i}", "bearing": 30.0 * i, "range": 2.0 * i},
+                  kind="contact", quality=Quality.SAKER)
+    calls.flush(force=True)
+    for _ in range(8):
+        g.tick()
+    said = [r for r in reports if r.type.startswith("off.radar")]
+    assert [r.type for r in said] == ["off.radar.sweep"] and said[0].text.startswith("Radar: fyra ekon. Närmast S-1")

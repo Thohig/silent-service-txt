@@ -150,6 +150,8 @@ PHRASES = {
     + _and([c["designation"] + (f" ({fmt_course(c['last_bearing'])})" if c.get("last_bearing")
                                 is not None else "") for c in d["contacts"]]) + ".",
     "sonar.regained": lambda d: f"{d['designation']} hörs igen, bäring {fmt_course(d['bearing'])}.",
+    "sonar.regained.many": lambda d: "Kapten, sonar. "
+    + _and([f"{c['designation']} ({fmt_course(c['bearing'])})" for c in d["contacts"]]) + " hörs igen.",
     "sonar.ping.first": lambda d: f"Kapten, sonar! Aktiv sonar i bäring {fmt_course(d['bearing'])}"
     f"{_src(d)}. Någon söker." + (f" Svaga pingar, {_far(d)}." if d.get("far") else ""),
     "sonar.ping.fast": lambda d: f"{ru('Tovarisjtj komandir')}, sonar! Pingtakten{_src(d)} har ökat kraftigt. "
@@ -235,6 +237,8 @@ RU_PHRASES = {
     + ", ".join(R.contact(c["designation"]) for c in d["contacts"]) + ".",
     "sonar.regained": lambda d: f"{_ru_cap(R.contact(d['designation']))} снова слышна, пеленг "
     f"{R.course(d['bearing'])}.",
+    "sonar.regained.many": lambda d: f"{R.CAPTAIN}, акустик. Снова слышны: "
+    + ", ".join(R.contact(c["designation"]) for c in d["contacts"]) + ".",
     "sonar.ping.first": lambda d: f"{R.CAPTAIN}, акустик! Работа гидролокатора, пеленг "
     f"{R.course(d['bearing'])}{_ru_src(d)}. "
     + (f"Посылки слабые, {_ru_far(d)}." if d.get("far") else "Нас ищут."),
@@ -305,6 +309,8 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         self.own_marks: list[OwnMark] = []
         self._ambient: float | None = None         # havsbruset sonaren senast sagt (dB)
         self._lost_batch: list[tuple[str, float | None]] = []   # tappade, ännu inte sagda
+        self._regained_batch: list[tuple[str, float]] = []      # hörda igen, ännu inte sagda (som de tappade)
+        self._regained_t = 0
         self._lost_t = 0
 
     def attach(self, bus) -> None:
@@ -489,8 +495,9 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                         self._lost_batch = [x for x in self._lost_batch if x[0] != ev.designation]
                         continue
                     if known is not None:
-                        self.say("sonar.regained", {"designation": ev.designation,
-                                                    "bearing": ev.bearing}, kind="contact")
+                        if not self._regained_batch:
+                            self._regained_t = self.now
+                        self._regained_batch.append((ev.designation, ev.bearing))
                         continue
                     self.say("sonar.new_contact",
                              {"designation": ev.designation, "bearing": ev.bearing,
@@ -532,6 +539,8 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                     bus.publish(OwnTorpedoHeard(self.now, ev.no, ev.kind, ev.bearing, q, ev.se))
         if self._lost_batch and self.now - self._lost_t >= LOST_BATCH_S:
             self._say_lost()
+        if self._regained_batch and self.now - self._regained_t >= LOST_BATCH_S:
+            self._say_regained()
 
     def _say_lost(self) -> None:
         """De tappade kontakterna: en rad för en, en samlad rad för flera (t.ex. under skiktet)."""
@@ -542,6 +551,17 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         else:
             self.say("sonar.lost.many", {"contacts": [{"designation": d, "last_bearing": b}
                                                       for d, b in batch]}, kind="contact")
+
+    def _say_regained(self) -> None:
+        """Kontakterna som hörs igen: en rad för en, en samlad rad för flera (vi kom under skiktet
+        eller ur döda sektorn: krig-kort gav sex rader samma minut)."""
+        batch, self._regained_batch = self._regained_batch, []
+        if len(batch) == 1:
+            d, b = batch[0]
+            self.say("sonar.regained", {"designation": d, "bearing": b}, kind="contact")
+        else:
+            self.say("sonar.regained.many", {"contacts": [{"designation": d, "bearing": b} for d, b in batch]},
+                     kind="contact")
 
     def idle_proposals(self) -> list[Proposal]:
         st, env = self.own.state, self.world.env
