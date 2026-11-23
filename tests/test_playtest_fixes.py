@@ -299,3 +299,12 @@ def test_cavitation_advice_uses_the_depth_we_are_going_to():
     st.speed = st.ordered_speed = 16.0
     order, data = eng._cavitation_advice()
     assert data["speed"] == 9 and order == "fart 9"
+
+
+def test_creep_is_not_suggested_once_they_have_us():
+    g, _ = _game("kuba", 2)
+    eng = g.station(EngineeringStation)
+    assert not eng.vetoes("smygmotor")
+    g.knowledge.hunt_t = g.now
+    assert eng.vetoes("smygmotor")
+    assert not eng.vetoes("skenmål, kurs 090, smygmotor, fart 4, djup 130")

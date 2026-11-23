@@ -607,6 +607,13 @@ class EngineeringStation(Station):
         safe = max(3.0, int(acoustics.cavitation_speed(min(st.depth, st.ordered_depth))))
         return f"fart {safe}", {"speed": safe}
 
+    def vetoes(self, order: str) -> bool:
+        """Smygmotor föreslås inte när de har oss: maskin uppdateras före sonar, och förslaget som
+        gjordes samma sekund som jakten började kom efter 'de har troligen kontakt med oss' (jagad
+        frö 41: smygmotor, och 8 s senare turbin och sprint). Sonars tysta undanmanöver för en torped
+        nära har fler delar och släpps igenom."""
+        return order.strip().lower() == "smygmotor" and self.game.knowledge.hunted(self.now)
+
     def _hunt_quiet(self) -> bool:
         """Har jakten varit tyst länge nog för att smyga igen? (Jakttecknen kommer och går; utan
         väntan föreslog maskin turbin och 36 s senare smygmotor.)"""
