@@ -569,7 +569,7 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         out = []
         d = self._below_layer(env.layer_depth) if env.layer_depth is not None else None
         if held and d is not None and st.ordered_depth < env.layer_depth \
-                and not self._up_for_radio():
+                and not self._up_for_radio() and not self.own.surfaced and not self.own.bridge_open:
             out.append(Proposal(2, "idle_layer", "sonar.suggest.layer",
                                 f"djup {d:.0f}", {"layer": env.layer_depth, "depth": d}))
         # inte under jakt: då vill maskin springa (Kuba frö 31: fart 4, och 25 s senare fart 16)
@@ -615,6 +615,8 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         env, st = self.world.env, self.own.state
         if "inspelning" in self.game.knowledge.order_tasks:
             return                  # vi ska lyssna, inte gömma oss: under skiktet hörs målet sämre
+        if self.own.surfaced or self.own.bridge_open:
+            return                  # i ytläge med folk på bryggan: att dyka är vakthavandes och bryggans sak
         if env.layer_depth is not None and st.ordered_depth < env.layer_depth \
                 and not self._up_for_radio():
             d = self._below_layer(env.layer_depth)

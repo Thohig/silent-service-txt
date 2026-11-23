@@ -372,8 +372,25 @@ class Game:
         # skäl (vakthavande: "flygradar nära", 11 s senare "radarn mycket stark", båda djup 60);
         # ett larm släpps ändå fram om det som står inte är ett
         sug = self.active_suggestion()
+        if sug is not None and self.now - sug[2] < SAME_SUGGESTION_S and \
+                (self.suggestion_alarm or not r.alarm) and self._deeper_pending(order, sug[0]):
+            return True
         return sug is not None and sug[0] == order and self.now - sug[2] < SAME_SUGGESTION_S and \
             (r.speaker != self.suggestion_by or not r.alarm or self.suggestion_alarm)
+
+    def _deeper_pending(self, order: str, pending: str) -> bool:
+        """Är förslaget bara 'gå ned', och tar det obesvarade förslaget oss minst lika djupt? (konvoj-mot:
+        maskins sprint till 220 m skrevs över av vakthavandes 'djup 60' 16 s senare)"""
+        from .orders import split_orders
+        from .stations.navigation.common import SetDepth
+        parts = [self.registry.parse(p) for p in split_orders(order)]
+        if len(parts) != 1 or not isinstance(parts[0], SetDepth):
+            return False
+        d = parts[0].depth
+        if d <= self.world.own.state.ordered_depth:
+            return False
+        return any(isinstance(o, SetDepth) and o.depth >= d
+                   for o in (self.registry.parse(p) for p in split_orders(pending)))
 
     def _confirm_quit(self) -> None:
         """Vakthavande frågar innan uppdraget avbryts; ja verkställer."""

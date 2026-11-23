@@ -225,3 +225,28 @@ def test_no_slow_down_offered_while_they_have_us_and_no_calm_said():
     from sim.phrases import PHRASES
     assert "lugnt" not in PHRASES["off.suggest.none"]({"calm": False})
     assert "lugnt" in PHRASES["off.suggest.none"]({"calm": True})
+
+
+def test_going_down_is_not_suggested_over_a_deeper_pending_suggestion():
+    """Konvoj-mot frö 41: maskins 'djup 220, turbin, fart 13' skrevs över av vakthavandes 'djup 60'."""
+    g, reports = _game()
+    g.world.own.state.depth = g.world.own.state.ordered_depth = 17.0
+    _run(g, 2)
+    g.say(Role.ENGINEER, "order.declined", {"order": "djup 220, turbin, fart 13", "made_t": g.now}, kind="suggest")
+    _run(g, 8)
+    g.say(Role.OFFICER, "order.declined", {"order": "djup 60", "made_t": g.now}, kind="suggest")
+    _run(g, 8)
+    orders = [r.data.get("order") for r in reports if r.kind == "suggest"]
+    assert "djup 220, turbin, fart 13" in orders and "djup 60" not in orders
+    assert g.active_suggestion()[0] == "djup 220, turbin, fart 13"
+
+
+def test_no_layer_suggestion_on_the_surface():
+    """I ytläge föreslog sonar 'djup 120 under skiktet' (och trängde undan 'vänta på mörkret')."""
+    from sim.stations import SonarRoom
+    g, reports = _game()
+    st = g.world.own.state
+    st.depth = st.ordered_depth = 0.0
+    g.knowledge.threat_held = lambda: True
+    _run(g, 30)
+    assert not any(p.key == "idle_layer" for p in g.station(SonarRoom).idle_proposals())
