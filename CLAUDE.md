@@ -244,6 +244,12 @@ för in varje färdigt steg där.
   Skrovknak 132 dB var 25:e m vid djupändring > 1 m/s under 80 m (rodren i ≳ 6 kn); maskin säger det under jakt.
 - Trådstyrd 53-62T (försök): 35 kn, 7 nm, tråd 5,5 nm; styrs var 20:e s, målsökaren släpps 0,6 nm från
   målet; tråden av efter 15 s över 12 kn, gir > 90° från kursen vid skottet, ~1 %/min av sig själv.
+- Torpedrummets frågor (`docs/system/besattning.md`, 2026-11-23): fredstid (ordern säger inte krig, inte angripna
+  skarpt) ⇒ en fråga före skarpt skott, och första sänkta fienden avslutar (`PeaceBroken`); rak torped med gångtid
+  > 5 min (`LONG_RUN_S`) ⇒ en fråga och förslag om `anfall S-x` (inte under jakt); träffpunkt innanför
+  armeringssträckan ⇒ en fråga, också salva. Omladdning föreslås 60 s efter skottet (inte under jakt) och genast
+  när ett skott nekas; minören föreslår en 53-62T när ingen tub har en. Framme i skjutläget djupare än 100 m ⇒
+  navigatören föreslår `fart 3, djup 90`.
 - Döda sektorn (alla scenarier sedan 2026-11-23, `OwnShip.baffle_deg` 30°): 12 dB + 1,5 dB/kn över 4 kn, högst 25; sonar
   föreslår `kurs ±60°, fart 4` efter 10 min rakt i ≥ 6 kn (inte när navigatören styr eller mot kortets land), och en gir
   som lägger en nyss tappad kontakt tvärs när den ligger akterut (`sonar.suggest.astern_lost`, en gång per tappning). Skuggaren 1,6–1,9 nm akterut, märker vår fart med 90 s
@@ -255,8 +261,9 @@ för in varje färdigt steg där.
   Ny djuporder i ≤ 2 kn och uppstigning till ytan görs med barlasten (trimmen spelar ingen roll).
 - Scenariernas och systemens siffror (botar, frön, utfall) står i `kalibrering/README.md` under
   Siffrorna. `uv run python kalibrering/kontroll.py` jämför passiva boten och ja-boten med
-  `kalibrering/baslinje.json`; `kalibrering/fingeravtryck.py` visar att en omstrukturering inte
-  ändrar spelet (samma frö ⇒ samma rapporter).
+  `kalibrering/baslinje.json` (8 frön, 16 i Clyde, Clyde-in, konvoj, konvoj-kort och krig-kort; utfall per frö
+  och baslinjens commit, `--spara` efter en medveten ändring); `kalibrering/fingeravtryck.py` visar att en
+  omstrukturering inte ändrar spelet (samma frö ⇒ samma rapporter).
 
 ## Arbetssätt
 - Bygg i steg och **committa efter varje steg** (användaren vill det). Vid större

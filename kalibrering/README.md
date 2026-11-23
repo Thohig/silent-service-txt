@@ -224,6 +224,23 @@ långsamt, och trimmarens förslag tog platsen för navigatörens).
 
 Flyttade ur CLAUDE.md (2026-11-18). Ändra medvetet och kör sedan botarna; uppdatera här.
 
+**Skyttebotarna och döda sektorn (2026-11-23).** `skytt.py`, alla 22 scenarier, frön 0–7 (före verktygen samma
+botar i scratchpad, frön 1–8), 180 min:
+- *skjut* (eld/salva på varje säker lösning, upprepar ordern): före rättelserna 33 skott, 3 träffar (alla på
+  Polarisbåten i ytläge), 0 av 26 mot jagare, transporter och tankfartyg (median 4,6 nm, målet girade under gången i
+  30 av 34 missar).
+- *lyssna* (avstår vid frågan om långt skott, tar anfallet, skjuter på god lösning i skjutläget): 13 skott, 5 sänkta;
+  med minörens 53-62T 15 skott mot ytmål, 9 sänkta.
+- Plottets lösningar som inte satt sig (`Knowledge._settled`), `tma_kvalitet.py` övning, kuba, konvoj-kort, sundet,
+  krig-kort, 120 min: frön 1–8 säker grova 1,1 % ⇒ 0,5 %, god 5,8 % ⇒ 2,8 %; frön 9–16 säker 2,4 % ⇒ 0,2 %, god
+  6,5 % ⇒ 4,7 %; ~10 % färre säkra.
+- Döda sektorn i alla scenarier, ny baslinje (`kontroll.py --spara`, commit de1a306): ja-boten clyde-in inspelad 3 av 8
+  ⇒ 11 av 16, krig hemma 5 ⇒ 8 (förlorad 2 ⇒ 0), arktis stationen median 270 ⇒ 179 min, jagad förlorad median 49 ⇒
+  64 min, övrigt som förut. Clyde 3 av 16 (gamla koden 4 av 16: brus). Arktis drivstationen 11 av 16 frön med och
+  utan sektorn (testets gräns nu 3 av 8).
+- Oraklet, ja-boten, alla scenarier: tjat 25 ⇒ 7, skjutläge för djupt 13 ⇒ 0, låg fart kvar 4 ⇒ 0, säker men fel 3
+  (övningens bevakningsfartyg, `docs/TODO.md`).
+
 **Omkört 2026-11-18** (efter slumpen per station, processbrus för sicksack q = 30 och avfyring ≤ 100 m;
 `tma_kvalitet.py` och `kontroll.py` även efter golvet för avståndets σ, 0,05 nm),
 8 frön om inget annat står. Siffrorna längre ned är de äldre; jämför med dessa.
