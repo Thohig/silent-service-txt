@@ -262,3 +262,18 @@ def test_no_attack_suggested_when_we_already_attack_the_target():
     _run(g, 30)
     assert any(r.type == "torp.long_shot" for r in reports)
     assert not any(r.type == "torp.suggest.close" for r in reports)
+
+
+def test_the_torpedoman_offers_one_wire_guided_torpedo_first():
+    g, _ = _game("konvoj")
+    torp = g.station(TorpedoRoom)
+    for t in torp.tubes[:3]:
+        t.load = None
+    assert torp._reload_offer() == (1, "53-62T")
+    torp.tubes[0].loading = "53-62T"                 # en är på väg in: nästa blir en vanlig
+    n, typ = torp._reload_offer()
+    assert n == 2 and typ in ("SET-53", "53-61")
+    assert torp._reload_offer(straight=True) == (2, "53-61")    # salvan behöver raka
+    torp.inventory["53-62T"] = 0
+    torp.tubes[0].loading = None
+    assert torp._reload_offer()[1] != "53-62T"

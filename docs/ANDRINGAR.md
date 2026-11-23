@@ -3,6 +3,14 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-23 – Minören föreslår den trådstyrda 53-62T
+
+De två 53-62T låg i reserven i alla scenarier utom Övningen men laddades aldrig av sig själv: minörens förslag
+tog bara SET-53 och 53-61. Nu föreslår han en 53-62T när ingen tub har eller laddar en ("den trådstyrda: sju
+sjömil, och vi styr den mot plottets lösning tills målsökaren tar över"), annars som förut; salvan får 53-61
+(`TorpedoRoom._reload_offer`). Lyssnande skyttebot, 11 krigs- och krisscenarier × 8 frön: 5 skott med 53-62T,
+ytmål sänkta 9 av 15 skott (förut 5 av 13).
+
 ## 2026-11-23 – Långt skott: torpedrummet föreslår anfall, navigatören skjutdjup
 
 Skyttebotens andra körning: 38 skott mot jagare, transporter och tankfartyg på säkra lösningar, inget sänkt;

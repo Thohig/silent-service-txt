@@ -243,7 +243,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
     kind long, målsökarna). Ett köat `torp.ready` mot målet släpps när vi skjuter på det (`ReportQueue.drop`).
   - *Omladdning:* en tub vi skjutit tom föreslås laddad `RELOAD_SUGGEST_S` (60 s) efter skottet, inte medan
     de har oss, igen efter `RELOAD_COOLDOWN_S` (10 min); nekas ett skott för att ingen tub kan (`eld`, `salva`)
-    föreslås omladdningen genast, också under jakt (högst var 2:e min). Tystnadens förslag som förut.
+    föreslås omladdningen genast, också under jakt (högst var 2:e min). Tystnadens förslag som förut. Vad
+    minören föreslår (`_reload_offer`): en 53-62T om ingen tub har eller laddar en (en i taget står redo),
+    annars det vi har mest av av SET-53 och 53-61, och 53-61 när en salva nekats.
 - **Fråga en gång** (`Station.confirm_once`, anropas i `intercept`; `CONFIRM_S` 60 s): en order som bryter
   mot uppdraget eller saknar skäl stoppas första gången med skälet, och samma order inom en minut
   verkställs. Navigatören: dykning i fjorden (`nav.fjord_dive`, övningen) och ytläge när plottet har en

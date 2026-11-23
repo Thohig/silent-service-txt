@@ -215,10 +215,15 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
 
     # --- omladdning ------------------------------------------------------------------
     def _reload_offer(self, tubes=None, straight: bool = False) -> tuple[int, str] | None:
-        """Första tomma tuben och vad minören laddar: konventionella vapen, det vi har mest av (en
-        rak för salvan); kärnladdningen laddas bara på uttrycklig order."""
-        stock = [k for k in (("53-61",) if straight else ("SET-53", "53-61"))
-                 if self.inventory.get(k, 0) > 0]
+        """Första tomma tuben och vad minören laddar: en trådstyrd 53-62T om ingen tub har en (en
+        åt gången står redo, eldledningen styr en i taget), annars det vi har mest av (en rak för
+        salvan); kärnladdningen laddas bara på uttrycklig order."""
+        wire_ready = any("53-62T" in (t.load, t.loading) for t in self.tubes)
+        if not straight and not wire_ready and self.inventory.get("53-62T", 0) > 0:
+            stock = ["53-62T"]
+        else:
+            stock = [k for k in (("53-61",) if straight else ("SET-53", "53-61"))
+                     if self.inventory.get(k, 0) > 0]
         if not stock:
             return None
         for t in self.tubes:

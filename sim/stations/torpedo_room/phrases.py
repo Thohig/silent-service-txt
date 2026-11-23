@@ -173,7 +173,9 @@ PHRASES = {
     "torp.ready": lambda d: f"Kapten, torped. Vi har skjutlösning på {d['designation']}: "
     f"tub {d['tube']} med {d['type']}, gångtid {_mmss(d['run_s'])}. Inväntar order.",
     "torp.suggest.reload": lambda d: f"Kapten, torped. Tub {d['tube']} är tom. "
-    f"Föreslår att vi laddar {d['type']}.",
+    f"Föreslår att vi laddar {d['type']}"
+    + (", den trådstyrda: sju sjömil, och vi styr den mot plottets lösning tills målsökaren tar över."
+       if d['type'] == "53-62T" else "."),
     "torp.suggest.decoy": lambda d: "Kapten, torped. Föreslår skenmål för att dra deras sonar."
     + (f" Vi har {d['left']} kvar." if d.get("left", 99) <= 2 else ""),
     "torp.in_water": _in_water,
@@ -322,7 +324,8 @@ RU_PHRASES = {
     "torp.ready": lambda d: f"{R.CAPTAIN}, минёр. Есть решение по {R.contact(d['designation'], True)}: "
     f"аппарат {d['tube']}, {R.weapon(d['type'])}, время хода {R.mmss(d['run_s'])}. Ждём команды.",
     "torp.suggest.reload": lambda d: f"{R.CAPTAIN}, минёр. Аппарат {d['tube']} пуст. "
-    f"Предлагаю зарядить {R.weapon(d['type'])}.",
+    f"Предлагаю зарядить {R.weapon(d['type'])}"
+    + (", телеуправляемую." if d['type'] == "53-62T" else "."),
     "torp.suggest.decoy": lambda d: f"{R.CAPTAIN}, минёр. Предлагаю выпустить имитатор, "
     "чтобы отвлечь их гидролокатор."
     + (f" Осталось {R.count(d['left'], DECOY_RU)}." if d.get("left", 99) <= 2 else ""),
