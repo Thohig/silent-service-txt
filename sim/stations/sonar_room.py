@@ -31,6 +31,7 @@ from .base import Proposal, Station
 from .baffles import BafflesMixin
 from .incoming import IncomingMixin
 from .recording import RecordingMixin
+from .sweep import SweepCalls
 
 BEARING_REPORT_DELTA = 5.0
 LOST_BATCH_S = 5           # kontakter som tappas inom så här kort tid sägs på en rad
@@ -443,8 +444,10 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
             echoes.append({"designation": desig, "bearing": obs.bearing, "range": r_meas})
         if not echoes:
             self.say("sonar.active.none")
+        calls = SweepCalls(self, "active")       # många ekon: en rad och en tabell
         for e in echoes:
-            self.say("sonar.active.echo", e, kind="contact", quality=Quality.SAKER)
+            calls.add("sonar.active.echo", e, kind="contact", quality=Quality.SAKER)
+        calls.flush(force=True)
 
     # --- löpande -----------------------------------------------------------------
     def _ambient_watch(self) -> None:

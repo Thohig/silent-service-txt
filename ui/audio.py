@@ -614,8 +614,10 @@ def from_central(r: Report, status) -> bool:
 
 
 def spoken(r: Report) -> bool:
-    """Bara besättningens egna repliker läses upp – inte tabeller och systemrader."""
-    return bool(r.role) and r.kind != "system" and r.table is None and bool(r.text.strip())
+    """Bara besättningens egna repliker läses upp – inte tabeller och systemrader (en rad med en
+    tabell under, som svepet, läses upp när den säger det: `data["spoken"]`)."""
+    return bool(r.role) and r.kind != "system" and (r.table is None or bool(r.data.get("spoken"))) \
+        and bool(r.text.strip())
 
 
 _DIGIT = {"0": "noll", "1": "ett", "2": "två", "3": "tre", "4": "fyra",

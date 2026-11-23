@@ -216,4 +216,7 @@ def render(report: Report, clock: Callable[[int], str]) -> Report:
     if report.type == "plot.table":
         report.table = _plot_rows(report.data, clock)
         report.table_header = ["Tid", "Bäring", "Egen kurs", "Lösning", "Avvikelse"]
+    elif report.data.get("table"):          # färdiga rader (svepet: stations/sweep.py)
+        report.table = report.data["table"]
+        report.table_header = report.data.get("table_header")
     return report

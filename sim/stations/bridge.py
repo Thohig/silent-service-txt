@@ -35,6 +35,7 @@ from .base import Station
 from .lookout import visible_events
 from .officer import SIGHTED, _view_object
 from .sonar_room import SonarRoom
+from .sweep import SweepCalls
 
 LOOK_EVERY_S = 2
 BEARING_SIGMA = 1.0          # pejlskivan på bryggan, grader
@@ -159,6 +160,7 @@ class BridgeWatch(Station):
         self._land_f: tuple[int, float] = (-10**9, 1.0)
         self._events: list[tuple[int, SightedObject]] = []    # (syns till, händelsen)
         self._sea_said: int | None = None   # sjögången utkiken senast sagt
+        self._sweep_calls = SweepCalls(self, "bridge")   # en titt med många fartyg: en rad och en tabell
 
 
     def update(self) -> None:
@@ -169,6 +171,7 @@ class BridgeWatch(Station):
         new = self._watch_events()
         if new or self.now % LOOK_EVERY_S == 0:
             self._look()
+            self._sweep_calls.flush(force=True)
         sea = self.world.env.sea_state       # utkiken ser sjön ändras (vädret)
         if self._sea_said is not None and sea != self._sea_said:
             self.say("bridge.sea", {"sea": sea, "up": sea > self._sea_said})
@@ -347,10 +350,11 @@ class BridgeWatch(Station):
             self._plot(desig, full if sil else "ytfartyg", known, bearing, r_meas, r_sig,
                        None if moored else course, c_sig, speed)
         if self._call_out(v.id):
-            self.say("bridge.contact", {"designation": desig, "label": short, "bearing": bearing,
-                                        "range": r_meas, "visible": part, "course": None if moored else course,
-                                        "speed": speed, "lights": list(ls)},
-                     kind="contact", quality=range_quality(r_meas, r_sig))
+            self._sweep_calls.add("bridge.contact", {"designation": desig, "label": short, "bearing": bearing,
+                                                     "range": r_meas, "visible": part,
+                                                     "course": None if moored else course,
+                                                     "speed": speed, "lights": list(ls)},
+                                  kind="contact", quality=range_quality(r_meas, r_sig))
         if v.kind == "destroyer" and r_meas < CLOSE_NM and (d := self.dive_depth(DIVE_DEPTH)) is not None:
             self.suggest("bridge_dive", "bridge.suggest.dive",
                          {"reason": f"{desig} är nära, cirka {nm(r_meas)} sjömil.", "depth": d},

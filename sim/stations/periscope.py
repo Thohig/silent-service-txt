@@ -38,6 +38,7 @@ from ..geo import angle_diff, norm360, velocity
 from ..ice import ice_view
 from ..orders import DESIG, CommandSpec, Order, Unknown, desig
 from ..ownship import PERISCOPE_DEPTH
+from .sweep import SweepCalls
 from ..periscope import (EVENT_S, crest_m, sea_sigma_f, wave_height_m, sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
                          LandBearing,
                          HIGH, LOW, OPTICS, Optic, detectable,
@@ -263,6 +264,7 @@ class PeriscopeWatch(Station):
         self._land_seen_t = -10**9          # senast land syntes i okularet
         self._sea_seen = self.world.env.sea_state   # sjögången man såg senast (vid start: känd)
         self._column_t = -10**9             # senast en vattenpelare ropades ut
+        self._sweep_calls = SweepCalls(self, "periscope")
         self._new_raising()
 
 
@@ -408,6 +410,7 @@ class PeriscopeWatch(Station):
 
     # --- varje sekund -------------------------------------------------------------------
     def update(self) -> None:
+        self._sweep_calls.flush()
         if self.mode is None:
             return
         st, sys = self.own.state, self.own.sys
@@ -640,17 +643,17 @@ class PeriscopeWatch(Station):
             if prev is not None and self.now - prev[0] <= RECALL_S \
                     and (moored or abs(angle_diff(course, prev[1])) < RECALL_COURSE_DEG) \
                     and abs(speed - prev[2]) <= RECALL_SPEED_KN:
-                self.say("off.periscope.again",
-                         {"designation": desig_, "bearing": bearing, "range": r_meas},
-                         kind="contact", quality=Quality.GOD)
+                self._sweep_calls.add("off.periscope.again",
+                                      {"designation": desig_, "bearing": bearing, "range": r_meas},
+                                      kind="contact", quality=Quality.GOD)
             else:
                 self._last_call[v.id] = (self.now, course, speed)
-                self.say("off.periscope.contact",
-                         {"designation": desig_, "label": short, "bearing": bearing,
-                          "range": r_meas, "course": None if moored else course, "speed": speed,
-                          "lights": list(ls),
-                          "power": opt.key},
-                         kind="contact", quality=Quality.GOD)
+                self._sweep_calls.add("off.periscope.contact",
+                                      {"designation": desig_, "label": short, "bearing": bearing,
+                                       "range": r_meas, "course": None if moored else course, "speed": speed,
+                                       "lights": list(ls),
+                                       "power": opt.key},
+                                      kind="contact", quality=Quality.GOD)
             if v.kind == PHOTO_TARGET_KIND:
                 self.game.station(OfficerStation)._suggest_photo()
         if v.kind == "destroyer" and r_meas < CLOSE_NM and (d := self.dive_depth(100)) is not None:

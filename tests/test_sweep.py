@@ -1,0 +1,82 @@
+"""Svepet: många kontakter i ett svep blir en rad och en tabell (periskop, brygga, aktiv sonar)."""
+import random
+
+from sim.events import ReportDelivered
+from sim.game import Game
+from sim.phrases import render
+from sim.reports import Quality, Report
+from sim.scenario import build_scenario
+from sim.stations import SonarRoom
+from sim.stations.sweep import BATCH_MIN, QUIET_S, SweepCalls
+
+
+def _game():
+    g = Game(build_scenario("kuba", random.Random(1)), seed=1)
+    reports = []
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    return g, reports
+
+
+def _call(i, label="handelsfartyg"):
+    return {"designation": f"S-{i}", "label": label, "bearing": 10.0 * i, "range": 1.0 + i,
+            "course": 90.0, "speed": 10, "lights": [], "power": "låg"}
+
+
+def test_few_calls_are_said_one_by_one():
+    g, reports = _game()
+    calls = SweepCalls(g.station(SonarRoom), "periscope")
+    for i in range(1, BATCH_MIN):
+        calls.add("off.periscope.contact", _call(i), kind="contact", quality=Quality.GOD)
+    calls.flush()                                    # svepet pågår: inget sägs ännu
+    for _ in range(QUIET_S + 8):
+        g.tick()
+        calls.flush()
+    said = [r for r in reports if r.type.startswith("off.periscope")]
+    assert [r.type for r in said] == ["off.periscope.contact"] * (BATCH_MIN - 1)
+
+
+def test_many_calls_become_one_line_and_a_table():
+    g, reports = _game()
+    calls = SweepCalls(g.station(SonarRoom), "periscope")
+    calls.add("off.periscope.contact", _call(3, "jagare"), kind="contact", quality=Quality.GOD)
+    for i in (1, 2, 4, 5, 6):
+        calls.add("off.periscope.contact", _call(i), kind="contact", quality=Quality.GOD)
+    calls.add("off.periscope.again", {"designation": "S-7", "bearing": 70.0, "range": 0.6},
+              kind="contact", quality=Quality.GOD)
+    calls.flush(force=True)
+    for _ in range(8):
+        g.tick()
+    said = [r for r in reports if r.type.startswith("off.periscope")]
+    assert [r.type for r in said] == ["off.periscope.sweep"]
+    r = said[0]
+    assert r.text.startswith("Periskop: sju fartyg i sikte. Närmast S-7, bäring 070, cirka 0,6 sjömil.")
+    assert "Örlogsfartyg: S-3." in r.text
+    assert len(r.table) == 7 and r.table[0][0] == "S-7" and r.table[0][4] == "som förut"
+    assert r.table[1] == ["S-1", "handelsfartyg", "010", "2,0 nm", "090, 10 kn"]
+    assert r.speech and not any(c.isascii() and c.isalpha() for c in r.speech)
+
+
+def test_a_table_line_is_read_aloud_only_when_it_says_so():
+    from ui.audio import spoken
+    r = render(Report(0, "Vakthavande", "off.periscope.sweep",
+                      {"who": "periscope", "n": 5, "nearest": _call(1), "warships": [],
+                       "table": [["S-1", "", "010", "2,0 nm", ""]], "table_header": ["a"] * 5,
+                       "spoken": True}, role="officer", kind="contact"), lambda t: "")
+    assert r.table and spoken(r)
+    r.data["spoken"] = False
+    assert not spoken(r)
+
+
+def test_active_sonar_many_echoes_one_report():
+    g, reports = _game()
+    sonar = g.station(SonarRoom)
+    calls = SweepCalls(sonar, "active")
+    for i in range(1, 6):
+        calls.add("sonar.active.echo", {"designation": f"S-{i}", "bearing": 30.0 * i, "range": 2.0 * i},
+                  kind="contact", quality=Quality.SAKER)
+    calls.flush(force=True)
+    for _ in range(8):
+        g.tick()
+    said = [r for r in reports if r.type.startswith("sonar.active")]
+    assert [r.type for r in said] == ["sonar.active.sweep"]
+    assert said[0].text.startswith("Aktiv sonar: fem ekon. Närmast S-1, bäring 030, cirka 2,0 sjömil.")
