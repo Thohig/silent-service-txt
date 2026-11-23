@@ -3,6 +3,63 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-23 (kväll) – Provspel i alla scenarier: torpeden i döda sektorn och det som hittades på vägen
+
+Provspelat med orakelbotarna (`skytt.py`, alla lägen, frön 8–15), provspelskaptenen (`provspel.py`, alla 22
+scenarier) och kaosboten (44 spel, inga undantag). Varje fynd har ett test.
+
+**Torpeden i döda sektorn** (den allvarliga): springer vi ifrån en fientlig torped hamnar den rakt akterut och
+sonar tappar den. Förut släppte torpedlarmet efter 5 min och maskin föreslog lägre fart (kavitation), sonar 4 kn
+och en lyssningsgir, med torpeden kvar bakom oss (Svansen-kort frö 31: förslaget kom med torpeden 0,2 nm bakom,
+ja ⇒ sänkta). Nu säger sonar att den ligger i döda sektorn och troligen går kvar, och larmet gäller 12 min från
+första bäringen (`incoming.py` `TORPEDO_RUN_S`, `Knowledge.torpedo_astern_until`). Duell-kort, ja-boten, 16 frön:
+förlorade 13 ⇒ 6; Svansen-kort 3 ⇒ 2; jagad oförändrad.
+
+**Plottet:** en ubåt i undervattensläge (`submerged_submarine`) och konvojens eskort räknas som sicksackande
+(q = 30). Duell-kort: goda lösningar på ubåten grovt fel 69 % ⇒ 50 %, kurs > 90° fel 56 % ⇒ 17 %; konvojerna:
+säkra men grovt fel lösningar på jagarna 7 ⇒ 3. Ett avstånd med större σ än avståndet sägs inte i siffror ("kan
+vi inte säga ännu", förut "cirka 24,6, någonstans mellan 0,2 och 53,2").
+
+**Förslag som krockade:**
+- Samma order från samma station med ett annat skäl (vakthavande: flygradar, 11 s senare radar, båda djup 60).
+- Masterna föreslogs sekunder efter att kaptenen beordrat oss ned (sonars djup 120, vakthavandes periskopdjup);
+  nu inte de första 2 min (`DOWN_ORDER_HOLD_S`).
+- "Gå ned" släpps när ett obesvarat förslag redan tar oss djupare (maskins sprint till 220 m skrevs över av
+  "djup 60").
+- Smygmotor föreslogs samma sekund som jakten började (maskin uppdateras före sonar) och kom efter "de har oss";
+  nu veto när vi är jagade. Sonars fart 4 ges inte på begäran under jakt, och vakthavande kallar då inte läget lugnt.
+- Maskins sprint upprepades var 10:e min när vi redan sprang (8 gånger på 90 min); kavitationsrådet räknar farten
+  på djupet vi är på väg till.
+- Sonar föreslog "djup 120 under skiktet" i ytläge med bryggan bemannad.
+- Navigatörens "fart 3, djup 90" i skjutläget säger risken när de har oss.
+
+**Under isen:** vak går tillbaka till en öppning vi lämnat de senaste 90 s ("stoppa här" kom under en 30 m råk,
+ordern när vi glidit förbi: "ingen öppning loggad") och tar en som dög för en minut sedan; maskin säger inte "ingen
+öppning" strax efter att ha föreslagit en; en öppning där ytläget misslyckades stryks; omläggningen går mot mitten
+och hoppas över när vi redan står där (förut "lägger oss mitt i den" två gånger på en sekund). Arktis frö 8 ventilerar
+nu i stället för att röken blir livsfarlig.
+
+**Rapporterna:** ett svep med fyra eller fler kontakter (periskop, brygga, radar, aktiv sonar) blir en talad rad och
+en tabell (`stations/sweep.py`); flera "hörs igen" samlas; en salva säger sina tuber på en rad; antal med ord och
+rätt form ("ett civilt fartyg", "en jagare som eskort", "en minut").
+
+**Annat:** okända pingare följs med sin egen bäringsdrift (sundet frö 51: ett nära fartyg gav fem "Någon söker" och
+fem stridslarm på två minuter); en gir ut och tillbaka räknas inte som rak gång; lyssningsgiren väntar dubbelt så
+länge efter varje tom lyssning (10, 20, 40 min; Clyde: var 15:e min hela natten) och kommer inte när vi håller
+"kurs mot …" (övningen: ping-pong med vakthavande var tionde minut); anfallet styr på lösningen 5 min efter tappad
+kontakt och säger varför det slutar; plottet föreslår inget nytt ben medan navigatören styr (krig-kort: plottets ben
+avbröt anfallet, som föreslogs tre gånger); navigatören föreslår inte vägen ut medan vi går till en öppning (duell:
+vaken avbröts och sambandstillfället missades); trimmaren föreslår aldrig mer fart än maskinen har ("fart 6" på
+smygmotorn); en torped med stilla bäring vars nivå inte stiger "kommer inte närmare" (kretsar kring skenmålet),
+utan larm och ny undanmanöver (duell-kort: åtta minuter av "den kommer mot oss!"); fartyg under 3 kn blir ingen
+konvoj; "sök vidare" levereras inte medan vak pågår, och med rök i båten är en smal öppning vid stationen för
+masterna (periskopdjup och ventilera före ytläget).
+
+**Kalibreringen** (ny baslinje, `kontroll.py --spara`, commit cc8eb9e; ja-boten): arktis stationen nådd 3 ⇒ 6 av 8
+(förlorade 2, båda röken efter branden), duell-kort förlorad 6 ⇒ 4, konvoj-kort konvojen missad 4 ⇒ 1 av 16, duell
+ute 6 ⇒ 4 (resten kvar vid tidsgränsen, ingen förlorad), arktis-kort stationen 3 ⇒ 2; övrigt som förut.
+Slowtesterna: 1161 gröna.
+
 ## 2026-11-23 – Döda sektorn akterut i alla scenarier, buggjaktens verktyg och det de hittade
 
 **Döda sektorn överallt** (`OwnShip.baffle_deg` = `BAFFLE_DEG` 30°, förut bara Svansen): rakt akterut hör sonar

@@ -5,6 +5,11 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
 
 - **Loggen** (`ReportLog` i `ui/widgets.py`, en `RichLog`): `min_width` 20, så raderna bryts efter panelens
   bredd; `RichLog`s standard 78 klippte loggen i fönster upp till ~100 kolumner (80×24: ord saknades).
+  En rapport med färdiga rader (`data["table"]`, `table_header`) får en tabell under raden; den läses upp bara
+  med `data["spoken"]` (svepet). Svepet (`stations/sweep.py`, 2026-11-23): periskopet, bryggan, radarn och den
+  aktiva sonarn samlar utropen i ett svep; fyra eller fler blir en rad (hur många, närmast, örlogsfartygen) och
+  en tabell (kontakt, vad, bäring, avstånd, kurs och fart), färre sägs var för sig som förut. Sonars "hörs igen"
+  samlas som de tappade (`sonar.regained.many`).
 - **Sjökortet**: `Station.chart_items()` ger ritelement (`sim/chart.py`) ur
   kunskapen i beräknade koordinater; `Game.chart()` samlar, `ui/chart_render.py`
   rastrerar (en rad = två kolumner i höjd). Blyertsmärken (`PlotTeam.pencil`, ur `SoundHeard`, och ur `EventSighted` när bryggan eller periskopet

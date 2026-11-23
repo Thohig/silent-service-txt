@@ -151,6 +151,13 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   osäker, över 4 min sägs ingen tid. Under 90 s ropas den var 10:e s. Mot sanningen (kuba/arktis, 8 frön,
   4 lägen): god inom 30 % eller 10 s i 83–92 %, osäker i 59–79 %.
   `Knowledge.torpedo_alarm` och `doors_t` håller maskinens sprint- och kavitationsförslag borta.
+  Tappad i döda sektorn (2026-11-23): springer vi ifrån torpeden hamnar den rakt akterut och tystnar för sonar.
+  Tystnar den inom sektorn + 10° (`ASTERN_MARGIN_DEG`) säger sonar att den ligger i döda sektorn och troligen går
+  kvar, "håll farten" (larm), och torpedlarmet gäller till 12 min efter första bäringen (`TORPEDO_RUN_S`,
+  besättningens tumregel, inte torpedens sanna gångtid; `TorpedoInWater` kind "astern" med `until`,
+  `Knowledge.torpedo_astern_until`). Tystnar den där vi hör den är den borta, som förut. Under tiden inget
+  kavitationsförslag och ingen lyssningsgir. Förut släppte larmet efter 5 min och maskin föreslog lägre fart med
+  torpeden bakom oss (Svansen-kort frö 31: 0,2 nm). Duell-kort, ja-boten, 16 frön: förlorade 13 ⇒ 6.
 - **US-ubåten i krig** (`arctic.py`, `SubmarineAI.roe = "attack"`, D2): håller 2,5 nm (`ATTACK_NM`) i 8 kn,
   medlar pejlingarna senaste minuten (σ/√n), räknar vår kurs och fart ur dem, öppnar torpedrören
   (transient `doors`, 150 dB; sonar larmar och föreslår kurs tvärs och nytt djup) och skjuter 30 s senare

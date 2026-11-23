@@ -19,6 +19,8 @@ Oraklets kvarvarande larm (2026-11-23, `skytt.py ja alla`):
   kursen 150° fel; lösningen spänner 30 min med en lucka på 18 min och ett par girar. Att räkna fartyget som
   sicksackande (q = 30) tog bort felet men gjorde lösningen så sällan god att övningstorpeden inte sköts
   (`test_short_variant_with_a_captain_who_fires`). Kanske: kortare fönster efter en märkt gir för mål som girar.
+  Mätt 2026-11-23 (ovning, 12 frön): de goda lösningarna med kursen ~100° fel kommer alla i minuten efter att
+  fartyget girat 130° (2°/s); bryggans nästa titt (var 60:e s) ser den nya kursen. Kvar är de säkra med lucka.
 
 ## Beslut som väntar på kaptenen
 

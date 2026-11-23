@@ -64,7 +64,12 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   "för- och akterskeppet har tjock is över sig", inte "för smal" om en råk som är lång nog). Periskopdjup
   kräver bara tornet. `nav.suggest.ice_closing` (djup 60, larm) kommer när isen ovanför blir tjock nära
   ytan, och också medan vi stiger mot en öppning (beordrat ≤ antenndjup), eller på väg mot ytläge när för-
-  eller akterskeppet fått is vi inte kan bryta (isen driver medan vi stiger).
+  eller akterskeppet fått is vi inte kan bryta (isen driver medan vi stiger). Den öppningen stryks då
+  (`OpeningNotFound`, `_surfacing_through`) och föreslås inte igen (2026-11-23; arktis frö 13: samma nyis tre
+  gånger medan röken tätnade). `vak` går tillbaka till en öppning vi lämnat de senaste 90 s (`JUST_PASSED_S`,
+  `just_passed_opening`; "stoppa här" kom under en 30 m råk med öppet vatten och ordern när vi glidit förbi), och
+  tar en öppning som dög för en minut sedan om ingen duger nu (maskins förslag om en öppning, 20 s senare
+  "ingen öppning loggad"). Maskin säger inte "vi har ingen öppning" de första 5 min efter att ha föreslagit en.
   Mätt (arktis-kort, ja-boten efter 1/5/20 s, 16 frön): stötar efter ytläge 7 ⇒ 3, "tjock is" efter
   ytläge 7 ⇒ 1, stationen nådd 17 ⇒ 13 av 48 (omläggningarna tar tid).
 - **Havsbotten:** `seabed.py` är sanning (`Environment.bottom_at`; bara ekolodet läser den).

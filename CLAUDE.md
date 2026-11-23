@@ -43,7 +43,9 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
    är äldre än 60 s eller någon station säger nej (`vetoes`; `MAST_ORDERS` – sända, periskop, radar,
    foto – föreslås inte när det beordrade djupet är under periskopdjup; vakthavande säger nej till allt
    som tar oss uppåt medan fienden har oss). Vetot prövas också när förslaget levereras, och samma order
-   från en annan station inom 30 s släpps (`Game._suggestion_stale`). Ett förslag kommer aldrig före en
+   från en annan station (eller samma med ett annat skäl, om det inte gör ett larm av det) inom 30 s släpps
+   (`Game._suggestion_stale`). De första 2 min efter att kaptenen beordrat oss ned föreslår ingen masterna
+   (`DOWN_ORDER_HOLD_S`), och smygmotor föreslås inte när de har oss. Ett förslag kommer aldrig före en
    rapport nära det i kön (`ReportQueue`). Gå-ned-förslag tar djupet ur `Station.dive_depth()`. Vid tystnad (10 min) tar vakthavande initiativ ur
    stationernas `idle_proposals()`.
 6. Fast tidssteg 1 s. All slump via seedade `random.Random` – inga globala `random.*`. Stationerna
@@ -77,7 +79,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   (eldledningen, `FiringMixin`) och `wire.py` (trådstyrningen, `WireMixin`). Växer en station sig stor: dela den så (navigatören, radion, torpedrummet).
 - **Rapporter** bär `type` + `data`, aldrig färdig text. Texten skapas av
   `phrases.render()` vid leverans, efter rapportfiltren. Varje station registrerar
-  sina fraser med `phrases.register({...})` i sin egen modul.
+  sina fraser med `phrases.register({...})` i sin egen modul. Ett svep med många kontakter (periskop, brygga,
+  radar, aktiv sonar) blir en rad och en tabell (`stations/sweep.py`, `data["table"]`, `data["spoken"]`).
 - **Radion** (paketet `stations/radio/`: `station.py`, `common.py`, `phrases.py`, och `reception.py`
   (mottagningen) och `sending.py` (rapporten, pejlrisken) som `RadioStation` ärver): rapporten byggs ur kunskapen i `dispatch.py` (`SentReport`,
   `ReportTransmitted`); huvudstaben (`headquarters.py`) vet bara vad vi sänt och svarar vid nästa
@@ -214,6 +217,9 @@ för in varje färdigt steg där.
   (`JUMP_SIGMA`, mot lösningen minst 20 s före, i deras sammanlagda σ) de senaste 2 min, eller en lucka > 10 min i
   bäringarna som slutade för < 5 min sedan. Säkra grova 1,1 % ⇒ 0,5 % (frön 9–16: 2,4 % ⇒ 0,2 %), goda 5,8 % ⇒ 2,8 %
   (6,5 % ⇒ 4,7 %), ~10 % färre säkra.
+  Ubåtar i undervattensläge (`submerged_submarine`, sonars klassning) och konvojens eskort räknas som
+  sicksackande, q = 30 (2026-11-23): duell-kort goda lösningar på ubåten grovt fel 69 % ⇒ 50 %, kurs > 90° fel
+  56 % ⇒ 17 %; konvojernas säkra men grovt fel lösningar på jagarna 7 ⇒ 3 (32 spel).
   Mätskripten: `kalibrering/tma_kvalitet.py`, `kalibrering/skott_saker.py`.
 - Radion: rapporten 6 s + 4 s per femsiffergrupp (kort ~22 s); fiendens pejlnät pejlar aldrig under
   10 s, alltid över 25 s, σ = 1,5 nm · √(30 s / längd), 0,7–3 nm (`DF_*` i `enemy.py`).
@@ -251,11 +257,12 @@ för in varje färdigt steg där.
   när ett skott nekas; minören föreslår en 53-62T när ingen tub har en. Framme i skjutläget djupare än 100 m ⇒
   navigatören föreslår `fart 3, djup 90`.
 - Döda sektorn (alla scenarier sedan 2026-11-23, `OwnShip.baffle_deg` 30°): 12 dB + 1,5 dB/kn över 4 kn, högst 25; sonar
-  föreslår `kurs ±60°, fart 4` efter 10 min rakt i ≥ 6 kn (inte när navigatören styr eller mot kortets land), och en gir
+  föreslår `kurs ±60°, fart 4` efter 10 min rakt i ≥ 6 kn (20, 40 efter tomma lyssningar; inte när navigatören styr, vid "kurs mot …" eller mot kortets land), och en gir
   som lägger en nyss tappad kontakt tvärs när den ligger akterut (`sonar.suggest.astern_lost`, en gång per tappning). Skuggaren 1,6–1,9 nm akterut, märker vår fart med 90 s
   eftersläpning, anfaller 12–16 min efter överlämnandet.
 - Fiendens torped Mk 37: 26 kn, 5 nm, 145 dB, söker passivt i 40° och aktivt inom 0,4 nm och ±50 m i höjd;
   skenmålet 135 dB och bubbelekot starkare än skrovet; en träff är förlusten. Vi går 28 kn på turbinen.
+  Tappad i döda sektorn gäller torpedlarmet 12 min från första bäringen (`TORPEDO_RUN_S`).
 - Trim (`sim/trim.py`): kompression 1 t/100 m, skiktet bär 3 t, smältvatten 1 t, torped netto 0,6 t förut,
   rodren 0,8·v² t (högst 10), drift 0,03 m/s per ton, styrningen borta vid 2 t, pumpar 1 t/min och 121 dB.
   Ny djuporder i ≤ 2 kn och uppstigning till ytan görs med barlasten (trimmen spelar ingen roll).
