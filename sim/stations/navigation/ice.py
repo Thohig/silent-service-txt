@@ -22,6 +22,7 @@ from .common import (
     DECEL_M_PER_S2,
     ICE_FIX_SIGMA_NM,
     JUST_PASSED_S,
+    VAK_CENTRED_M,
     REPORT_OPENING_M,
     SAFE_ICE_DEPTH,
     SOUNDER_INTERVAL_S,
@@ -164,9 +165,12 @@ class IceMixin:
                   and (o.open or o.length_m >= MIN_SURFACE_LEN_M)]
         return max(recent, key=lambda o: o.last.t, default=None)
 
-    def _steer_for(self, o: Opening, quiet: bool = False) -> None:
+    def _steer_for(self, o: Opening, quiet: bool = False, centering: bool = False) -> None:
         s = self.ship
         self.vak, self._vak_t, self._vak_stopping, self._vak_here = o, self.now, False, False
+        # lägga om mot mitten: stanna där, inte så fort öppningen är ovanför (då stod vi kvar i kanten
+        # och sa "lägger oss mitt i den" två gånger på en sekund, arktis frö 51)
+        self._vak_centering = centering
         d = self.opening_data(o)
         s.order_course(d["bearing"])
         fast = VAK_FAST_SPEED if d["range"] > VAK_SLOW_M else VAK_SPEED
@@ -198,7 +202,8 @@ class IceMixin:
                 return                  # vaken ligger bakom: gå rakt ut, vänd sedan
             if rng_m <= VAK_SLOW_M and s.ordered_speed > VAK_SPEED:
                 s.order_speed(VAK_SPEED)
-            over = self.icemap.current is not None and rng_m < 150 and off < 90
+            over = self.icemap.current is not None and rng_m < 150 and off < 90 and \
+                not getattr(self, "_vak_centering", False)
             if (rng_m <= stop_m and off < 45) or over:
                 s.order_speed(0)
                 self._vak_stopping = True
@@ -216,10 +221,13 @@ class IceMixin:
         # tornet)
         cramped = latest is not None and latest.usable and o.length_m >= MIN_SURFACE_LEN_M \
             and (near or not latest.open) and not self.hull_clear()
-        if cramped and self._vak_tries < VAK_TRIES:
+        # står vi redan mitt i (enligt kartan) hjälper ingen omläggning: säg att råken inte räcker
+        centred = IceMap.course_and_range_m(self.est_x, self.est_y, o)[1] <= VAK_CENTRED_M
+        if cramped and self._vak_tries < VAK_TRIES and not centred:
             self._vak_tries += 1
-            self.say("nav.vak.reposition", {"no": o.no})
-            self._steer_for(o, quiet=True)
+            if self._vak_tries == 1:
+                self.say("nav.vak.reposition", {"no": o.no})
+            self._steer_for(o, quiet=True, centering=True)
             return
         if latest is not None and latest.open:
             if near and (o.length_m < MIN_SURFACE_LEN_M or cramped):

@@ -23,6 +23,7 @@ FIX_VAK_MAX_M = 1500        # gå inte längre än så för en fix
 VAK_FAST_SPEED = 5.0        # långt till öppningen: gå fortare, sakta in sista biten
 VAK_SLOW_M = 500
 DOWN_ORDER_HOLD_S = 120     # kaptenen beordrade oss ned: så länge föreslår ingen masterna
+VAK_CENTRED_M = 30          # så nära öppningens mitt: en omläggning dit flyttar oss inte
 JUST_PASSED_S = 90          # vak: en öppning vi lämnade så nyss går vi tillbaka till, hur liten den än är
 REPORT_OPENING_M = 60       # kortare öppningar nämns inte när vi passerar dem
 STATION_NAME = "Nord-7"
