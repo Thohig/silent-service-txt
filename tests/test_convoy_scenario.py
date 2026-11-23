@@ -95,6 +95,26 @@ def test_salvo_fans_out_around_the_solution(perfect_torpedoes):
     assert all(t.load is None for t in g.station(TorpedoRoom).tubes[:3])
 
 
+def test_a_close_pinger_sweeping_fast_in_bearing_is_one_pinger():
+    """Sundet frö 51: ett fartyg som passerar nära drar 0,8°/s; sonar sa 'Någon söker' och 'pingtakten
+    har ökat' fem gånger på två minuter (grinden räknade inte med pingarens egen drift)."""
+    from sim.sonar import TransientHeard
+    for seed in SEEDS:
+        g, reports = _game(seed)
+        for ai in g.world.ais:
+            if hasattr(ai, "next_ping"):
+                ai.next_ping = 10**9
+        sonar = g.station(SonarRoom)
+        rng = random.Random(seed)
+        for k in range(20):                               # var 8:e s, 0,8°/s, 130 → 2
+            g.world.time = 100 + 8 * k
+            sonar._on_sound(TransientHeard("ping", 130.0 - 6.4 * k + rng.gauss(0, 1.0), 2.0, None))
+        for _ in range(5):
+            g.tick()
+        firsts = [r for r in reports if r.type == "sonar.ping.first" and r.data["bearing"] <= 140]
+        assert len(firsts) == 1, (seed, [r.data["bearing"] for r in firsts])
+
+
 def test_two_unknown_pingers_on_different_bearings_are_not_a_fast_pinger():
     g, reports = _game(1)
     for ai in g.world.ais:                        # scenariots egna eskorter tiger under provet
