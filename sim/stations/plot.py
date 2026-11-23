@@ -533,6 +533,7 @@ class PlotTeam(Station):
                   and (tr.threat or self.game.knowledge.listening)
                   and not self._maneuvered_recently(tr) and not self._convoy_sibling(tr)
                   and not self.game.knowledge.hunted(self.now) and not self.game.recalled()
+                  and not self._navigator_steers()
                   and self.now - self._last_suggest.get(tr.designation, -10**9) >= SUGGEST_COOLDOWN
                   and self.now - self._last_leg_t >= LEG_GAP_S):
                 self._last_suggest[tr.designation] = self.now
@@ -672,7 +673,7 @@ class PlotTeam(Station):
             if not (tr.threat or tr.held and tr.friendly and self.game.knowledge.listening) \
                     or sol is None or sol.quality >= Quality.GOD:
                 continue
-            if self._maneuvered_recently(tr):
+            if self._maneuvered_recently(tr) or self._navigator_steers():
                 continue
             course = self._suggest_course(sol, tr)
             if course is None:
@@ -717,6 +718,16 @@ class PlotTeam(Station):
         recent = [o for o in tr.observations if o.t >= self.now - SUGGEST_MIN_LEG_S]
         return (own_maneuvered(recent, threshold_deg=15.0)
                 or "course" in self.own.state.changing())
+
+    def _navigator_steers(self) -> bool:
+        """Styr navigatören (anfall, följa, farleden, vaken)? Då föreslår plottet inget nytt ben: det
+        avbröt anfallet, och navigatören föreslog det igen (krig-kort frö 51, tre gånger)."""
+        from .navigation import NavigationStation
+        try:
+            nav = self.game.station(NavigationStation)
+        except KeyError:
+            return False
+        return nav.steer is not None or nav.vak is not None
 
     def _suggest_course(self, sol: Solution, tr: ContactTrack) -> float | None:
         """Nästa ben. Navigatören säger om kortet har land åt det hållet; då giren åt andra
