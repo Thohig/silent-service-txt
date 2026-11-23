@@ -318,3 +318,25 @@ def test_no_search_on_suggestion_while_going_to_an_opening():
     assert not nav.vetoes(order)
     nav.vak = object()
     assert nav.vetoes(order)
+
+
+def test_with_smoke_aboard_a_narrow_opening_at_the_station_is_for_the_masts():
+    """Arktis frö 2: vid stationen, tät rök, öppet vatten ovanför: 'för smal för ytläge, vi letar vidare'.
+    Masterna räcker för att ventilera: periskopdjup först."""
+    g, reports = _arctic(1)
+    nav = g.station(NavigationStation)
+    _round_opening(g, 0.02)                     # 37 m öppet vatten kring tornet
+    for _ in range(12):
+        g.tick()
+    o = nav.icemap.current
+    assert o is not None and o.length_m < 120
+    nav.near_station = lambda: True
+    g.world.own.sys.smoke = 0.5
+    nav.vak, nav._vak_t, nav._vak_stopping, nav._vak_tries = o, g.now, True, 9
+    g.world.own.state.speed = 0.0
+    nav._steer_to_opening()
+    for _ in range(10):
+        g.tick()
+    ups = [r for r in reports if r.type == "nav.suggest.up"]
+    assert ups and ups[-1].data["order"] == "periskopdjup"
+    assert not any(r.type == "nav.vak.narrow_station" for r in reports)

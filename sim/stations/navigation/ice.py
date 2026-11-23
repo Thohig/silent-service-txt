@@ -46,6 +46,9 @@ VAK_TRIES = 2                   # så många gånger lägger vi om mot mitten in
 NARROW_STATION_S = 600          # så länge efter "för smal vid stationen" föreslås inget nytt stopp där
 
 
+
+SMOKE_VENT_FIRST = 0.15    # så mycket rök: masterna upp och ventilera före ytläget vid stationen
+
 class IceMixin:
     """Del av NavigationStation (station.py)."""
 
@@ -230,7 +233,10 @@ class IceMixin:
             self._steer_for(o, quiet=True, centering=True)
             return
         if latest is not None and latest.open:
-            if near and (o.length_m < MIN_SURFACE_LEN_M or cramped):
+            # rök i båten: masterna räcker för att ventilera, ytläget vid stationen får vänta (arktis frö 2:
+            # "för smal för ytläge, vi letar vidare" medan röken var mycket tät och öppet vatten ovanför)
+            smoky = self.own.sys.smoke >= SMOKE_VENT_FIRST
+            if near and (o.length_m < MIN_SURFACE_LEN_M or cramped) and not smoky:
                 if o.no not in self._narrow_at_station:
                     # masterna kommer upp, men skrovet ryms inte: leta vidare runt stationen
                     self._narrow_at_station.add(o.no)
@@ -245,9 +251,10 @@ class IceMixin:
             if near and isinstance(self.steer, StationSteer):
                 # framme: annars startar sökspiralen nästa sekund och kör oss ur öppningen
                 self.steer = None
+            surface = near and not (smoky and (o.length_m < MIN_SURFACE_LEN_M or cramped))
             self.suggest("vak_up", "nav.suggest.up",
-                         {"kind": "öppet vatten", "open": True, "station": near},
-                         order="ytläge" if near else "periskopdjup", cooldown=0)
+                         {"kind": "öppet vatten", "open": True, "station": surface},
+                         order="ytläge" if surface else "periskopdjup", cooldown=0)
             return
         if latest is not None and latest.usable:
             if o.length_m >= MIN_SURFACE_LEN_M and not cramped:
