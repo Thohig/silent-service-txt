@@ -209,11 +209,28 @@ def reason_text(d: dict) -> str:
     if k == "window":
         return f"Sambandstillfälle klockan {d['clock']}. Ordern kräver rapporten."
     if k == "suggestion":
-        return f"{d['who']} föreslår {d['proposed']}. Det beslutet är ert."
+        return f"{d['who']} föreslår {d['proposed']}.{_quoted(d)} Det beslutet är ert."
     if k == "phone_order":
-        return (f"{d['who']} föreslår {d['proposed']}. Ni beordrade {d['ordered']} klockan "
-                f"{d['clock']}. Det beslutet är ert.")
+        return (f"{d['who']} föreslår {d['proposed']}.{_quoted(d)} Ni beordrade {d['ordered']} "
+                f"klockan {d['clock']}. Det beslutet är ert.")
     return ""
+
+
+_ADDRESS = re.compile(r"^(?:Kapten|Tovarisjtj komandir)[,!]\s*[^.!]*[.!]\s*")
+
+
+def suggestion_why(why: dict | None) -> str:
+    """Stationens förslag som det lät (`why`: förslagets typ och data), utan tilltalet
+    ("Kapten, radio.") och ja-ordern: det starpom läser upp i telefonen och hytten visar."""
+    if not why:
+        return ""
+    phrase = phrases.PHRASES.get(why["type"])
+    return _ADDRESS.sub("", phrase(why["data"])).strip() if phrase else ""
+
+
+def _quoted(d: dict) -> str:
+    q = suggestion_why(d.get("why"))
+    return f" Han säger: »{q}«" if q else ""
 
 
 def _why_not(d: dict) -> str:
@@ -226,6 +243,11 @@ def _why_not(d: dict) -> str:
     if w == "report":
         return "Radion behöver masten vid sambandstillfället; ordern kräver rapporten."
     return ""
+
+
+def _why_of(report) -> dict:
+    """Förslagets typ och data (inte färdig text): frasen återges när starpom säger det."""
+    return {"type": report.type, "data": {k: v for k, v in report.data.items() if k != "order"}}
 
 
 def _canon(order: str) -> str:
@@ -371,7 +393,8 @@ class FirstOfficer(Station):
                 "captain_at": self.captain_at,
                 "phone": "ring" if self.ring_t is not None else "lamp" if self.lamp else None,
                 "sleeping": self.sleeping, "order_day": self.order_day, "door": self._door(),
-                "decision": self._decision()}
+                "decision": self._decision(),
+                "decision_why": suggestion_why(self.asking.get("why")) if self._decision() else None}
 
     def _decision(self) -> str | None:
         """Förslaget som väntar på kaptenens ja eller nej sedan han svarat i telefonen."""
@@ -501,7 +524,7 @@ class FirstOfficer(Station):
         """Det senaste förslaget i samtalet är det kaptenens ja eller nej gäller."""
         for r in reversed(self.pending):
             if r["kind"] in ("suggestion", "phone_order"):
-                self.asking = {"who": r["who"], "proposed": r["proposed"]}
+                self.asking = {"who": r["who"], "proposed": r["proposed"], "why": r.get("why")}
                 return
 
     def _clear_calls(self) -> None:
@@ -569,7 +592,7 @@ class FirstOfficer(Station):
             return True
         if in_mandate(self.game, order) and (ph := self._against_phone_order(report, order)):
             self._wake("question", {"kind": "phone_order", "who": report.speaker.split(" (")[0],
-                                    "proposed": order, **ph})
+                                    "proposed": order, "why": _why_of(report), **ph})
             return False
         if in_mandate(self.game, order):
             self.decisions.append((self.game.clock_str()[:5], order))
@@ -583,7 +606,7 @@ class FirstOfficer(Station):
             return True
         self._wake("danger" if report.alarm else "question",
                    {"kind": "suggestion", "who": report.speaker.split(" (")[0],
-                    "proposed": order})
+                    "proposed": order, "why": _why_of(report)})
         return False
 
     # --- väckning ------------------------------------------------------------------

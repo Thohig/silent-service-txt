@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import math
 import re
+import textwrap
 
 from rich.text import Text
 
@@ -804,6 +805,66 @@ def _flat(c: Canvas, s: StatusSnapshot, t: float) -> None:
         _desk(c, h - 5, desk_left, w - desk_left - 2)
 
 
+CARD_BG = "#2a2218"
+CARD_EDGE = f"#c0a060 on {CARD_BG}"
+CARD_TEXT = f"#e0d8b0 on {CARD_BG}"
+CARD_HEAD = f"bold #15110c on #e0b030"
+CARD_WHO = f"bold #f0e6c8 on {CARD_BG}"
+CARD_QUOTE = f"italic #c8bc98 on {CARD_BG}"
+CARD_DIM = f"#a09070 on {CARD_BG}"
+CARD_YES = f"bold #15110c on #a0e0a0"
+CARD_NO = f"bold #15110c on #e0a0a0"
+
+
+def _card(c: Canvas, head: str, body: list[tuple[str, str]], foot: list[tuple[str, str]],
+          width: int = 76, low: bool = False) -> None:
+    """En lapp över rummet, mitt i bilden (eller nederst, `low`): rubrik, rader och en rad med
+    knappar (text, stil)."""
+    w = min(c.w - 4, width)
+    inner = w - 4
+    rows = [("", CARD_TEXT)]
+    for text, style in body:
+        for line in (textwrap.wrap(text, inner) or [""]):
+            rows.append((line, style))
+    rows.append(("", CARD_TEXT))
+    h = len(rows) + 3
+    top = max(1, c.h - h - 1 if low else (c.h - h) // 2)
+    left = (c.w - w) // 2
+    c.text(top, left, "┌" + "─" * (w - 2) + "┐", CARD_EDGE)
+    c.text(top, left + 2, f" {head} ", CARD_HEAD)
+    for i, (line, style) in enumerate(rows[: max(1, c.h - top - 3)]):
+        r = top + 1 + i
+        c.text(r, left, "│" + " " * (w - 2) + "│", CARD_EDGE)
+        c.text(r, left + 2, line, style)
+    r = top + 1 + len(rows)
+    c.text(r, left, "│" + " " * (w - 2) + "│", CARD_EDGE)
+    col = left + 2
+    for text, style in foot:
+        c.text(r, col, text, style)
+        col += len(text)
+    c.text(r + 1, left, "└" + "─" * (w - 2) + "┘", CARD_EDGE)
+
+
+def _decision_card(c: Canvas, s: StatusSnapshot, t: float) -> None:
+    """Det kaptenen ska göra, mitt i bilden: svara i telefonen, eller ja/nej till förslaget."""
+    if s.command != "starpom":
+        return
+    if s.phone == "ring":
+        bright = int(t * 2) % 2 == 0
+        _card(c, "☎ SNABBTELEFONEN RINGER", [("Starpom ringer från centralen.", CARD_TEXT)],
+              [(" Enter ", CARD_YES if bright else CARD_HEAD), (" svarar", CARD_DIM)],
+              width=40, low=True)
+    elif s.decision:
+        who, _, what = s.decision.partition(" föreslår ")
+        body = [(f"{who} föreslår: {what}", CARD_WHO)]
+        if s.decision_why:
+            body.append((f"»{s.decision_why}«", CARD_QUOTE))
+        body.append(("Starpom väntar på ert beslut.", CARD_DIM))
+        _card(c, "ERT BESLUT", body,
+              [("Skriv ", CARD_DIM), (" ja ", CARD_YES), (" verkställer · ", CARD_DIM),
+               (" nej ", CARD_NO), (" avslår, sedan Enter", CARD_DIM)])
+
+
 def render_cabin(s: StatusSnapshot, t: float, width: int, height: int,
                  chart=None) -> list[Text]:
     """chart: navigatörens kort (`Game.chart()`, kunskap) för kortet på väggen; utan det inget kort."""
@@ -814,4 +875,5 @@ def render_cabin(s: StatusSnapshot, t: float, width: int, height: int,
     else:
         _flat(c, s, t)
     _plate(c, w)
+    _decision_card(c, s, t)
     return c.lines()[:height]

@@ -105,6 +105,7 @@ class StatusSnapshot:
     sleeping: bool = False          # kaptenen sover (snabbspolat tills han väcks)
     order_day: int | None = None    # orderns dag i oktober 1962 (almanackan i hytten)
     decision: str | None = None     # förslaget starpom bett kaptenen besluta om (hytten)
+    decision_why: str | None = None   # ... som stationen sa det (utan tilltal och ja-order)
     door: str | None = None         # hyttdörren: steps (någon utanför), ajar (ordonnansen), open (kaptenen går)
     pitch: float = 0.0              # lutningen (дифферент), grader, + förlig
     plane_load: float = 0.0         # andel av djuprodrens förmåga som bär vikten (+ tung)
