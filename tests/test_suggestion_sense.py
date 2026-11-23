@@ -71,6 +71,21 @@ def test_no_periscope_fix_when_the_captain_just_ordered_us_down():
     assert _vetoed(g, "fix")
 
 
+def test_no_mast_suggestions_right_after_the_captain_ordered_us_down():
+    """Krig-kort frö 31: sonars djup 120 godtogs, 9 s senare föreslog vakthavande periskopdjup."""
+    g, _ = _game()
+    g.world.own.state.depth = g.world.own.state.ordered_depth = 40.0
+    _run(g, 2)
+    assert not _vetoed(g, "periskopdjup")
+    g.command("djup 120")
+    _run(g, 10)
+    for order in ("periskopdjup", "antenndjup", "fix", "djup 25"):
+        assert _vetoed(g, order), order
+    assert not _vetoed(g, "djup 80")              # sonars undanmanöver uppåt under skiktet går
+    _run(g, 125)
+    assert not _vetoed(g, "periskopdjup")
+
+
 def test_dive_suggestions_respect_the_navigators_depth_limit():
     g, _ = _game()
     off, nav = g.station(OfficerStation), g.station(NavigationStation)

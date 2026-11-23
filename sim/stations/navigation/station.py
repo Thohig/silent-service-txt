@@ -27,6 +27,7 @@ from ..base import Proposal, Station
 from .bottom import BottomMixin
 from .current import CurrentMixin, CurrentReport
 from .common import (
+    DOWN_ORDER_HOLD_S,
     ASTERN_LOUD_KN,
     ASTERN_SLOW_KN,
     ATTACK_STEP_S,
@@ -218,6 +219,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         self._tide_fix_t, self._tide_sigma = 0, 0.0
         self._current_init()
         self.course_set_t = 0
+        self.down_ordered_t = -10**9    # när kaptenen senast beordrade oss djupare än antenndjup
         self.tasks: dict[str, NavTask] = {}   # pågående fixar (tasks.py), per namn
         self._next_sound = 0
         self.vak: Opening | None = None
@@ -509,6 +511,8 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                 if d > s.max_depth:
                     self.say("nav.limit", {"what": "depth", "limit": s.max_depth})
                     return
+                if d > s.ordered_depth and d > ANTENNA_DEPTH:
+                    self.down_ordered_t = self.now
                 s.order_depth(d)
                 data = {"depth": d, "below_test": d > TEST_DEPTH}
                 latest = self.icemap.latest(self.now)
@@ -603,8 +607,23 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         i periskopet när kaptenen just beordrat oss ned."""
         if bool(DIVE_ORDER.search(order.lower())) and self._dive_forbidden_here():
             return True
-        return self.ship.ordered_depth > PERISCOPE_DEPTH and self.ship.depth <= PERISCOPE_DEPTH + 2 \
-            and isinstance(self.game.registry.parse(order), TakeFix)
+        if self.ship.ordered_depth > PERISCOPE_DEPTH and self.ship.depth <= PERISCOPE_DEPTH + 2 \
+                and isinstance(self.game.registry.parse(order), TakeFix):
+            return True
+        # kaptenen beordrade oss just ned (krig-kort: djup 120, och 9 s senare föreslog vakthavande
+        # periskopdjup): ingen föreslår masterna förrän det beslutet fått stå en stund
+        return self.now - self.down_ordered_t < DOWN_ORDER_HOLD_S and self._goes_to_masts(order)
+
+    def _goes_to_masts(self, order: str) -> bool:
+        """Tar ordern oss upp till antenndjup eller grundare (eller är det en fix i periskopet)?"""
+        from ...orders import split_orders
+        for part in split_orders(order):
+            o = self.game.registry.parse(part)
+            if isinstance(o, TakeFix):
+                return True
+            if isinstance(o, SetDepth) and 1 <= o.depth <= ANTENNA_DEPTH and o.depth < self.ship.ordered_depth:
+                return True
+        return False
 
     def _dive_forbidden_here(self) -> bool:
         """Ordern förbjuder dykning i fjorden, och kortet säger att vi är där."""
