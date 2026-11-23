@@ -255,7 +255,6 @@ def test_no_layer_suggestion_on_the_surface():
 def test_plot_suggests_no_new_leg_while_the_navigator_steers():
     """Krig-kort frö 51: plottets 'nytt ben' avbröt anfallet, och navigatören föreslog det igen."""
     from sim.stations import PlotTeam
-    from sim.stations.navigation.tasks import Wait
     g, _ = _game()
     plot, nav = g.station(PlotTeam), g.station(NavigationStation)
     assert not plot._navigator_steers()
