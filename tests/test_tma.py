@@ -360,3 +360,14 @@ def test_a_submerged_submarine_is_expected_to_turn():
     for c in ("ubåt i ytläge, en axel, trolig Polarisbåt", "Polarisubåt i ytläge, atomdriven, en axel",
               "ytfartyg", "okänd kontakt", "jagare, ångturbiner, två axlar", None):
         assert not submerged_submarine(c), c
+
+
+def test_convoy_escorts_count_as_zigzagging():
+    """Eskortjagarna väver: plottet räknar med girar som för konvojens fartyg (konvoj-kort: säkra men
+    grovt fel lösningar på jagarna 7 ⇒ 3 på 32 spel)."""
+    from sim.knowledge import ContactTrack, Knowledge
+    from sim.zigzag import ConvoyEstimate
+    k = Knowledge()
+    k.convoy = ConvoyEstimate(0, ("S-1", "S-2"), ("S-3",), 0.0, 0.0, 90.0, 8.0, None, None, None)
+    assert k.zigzags(ContactTrack("S-1", 0)) and k.zigzags(ContactTrack("S-3", 0))
+    assert not k.zigzags(ContactTrack("S-4", 0))

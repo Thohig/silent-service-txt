@@ -327,9 +327,11 @@ class Knowledge:
         return any(t.threat for t in self.tracks.values())
 
     def zigzags(self, tr: ContactTrack) -> bool:
-        """Plottet vet att målet sicksackar: konvojfartyg, eller två märkta girar."""
+        """Plottet vet att målet sicksackar: konvojfartyg och dess eskort (som väver framför och på
+        flankerna), eller två märkta girar."""
         c = self.convoy
-        return (c is not None and tr.designation in c.members) or len(tr.turns) >= 2
+        return (c is not None and c.contains(tr.designation)) \
+            or len(tr.turns) >= 2
 
     def hunting(self, tr: ContactTrack, t_now: int) -> bool:
         """Jagar målet oss? Ett mål som pingar medan vi är jagade (snabb pingtakt, plask) girar hela
