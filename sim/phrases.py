@@ -24,6 +24,9 @@ def solution_sentence(sol: Data) -> str:
     q = Quality(sol["quality"])
     if q >= Quality.GOD:
         rng = f"avstånd {nm(sol['range_nm'])} sjömil"
+    elif sol["range_sigma"] >= sol["range_nm"]:
+        # (förut "cirka 24,6 sjömil, någonstans mellan 0,2 och 53,2": siffror datan inte bär)
+        rng = "avståndet kan vi inte säga ännu"
     else:
         lo = max(0.2, sol["range_nm"] - 1.5 * sol["range_sigma"])
         hi = sol["range_nm"] + 1.5 * sol["range_sigma"]
@@ -125,6 +128,9 @@ def ru_solution(sol: Data) -> str:
     q = Quality(sol["quality"])
     if q >= Quality.GOD:
         rng = f"дистанция {R.dec(sol['range_nm'], R.MILE)}"
+    elif sol["range_sigma"] >= sol["range_nm"]:
+        # (förut "cirka 24,6 sjömil, någonstans mellan 0,2 och 53,2": siffror datan inte bär)
+        rng = "avståndet kan vi inte säga ännu"
     else:
         lo = max(0.2, sol["range_nm"] - 1.5 * sol["range_sigma"])
         hi = sol["range_nm"] + 1.5 * sol["range_sigma"]

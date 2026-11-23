@@ -92,3 +92,12 @@ def test_counts_are_words_with_the_right_form():
     assert count(14, "torped", "torpeder", neuter=False) == "14 torpeder"
     text = PHRASES["plot.convoy.found"]({"members": ["S-1", "S-2"], "escorts": 1, "course": 90, "speed": 8})
     assert "med en jagare som eskort" in text
+
+
+def test_a_hopeless_range_is_not_given_as_numbers():
+    from sim.phrases import solution_sentence
+    sol = {"quality": int(Quality.DALIG), "range_nm": 24.6, "range_sigma": 32.0, "bearing": 111,
+           "course": 90, "speed": 5, "course_sigma": 90, "speed_sigma": 10}
+    assert "avståndet kan vi inte säga ännu" in solution_sentence(sol)
+    sol.update(range_nm=4.0, range_sigma=1.5)
+    assert "någonstans mellan" in solution_sentence(sol)
