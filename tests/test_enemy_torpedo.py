@@ -197,3 +197,32 @@ def test_hord_och_tappad_igen_tvars_slapper_akterlarmet():
     g.tick()
     sonar._on_incoming(IncomingTorpedo(1, "lost", 10.0))
     assert not g.knowledge.torpedo_alarm(g.now + 61)
+
+
+def _steady_torpedo(g, level_at, seconds):
+    sonar = g.station(SonarRoom)
+    for k in range(seconds):
+        g.tick()
+        if k % 3 == 0:
+            sonar._on_incoming(IncomingTorpedo(1, "new" if k == 0 else "bearing", 90.0, 12.0, level_at(k)))
+
+
+def test_a_torpedo_circling_the_decoy_is_not_coming_at_us():
+    """Duell-kort frö 51: bäringen stod still i åtta minuter, nivån steg inte, och sonar ropade 'den kommer
+    mot oss!' och föreslog ny undanmanöver var minut. Nu: den kommer inte närmare."""
+    g, reports = _game(depth=200, speed=4)
+    _steady_torpedo(g, lambda k: 110.0, 240)
+    _run(g, 10)
+    calls = [r for r in reports if r.type == "sonar.torpedo.bearing"]
+    assert any(r.data.get("holding") for r in calls)
+    late = [r for r in calls if r.data.get("holding")]
+    assert all(not r.alarm and "kommer inte närmare" in r.text for r in late)
+
+
+def test_a_far_torpedo_coming_at_us_is_not_called_holding():
+    """Rakt mot oss på 5 nm stiger nivån bara ~0,013 dB/s: det ska fortfarande vara 'kommer mot oss'."""
+    for seed in SEEDS:                          # sonar läser nivån med sitt eget brus (σ 0,7 dB)
+        g, reports = _game(seed, depth=200, speed=4)
+        _steady_torpedo(g, lambda k: 100.0 + 0.013 * k, 240)
+        _run(g, 10)
+        assert not any(r.data.get("holding") for r in reports if r.type == "sonar.torpedo.bearing"), seed

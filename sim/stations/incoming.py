@@ -41,6 +41,8 @@ ETA_FAR_S = 120                # längre bort än så: torpeden söker och girar
 ETA_MAX_S = 240                # längre än så sägs ingen tid
 COUNTDOWN_UNDER_S = 90         # så nära: ropa var COUNTDOWN_EVERY_S i stället för var CALL_EVERY_S
 COUNTDOWN_EVERY_S = 10
+HOLDING_DB_PER_S = 0.0         # nivån stiger inte alls (över HOLDING_WINDOW_S, två rop i rad): kommer inte
+HOLDING_WINDOW_S = 90          # närmare (en torped rakt mot oss på 5 nm stiger ~0,013 dB/s)
 # En torped vi springer ifrån hamnar rakt akterut, i döda sektorn: där tappar sonar den fast den
 # kommer. Besättningens tumregel för en amerikansk målsökande torped (inte torpedens sanna gångtid):
 # den går omkring 12 minuter från det vi först hörde den. Så länge gäller undanmanövern.
@@ -56,6 +58,7 @@ class _Heard:
     last_call: int = -10**9
     eta: tuple[int, Quality] | None = None     # senast sagda tid kvar (s) och kvaliteten
     lost: bool = False                          # hörs inte längre
+    flat_n: int = 0                             # rop i rad med stilla bäring där nivån inte stigit
 
 
 def _drift(h: _Heard, now: int) -> float | None:
@@ -92,6 +95,18 @@ def eta_estimate(levels: list[tuple[int, float]], now: int) -> tuple[float, Qual
     return max(0.0, eta), q
 
 
+def level_slope(levels: list[tuple[int, float]], now: int, window: int = ETA_WINDOW_S) -> float | None:
+    """Hur fort den avlästa nivån ändras (dB/s, minsta kvadrat över fönstret), eller None."""
+    pts = [(t, lv) for t, lv in levels if now - t <= window]
+    if len(pts) < ETA_MIN_POINTS or pts[-1][0] - pts[0][0] < 15:
+        return None
+    n = len(pts)
+    mt = sum(t for t, _ in pts) / n
+    ml = sum(lv for _, lv in pts) / n
+    stt = sum((t - mt) ** 2 for t, _ in pts)
+    return sum((t - mt) * (lv - ml) for t, lv in pts) / stt
+
+
 def _eta_text(d: dict) -> str:
     if d.get("eta") is None:
         return ""
@@ -114,8 +129,9 @@ def _drift_text(d: dict) -> str:
 PHRASES = {
     "sonar.torpedo": lambda d: f"{ru('Torpeda')}! Torped i vattnet, bäring {fmt_course(d['bearing'])}!"
     + (" Höga varv, målsökande." if d.get("close") else ""),
-    "sonar.torpedo.bearing": lambda d: f"Torpeden bäring {fmt_course(d['bearing'])}. {_drift_text(d)}"
-    + _eta_text(d),
+    "sonar.torpedo.bearing": lambda d: f"Torpeden bäring {fmt_course(d['bearing'])}. "
+    + ("Bäringen står still, men den kommer inte närmare: den söker troligen kring skenmålet."
+       if d.get("holding") else _drift_text(d) + _eta_text(d)),
     "sonar.torpedo.lost": lambda d: "Torpeden hörs inte längre"
     + (f", sista bäring {fmt_course(d['bearing'])}." if d.get("bearing") is not None else ".")
     + (f" Den ligger i döda sektorn akterut och går troligen kvar, kanske {d['minutes']} "
@@ -145,7 +161,8 @@ def _ru_drift(d: dict) -> str:
 
 RU_PHRASES = {
     "sonar.torpedo": lambda d: f"Торпеда! Торпеда в воде, пеленг {R.course(d['bearing'])}!",
-    "sonar.torpedo.bearing": lambda d: f"Торпеда, пеленг {R.course(d['bearing'])}. {_ru_drift(d)}"
+    "sonar.torpedo.bearing": lambda d: f"Торпеда, пеленг {R.course(d['bearing'])}. "
+    + ("Пеленг не меняется, но она не приближается." if d.get("holding") else _ru_drift(d))
     + (f" Подход через {R.mmss(d['eta'])}." if d.get("eta") is not None else ""),
     "sonar.torpedo.lost": lambda d: "Торпеду больше не слышно."
     + (f" Она в мёртвой зоне за кормой, вероятно ещё идёт, может быть "
@@ -218,7 +235,13 @@ class IncomingMixin:
             h.last_call = self.now
             drift = _drift(h, self.now)
             steady = drift is not None and abs(drift) < STEADY_DEG_PER_MIN
-            d = {"bearing": ev.bearing, "drift": drift, "steady": steady}
+            # stilla bäring men nivån stiger inte: den kommer inte mot oss (den kretsar kring skenmålet;
+            # duell-kort frö 51: "den kommer mot oss!" och ny undanmanöver i åtta minuter)
+            slope = level_slope(h.levels, self.now, HOLDING_WINDOW_S) if steady else None
+            h.flat_n = h.flat_n + 1 if slope is not None and slope <= HOLDING_DB_PER_S else 0
+            holding = steady and h.flat_n >= 2
+            steady = steady and not holding
+            d = {"bearing": ev.bearing, "drift": drift, "steady": steady, "holding": holding}
             quality = Quality.GOD if ev.se > 6 else Quality.OSAKER
             est = eta_estimate(h.levels, self.now) if steady else None
             h.eta = None
