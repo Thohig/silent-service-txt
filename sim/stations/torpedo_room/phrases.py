@@ -3,7 +3,7 @@ from __future__ import annotations
 
 
 from ... import phrases
-from ...fmt import count, fmt_course, nm
+from ...fmt import count, fmt_course, minutes, nm
 from ... import russian as R
 from ...russian import ru
 from ...reports import Quality
@@ -144,7 +144,7 @@ PHRASES = {
        f"{_mmss(d['run_s'])}. Den hinner gira." if d.get("kind") == "hunting" else
        f"en {d['type']} är framme vid {d['designation']} om {_mmss(d['run_s'])}. Girar eller ändrar "
        "den fart under tiden går torpeden fel." if d.get("kind") == "long" else
-       f"{d['designation']} sicksackar. Benet har gått {round(d['elapsed_s'] / 60)} minuter av ungefär "
+       f"{d['designation']} sicksackar. Benet har gått {minutes(round(d['elapsed_s'] / 60))} av ungefär "
        f"{round(d['leg_s'] / 60)}, och en {d['type']} är framme om {_mmss(d['run_s'])}. "
        + ("Konvojen" if d.get("kind", "convoy") == "convoy" else "Den") + " kan ha girat innan dess.")
     + (" Den målsökande torpeden söker själv efter giren." if d.get("homing")

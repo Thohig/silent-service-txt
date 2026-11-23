@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..fmt import minutes
 from .. import phrases
 from .. import russian as R
 from ..events import RecordingMade
@@ -42,9 +43,9 @@ PHRASES = {
     "sonar.record.start": lambda d: f"Kapten, sonar. Bandspelaren går på {d['designation']}, "
     f"Polarisbåten. Vi behöver {d['minutes']} minuter med gott ljud.",
     "sonar.record.half": lambda d: f"Halva inspelningen av {d['designation']} på bandet, "
-    f"{d['left']} minuter kvar.",
+    f"{minutes(d['left'])} kvar.",
     "sonar.record.weak": lambda d: f"Kapten, sonar. {d['designation']} är för svag för bandet. "
-    f"{d['minutes']} minuter av {d['need']} inspelade. Vi måste närmare, eller låta den komma till oss.",
+    f"{minutes(d['minutes'])} av {d['need']} inspelade. Vi måste närmare, eller låta den komma till oss.",
     "sonar.suggest.record_up": lambda d: f"Kapten, sonar. Under skiktet hör vi {d['designation']} "
     f"för svagt för bandet. Föreslår djup {d['depth']}, över skiktet.",
     "sonar.suggest.record_close": lambda d: f"Kapten, sonar. {d['designation']} "
@@ -52,7 +53,7 @@ PHRASES = {
        else "är för svag för bandet, bäring") + f" {d['bearing']:03d}. Föreslår kurs "
     f"{d['bearing']:03d} och fart {d['speed']} mot den.",
     "sonar.record.done": lambda d: f"Kapten, sonar! Inspelningen av {d['designation']} är klar: "
-    f"{d['minutes']} minuter med gott ljud, skruven och maskinen hörs tydligt.",
+    f"{minutes(d['minutes'])} med gott ljud, skruven och maskinen hörs tydligt.",
 }
 phrases.register(PHRASES)
 

@@ -10,7 +10,7 @@ from ..chart import LAYER_MARK, LAYER_TRACK, Mark, Ray, Ring
 from ..events import (ContactDetected, ContactLost, ConvoyAssessed, EventSighted, OwnActionLogged, OwnSoundMade,
                       ReportDelivered, SoundHeard)
 from ..crew import Role
-from ..fmt import count, fmt_course
+from ..fmt import count, fmt_course, minutes
 from ..geo import angle_diff, norm360
 from ..knowledge import ContactTrack
 from ..orders import DESIG, AskContact, CommandSpec, Order, desig
@@ -748,7 +748,7 @@ def _base_data(c: ConvoyEstimate) -> dict | None:
 
 
 def _leg_text(s: int | None) -> str:
-    return f" Sicksack, ben på ungefär {round(s / 60)} minuter." if s else ""
+    return f" Sicksack, ben på ungefär {minutes(round(s / 60))}." if s else ""
 
 
 def _base_text(b: dict | None) -> str:
@@ -792,7 +792,7 @@ def _hunter(d: dict) -> str:
         word = "tätt" if p <= HUNTER_PING_TIGHT_S else "glest" if p >= HUNTER_PING_SPARSE_S else "jämnt"
         out.append(f"Han pingar {word}, var {p}:e sekund.")
     if d.get("long"):
-        out.append(f"Han har jagat oss i {d['minutes']} minuter och ger inte upp.")
+        out.append(f"Han har jagat oss i {minutes(d['minutes'])} och ger inte upp.")
     return " ".join(out)
 
 

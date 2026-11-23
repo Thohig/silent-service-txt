@@ -33,7 +33,7 @@ from .. import russian as R
 from ..broadcasts import order_day
 from ..crew import Role
 from ..events import OrderIssued, ReportDelivered
-from ..fmt import clock, fmt_course, kn, nm
+from ..fmt import clock, fmt_course, kn, minutes, nm
 from ..ownship import ANTENNA_DEPTH
 from ..orders import (REST_SCALE, AcceptSuggestion, CommandSpec, DeclineSuggestion, Order,
                       SetTimeScale, Unknown, split_orders)
@@ -197,11 +197,11 @@ def reason_text(d: dict) -> str:
     if k == "telegram":
         return f"Telegram från staben, mottagning nummer {d['number']}."
     if k == "time":
-        return f"Det är {d['minutes']} minuter kvar enligt ordern."
+        return f"Det är {minutes(d['minutes'])} kvar enligt ordern."
     if k == "wake_at":
         return f"Klockan är {d['clock']}, ni bad att bli väckt."
     if k == "attack":
-        return (f"Vi är i skjutläge mot {d['designation']} om cirka {d['minutes']} minuter. "
+        return (f"Vi är i skjutläge mot {d['designation']} om cirka {minutes(d['minutes'])}. "
                 f"Avfyringen är ert beslut.")
     if k == "target":
         return (f"{d['designation']}, {d['label']}, cirka {nm(d['range'])} sjömil. "

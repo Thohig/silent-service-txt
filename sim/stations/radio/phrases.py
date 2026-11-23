@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from ... import phrases
 from ... import russian as R
-from ...fmt import fmt_course, nm
+from ...fmt import fmt_course, minutes, nm
 from ...ownship import ANTENNA_DEPTH
 from .common import VLF_DEPTH, VLF_RECEIVE_S, VLF_SLOW_KN, VLF_SPEED, VLF_UP_DEPTH
 
@@ -93,7 +93,7 @@ PHRASES = {
     "radio.opening_now": lambda d: f"Kapten, radio. Navigatören har {d['kind']} ovanför oss nu, och "
     f"sambandstillfället kl {d['clock']} är inte avklarat. Föreslår att vi stoppar här.",
     "radio.suggest.air_clear": lambda d: f"Kapten, radio. Flygradarn hördes nära för "
-    f"{d['minutes']} minuter sedan, och sambandstillfället stänger kl {d['close']}. Föreslår "
+    f"{minutes(d['minutes'])} sedan, och sambandstillfället stänger kl {d['close']}. Föreslår "
     "periskopdjup: radarvarnaren säger om flyget gått, och då sänder vi.",
     "radio.intercept.start": lambda d: "Avlyssnar amerikansk trafik, en minut.",
     "radio.intercept.lost": lambda d: "Avlyssningen avbröts, antennen kom under ytan.",

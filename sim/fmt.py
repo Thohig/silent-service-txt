@@ -30,6 +30,11 @@ def count(n: int, one: str, many: str, neuter: bool = True) -> str:
     return f"{word} {many}"
 
 
+def minutes(n: int) -> str:
+    """"en minut", "5 minuter" (talet med siffror, som i besättningens övriga tal)."""
+    return "en minut" if n == 1 else f"{n} minuter"
+
+
 def clock(seconds: int) -> str:
     s = int(seconds) % 86400
     return f"{s // 3600:02d}:{s % 3600 // 60:02d}:{s % 60:02d}"

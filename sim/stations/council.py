@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..fmt import minutes
 from .. import phrases
 from .. import russian as R
 from ..crew import Role
@@ -86,12 +87,12 @@ PHRASES = {
     "council.starpom": lambda d: f"Kamrat befälhavare, starpom. {STARPOM_WHY[d['why']](d)} "
     + ("Jag vrider min nyckel." if d["yes"] else "Jag vrider inte min nyckel."),
     "council.keys": lambda d: f"Torped. Alla tre nycklarna vridna. Kärnladdningen i tub {d['tube']} är "
-    f"skarp i {d['minutes']} minuter. Skjuter på er order, kapten.",
+    f"skarp i {minutes(d['minutes'])}. Skjuter på er order, kapten.",
     "council.refused": lambda d: f"Torped. Kärnladdningen förblir säkrad: {d['who']} har inte vridit "
     "sin nyckel.",
     "council.no_t5": lambda d: "Kapten, zampolit. Ingen tub är laddad med kärnladdning. "
     + ("Torpedrummet har T-5 i reserv." if d["reserve"] else "Vi har ingen ombord."),
-    "council.again": lambda d: f"Kapten, zampolit. Rådet hölls för {d['minutes']} minuter sedan och "
+    "council.again": lambda d: f"Kapten, zampolit. Rådet hölls för {minutes(d['minutes'])} sedan och "
     "inget har ändrats.",
     "council.pending": lambda d: "Rådet samlas redan, kapten.",
     "council.expired": lambda d: "Torped. Tiden för nycklarna har gått ut. Kärnladdningen är säkrad igen.",

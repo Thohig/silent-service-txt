@@ -101,3 +101,11 @@ def test_a_hopeless_range_is_not_given_as_numbers():
     assert "avståndet kan vi inte säga ännu" in solution_sentence(sol)
     sol.update(range_nm=4.0, range_sigma=1.5)
     assert "någonstans mellan" in solution_sentence(sol)
+
+
+def test_one_minute_is_singular():
+    """'1 minuter av 10 inspelade' (Clyde-in, provspel 2026-11-23)."""
+    from sim.phrases import PHRASES
+    assert "en minut av 10 inspelade" in PHRASES["sonar.record.weak"]({"designation": "S-1", "minutes": 1,
+                                                                       "need": 10})
+    assert "3 minuter av 10" in PHRASES["sonar.record.weak"]({"designation": "S-1", "minutes": 3, "need": 10})
