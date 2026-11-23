@@ -109,6 +109,11 @@ class IceMixin:
         hull_blocked = s.ordered_depth == 0 and max(ends) > BREAKABLE_M
         if (self._prev_usable and not obs.usable and (s.depth <= ANTENNA_DEPTH + 2 or rising)) \
                 or (hull_blocked and rising and obs.usable):
+            # ytläget genom öppningen gick inte: den räknas som för smal, ingen föreslår den igen
+            # (arktis frö 13: samma nyis tre gånger medan röken tätnade)
+            if self._surfacing_through is not None and s.ordered_depth == 0:
+                self.game.bus.publish(OpeningNotFound(self.now, self._surfacing_through))
+                self._surfacing_through = None
             self.suggest("ice_closing", "nav.suggest.ice_closing", {"depth": SAFE_ICE_DEPTH},
                          order=f"djup {SAFE_ICE_DEPTH}", cooldown=120, alarm=True)
         self._prev_usable = obs.usable
@@ -238,6 +243,7 @@ class IceMixin:
             return
         if latest is not None and latest.usable:
             if o.length_m >= MIN_SURFACE_LEN_M and not cramped:
+                self._surfacing_through = o.no
                 self.suggest("vak_up", "nav.suggest.up",
                              {"kind": thickness_words(latest.thickness), "open": False},
                              order="ytläge", cooldown=0)

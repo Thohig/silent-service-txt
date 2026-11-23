@@ -261,3 +261,23 @@ def test_vak_takes_the_opening_that_was_good_a_minute_ago():
     t = next(t for t in range(o.last.t, o.last.t + 7200, 5) if o.quality(t) < Quality.OSAKER)
     assert m.best(t, 0.0, 0.0) is None
     assert m.best(t - 60, 0.0, 0.0) is o
+
+
+def test_a_failed_surfacing_drops_the_opening():
+    """Arktis frö 13: ytläge genom nyis, isen drev in över akterskeppet på vägen upp, och navigatören
+    föreslog samma öppning igen. Nu stryks den."""
+    g, reports = _arctic(1)
+    nav = g.station(NavigationStation)
+    _round_opening(g, 0.1)
+    s = g.world.own.state
+    s.depth = s.ordered_depth = 40.0
+    for _ in range(12):
+        g.tick()
+    o = nav.icemap.current
+    assert o is not None
+    nav._surfacing_through = o.no
+    _round_opening(g, 0.02)                     # isen har drivit in: skrovet ryms inte längre
+    s.ordered_depth = 0.0
+    for _ in range(12):
+        g.tick()
+    assert o.dropped and nav._surfacing_through is None

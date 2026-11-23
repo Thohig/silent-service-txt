@@ -228,6 +228,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         self._vak_here = False
         self._hull_ice: tuple[int, float, float] | None = None   # isekolodet för och akter (t, m, m)
         self._vak_tries = 0                 # gånger vi lagt om mot mitten för att skrovet inte rymdes
+        self._surfacing_through: int | None = None  # öppningen vi föreslog ytläge genom (nyis)
         self._narrow_at_station: set[int] = set()   # öppningar vid stationen för smala för ytläge
         self._narrow_station_t = -10**9           # senast vi sa att en öppning vid stationen var för smal
         self._prev_usable = False
