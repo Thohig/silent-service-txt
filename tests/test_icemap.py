@@ -281,3 +281,19 @@ def test_a_failed_surfacing_drops_the_opening():
     for _ in range(12):
         g.tick()
     assert o.dropped and nav._surfacing_through is None
+
+
+def test_no_exit_suggestion_while_going_to_an_opening():
+    """Duell frö 51: 'kurs 180 ut ur området' kom medan vaken lade om för sambandstillfället."""
+    g, reports = _arctic(1)
+    nav = g.station(NavigationStation)
+    g.escape_ready = lambda: True
+    nav.outside_area = lambda: False
+    nav.exit_route = lambda: (180.0, 5.0, False)
+    nav._exit_cache = None
+    nav.vak = object()
+    g.world.time = 10**6
+    nav._escape_watch()
+    for _ in range(10):
+        g.tick()
+    assert not any(r.type == "nav.suggest.exit" for r in reports)

@@ -167,6 +167,8 @@ class ExitMixin:
         order, speed = self.exit_order(c, dist)
         if abs(angle_diff(c, self.ship.ordered_course)) <= 20 and speed is None:
             return
+        if self.vak is not None:
+            return      # på väg till eller stilla under en öppning (duell frö 51: exit avbröt vaken före sambandet)
         self.suggest("exit", "nav.suggest.exit",
                      {"course": c, "dist": dist, "clear": clear, "area": self.game.area_name,
                       "via": self.exit_via, **({"speed": speed} if speed else {})},
