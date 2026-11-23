@@ -368,9 +368,12 @@ class Game:
             return True
         if any(st.vetoes(order) for st in self.stations):
             return True
+        # samma order står obesvarad sedan nyss: från en annan station, eller från samma med ett annat
+        # skäl (vakthavande: "flygradar nära", 11 s senare "radarn mycket stark", båda djup 60);
+        # ett larm släpps ändå fram om det som står inte är ett
         sug = self.active_suggestion()
-        return sug is not None and sug[0] == order and r.speaker != self.suggestion_by and \
-            self.now - sug[2] < SAME_SUGGESTION_S
+        return sug is not None and sug[0] == order and self.now - sug[2] < SAME_SUGGESTION_S and \
+            (r.speaker != self.suggestion_by or not r.alarm or self.suggestion_alarm)
 
     def _confirm_quit(self) -> None:
         """Vakthavande frågar innan uppdraget avbryts; ja verkställer."""

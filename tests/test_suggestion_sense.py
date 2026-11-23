@@ -106,6 +106,17 @@ def test_the_same_order_from_two_stations_is_suggested_once():
     assert len([r for r in reports if r.data.get("order") == "fart 5, djup 60"]) == 1
 
 
+def test_the_same_order_from_one_station_for_another_reason_is_suggested_once():
+    """Vakthavande: "flygradar nära, djup 60" och 11 s senare "radarn mycket stark, djup 60" (krig, frö 8)."""
+    g, reports = _game()
+    _run(g, 2)
+    g.say(Role.OFFICER, "order.declined", {"order": "djup 60", "made_t": g.now}, kind="suggest")
+    _run(g, 11)
+    g.say(Role.OFFICER, "order.declined", {"order": "djup 60", "made_t": g.now}, kind="suggest")
+    _run(g, 5)
+    assert len([r for r in reports if r.data.get("order") == "djup 60"]) == 1
+
+
 def test_radio_status_during_an_open_window_and_after_it():
     g, reports = _game()
     _run(g, 2)
