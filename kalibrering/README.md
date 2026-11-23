@@ -11,9 +11,23 @@ Varje skript beskriver sina argument överst i filen. Botarna är flyttade hit s
 scratchpad (2026-11-14–15). En del läser sanningen (`sundet.py --orakel`, `sundet_folj.py` utan
 `--följ`). Sådana värden mäter bara scenariot, inte vad besättningen klarar.
 
+**Buggjakt (2026-11-23).** Ordningen när något ändrats: `kontroll.py` (flyttat? vilka frön?), sedan
+`skillnad.py` på ett frö som bytt utfall (första rapport som skiljer mot baslinjens commit), och
+`skytt.py` i alla tre lägena för larmen (oraklet). `sok.py` söker i skytt-loggarna.
+
+```bash
+PYTHONHASHSEED=0 uv run python kalibrering/kontroll.py
+uv run python kalibrering/skillnad.py clyde 15 --mot 09baead
+PYTHONHASHSEED=0 uv run python kalibrering/skytt.py lyssna alla 0-7 180
+uv run python kalibrering/sok.py lyssna --larm
+```
+
 | Skript | Scenario | Botar |
 |---|---|---|
-| `kontroll.py` | alla | passiv och ja-boten, 8 frön, mot `baslinje.json` (`--spara` skriver den) |
+| `kontroll.py` | alla | passiv och ja-boten, 8 frön (16 där slumpen avgör, `FLER_FRÖN`), mot `baslinje.json` (`--spara` skriver den, med commit och utfall per frö); listar fröna som bytt utfall och kommandot för `skillnad.py` |
+| `skillnad.py` | ett scenario, ett frö, `--mot COMMIT`, `--bot`, `--minuter`, `--sammanhang` | samma frö med arbetskopian och en äldre commit (utpackad i `logs/skillnad/`); första rapport som skiljer, med sammanhang från båda. `spela.py` spelar och skriver flödet som JSON |
+| `skytt.py` | läge (`ja`, `skjut`, `lyssna`), scenarier eller `alla`, frön, minuter | ja-boten, skyttebot (eld/salva på säkra lösningar, går förbi frågorna) och lyssnande skyttebot (avstår vid långt skott, tar anfallet, skjuter på god i skjutläget); oraklet (`orakel.py`) larmar för grund utan varning, skjutläge för djupt, tjat, låg fart kvar, säker men fel, neutral utan varning, textfel, undantag; flödet som JSON till `logs/skytt/<läge>/` |
+| `sok.py` | läge, `--typ`, `--text`, `--roll`, `--scenario`, `--antal`, `--visa`, `--larm` | söker i skytt-loggarna |
 | `fingeravtryck.py` | alla | ja-boten, hash av rapporter, läge och vyer: samma frö ⇒ samma spel (omstruktureringar) |
 | `ja_bot.py` | alla (kommaseparerade) | ja-boten, parallellt |
 | `duell.py` | duell, duell-kort, duell-torped, svansen-kort | passiv, ja, verktyg (ja + målsökande torpeder) |

@@ -10,8 +10,11 @@ Användning (från repots rot; ~30 min på 4 kärnor för alla scenarier och 8 f
     uv run python kalibrering/kontroll.py --spara         # skriv en ny baslinje
     uv run python kalibrering/kontroll.py --bara kuba,konvoj-kort --frön 4
 
-Ett utfall räknas som flyttat när antalet skiljer med minst FLYTT_N (av 8), tiden när medianen
-ändrats mer än FLYTT_TID (andel). Avslutar med 1 om något flyttat.
+Frön 0 … n−1, n = 8 eller FLER_FRÖN för scenarier där slumpen avgör (`--frön n` för alla). Ett
+utfall räknas som flyttat när andelen skiljer med minst FLYTT_N av 8, tiden när medianen
+ändrats mer än FLYTT_TID (andel). Baslinjen sparar också utfallet per frö (frön 0 … n−1): när något
+flyttat listas fröna som bytt utfall, med kommandot för `skillnad.py` (första skillnaden mot
+baslinjens commit). Avslutar med 1 om något flyttat.
 """
 import sys as _sys
 from pathlib import Path as _Path
@@ -30,8 +33,11 @@ from sim.scenario import SCENARIOS, build_scenario
 BASLINJE = _Path(__file__).with_name("baslinje.json")
 MAX_H = 15                 # längsta speltid (krig 14 h, clyde 10 h, sundet 7 h)
 JA_EFTER_S = 20            # ja-boten svarar så här länge efter förslaget
-FLYTT_N = 2
+FLYTT_N = 2               # av 8 frön (räknas som andel vid andra antal)
 FLYTT_TID = 0.25
+# scenarier där ja-botens utfall avgörs av vilken väg den råkar ta: fler frön, så att en verklig
+# effekt skiljs från brus (Clyde: 3 eller 4 av 16 klara beroende på nästan vilken ändring som helst)
+FLER_FRÖN = {"clyde": 16, "clyde-in": 16, "konvoj": 16, "konvoj-kort": 16, "krig-kort": 16}
 
 
 def run(args) -> tuple[str, str, int, str, int]:
@@ -54,17 +60,31 @@ def run(args) -> tuple[str, str, int, str, int]:
     return key, bot, seed, out, g.now // 60
 
 
+def _commit() -> str:
+    """HEAD:s korta hash; med ändringar som inte är committade står det efter ("+ändrad")."""
+    import subprocess
+    root = _Path(__file__).resolve().parents[1]
+    sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=root, capture_output=True,
+                         text=True).stdout.strip()
+    dirty = subprocess.run(["git", "status", "--porcelain", "sim"], cwd=root, capture_output=True,
+                           text=True).stdout.strip()
+    return sha + ("+ändrad" if dirty else "")
+
+
 def summarize(rows) -> dict:
-    """{scenario: {bot: {"utfall": {utfall: antal}, "minuter": {utfall: median}}}}"""
+    """{scenario: {bot: {"utfall": {utfall: antal}, "minuter": {utfall: median},
+    "frön": {frö: utfall}}}}"""
     res: dict = {}
-    for key, bot, _seed, out, minutes in rows:
-        r = res.setdefault(key, {}).setdefault(bot, {"utfall": {}, "_t": {}})
+    for key, bot, seed, out, minutes in rows:
+        r = res.setdefault(key, {}).setdefault(bot, {"utfall": {}, "_t": {}, "frön": {}})
         r["utfall"][out] = r["utfall"].get(out, 0) + 1
         r["_t"].setdefault(out, []).append(minutes)
+        r["frön"][str(seed)] = out
     for bots in res.values():
         for r in bots.values():
             r["minuter"] = {o: round(statistics.median(ts)) for o, ts in sorted(r.pop("_t").items())}
             r["utfall"] = dict(sorted(r["utfall"].items()))
+            r["frön"] = dict(sorted(r["frön"].items(), key=lambda kv: int(kv[0])))
     return res
 
 
@@ -76,13 +96,23 @@ def compare(old: dict, new: dict) -> list[str]:
             if o is None:
                 moved.append(f"{key} {bot}: ny (ingen baslinje)")
                 continue
+            na, nb = sum(o["utfall"].values()) or 1, sum(r["utfall"].values()) or 1
             for out in sorted(set(o["utfall"]) | set(r["utfall"])):
                 a, b = o["utfall"].get(out, 0), r["utfall"].get(out, 0)
-                if abs(a - b) >= FLYTT_N:
-                    moved.append(f"{key} {bot}: {out} {a} ⇒ {b}")
+                if abs(a / na - b / nb) * 8 >= FLYTT_N:
+                    moved.append(f"{key} {bot}: {out} {a} av {na} ⇒ {b} av {nb}" if na != nb
+                                 else f"{key} {bot}: {out} {a} ⇒ {b}")
                 ta, tb = o["minuter"].get(out), r["minuter"].get(out)
                 if ta and tb and abs(tb - ta) > FLYTT_TID * ta:
                     moved.append(f"{key} {bot}: {out} median {ta} ⇒ {tb} min")
+            # vilka frön som bytt utfall (baslinjer sparade före 2026-11-23 har inga frön)
+            old_seeds = o.get("frön") or {}
+            changed = [(s_, old_seeds[s_], out) for s_, out in r.get("frön", {}).items()
+                       if s_ in old_seeds and old_seeds[s_] != out]
+            if changed and any(m.startswith(f"{key} {bot}:") for m in moved):
+                moved.append(f"  frön som bytt: " + ", ".join(f"{s_} {a} ⇒ {b}" for s_, a, b in changed))
+                moved.append(f"  första skillnaden: uv run python kalibrering/skillnad.py {key} "
+                             f"{changed[0][0]} --bot {bot} --mot <commit för baslinjen>")
     return moved
 
 
@@ -91,9 +121,11 @@ def main() -> int:
     keys = list(SCENARIOS)
     if "--bara" in argv:
         keys = argv[argv.index("--bara") + 1].split(",")
-    seeds = range(int(argv[argv.index("--frön") + 1]) if "--frön" in argv else 8)
+    n = int(argv[argv.index("--frön") + 1]) if "--frön" in argv else None
     t0 = time.time()
-    jobs = [(k, bot, s) for k in keys for bot in ("passiv", "ja") for s in seeds]
+    jobs = [(k, bot, s) for k in keys for bot in ("passiv", "ja")
+            for s in range(n if n is not None else FLER_FRÖN.get(k, 8))]
+    jobs.sort(key=lambda j: -FLER_FRÖN.get(j[0], 0))      # de långa först, så att kärnorna fylls
     with ProcessPoolExecutor() as ex:
         rows = list(ex.map(run, jobs, chunksize=1))
     new = summarize(rows)
@@ -104,13 +136,16 @@ def main() -> int:
     if "--spara" in argv:
         old = json.loads(BASLINJE.read_text()) if BASLINJE.exists() else {}
         old.update(new)
+        old["_commit"] = _commit()          # vilken kod baslinjen kommer från (skillnad.py --mot)
         BASLINJE.write_text(json.dumps(old, indent=1, ensure_ascii=False) + "\n")
         print("sparad:", BASLINJE)
         return 0
     if not BASLINJE.exists():
         print("ingen baslinje: kör med --spara först")
         return 1
-    moved = compare(json.loads(BASLINJE.read_text()), new)
+    base = json.loads(BASLINJE.read_text())
+    moved = [m.replace("<commit för baslinjen>", base.get("_commit", "<commit för baslinjen>"))
+             for m in compare(base, new)]
     print("\n".join(["flyttat:", *moved]) if moved else "som baslinjen")
     return 1 if moved else 0
 
