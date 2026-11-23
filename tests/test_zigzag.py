@@ -324,3 +324,23 @@ def test_a_hunting_destroyer_turns_all_the_time():
     w = _warnings(g, reports)
     assert len(w) == 1 and "jagar och girar hela tiden" in w[0].text
     assert "söker själv" in w[0].text
+
+
+def test_in_the_firing_position_too_deep_the_navigator_suggests_firing_depth():
+    """Framme i skjutläget på 220 m: torpederna går inte ut djupare än 100 m, navigatören säger det."""
+    from sim.stations.torpedo_room.common import MAX_LAUNCH_DEPTH
+    o0 = default_scenario(random.Random(3)).world.own.state
+    g, reports = _game_with_convoy_estimate(o0.x - 1.0, o0.y + 14.0)
+    g.command("fart 6")
+    g.command("djup 220")
+    g.command("anfall S-1")
+    nav = g.station(NavigationStation)
+    for _ in range(60 * 60):
+        g.tick()
+        if nav.goal is None:
+            break
+    for _ in range(15):
+        g.tick()
+    sug = [r for r in reports if r.type == "nav.suggest.attack_slow"]
+    assert sug and sug[0].data["order"] == f"fart 3, djup {MAX_LAUNCH_DEPTH - 10}"
+    assert "inte ut djupare än 100 meter" in sug[0].text

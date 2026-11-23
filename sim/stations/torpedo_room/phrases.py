@@ -149,6 +149,13 @@ PHRASES = {
        + ("Konvojen" if d.get("kind", "convoy") == "convoy" else "Den") + " kan ha girat innan dess.")
     + (" Den målsökande torpeden söker själv efter giren." if d.get("homing")
        else " En målsökande torped har större chans."),
+    "torp.long_shot": lambda d: f"Kapten, torpedrummet. Gångtiden till {d['designation']} är "
+    f"{_mmss(d['run_s'])} med {d['type']}. På den tiden hinner "
+    + {"convoy": "konvojen gira på sitt nästa ben", "hunting": "den gira flera gånger, den jagar",
+       "zigzag": "den gira, den sicksackar"}.get(d.get("kind"), "den gira eller ändra fart")
+    + ", och då går torpeden fel. Närmare blir gångtiden kort. Upprepa ordern om vi ska skjuta ändå.",
+    "torp.suggest.close": lambda d: f"Kapten, torpedrummet. Föreslår anfall mot {d['designation']}: "
+    "navigatören tar oss till skjutläge vid sidan av dess väg, där gångtiden blir kort.",
     "torp.time": lambda d: f"Tid för torpeden från tub {d['tube']}"
     + (f" mot {d['designation']}" if d.get("designation") else "") + "!",
     "torp.too_close": lambda d: f"Kapten, torped! {d['designation']} är för nära, cirka "
@@ -302,6 +309,10 @@ RU_PHRASES = {
     "torp.too_close": lambda d: f"{R.CAPTAIN}, минёр! {R.contact(d['designation']).capitalize()} "
     "слишком близко, торпеда не успеет взвестись. Повторите приказ, если стреляем.",
     "torp.time.sunk": lambda d: f"Время торпеды из аппарата {d['tube']}, но цель уже тонет.",
+    "torp.long_shot": lambda d: f"{R.CAPTAIN}, торпедный отсек. Торпеда идёт долго, цель успеет "
+    "отвернуть. Повторите приказ, если стреляем.",
+    "torp.suggest.close": lambda d: f"{R.CAPTAIN}, торпедный отсек. Предлагаю выйти в атаку по "
+    f"{R.contact(d['designation'], True)}.",
     "torp.time": lambda d: f"Время торпеды из аппарата {d['tube']}"
     + (f" по {R.contact(d['designation'], True)}" if d.get("designation") else "") + "!",
     "torp.loading": lambda d: f"Есть, заряжаем аппарат {d['tube']}, {R.weapon(d['type'])}. "

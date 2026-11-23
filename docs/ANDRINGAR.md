@@ -3,6 +3,18 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-23 – Långt skott: torpedrummet föreslår anfall, navigatören skjutdjup
+
+Skyttebotens andra körning: 38 skott mot jagare, transporter och tankfartyg på säkra lösningar, inget sänkt;
+median 5 nm och 4–10 min gångtid, målet girade under gången i 30 av 34 missar. Nu frågar torpedrummet en gång
+före ett skott med en rak torped och gångtid över 5 min ("På den tiden hinner den gira eller ändra fart …
+Upprepa ordern om vi ska skjuta ändå", `torp.long_shot`) och föreslår `anfall S-x` (`torp.suggest.close`) när
+navigatören hinner till skjutläget och de inte har oss, och inte när vi redan anfaller målet eller dess konvoj
+(`FiringMixin._long_shot`, `_can_close`). Målsökarna frågas inte (de söker efter giren). Framme i skjutläget
+djupare än 100 m föreslår navigatören också skjutdjup (`fart 3, djup 90`, `ATTACK_DEPTH_MARGIN_M`): förut sa han
+"vi är i skjutläge" på 220 m och föreslog bara fart 3. En bot som lyssnar (avstår vid frågan, säger ja till
+anfallet, skjuter på god lösning i skjutläget), konvoj/krig/kuba/duell × 8 frön: 13 skott, 5 sänkta (förut 0 av 38).
+
 ## 2026-11-23 – Utredningarna efter skyttebotens körning, och beslutet i hytten
 
 - **Säkra lösningar som inte satt sig.** Plottet kallade en lösning säker strax efter att den hoppat (kuba-kort 5:

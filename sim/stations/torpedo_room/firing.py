@@ -96,6 +96,8 @@ class FiringMixin:
                 return
         if self._weapons_hold(first_type):
             return
+        if aim and tr is not None and self._long_shot(tr, aim[1], first_type):
+            return
         if aim and self._too_close(o.designation, aim[2], first_type):
             return
         n = len(tubes)
@@ -193,6 +195,8 @@ class FiringMixin:
             tr, sol = self._solution_for(o.designation)
             course, run_s, dist = self._aim(sol, tube.load)
             course = (course + o.offset) % 360
+            if not o.in_salvo and self._long_shot(tr, run_s, tube.load):
+                return False
             if not o.in_salvo and not self._neutrals_clear(tr.designation, [course], tube.load):
                 return False
             if not o.in_salvo and self._too_close(tr.designation, dist, tube.load):
@@ -265,6 +269,57 @@ class FiringMixin:
         warned[designation] = self.now
         self.say("torp.too_close", {"designation": designation, "range": dist}, alarm=True)
         return True
+
+    def _long_shot(self, tr, run_s: float | None, type_key: str) -> bool:
+        """Rak torped med lång gångtid (över LONG_RUN_S): målet hinner gira eller ändra fart. Torpedrummet frågar
+        en gång per mål och föreslår `anfall S-x` (navigatören tar oss till skjutläge), utom när de
+        har oss eller skjutläget inte nås; upprepad order inom en minut skjuter."""
+        spec = TORPEDO_TYPES[type_key]
+        if spec.exercise or spec.nuclear or spec.homing or run_s is None or run_s <= LONG_RUN_S \
+                or tr.friendly:
+            return False                # målsökarna söker själva efter en gir (leg_warning räcker)
+        asked = self.__dict__.setdefault("_long_asked", {})
+        if asked.get(tr.designation, -10**9) >= self.now - CONFIRM_S:
+            return False
+        asked[tr.designation] = self.now
+        rhythm = self._turn_rhythm(tr)
+        self.say("torp.long_shot", {"designation": tr.designation, "run_s": run_s, "type": type_key,
+                                    "kind": rhythm[0] if rhythm else None},
+                 quality=Quality.OSAKER, alarm=True)
+        if self._can_close(tr):
+            self.suggest(f"close{tr.designation}", "torp.suggest.close",
+                         {"designation": tr.designation}, order=f"anfall {tr.designation}",
+                         cooldown=CONFIRM_S)
+        return True
+
+    def _can_close(self, tr) -> bool:
+        """Kan navigatören ta oss till skjutläge mot målet (inte medan de har oss)?"""
+        from ...firecontrol import approach
+        from ..navigation.common import ATTACK_LEAD_H, ATTACK_MAX_H, ATTACK_OFFSET_NM
+        from ..navigation import NavigationStation
+        from ..navigation.tasks import Attack
+        k = self.game.knowledge
+        if k.hunted(self.now) or k.hunting(tr, self.now):
+            return False
+        try:
+            steer = self.game.station(NavigationStation).steer
+        except KeyError:
+            steer = None
+        if isinstance(steer, Attack):
+            members = k.convoy.members if k.convoy is not None else ()
+            if steer.designation == tr.designation or \
+                    (steer.designation in members and tr.designation in members):
+                return False            # navigatören anfaller redan målet (eller dess konvoj)
+        sol = tr.solution
+        if sol is None or sol.quality < Quality.OSAKER:
+            return False
+        ex, ey = self.game.own_position_estimate()
+        dt = (self.now - sol.t) / 3600.0
+        vx, vy = sol.state[2], sol.state[3]
+        speed = max(3.0, float(self.own.max_speed()))
+        res = approach(ex, ey, sol.x + vx * dt, sol.y + vy * dt, vx, vy, speed,
+                       ATTACK_OFFSET_NM, ATTACK_LEAD_H)
+        return res is not None and res[1] <= ATTACK_MAX_H
 
     def _weapons_hold(self, type_key: str) -> bool:
         """Fredstid: ordern tillåter inte vapen nu (den säger inte krig och vi angrips inte med
@@ -401,8 +456,9 @@ class FiringMixin:
     def _leg_warning(self, designation: str, run_s: float, type_key: str) -> None:
         """Ett mål som girar kan gira innan torpeden är framme: säg det."""
         tr = self.game.knowledge.track(designation)
-        if tr is None:
-            return
+        if tr is None or self.__dict__.get("_long_asked", {}).get(tr.designation, -10**9) \
+                >= self.now - CONFIRM_S:
+            return          # vi har just frågat om det långa skottet: kaptenen vet
         rhythm = self._turn_rhythm(tr)
         if rhythm is None:
             # ingen känd rytm: en lång gångtid räcker för en gir eller fartändring

@@ -11,7 +11,7 @@ from .common import (
     ATTACK_IN_POSITION_H,
     ATTACK_IN_POSITION_NM,
     ATTACK_LEAD_H,
-    ATTACK_MAX_H,
+    ATTACK_DEPTH_MARGIN_M, ATTACK_MAX_H,
     ATTACK_OFFSET_NM,
     ATTACK_PASSED_NM,
     ATTACK_REST_S,
@@ -130,9 +130,19 @@ class SteeringMixin:
                             side=1 if (ex - x) * vy - (ey - y) * vx > 0 else -1)
                 self.say("nav.attack.arrived", data, quality=q, alarm=True)
                 self._attack_arrived_t = self.now
+                # tyst medan de kommer, och upp till skjutdjup om vi ligger för djupt för avfyring
+                from ..torpedo_room.common import MAX_LAUNCH_DEPTH
+                parts = []
                 if s.speed > 3.5:
-                    self.suggest("attack_slow", "nav.suggest.attack_slow", data, order="fart 3",
-                                 cooldown=120)
+                    parts.append("fart 3")
+                if s.ordered_depth > MAX_LAUNCH_DEPTH:
+                    data["fire_depth"] = MAX_LAUNCH_DEPTH - ATTACK_DEPTH_MARGIN_M
+                    data["max_depth"] = MAX_LAUNCH_DEPTH
+                    parts.append(f"djup {data['fire_depth']}")
+                if parts:
+                    data["slow"] = s.speed > 3.5
+                    self.suggest("attack_slow", "nav.suggest.attack_slow", data,
+                                 order=", ".join(parts), cooldown=120)
                 return
         if res is None or res[1] > ATTACK_MAX_H:
             need = None

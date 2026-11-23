@@ -96,6 +96,7 @@ ATTACK_IN_POSITION_H = 8 / 60   # målet tvärs inom så här lång tid ...
 ATTACK_IN_POSITION_NM = 2.5     # ... och vi så här nära dess väg: i skjutläge
 ATTACK_PASSED_NM = 0.3          # vi ligger så här långt bakom målet: det har passerat
 ATTACK_MAX_H = 1.5         # längre bort än så: vi hinner inte i praktiken
+ATTACK_DEPTH_MARGIN_M = 10  # i skjutläget: upp till så här mycket grundare än torpedrummets största skjutdjup
 ATTACK_SUGGEST_S = 300     # mål känt: föreslå anfall så här ofta (obesvarat glesas ut)
 ATTACK_REST_S = 1200       # efter skjutläge: föreslå inte nytt anfall förrän efter så här länge
 PATH_STEP_NM = 0.1         # vägsökningens rutnät

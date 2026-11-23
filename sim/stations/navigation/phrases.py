@@ -190,7 +190,11 @@ PHRASES = {
     f"sjömil om {'styrbord' if d['side'] > 0 else 'babord'} om {_att_path(d)}.",
     "nav.attack.passed": lambda d: f"Kapten, {_att_what(d)} har redan passerat oss. "
     "Slutar styra mot skjutläget.",
-    "nav.suggest.attack_slow": lambda d: "Kapten, navigatören. Föreslår fart 3, tyst medan de kommer.",
+    "nav.suggest.attack_slow": lambda d: "Kapten, navigatören. Föreslår "
+    + ("fart 3, tyst medan de kommer" if d.get("slow", True) else "")
+    + (("" if not d.get("slow", True) else ", och ")
+       + f"djup {d['fire_depth']}: torpederna går inte ut djupare än {d['max_depth']} meter"
+       if d.get("fire_depth") else "") + ".",
     "nav.suggest.attack": lambda d: f"Kapten, navigatören. Plottet har "
     f"{'konvojen' if d.get('convoy') else d['designation']} på kurs "
     f"{fmt_course(d['course'])}, och vi ligger framför. Föreslår att vi går till skjutläge "
@@ -601,7 +605,10 @@ RU_PHRASES = {
     "nav.attack.arrived": lambda d: f"{R.CAPTAIN}, мы в точке залпа. Цель пройдёт траверз примерно "
     f"через {R.count(max(1, round(d['passage_min'])), R.MINUTE)}.",
     "nav.attack.passed": lambda d: f"{R.CAPTAIN}, цель уже прошла. Прекращаем выход в атаку.",
-    "nav.suggest.attack_slow": lambda d: f"{R.CAPTAIN}, штурман. Предлагаю ход три узла.",
+    "nav.suggest.attack_slow": lambda d: f"{R.CAPTAIN}, штурман. Предлагаю "
+    + ("ход три узла" if d.get("slow", True) else "")
+    + ((" и " if d.get("slow", True) else "") + f"глубину {d['fire_depth']} метров"
+       if d.get("fire_depth") else "") + ".",
     "nav.suggest.attack": lambda d: f"{R.CAPTAIN}, штурман. "
     f"{'Конвой' if d.get('convoy') else R.contact(d['designation']).capitalize()} идёт курсом "
     f"{R.course(d['course'])}, мы впереди. Предлагаю выйти в атаку по "

@@ -184,3 +184,81 @@ def test_contacts_lost_together_are_reported_on_one_line():
     many = [r for r in reports if r.type == "sonar.lost.many"]
     assert len(many) == 1 and many[0].text == "Kapten, sonar. Har tappat S-3 (060), S-5 (072) och S-6."
     assert not any(r.type == "sonar.lost" for r in reports)
+
+
+# --- långt skott: fråga och föreslå anfall --------------------------------------------------
+def _far_target(g, rng=5.0):
+    """S-1, jagare 5 nm norrut på väg öster i 10 knop, med en riktig lösning i plottet."""
+    from sim.tma import Solution
+    torp = _mock_target(g, rng)
+    tr = g.knowledge.tracks["S-1"]
+    ex, ey = g.own_position_estimate()
+    x, y = ex, ey + rng
+    tr.solution = Solution(t=g.now, t_ref=g.now, state=(x, y, 10.0, 0.0), x=x, y=y, course=90.0,
+                           speed=10.0, range_nm=rng, bearing=0.0, range_sigma=0.1, course_sigma=5.0,
+                           speed_sigma=0.5, quality=Quality.SAKER, n_obs=40, span_s=1200,
+                           own_maneuvered=True, rms_residual=0.5)
+    from sim.tma import BearingObs
+    tr.observations = [BearingObs(g.now, 0.0, 0.5, ex, ey, 0.0, designation="S-1")]
+    torp._solution_for = lambda d: (tr, tr.solution)
+    return torp
+
+
+def test_a_long_straight_shot_is_asked_once_and_an_attack_is_suggested():
+    g, reports = _game("konvoj")
+    torp = _far_target(g)
+    g.command("eld tub 1 mot S-1")
+    _run(g, 30)
+    assert not torp.in_water
+    ask = [r for r in reports if r.type == "torp.long_shot"]
+    assert ask and "Upprepa ordern" in ask[0].text
+    sug = [r for r in reports if r.type == "torp.suggest.close"]
+    assert sug and sug[0].data["order"] == "anfall S-1"
+    g.command("eld tub 1 mot S-1")              # kaptenen står fast: skott
+    _run(g, 6)
+    assert len(torp.in_water) == 1
+    assert not any(r.type == "torp.leg_warning" for r in reports)   # redan sagt
+
+
+def test_yes_to_the_suggestion_starts_the_attack():
+    from sim.stations.navigation import NavigationStation
+    from sim.stations.navigation.tasks import Attack
+    g, reports = _game("konvoj")
+    _far_target(g)
+    g.command("eld tub 1 mot S-1")
+    _run(g, 30)
+    sug = [r for r in reports if r.type == "torp.suggest.close"]
+    assert sug
+    g.command(sug[0].data["order"])          # samma som ja medan förslaget står
+    _run(g, 5)
+    assert isinstance(g.station(NavigationStation).steer, Attack)
+
+
+def test_no_attack_suggested_while_they_have_us():
+    g, reports = _game("konvoj")
+    _far_target(g)
+    g.knowledge.hunt_t = g.now
+    g.command("eld tub 1 mot S-1")
+    _run(g, 30)
+    assert any(r.type == "torp.long_shot" for r in reports)
+    assert not any(r.type == "torp.suggest.close" for r in reports)
+
+
+def test_a_short_shot_is_not_asked():
+    g, reports = _game("konvoj")
+    torp = _far_target(g, rng=2.0)
+    g.command("eld tub 1 mot S-1")
+    _run(g, 6)
+    assert len(torp.in_water) == 1
+    assert not any(r.type == "torp.long_shot" for r in reports)
+
+
+def test_no_attack_suggested_when_we_already_attack_the_target():
+    g, reports = _game("konvoj")
+    _far_target(g)
+    g.command("anfall S-1")
+    _run(g, 5)
+    g.command("eld tub 1 mot S-1")
+    _run(g, 30)
+    assert any(r.type == "torp.long_shot" for r in reports)
+    assert not any(r.type == "torp.suggest.close" for r in reports)

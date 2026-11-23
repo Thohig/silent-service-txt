@@ -234,8 +234,13 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
     handelsfartyg inom `SEEKER_LANE_NM` (1 nm) från den målsökandes bana hela vägen ut (`_lane_ships`): missar den
     söker den vidare. Varningen räknas som frågan om målet, så den säger också vad målet självt är när det inte är
     säkert örlogsfartyg (`target_class`).
-  - *Lång gångtid:* utan känd girrytm varnar torpedrummet för gångtid över `LONG_RUN_S` (5 min, `torp.leg_warning`
-    kind long). Ett köat `torp.ready` mot målet släpps när vi skjuter på det (`ReportQueue.drop`).
+  - *Långt skott:* en rak torped med gångtid över `LONG_RUN_S` (5 min) frågar torpedrummet om en gång per mål
+    (`torp.long_shot`, `_long_shot`, också salva; inte målsökare, övning eller kärnladdning) och föreslår
+    `anfall S-x` (`torp.suggest.close`) när navigatören hinner till skjutläget (`_can_close`: `firecontrol.approach`
+    i högsta fart inom `ATTACK_MAX_H`) och de inte har oss; upprepad order inom en minut skjuter, utan
+    `torp.leg_warning` efteråt. Framme i skjutläget djupare än torpedrummets `MAX_LAUNCH_DEPTH` föreslår navigatören
+    skjutdjup med farten (`nav.suggest.attack_slow`: `fart 3, djup 90`). Utan känd girrytm varnar torpedrummet annars för gångtid över 5 min (`torp.leg_warning`
+    kind long, målsökarna). Ett köat `torp.ready` mot målet släpps när vi skjuter på det (`ReportQueue.drop`).
   - *Omladdning:* en tub vi skjutit tom föreslås laddad `RELOAD_SUGGEST_S` (60 s) efter skottet, inte medan
     de har oss, igen efter `RELOAD_COOLDOWN_S` (10 min); nekas ett skott för att ingen tub kan (`eld`, `salva`)
     föreslås omladdningen genast, också under jakt (högst var 2:e min). Tystnadens förslag som förut.
