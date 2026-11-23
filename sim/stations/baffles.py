@@ -90,10 +90,11 @@ class BafflesMixin:
         if self.now % 30 == 0:
             self._astern_lost_watch()
         st = self.own.state
-        if abs(angle_diff(st.course, st.ordered_course)) > 5:
-            return                                   # mitt i en gir
+        # också mitt i en gir: en undanmanöver ut och tillbaka till nästan samma kurs är ingen rak gång
         if self._straight_course is None or abs(angle_diff(st.course, self._straight_course)) > STRAIGHT_DEG:
             self._straight_course, self._straight_since = st.course, self.now
+        if abs(angle_diff(st.course, st.ordered_course)) > 5:
+            return                                   # mitt i en gir
         if self._clear_plan is not None:
             self._clear_listen(st)
             return

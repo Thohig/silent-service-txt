@@ -99,3 +99,31 @@ def test_no_turn_to_find_a_hunter_we_lost_astern():
     tr.classification = "trolig ubåt"
     _run(g, 90)
     assert not any(r.type == "sonar.suggest.astern_lost" for r in reports)
+
+
+def test_a_turn_out_and_back_is_not_straight_running():
+    """Svansen-kort frö 31: undanmanöver 201 → 275, och innan vi var där 186. Sonar sa sedan att vi gått
+    rakt i 12 minuter: räknaren såg inte kursen mitt i giren."""
+    import random
+    from sim.game import Game
+    from sim.scenario import build_scenario
+    from sim.stations import SonarRoom
+    g = Game(build_scenario("kuba", random.Random(1)), seed=1)
+    g.world.spawners.clear()
+    g.world.contacts, g.world.ais = [], []
+    st = g.world.own.state
+    st.course = st.ordered_course = 200.0
+    st.speed = st.ordered_speed = 10.0
+    st.depth = st.ordered_depth = 100.0
+    sonar = g.station(SonarRoom)
+    for _ in range(300):
+        g.tick()
+    before = sonar._straight_since
+    g.command("kurs 275")
+    for _ in range(25):
+        g.tick()
+    g.command("kurs 190")
+    for _ in range(120):
+        g.tick()
+    assert abs(st.course - 190) < 2
+    assert sonar._straight_since > before + 20
