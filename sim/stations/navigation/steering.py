@@ -34,6 +34,7 @@ from .common import (
 )
 from .tasks import Attack, Fairway, Follow, Wait
 
+ATTACK_UNHELD_S = 300     # anfallet styr så länge på lösningen efter att kontakten tappats
 
 class SteeringMixin:
     """Del av NavigationStation (station.py)."""
@@ -89,7 +90,9 @@ class SteeringMixin:
             q = c.base.quality if basis == "base" else Quality.DALIG
             return x, y, vx, vy, "konvojen", basis, q
         sol = tr.solution
-        if sol is None or sol.quality < Quality.OSAKER or self.now - sol.t > 600 or not tr.held:
+        # tappad en kort stund (vi gick djupt på turbinen): lösningen räcker att styra efter en stund till
+        if sol is None or sol.quality < Quality.OSAKER or self.now - sol.t > 600 or \
+                (not tr.held and self.now - sol.t > ATTACK_UNHELD_S):
             return None
         dt = (self.now - sol.t) / 3600.0
         vx, vy = sol.state[2], sol.state[3]
@@ -100,8 +103,12 @@ class SteeringMixin:
         tgt = self._attack_target(task.designation)
         if tgt is None:
             self.steer = None
+            tr = self.game.knowledge.track(task.designation)
+            sol = tr.solution if tr is not None else None
+            why = "lost" if tr is not None and not tr.held else \
+                "poor" if sol is None or sol.quality < Quality.OSAKER else "old"
             self.say("nav.attack.none" if announce else "nav.attack.lost",
-                     {"designation": task.designation}, alarm=not announce)
+                     {"designation": task.designation, "why": why}, alarm=not announce)
             return
         x, y, vx, vy, what, basis, q = tgt
         s = self.ship

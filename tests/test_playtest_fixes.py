@@ -308,3 +308,11 @@ def test_creep_is_not_suggested_once_they_have_us():
     g.knowledge.hunt_t = g.now
     assert eng.vetoes("smygmotor")
     assert not eng.vetoes("skenmål, kurs 090, smygmotor, fart 4, djup 130")
+
+
+def test_attack_lost_says_why():
+    from sim.phrases import PHRASES
+    f = PHRASES["nav.attack.lost"]
+    assert "tappat S-2" in f({"designation": "S-2", "why": "lost"})
+    assert "för osäker" in f({"designation": "S-2", "why": "poor"})
+    assert "för gammal" in f({"designation": "S-2", "why": "old"})

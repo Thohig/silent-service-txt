@@ -183,8 +183,11 @@ PHRASES = {
     f"den går {d['target_speed']:.0f} knop bort från oss.",
     "nav.attack.none": lambda d: f"Kapten, plottet har ingen lösning på {d['designation']} "
     "att anfalla efter.",
-    "nav.attack.lost": lambda d: f"Kapten, lösningen på {d['designation']} är för gammal. "
-    "Slutar styra mot skjutläget.",
+    "nav.attack.lost": lambda d: {
+        "lost": f"Kapten, vi har tappat {d['designation']} och lösningen är för gammal att styra efter. ",
+        "poor": f"Kapten, lösningen på {d['designation']} har blivit för osäker att styra efter. ",
+    }.get(d.get("why"), f"Kapten, lösningen på {d['designation']} är för gammal. ")
+    + "Slutar styra mot skjutläget.",
     "nav.attack.arrived": lambda d: f"Kapten, vi är i skjutläge. {_att_what(d).capitalize()} "
     f"är tvärs om ungefär {_minutes(d['passage_min'])}, vi ligger {nm(d['dist'])} "
     f"sjömil om {'styrbord' if d['side'] > 0 else 'babord'} om {_att_path(d)}.",
