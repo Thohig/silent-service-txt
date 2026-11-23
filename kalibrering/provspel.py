@@ -2,7 +2,7 @@
 vyerna var 5:e min, tittar i periskopet och skjuter på fientliga mål med god lösning inom 3 nm.
 Skriver hela rapportflödet per scenario till logs/provspel/<scenario>-<frö>.log och letar efter
 undantag, spam (samma rapporttyp 6+ gånger samma minut), sanningens id:n och oifyllda fält
-("nan" ger falsklarm på "innan"/"annan"). Loggarna läses sedan för hand.
+("nan", "None", "inf" som hela ord: "innanför" larmar inte). Loggarna läses sedan för hand.
 
 Användning (från repots rot): uv run python kalibrering/provspel.py krig,kuba,arktis [timmar] [frö]
 """
@@ -41,8 +41,8 @@ def run(args):
         per_min[(g.now // 60, r.type)] += 1
         if per_min[(g.now // 60, r.type)] == 6 and not r.type.startswith(("sonar.bearing", "torp.countdown")):
             issues.append(f"{g.clock_str()} spam: {r.type} 6+ gånger samma minut")
-        for bad in ("None", "nan", "{", "}", "inf ", "Traceback"):
-            if bad in txt:
+        for bad in ("None", "nan", "{", "}", "inf", "Traceback"):
+            if re.search(rf"\b{re.escape(bad)}\b" if bad.isalpha() else re.escape(bad), txt):
                 issues.append(f"{g.clock_str()} '{bad}' i text: {r.type}: {txt[:160]}")
         m = TRUTH_ID.search(txt)
         if m and not re.search(r"\b[A-Z]-\d", txt[max(0, m.start()-2):m.end()]):
