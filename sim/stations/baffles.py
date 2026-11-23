@@ -17,6 +17,7 @@ from ..geo import angle_diff, bearing_to, norm360
 from ..reports import Quality
 
 CLEAR_AFTER_S = 10 * 60        # så länge rakt innan sonar vill lyssna akterut
+CLEAR_EMPTY_MAX = 2            # varje tom lyssning fördubblar väntan, högst så många gånger (10, 20, 40 min)
 CLEAR_MIN_KN = 6.0             # långsammare än så hörs kölvattnet ändå någorlunda
 STRAIGHT_DEG = 20.0            # mindre kursändringar räknas inte som gir
 CLEAR_TURN_DEG = 60.0          # så långt åt sidan: kölvattnet kommer ut ur döda sektorn
@@ -82,6 +83,8 @@ class BafflesMixin:
         self._clear_asked_t = 0                      # när sonar föreslog giren
         self._clear_known: set[str] = set()          # kontakterna sonar hade innan
         self._clear_new = False                      # en ny kontakt under lyssningen
+        self._clear_empty = 0                        # tomma lyssningar i rad (Clyde: var 15:e min hela natten)
+        self._clear_tracks = 0                       # kontakterna i plottet när vi senast lyssnade
         self._astern_asked: set[tuple[str, int]] = set()   # (kontakt, sista bäringens tid) vi föreslagit gir för
 
     def _baffles_watch(self) -> None:
@@ -99,7 +102,10 @@ class BafflesMixin:
             self._clear_listen(st)
             return
         self._straight_kn = round(st.ordered_speed)
-        if st.speed < CLEAR_MIN_KN or self.now - self._straight_since < CLEAR_AFTER_S:
+        if len(self.game.knowledge.tracks) > self._clear_tracks:
+            self._clear_empty = 0                    # en ny kontakt sedan sist: lyssna som vanligt igen
+        wait = CLEAR_AFTER_S * 2 ** min(self._clear_empty, CLEAR_EMPTY_MAX)
+        if st.speed < CLEAR_MIN_KN or self.now - self._straight_since < wait:
             return
         if self.game.knowledge.hunted(self.now) or \
                 self.game.knowledge.torpedo_alarm(self.now, window=TORPEDO_QUIET_S):
@@ -216,6 +222,8 @@ class BafflesMixin:
         if self._clear_new or k.hunted(self.now):
             # något nytt som kan vara ett hot (inte handel eller övningsfartyget): kaptenen beslutar
             return                                      # sonar har redan sagt vad den hört
+        self._clear_empty += 1
+        self._clear_tracks = len(k.tracks)
         nav = self._navigator()
         back = None
         for off in (0, 15, -15, 30, -30, 45, -45, 60, -60, 90, -90):

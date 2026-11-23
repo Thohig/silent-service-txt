@@ -127,3 +127,31 @@ def test_a_turn_out_and_back_is_not_straight_running():
         g.tick()
     assert abs(st.course - 190) < 2
     assert sonar._straight_since > before + 20
+
+
+def test_empty_listening_doubles_the_wait():
+    """Clyde frö 51: lyssningsgiren var 15:e min hela natten. Efter en tom lyssning väntar sonar dubbelt så länge."""
+    import random
+    from sim.events import ReportDelivered
+    from sim.game import Game
+    from sim.scenario import build_scenario
+    from sim.stations import SonarRoom
+    from sim.stations.baffles import CLEAR_AFTER_S
+    g = Game(build_scenario("kuba", random.Random(1)), seed=1)
+    g.world.spawners.clear()
+    g.world.contacts, g.world.ais = [], []
+    said = []
+    g.bus.subscribe(ReportDelivered, lambda e: said.append((g.now, e.report.type)))
+    st = g.world.own.state
+    st.course = st.ordered_course = 200.0
+    st.speed = st.ordered_speed = 10.0
+    st.depth = st.ordered_depth = 100.0
+    sonar = g.station(SonarRoom)
+    sonar._clear_empty, sonar._clear_tracks = 1, len(g.knowledge.tracks)
+    start = g.now
+    for _ in range(CLEAR_AFTER_S + 120):
+        g.tick()
+    assert not any(t == "sonar.suggest.clear_baffles" for _, t in said)
+    for _ in range(CLEAR_AFTER_S):
+        g.tick()
+    assert any(t == "sonar.suggest.clear_baffles" for _, t in said)
