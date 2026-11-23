@@ -128,10 +128,12 @@ class PeriscopeBlocked(Event):
 
 @dataclass(frozen=True)
 class TorpedoInWater(Event):
-    """Sonar hör en fientlig torped: no (torped 1, 2 …), kind new/bearing/lost, bäringen."""
+    """Sonar hör en fientlig torped: no (torped 1, 2 …), kind new/bearing/lost/astern, bäringen.
+    astern: tappad i döda sektorn akterut, troligen kvar; until är när den senast kan ha gått ut."""
     no: int
     kind: str
     bearing: float | None
+    until: int | None = None
 
 
 @dataclass(frozen=True)

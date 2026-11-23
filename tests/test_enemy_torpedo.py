@@ -123,3 +123,77 @@ def test_ja_till_undanmanovern_raddar_de_flesta():
                 lost_passive += hit
     assert survived >= 6
     assert lost_passive >= 6
+
+
+# --- torpeden i döda sektorn (2026-11-23) -------------------------------------------
+from sim.sonar import IncomingTorpedo  # noqa: E402
+from sim.stations import SonarRoom  # noqa: E402
+from sim.stations.incoming import TORPEDO_RUN_S  # noqa: E402
+
+
+def _heard_then_lost(g, bearing, lost_bearing, n=10):
+    sonar = g.station(SonarRoom)
+    for k in range(n):
+        g.tick()
+        sonar._on_incoming(IncomingTorpedo(1, "new" if k == 0 else "bearing", bearing, 12.0, 120.0))
+    first = g.now - n + 1
+    g.tick()
+    sonar._on_incoming(IncomingTorpedo(1, "lost", lost_bearing))
+    _run(g, 30)                     # rapporterna levereras ur kön
+    return first
+
+
+def _fleeing(g, course=270.0, speed=28.0, depth=50.0):
+    st = g.world.own.state
+    st.course = st.ordered_course = course
+    st.speed = st.ordered_speed = speed
+    st.depth = st.ordered_depth = depth
+
+
+def test_tappad_akterut_gar_troligen_kvar():
+    """Vi springer ifrån torpeden: den tystnar rakt akterut, i döda sektorn. Sonar säger att den
+    troligen går kvar, och torpedlarmet gäller dess gångtid ut (förut sänkte maskin farten efter 5 min)."""
+    g, reports = _game(depth=50, speed=28)
+    _fleeing(g)
+    first = _heard_then_lost(g, 90.0, 92.0)
+    lost = [r for r in reports if r.type == "sonar.torpedo.lost"]
+    assert lost and lost[-1].data.get("astern") and lost[-1].alarm
+    assert "döda sektorn" in lost[-1].text and 10 <= lost[-1].data["minutes"] <= 12
+    k = g.knowledge
+    assert k.torpedo_alarm(g.now + 600)
+    assert not k.torpedo_alarm(first + TORPEDO_RUN_S + 1)
+
+
+def test_tappad_akterut_inga_forslag_om_fart_eller_gir():
+    """Medan torpeden troligen går akterut föreslår maskin inte lägre fart för kavitationen, och sonar
+    föreslår ingen gir för att lyssna akterut."""
+    g, reports = _game(depth=50, speed=28)
+    _fleeing(g)
+    first = _heard_then_lost(g, 90.0, 90.0)
+    _run(g, 9 * 60)
+    types = {r.type for r in reports if r.data.get("made_t", first + 1) > first}
+    assert "eng.suggest.cavitation" not in types
+    assert "sonar.suggest.clear_baffles" not in types
+
+
+def test_tappad_tvars_ar_borta():
+    """Tystnar torpeden där vi hör (tvärs), är den borta: larmet släpper som förut."""
+    g, reports = _game(depth=50, speed=28)
+    _fleeing(g)
+    _heard_then_lost(g, 0.0, 0.0)
+    lost = [r for r in reports if r.type == "sonar.torpedo.lost"]
+    assert lost and not lost[-1].data.get("astern")
+    assert not g.knowledge.torpedo_alarm(g.now + 61)
+
+
+def test_hord_och_tappad_igen_tvars_slapper_akterlarmet():
+    g, _ = _game(depth=50, speed=28)
+    _fleeing(g)
+    _heard_then_lost(g, 90.0, 90.0)
+    assert g.knowledge.torpedo_alarm(g.now + 300)
+    sonar = g.station(SonarRoom)
+    g.tick()
+    sonar._on_incoming(IncomingTorpedo(1, "bearing", 10.0, 12.0, 120.0))
+    g.tick()
+    sonar._on_incoming(IncomingTorpedo(1, "lost", 10.0))
+    assert not g.knowledge.torpedo_alarm(g.now + 61)

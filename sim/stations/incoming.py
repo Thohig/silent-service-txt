@@ -41,6 +41,11 @@ ETA_FAR_S = 120                # längre bort än så: torpeden söker och girar
 ETA_MAX_S = 240                # längre än så sägs ingen tid
 COUNTDOWN_UNDER_S = 90         # så nära: ropa var COUNTDOWN_EVERY_S i stället för var CALL_EVERY_S
 COUNTDOWN_EVERY_S = 10
+# En torped vi springer ifrån hamnar rakt akterut, i döda sektorn: där tappar sonar den fast den
+# kommer. Besättningens tumregel för en amerikansk målsökande torped (inte torpedens sanna gångtid):
+# den går omkring 12 minuter från det vi först hörde den. Så länge gäller undanmanövern.
+TORPEDO_RUN_S = 12 * 60
+ASTERN_MARGIN_DEG = 10.0       # så långt utanför döda sektorn räknas den tappade torpeden ändå dit
 
 
 @dataclass
@@ -112,7 +117,9 @@ PHRASES = {
     "sonar.torpedo.bearing": lambda d: f"Torpeden bäring {fmt_course(d['bearing'])}. {_drift_text(d)}"
     + _eta_text(d),
     "sonar.torpedo.lost": lambda d: "Torpeden hörs inte längre"
-    + (f", sista bäring {fmt_course(d['bearing'])}." if d.get("bearing") is not None else "."),
+    + (f", sista bäring {fmt_course(d['bearing'])}." if d.get("bearing") is not None else ".")
+    + (f" Den ligger i döda sektorn akterut och går troligen kvar, kanske {d['minutes']} "
+       f"minut{'er' if d['minutes'] > 1 else ''} till. Håll farten." if d.get("astern") else ""),
     "sonar.doors": lambda d: f"Kapten, sonar! Mekaniskt ljud i bäring {fmt_course(d['bearing'])}, "
     "luckor och vatten som fylls. De öppnar torpedrören!",
     "sonar.suggest.spoil": lambda d: f"Kapten! Föreslår kurs {fmt_course(d['course'])} och djup "
@@ -140,7 +147,9 @@ RU_PHRASES = {
     "sonar.torpedo": lambda d: f"Торпеда! Торпеда в воде, пеленг {R.course(d['bearing'])}!",
     "sonar.torpedo.bearing": lambda d: f"Торпеда, пеленг {R.course(d['bearing'])}. {_ru_drift(d)}"
     + (f" Подход через {R.mmss(d['eta'])}." if d.get("eta") is not None else ""),
-    "sonar.torpedo.lost": lambda d: "Торпеду больше не слышно.",
+    "sonar.torpedo.lost": lambda d: "Торпеду больше не слышно."
+    + (f" Она в мёртвой зоне за кормой, вероятно ещё идёт, может быть "
+       f"{R.count(d['minutes'], ('минуту', 'минуты', 'минут'))}. Держать ход." if d.get("astern") else ""),
     "sonar.doors": lambda d: f"{R.CAPTAIN}, акустик! Механический шум, пеленг {R.course(d['bearing'])}. "
     "Открывают торпедные аппараты!",
     "sonar.suggest.spoil": lambda d: f"{R.CAPTAIN}! Предлагаю курс {R.course(d['course'])}, глубина "
@@ -177,8 +186,15 @@ class IncomingMixin:
         h = self._heard_torpedoes.setdefault(ev.no, _Heard(ev.no))
         if ev.kind == "lost":
             h.lost = True
-            self.say("sonar.torpedo.lost", {"bearing": ev.bearing}, kind="contact")
-            bus.publish(TorpedoInWater(self.now, ev.no, "lost", ev.bearing))
+            until = self._astern_until(h, ev.bearing)
+            if until is not None:
+                minutes = max(1, math.ceil((until - self.now) / 60))
+                self.say("sonar.torpedo.lost", {"bearing": ev.bearing, "astern": True, "minutes": minutes},
+                         kind="contact", alarm=True)
+                bus.publish(TorpedoInWater(self.now, ev.no, "astern", ev.bearing, until=until))
+            else:
+                self.say("sonar.torpedo.lost", {"bearing": ev.bearing}, kind="contact")
+                bus.publish(TorpedoInWater(self.now, ev.no, "lost", ev.bearing))
             return
         h.bearings.append((self.now, ev.bearing, ev.se))
         h.lost = False
@@ -265,6 +281,18 @@ class IncomingMixin:
         self.suggest("evade_torpedo" + ("_again" if again else ""), "sonar.suggest.evade",
                      {"course": course, "speed": speed, "depth": depth},
                      order=", ".join(parts), cooldown=60, alarm=True)
+
+    def _astern_until(self, h: _Heard, bearing: float | None) -> int | None:
+        """Tystnade torpeden akterut i döda sektorn (sista bäringen mot vår kurs) medan den troligen
+        går? Då till när den senast kan ha gått ut (`TORPEDO_RUN_S` från första bäringen), annars None."""
+        half = self.own.baffle_deg
+        if half <= 0 or bearing is None or not h.bearings:
+            return None
+        off_stern = abs(angle_diff(bearing, norm360(self.own.state.course + 180.0)))
+        until = h.bearings[0][0] + TORPEDO_RUN_S
+        if off_stern > half + ASTERN_MARGIN_DEG or until <= self.now:
+            return None
+        return until
 
     def _loudest(self, ev: IncomingTorpedo) -> bool:
         """Hörs ingen annan torped starkare just nu? Den närmaste styr förslagen."""

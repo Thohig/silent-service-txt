@@ -140,6 +140,7 @@ class Knowledge:
     recorded: set = field(default_factory=set)   # kontakter sonar har en färdig inspelning av
     hunt_t: int = -10**9                 # senast sonar hörde att fienden har oss
     torpedo_t: int = -10**9              # senaste bäringen på en fientlig torped
+    torpedo_astern_until: int = -10**9   # en torped tappad i döda sektorn: troligen kvar till dess
     doors_t: int = -10**9                # senast sonar hörde fienden öppna torpedrören
     periscope: PeriscopePicture | None = None   # utkikens senaste bild
     bridge: PeriscopePicture | None = None      # bryggans bild just nu (None: ingen på bryggan)
@@ -237,7 +238,11 @@ class Knowledge:
             self.doors_t = e.t
 
     def _on_torpedo(self, e: TorpedoInWater) -> None:
-        if e.kind != "lost":
+        if e.kind == "astern":
+            self.torpedo_astern_until = max(self.torpedo_astern_until, e.until or e.t)
+        elif e.kind == "lost":
+            self.torpedo_astern_until = -10**9     # tystnade där vi hör: den är borta
+        else:
             self.torpedo_t = e.t
 
     def _on_detected(self, e: ContactDetected) -> None:
@@ -298,8 +303,9 @@ class Knowledge:
 
     # --- frågor ---------------------------------------------------------------
     def torpedo_alarm(self, now: int, window: int = TORPEDO_ALARM_S) -> bool:
-        """Hör sonar en fientlig torped (nyss)? Då är undanmanövern det enda som gäller."""
-        return now - self.torpedo_t <= window
+        """Hör sonar en fientlig torped (nyss), eller går den troligen kvar akterut i döda sektorn?
+        Då är undanmanövern det enda som gäller."""
+        return now - self.torpedo_t <= window or now <= self.torpedo_astern_until
 
     def hunted(self, now: int, window: int = HUNTED_WINDOW_S) -> bool:
         """Har fienden troligen kontakt med oss (tecken hörda nyligen)?"""

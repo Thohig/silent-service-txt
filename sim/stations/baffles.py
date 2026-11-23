@@ -26,6 +26,7 @@ CLEAR_COOLDOWN_S = 10 * 60
 ASTERN_LOST_S = 30 * 60        # en tappad kontakt så nyss hörd: sonar vill höra den igen
 ASTERN_MARGIN_DEG = 10.0       # ... och den ligger inom sektorn och så här mycket till
 ASTERN_COOLDOWN_S = 10 * 60
+TORPEDO_QUIET_S = 5 * 60       # så länge efter en torped (eller medan den troligen går akterut) ingen gir
 
 
 PHRASES = {
@@ -99,7 +100,8 @@ class BafflesMixin:
         self._straight_kn = round(st.ordered_speed)
         if st.speed < CLEAR_MIN_KN or self.now - self._straight_since < CLEAR_AFTER_S:
             return
-        if self.game.knowledge.hunted(self.now):
+        if self.game.knowledge.hunted(self.now) or \
+                self.game.knowledge.torpedo_alarm(self.now, window=TORPEDO_QUIET_S):
             return                                   # då styr undanmanövern
         if self.game.knowledge.threat_held():
             return      # ett hot i plottet (Kuba: jagaren pingade på 2 nm): inte nu, i 4 knop
@@ -132,7 +134,8 @@ class BafflesMixin:
         kortets land; en gång per gång vi tappat kontakten (tills den hörts igen)."""
         st = self.own.state
         k = self.game.knowledge
-        if k.hunted(self.now) or st.speed < 0.5 or self.own.surfaced:
+        if k.hunted(self.now) or k.torpedo_alarm(self.now, window=TORPEDO_QUIET_S) or st.speed < 0.5 \
+                or self.own.surfaced:
             return
         nav = self._navigator()
         if nav is not None and (nav.steer is not None or nav.vak is not None):
