@@ -404,6 +404,7 @@ SPRINT_DEPTH = 220          # upptäckta: så djupt vi vill springa (under skikt
 SPRINT_MIN_DEPTH = 100
 SPRINT_DEEPEST = 290        # ett beordrat djup ned hit duger lika bra (sonars undanmanöver går ofta djupare)
 CREEP_AFTER_HUNT_S = 600    # smygmotor föreslås inte förrän jakten varit tyst så här länge
+SMOKE_SEARCH_AFTER_VAK_S = 300   # röken: "ingen öppning" sägs inte så nyss efter förslaget om en
 
 
 class EngineeringStation(Station):
@@ -662,7 +663,8 @@ class EngineeringStation(Station):
         if o is not None:
             self.suggest("vent_vak", "eng.suggest.vent_vak", {"smoke": s.smoke, **nav.opening_data(o)},
                          order="vak", cooldown=600, alarm=alarm, quality=o.quality(self.now))
-        elif nav.under_ice():
+        elif nav.under_ice() and self.now - self._suggested.get("vent_vak", -10**9) > SMOKE_SEARCH_AFTER_VAK_S:
+            # (inte strax efter att vi föreslog en öppning: den har bara blivit lite osäkrare sedan dess)
             self.suggest("smoke_search", "eng.smoke_no_opening", {"smoke": s.smoke},
                          order="fart 5, djup 60", cooldown=900, alarm=alarm)
 

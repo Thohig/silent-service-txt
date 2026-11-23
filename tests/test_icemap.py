@@ -236,3 +236,28 @@ def test_sounder_fore_and_aft_tells_whether_the_hull_fits():
     for _ in range(12):
         g.tick()
     assert nav.hull_clear()
+
+
+def test_vak_goes_back_to_a_small_opening_we_just_passed():
+    """'Stoppa här' kom medan vi låg under en liten öppning med öppet vatten; när ordern kom hade vi
+    glidit förbi. Vak går tillbaka dit, fast best() inte tar så små (förut: 'ingen öppning loggad')."""
+    g, reports = _arctic(1)
+    nav = g.station(NavigationStation)
+    t0 = g.now - 30
+    x, y = nav.est_x, nav.est_y
+    for i, th in enumerate([3.0, 0.0, 0.0, 3.0]):       # ~30 m öppet vatten
+        nav.icemap.on_sounding(IceSoundingObs(t0 + 5 * i, x, y - (30 - i * 10) * M, th, 0.89 * th))
+    small = nav.icemap.openings[-1]
+    assert nav.icemap.best(g.now, x, y) is not small
+    nav._go_to_opening()
+    assert nav.vak is small
+
+
+def test_vak_takes_the_opening_that_was_good_a_minute_ago():
+    """Maskin föreslog en öppning; på de sekunder kaptenen tänkte blev den 'dålig'. Vak går ändå dit."""
+    m = IceMap()
+    _feed(m, [3.0] * 3 + [0.0] * 10 + [3.0] * 3)
+    o = m.openings[0]
+    t = next(t for t in range(o.last.t, o.last.t + 7200, 5) if o.quality(t) < Quality.OSAKER)
+    assert m.best(t, 0.0, 0.0) is None
+    assert m.best(t - 60, 0.0, 0.0) is o

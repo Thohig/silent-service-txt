@@ -21,6 +21,7 @@ from ...ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH
 from .common import (
     DECEL_M_PER_S2,
     ICE_FIX_SIGMA_NM,
+    JUST_PASSED_S,
     REPORT_OPENING_M,
     SAFE_ICE_DEPTH,
     SOUNDER_INTERVAL_S,
@@ -140,11 +141,23 @@ class IceMixin:
             s.order_speed(0)
             self.say("nav.vak.here", {"kind": thickness_words(cur.thickest)}, kind="ack")
             return
-        o = self.best_opening()
+        # en öppning vi just passerade (förslaget "stoppa här" kom medan vi låg under den, ordern när
+        # vi glidit förbi): tillbaka dit, också en liten med öppet vatten som best() inte tar
+        # och en som dög när förslaget gavs men hunnit bli osäkrare innan ordern kom (maskins förslag
+        # om öppning 19, och 20 s senare "ingen öppning loggad")
+        o = self.just_passed_opening() or self.best_opening() or \
+            self.icemap.best(self.now - JUST_PASSED_S, self.est_x, self.est_y)
         if o is None:
             self.say("nav.vak.none")
             return
         self._steer_for(o)
+
+    def just_passed_opening(self) -> Opening | None:
+        """Den öppning vi lämnade senast, om det var nyss (`JUST_PASSED_S`) och masterna går upp där."""
+        recent = [o for o in self.icemap.candidates(self.now)
+                  if not o.active and self.now - o.last.t <= JUST_PASSED_S
+                  and (o.open or o.length_m >= MIN_SURFACE_LEN_M)]
+        return max(recent, key=lambda o: o.last.t, default=None)
 
     def _steer_for(self, o: Opening, quiet: bool = False) -> None:
         s = self.ship

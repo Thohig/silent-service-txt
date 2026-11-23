@@ -22,6 +22,7 @@ ICE_FIX_SIGMA_NM = 1.0      # under isen: stoppa för fix först vid denna osäk
 FIX_VAK_MAX_M = 1500        # gå inte längre än så för en fix
 VAK_FAST_SPEED = 5.0        # långt till öppningen: gå fortare, sakta in sista biten
 VAK_SLOW_M = 500
+JUST_PASSED_S = 90          # vak: en öppning vi lämnade så nyss går vi tillbaka till, hur liten den än är
 REPORT_OPENING_M = 60       # kortare öppningar nämns inte när vi passerar dem
 STATION_NAME = "Nord-7"
 STATION_ARRIVE_NM = 0.3     # framme vid huvudstabens position (plus dess osäkerhet)
