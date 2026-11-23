@@ -16,6 +16,16 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip)
 
 
+@pytest.fixture(autouse=True)
+def weapons_free(request, monkeypatch):
+    """Torpedrummets fråga om vapen i fredstid (`FiringMixin._weapons_hold`) är av i testerna, som
+    mest skjuter i Kubascenariot för att pröva eldledningen. `@pytest.mark.weapons_hold` slår på den."""
+    if "weapons_hold" in request.keywords:
+        return
+    from sim.stations.torpedo_room.firing import FiringMixin
+    monkeypatch.setattr(FiringMixin, "_weapons_hold", lambda self, type_key: False)
+
+
 @pytest.fixture
 def perfect_torpedoes(monkeypatch):
     """Egna torpeder utan gyrofel, blindgångare och förtidsdetonationer: för tester av geometri och

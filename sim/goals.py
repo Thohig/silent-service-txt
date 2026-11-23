@@ -50,6 +50,24 @@ class NuclearFired(Goal):
 
 
 @dataclass
+class PeaceBroken(Goal):
+    """Fredstid (ordern säger inte att det är krig): det första sänkta fiendefartyget avslutar
+    spelet (utfallet `peace_broken`) efter brytningsljuden, också när fler fiender finns kvar.
+    Sänks den sista fienden gäller scenariots `sank` (världen prövar den före målen). `Game` lägger
+    till målet i scenarier utan `Scenario.at_war`."""
+    delay_s: int = 45
+    RANK: ClassVar[int] = 1
+
+    def check(self, world: World) -> bool:
+        if not any(v.sunk for v in world.enemy_ships):
+            return False
+        t = world.mission.setdefault("peace_broken_t", world.time)
+        if world.time - t >= self.delay_s:
+            world.end("peace_broken")
+        return True
+
+
+@dataclass
 class StrikeGoal(Goal):
     """Anfall: sänkt minst ett mål och ingen jägare har oss `clear_s` efter senaste
     sänkningen; eller alla mål har passerat och ligger `miss_nm` bort utan att något sänkts."""

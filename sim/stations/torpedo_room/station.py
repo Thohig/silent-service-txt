@@ -16,7 +16,8 @@ from ...weapons import TORPEDO_TYPES, launch_decoy
 from ..base import Proposal, Station
 from .common import (
     DECOY_SUGGEST_S, EARLY_FRACTION, EARLY_MIN_S, END_GRACE_S, CutWire, FireAt, FireSalvo, FireTube, FiringSolution, LaunchDecoy, LoadTube, N_TUBES,
-    RELOAD_CLANK_S, RELOAD_QUIET_S, RELOAD_S, RUN_REPORT_AFTER, Running, TRACK_FADE_S,
+    RELOAD_CLANK_S, RELOAD_COOLDOWN_S, RELOAD_QUIET_S, RELOAD_S, RELOAD_SUGGEST_S,
+    RELOAD_URGENT_COOLDOWN_S, RUN_REPORT_AFTER, Running, TRACK_FADE_S,
     TRACK_KEEP_S, TorpedoReport, TorpedoStatus, Tube, TubeStatus, load_order,
 )
 from .firing import FiringMixin
@@ -56,6 +57,7 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
         self._confirmed: dict[str, int] = {}     # kontakt -> när vi frågade om den
         self._nuclear_confirm_t = -10**9          # när vi frågade om kärnladdningen
         self._neutral_warned: dict[str, int] = {}   # mål (eller "kurs") -> när vi varnade
+        self._emptied: dict[int, int] = {}       # tub -> när den sköts tom (omladdningsförslaget)
         for t in self.tubes[:4]:
             t.load = "53-61"
         for t in self.tubes[4:6]:
@@ -137,6 +139,7 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
             self.say("torp.refused", {"reason": f"vi har inga {typ} kvar"})
         else:
             self.inventory[typ] -= 1
+            self._emptied.pop(n, None)
             tube.loading = typ
             tube.quiet = self._load_quietly()
             tube.clanked = 0
@@ -183,6 +186,7 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
 
         if self.now % 30 == 0:
             self._readiness()
+            self._suggest_reload()
 
     def _readiness(self) -> None:
         for tr in self.game.knowledge.tracks.values():
@@ -209,18 +213,47 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
                                  quality=sol.quality, cooldown=0)
                     break
 
+    # --- omladdning ------------------------------------------------------------------
+    def _reload_offer(self, tubes=None, straight: bool = False) -> tuple[int, str] | None:
+        """Första tomma tuben och vad minören laddar: konventionella vapen, det vi har mest av (en
+        rak för salvan); kärnladdningen laddas bara på uttrycklig order."""
+        stock = [k for k in (("53-61",) if straight else ("SET-53", "53-61"))
+                 if self.inventory.get(k, 0) > 0]
+        if not stock:
+            return None
+        for t in self.tubes:
+            if t.load is None and t.loading is None and (tubes is None or t.n in tubes):
+                return t.n, max(stock, key=lambda k: self.inventory[k])
+        return None
+
+    def _suggest_reload(self, urgent: bool = False, straight: bool = False) -> None:
+        """Föreslå omladdning av en tub vi skjutit tom, en minut efter skottet och inte medan de
+        har oss (slammer). `urgent`: kaptenen ville skjuta men ingen tub kunde; då genast, också
+        under jakt (minören laddar då försiktigt)."""
+        if urgent:
+            offer = self._reload_offer(straight=straight)
+        else:
+            if self.game.knowledge.hunted(self.now):
+                return
+            ready = [n for n, t in self._emptied.items() if self.now - t >= RELOAD_SUGGEST_S]
+            offer = self._reload_offer(ready) if ready else None
+        if offer is None:
+            return
+        n, typ = offer
+        self.suggest("reload_now" if urgent else f"reload{n}", "torp.suggest.reload",
+                     {"tube": n, "type": typ}, order=f"ladda tub {n} {typ}",
+                     cooldown=RELOAD_URGENT_COOLDOWN_S if urgent else RELOAD_COOLDOWN_S)
+
     # --- initiativ vid tystnad -------------------------------------------------------
     def idle_proposals(self) -> list[Proposal]:
-        # konventionella vapen; kärnladdningen laddas bara på uttrycklig order
-        stock = [k for k in ("SET-53", "53-61") if self.inventory.get(k, 0) > 0]
-        if not stock or self.game.knowledge.hunted(self.now):   # slammer under jakt: inte självmant
+        if self.game.knowledge.hunted(self.now):   # slammer under jakt: inte självmant
             return []
-        for t in self.tubes:
-            if t.load is None and t.loading is None:
-                typ = max(stock, key=lambda k: self.inventory[k])
-                return [Proposal(5, f"idle_reload{t.n}", "torp.suggest.reload",
-                                 f"ladda tub {t.n} {typ}", {"tube": t.n, "type": typ})]
-        return []
+        offer = self._reload_offer()
+        if offer is None:
+            return []
+        n, typ = offer
+        return [Proposal(5, f"idle_reload{n}", "torp.suggest.reload",
+                         f"ladda tub {n} {typ}", {"tube": n, "type": typ})]
 
     # --- sjökortet -------------------------------------------------------------------
     def system_items(self) -> list:

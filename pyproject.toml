@@ -26,4 +26,5 @@ dev = [
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-n auto"
-markers = ["slow: långsamt test (hela spel, statistik över frön), körs bara med --slow"]
+markers = ["slow: långsamt test (hela spel, statistik över frön), körs bara med --slow",
+           "weapons_hold: torpedrummets fråga om vapen i fredstid är på (annars av i testerna)"]

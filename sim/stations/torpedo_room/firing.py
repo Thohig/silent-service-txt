@@ -7,6 +7,7 @@ from ...events import OwnSoundMade
 from ...geo import angle_diff
 from ...firecontrol import intercept
 from ...reports import Quality
+from ...war import assess
 from ...weapons import ARM_DISTANCE_NM, TORPEDO_TYPES, launch_torpedo
 from .common import (
     ASPECT_MAX_SIGMA, ASPECT_MIN_KN, CONFIRM_S, HUNTING_RUN_S, NARROW_DEG, FireSalvo, FireTube,
@@ -68,6 +69,12 @@ class FiringMixin:
         tubes = [n for n in tubes if (t := self._tube(n)) is not None and t.load]
         if not tubes:
             self.say("torp.refused", {"reason": "inga laddade raka tuber för en salva"})
+            self._suggest_reload(urgent=True, straight=True)
+            return
+        if len(tubes) == 1:
+            # en tub är ingen solfjäder: ett vanligt skott, med alla dess frågor
+            if self._fire(FireTube(tubes[0], designation=o.designation)):
+                self.say("torp.salvo_single", {"designation": o.designation, "tube": tubes[0]})
             return
         tr, sol = self._solution_for(o.designation)
         first_type = self._tube(tubes[0]).load
@@ -87,6 +94,10 @@ class FiringMixin:
             if why := self._refusal(FireTube(tube, designation=o.designation)):
                 self.say("torp.refused", {"reason": why})
                 return
+        if self._weapons_hold(first_type):
+            return
+        if aim and self._too_close(o.designation, aim[2], first_type):
+            return
         n = len(tubes)
         if aim and not self._neutrals_clear(
                 o.designation, [(aim[0] + (i - (n - 1) / 2) * step) % 360 for i in range(n)],
@@ -153,6 +164,7 @@ class FiringMixin:
             loaded = [t for t in self.tubes if t.load and not t.loading and t.load != "T-5"]
             self.say("torp.refused", {"reason": "ingen laddad tub når " + designation if loaded
                                       else "ingen tub är laddad"})
+            self._suggest_reload(urgent=True)
             return
         self._fire(FireTube(n, designation=designation))
 
@@ -172,6 +184,8 @@ class FiringMixin:
             return False
         tube = self._tube(o.tube)
         spec = TORPEDO_TYPES[tube.load]
+        if not o.in_salvo and self._weapons_hold(tube.load):
+            return False
         quality = None
         run_s = None
         detonate_at = None
@@ -181,15 +195,8 @@ class FiringMixin:
             course = (course + o.offset) % 360
             if not o.in_salvo and not self._neutrals_clear(tr.designation, [course], tube.load):
                 return False
-            if not o.in_salvo and not spec.nuclear and dist is not None and \
-                    dist < ARM_DISTANCE_NM + TOO_CLOSE_MARGIN_NM:
-                warned = self.__dict__.setdefault("_close_warned", {})
-                if warned.get(tr.designation, -10**9) < self.now - CONFIRM_S:
-                    # innanför armeringssträckan exploderar den inte: fråga en gång
-                    warned[tr.designation] = self.now
-                    self.say("torp.too_close", {"designation": tr.designation, "range": dist},
-                             alarm=True)
-                    return False
+            if not o.in_salvo and self._too_close(tr.designation, dist, tube.load):
+                return False
             if not tr.warship and not (spec.exercise and tr.friendly) and \
                     self._confirmed.get(tr.designation, -10**9) < self.now - CONFIRM_S:
                 # torpedrummet frågar en gång; samma order inom en minut verkställs
@@ -224,6 +231,7 @@ class FiringMixin:
         if not spec.exercise:
             self.world.mission["hostile_act"] = True
         tube.load = None
+        self._emptied[tube.n] = self.now
         self._launches += 1
         run_nm = min(detonate_at, spec.range_nm) if detonate_at else spec.range_nm
         lx, ly = self.game.own_position_estimate()
@@ -241,6 +249,31 @@ class FiringMixin:
         if o.designation and run_s and not o.in_salvo:
             self._leg_warning(o.designation, run_s, spec.key)
         return True
+
+    def _too_close(self, designation: str, dist: float | None, type_key: str) -> bool:
+        """Träffpunkten innanför armeringssträckan: torpeden exploderar inte. Fråga en gång per mål
+        (enkelskott och salva); upprepad order inom en minut skjuter."""
+        if TORPEDO_TYPES[type_key].nuclear or dist is None or \
+                dist >= ARM_DISTANCE_NM + TOO_CLOSE_MARGIN_NM:
+            return False
+        warned = self.__dict__.setdefault("_close_warned", {})
+        if warned.get(designation, -10**9) >= self.now - CONFIRM_S:
+            return False
+        warned[designation] = self.now
+        self.say("torp.too_close", {"designation": designation, "range": dist}, alarm=True)
+        return True
+
+    def _weapons_hold(self, type_key: str) -> bool:
+        """Fredstid: ordern tillåter inte vapen nu (den säger inte krig och vi angrips inte med
+        skarpa vapen, `war.assess`). Torpedrummet frågar en gång (`confirm_once`); upprepad order
+        inom en minut skjuter. Övningstorpeden frågas inte, kärnladdningen har kärnvapenrådet."""
+        spec = TORPEDO_TYPES[type_key]
+        if spec.exercise or spec.nuclear:
+            return False
+        k = self.game.knowledge
+        if k.at_war()[0] or assess(k, self.now).attacked:
+            return False
+        return self.confirm_once("weapons_hold", "torp.weapons_hold")
 
     def _neutrals_in_lane(self, target: str | None, courses: list[float],
                           type_key: str) -> list[dict]:

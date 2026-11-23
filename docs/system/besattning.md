@@ -222,12 +222,19 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
     5 min (`Knowledge.charged_close`); ligger vi på botten och de bombar oss där föreslår maskin att lätta
     (`eng.suggest.lift`, larm: turbin och sprintfart, `_sprint(lift=True)`).
   - *För nära för att skjuta:* träffpunkten närmare än `ARM_DISTANCE_NM` + `TOO_CLOSE_MARGIN_NM` (0,25 +
-    0,15 nm) ⇒ torpedrummet frågar en gång (`torp.too_close`; inte salva eller kärnladdning).
+    0,15 nm) ⇒ torpedrummet frågar en gång (`torp.too_close`, `_too_close`; också före en salva, inte
+    kärnladdningen). En salva med bara en rak tub blir ett vanligt skott (`torp.salvo_single`).
+  - *Omladdning:* en tub vi skjutit tom föreslås laddad `RELOAD_SUGGEST_S` (60 s) efter skottet, inte medan
+    de har oss, igen efter `RELOAD_COOLDOWN_S` (10 min); nekas ett skott för att ingen tub kan (`eld`, `salva`)
+    föreslås omladdningen genast, också under jakt (högst var 2:e min). Tystnadens förslag som förut.
 - **Fråga en gång** (`Station.confirm_once`, anropas i `intercept`; `CONFIRM_S` 60 s): en order som bryter
   mot uppdraget eller saknar skäl stoppas första gången med skälet, och samma order inom en minut
   verkställs. Navigatören: dykning i fjorden (`nav.fjord_dive`, övningen) och ytläge när plottet har en
   fiende inom `SURFACE_THREAT_NM` (6 nm, lösning ≥ osäker, eller ett örlogsfartyg utan avstånd;
-  `nav.surface_confirm`). Maskin: nödblåsning utan vatten i båten (> 0,5 t eller läcka), skrovskada eller
+  `nav.surface_confirm`). Torpedrummet: skarpt skott eller salva i fredstid, när `Knowledge.at_war` inte
+  säger krig och `war.assess` inte ser att vi angrips skarpt (`torp.weapons_hold`, i `_fire`/`_salvo`, inte
+  övningstorpeden; kärnladdningen har kärnvapenrådet). Första sänkta fienden i fredstid avslutar (`PeaceBroken`,
+  `peace_broken`). Maskin: nödblåsning utan vatten i båten (> 0,5 t eller läcka), skrovskada eller
   djupfara (`eng.blow_confirm`). Ett förslag kaptenen sagt ja till (`Game.accepting`) och vakten före
   överlämnandet (`Game.warmup_running`) frågas aldrig; starpoms order går inte genom `intercept`.
   Sedda i ytläge har vi `SURFACE_GRACE_S` (60 s, `World._check_outcome`, `mission["seen_surfaced_t"]`)

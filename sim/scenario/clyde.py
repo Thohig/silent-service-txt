@@ -74,6 +74,7 @@ OUTCOMES = {
     "forced": "K-114 har gått till ytan i Firth of Clyde. Besättningen lever, men uppdraget har "
               "misslyckats och Sovjetunionen har en diplomatisk kris till.",
     "sank": "Ett fartyg i Firth of Clyde är sänkt. Det är krig.",
+    "peace_broken": "Ett fartyg i Firth of Clyde är sänkt. Det är krig.",
     "quit": "Kaptenen har avbrutit. K-114 lämnar firthen i förtid.",
     "lost": "K-114 är förlorad i Firth of Clyde med hela besättningen.",
 }

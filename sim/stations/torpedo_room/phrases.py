@@ -128,6 +128,11 @@ PHRASES = {
     "kapar tråden, så att vi kan gå undan fritt.",
     "torp.salvo": lambda d: f"Salva mot {d['designation']}: {d['n']} torpeder i solfjäder, "
     f"{nm(d['step'])} grader isär.",
+    "torp.salvo_single": lambda d: f"Ingen salva mot {d['designation']}: bara tub {d['tube']} hade "
+    "en rak torped, den gick ensam.",
+    "torp.weapons_hold": lambda d: "Kapten, torpedrummet. Ordern tillåter inte vapen nu: det är inte "
+    "krig och vi angrips inte med skarpa vapen. Ett skott kan starta kriget. Upprepa ordern om vi "
+    "ska skjuta.",
     "torp.leg_warning": lambda d: f"Kapten, torpedrummet. Varning: "
     + (f"{d['designation']} jagar och girar hela tiden, och en {d['type']} är framme om "
        f"{_mmss(d['run_s'])}. Den hinner gira." if d.get("kind") == "hunting" else
@@ -271,6 +276,10 @@ RU_PHRASES = {
     "обрезать провод, чтобы маневрировать свободно.",
     "torp.salvo": lambda d: f"Залп по {R.contact(d['designation'], True)}: "
     f"{R.count(d['n'], ('торпеда', 'торпеды', 'торпед'))} веером.",
+    "torp.salvo_single": lambda d: f"Залпа нет: прямая торпеда только в аппарате {d['tube']}, "
+    "стреляем одной.",
+    "torp.weapons_hold": lambda d: f"{R.CAPTAIN}, минёр. Приказ не разрешает оружие: войны нет, "
+    "и нас не атакуют боевым оружием. Повторите приказ, если стреляем.",
     "torp.neutral": lambda d: f"{R.CAPTAIN}, торпедный отсек. Внимание: "
     + ("рядом с целью другие суда, головка самонаведения может взять не ту цель." if d.get("homing")
        else ("торговое судно" if len(d["ships"]) == 1 else "торговые суда") + " рядом с курсом торпед.")

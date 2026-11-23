@@ -43,7 +43,7 @@ from .ownship import PERISCOPE_DEPTH
 from .reports import Quality, Report, ReportQueue
 from .scenario import Scenario
 from .stations import DEFAULT_STATIONS, NavigationStation, Station
-from .goals import NuclearFired, council_summary, report_summary
+from .goals import NuclearFired, PeaceBroken, council_summary, report_summary
 from .theatre import task_summary
 from .truthlog import TruthLog
 
@@ -130,6 +130,8 @@ OUTCOME_TEXT = {
     "neutral_sunk": "K-114 har sänkt ett civilt fartyg. Patrullen avbryts; befälhavaren kallas "
                     "hem för att stå till svars.",
     "quit": "Kaptenen har avbrutit patrullen. K-114 lämnar Kvadrat 7 i förtid.",
+    "peace_broken": "K-114 har sänkt ett amerikanskt fartyg utan order från Moskva. Vad som händer "
+                    "nu avgörs inte längre till sjöss.",
     "nuclear": "K-114 har avfyrat en kärnladdning. Eldklotet syntes på många sjömils håll. Vad som "
                "händer nu avgörs inte längre till sjöss: det som skulle förhindras har börjat.",
 }
@@ -154,6 +156,8 @@ class Game:
         self.world = scenario.world
         if self.world.goal(NuclearFired) is None:   # i alla scenarier: kärnladdningen avslutar
             self.world.goals.append(NuclearFired())
+        if not scenario.at_war and self.world.goal(PeaceBroken) is None:
+            self.world.goals.append(PeaceBroken())   # fredstid: första sänkta fienden avslutar
         env = self.world.env
         if env.weather is not None:          # vädret: egen slumpström (sim/weather.py)
             env.weather.rng = self.rng_for("weather")

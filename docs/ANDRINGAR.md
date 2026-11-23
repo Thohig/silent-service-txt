@@ -3,6 +3,28 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-23 – Skyttebotens fynd: vapen i fredstid, salvan, omladdningen
+
+En skyttebot (ja-boten som skjuter `eld`/`salva` på varje säker lösning) spelade alla 22 scenarier × 8 frön.
+Det som rättades:
+- **Fredstid.** Torpedrummet sköt mot en amerikansk jagare i Kuba utan att fråga (örlogsfartyg frågas aldrig),
+  och i Clyde sänktes Polarisbåten utan att något hände: världen avslutar bara när *alla* fiender är sänkta.
+  Nu frågar torpedrummet en gång före varje skarpt skott när ordern inte säger krig och vi inte angrips med
+  skarpa vapen (`FiringMixin._weapons_hold`, `confirm_once`, kunskap: `Knowledge.at_war`, `war.assess`), och
+  målet `PeaceBroken` (`Game` lägger det i scenarier utan `at_war`) avslutar med `peace_broken` när den första
+  fienden sjunkit. Är det den sista gäller scenariots `sank`. I testerna är frågan av (fixturen `weapons_free`,
+  `@pytest.mark.weapons_hold` slår på den).
+- **Salvan.** Med bara en rak tub laddad sa torpedrummet "1 torpeder i solfjäder"; nu blir det ett vanligt skott
+  (`torp.salvo_single`) med alla enkelskottets frågor. Salvan frågade inte heller om träffpunkten innanför
+  armeringssträckan (`_too_close`, nu gemensam).
+- **Omladdningen.** Förslaget kom bara vid tio minuters tystnad och aldrig under jakt; i krig-kort stod tuberna
+  tomma i två timmar och torpedrummet sa nej 20–50 gånger. Nu föreslår minören omladdning en minut efter skottet
+  (inte medan de har oss, `RELOAD_SUGGEST_S`, igen efter 10 min) och genast när ett skott nekas för att ingen tub
+  kan (`_suggest_reload(urgent=True)`).
+
+Skotten (före rättelserna): 33 skott på säkra lösningar, 3 träffar, alla på Polarisbåten i ytläge; 0 av 26 mot
+jagare, transporter och tankfartyg (median 4,6 nm, målen girade under gången). Kvar i `docs/TODO.md`.
+
 ## 2026-11-23 – Svansen (`svansen-kort`) och sonarns döda sektor
 
 Nytt kort krigsscenario, ~20 min: natt i Norska havet, vi går i 10 kn och en amerikansk Skate skuggar oss i

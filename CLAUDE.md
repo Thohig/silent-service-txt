@@ -85,7 +85,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   för slutrapporten (`goals.report_summary`).
 - **Uppdragsmål** (`sim/goals.py`, sanning): scenariot lägger `Goal`-objekt i `World.goals`
   (`StrikeGoal`, `PhotoGoal`, `ReportGoal`, `SurfaceNearGoal`, `EscapeGoal`, `TrainingGoal`,
-  `GroundingFails`, `NoDiveInFjord`, `RecordGoal`, `ShakeGoal`); `World._check_outcome` prövar dem i `RANK`-ordning, efter
+  `GroundingFails`, `NoDiveInFjord`, `RecordGoal`, `ShakeGoal`, och `PeaceBroken` som `Game` lägger i scenarier utan
+  `at_war`: första sänkta fienden avslutar); `World._check_outcome` prövar dem i `RANK`-ordning, efter
   sänkt neutralt/alla fiender och före `forced`/`patrol_end`. `World.goal(cls)` hittar ett mål.
   `World.mission` håller bara det som hänt (sänkt, `best_photo`, `last_report_t`, `grounded_t`,
   räknare). Nytt mål = ny klass i `goals.py`, `World` ändras inte.
