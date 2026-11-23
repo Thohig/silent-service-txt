@@ -84,6 +84,11 @@ def _aspect(a: dict | None) -> str:
 
 DECOY_RU = ("имитатор", "имитатора", "имитаторов")
 
+
+def _and(items: list) -> str:
+    items = [str(x) for x in items]
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " och " + items[-1]
+
 PHRASES = {
     "torp.refused": lambda d: f"Kapten, {d['reason']}.",
     "torp.nuclear_confirm": lambda d: f"Kapten, torped. Tub {d['tube']} har kärnladdning, nycklarna "
@@ -156,13 +161,16 @@ PHRASES = {
     + ", och då går torpeden fel. Närmare blir gångtiden kort. Upprepa ordern om vi ska skjuta ändå.",
     "torp.suggest.close": lambda d: f"Kapten, torpedrummet. Föreslår anfall mot {d['designation']}: "
     "navigatören tar oss till skjutläge vid sidan av dess väg, där gångtiden blir kort.",
-    "torp.time": lambda d: f"Tid för torpeden från tub {d['tube']}"
+    "torp.time": lambda d: (f"Tid för torpederna från tub {_and(d['tubes'])}" if d.get("tubes")
+                            else f"Tid för torpeden från tub {d['tube']}")
     + (f" mot {d['designation']}" if d.get("designation") else "") + "!",
     "torp.too_close": lambda d: f"Kapten, torped! {d['designation']} är för nära, cirka "
     f"{nm(d['range'])} sjömil till träffpunkten. Torpeden armeras först efter en kvarts sjömil och "
     "exploderar inte. Upprepa ordern om vi ändå skjuter.",
-    "torp.time.sunk": lambda d: f"Tid för torpeden från tub {d['tube']}, men {d['designation']} har "
-    "redan sjunkit. Den går vidare tills räckvidden är slut.",
+    "torp.time.sunk": lambda d: (f"Tid för torpederna från tub {_and(d['tubes'])}" if d.get("tubes")
+                                 else f"Tid för torpeden från tub {d['tube']}")
+    + f", men {d['designation']} har redan sjunkit. "
+    + ("De går vidare tills räckvidden är slut." if d.get("tubes") else "Den går vidare tills räckvidden är slut."),
     "torp.loading": lambda d: f"Laddar tub {d['tube']} med {d['type']}. "
     + ("Vi tar det försiktigt, åtta minuter. Det slamrar ändå när torpeden går in." if d.get("quiet")
        else "Fem minuter."),
@@ -183,8 +191,13 @@ PHRASES = {
     f"{fmt_course(d['bearing'])}, normal gång.",
     "torp.run.turned": lambda d: f"Tub {d['tube']}: torpeden svänger, nu i bäring "
     f"{fmt_course(d['bearing'])}. Målsökaren har troligen fått något.",
-    "torp.run.lost": lambda d: f"Tub {d['tube']}: sonar har tappat torpeden"
-    + (f", sista bäring {fmt_course(d['bearing'])}" if d.get("bearing") is not None else "") + ".",
+    "torp.run.lost": lambda d: (
+        f"Tub {_and(d['tubes'])}: sonar har tappat torpederna"
+        + (f", sista bäringar {_and([fmt_course(b) for b in d['bearings']])}"
+           if all(b is not None for b in d["bearings"]) else "") + "."
+        if d.get("tubes") else
+        f"Tub {d['tube']}: sonar har tappat torpeden"
+        + (f", sista bäring {fmt_course(d['bearing'])}" if d.get("bearing") is not None else "") + "."),
     "torp.run.hit": lambda d: (
         f"Tub {d['tube']}: kärnladdningen har detonerat i bäring {fmt_course(d['bearing'])}."
         if d.get("nuclear") else
@@ -199,13 +212,17 @@ PHRASES = {
     + " utan detonation. Miss, kapten.",
     "torp.run.exercise_end": lambda d: f"Tub {d['tube']}: övningstorpeden har gått färdigt "
     "och flyter upp för bärgning.",
-    "torp.run.timeout": lambda d: f"Tub {d['tube']}: torpedens räckvidd är slut och vi har inte "
-    "hört någon detonation. Trolig miss.",
+    "torp.run.timeout": lambda d: (
+        f"Tub {_and(d['tubes'])}: torpedernas räckvidd är slut och vi har inte hört någon detonation. "
+        "Troliga missar." if d.get("tubes") else
+        f"Tub {d['tube']}: torpedens räckvidd är slut och vi har inte hört någon detonation. Trolig miss."),
 }
 phrases.register(PHRASES)
 
 
 def _ru_tube(d: dict) -> str:
+    if d.get("tubes"):
+        return "Аппараты " + ", ".join(str(t) for t in d["tubes"][:-1]) + f" и {d['tubes'][-1]}"
     return f"Аппарат {d['tube']}"
 
 
@@ -310,12 +327,13 @@ RU_PHRASES = {
        + " может повернуть раньше, чем дойдёт торпеда."),
     "torp.too_close": lambda d: f"{R.CAPTAIN}, минёр! {R.contact(d['designation']).capitalize()} "
     "слишком близко, торпеда не успеет взвестись. Повторите приказ, если стреляем.",
-    "torp.time.sunk": lambda d: f"Время торпеды из аппарата {d['tube']}, но цель уже тонет.",
+    "torp.time.sunk": lambda d: f"{_ru_tube(d)}: время торпеды, но цель уже тонет.",
     "torp.long_shot": lambda d: f"{R.CAPTAIN}, торпедный отсек. Торпеда идёт долго, цель успеет "
     "отвернуть. Повторите приказ, если стреляем.",
     "torp.suggest.close": lambda d: f"{R.CAPTAIN}, торпедный отсек. Предлагаю выйти в атаку по "
     f"{R.contact(d['designation'], True)}.",
-    "torp.time": lambda d: f"Время торпеды из аппарата {d['tube']}"
+    "torp.time": lambda d: (f"Время торпед из аппаратов {', '.join(str(t) for t in d['tubes'])}"
+                            if d.get("tubes") else f"Время торпеды из аппарата {d['tube']}")
     + (f" по {R.contact(d['designation'], True)}" if d.get("designation") else "") + "!",
     "torp.loading": lambda d: f"Есть, заряжаем аппарат {d['tube']}, {R.weapon(d['type'])}. "
     + ("Тихо, восемь минут." if d.get("quiet") else "Пять минут."),

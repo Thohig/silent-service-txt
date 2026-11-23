@@ -138,3 +138,18 @@ def test_radar_many_echoes_one_report():
         g.tick()
     said = [r for r in reports if r.type.startswith("off.radar")]
     assert [r.type for r in said] == ["off.radar.sweep"] and said[0].text.startswith("Radar: fyra ekon. Närmast S-1")
+
+
+def test_a_salvo_says_its_tubes_on_one_line():
+    """Konvoj-mot: 'Tid för torpeden från tub 1', 2, 3 och tre likadana 'räckvidd slut'."""
+    from sim.stations import TorpedoRoom
+    g, reports = _game()
+    room = g.station(TorpedoRoom)
+    for n in (1, 2, 3):
+        room._say_tube("torp.time", {"tube": n, "designation": "S-2"}, kind="info")
+        room._say_tube("torp.run.lost", {"tube": n, "bearing": 260.0 + n})
+    for _ in range(10):
+        g.tick()
+    texts = [r.text for r in reports if r.type.startswith("torp.")]
+    assert "Tid för torpederna från tub 1, 2 och 3 mot S-2!" in texts
+    assert "Tub 1, 2 och 3: sonar har tappat torpederna, sista bäringar 261, 262 och 263." in texts

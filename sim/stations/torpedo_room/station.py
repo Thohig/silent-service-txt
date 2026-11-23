@@ -24,6 +24,9 @@ from .firing import FiringMixin
 from .wire import WireMixin, dr_position, path
 
 
+
+TUBE_BATCH_S = 2          # rader om torpederna i en salva inom så här kort tid blir en rad
+
 class TorpedoRoom(FiringMixin, WireMixin, Station):
     REACHES_WORLD = True        # torpeder och skenmål i vattnet, uppdragets flaggor
     role = Role.TORPEDO
@@ -54,6 +57,8 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
     def __init__(self, game):
         super().__init__(game)
         self.tubes = [Tube(i + 1) for i in range(N_TUBES)]
+        self._tube_calls: dict[tuple[str, str | None], list[tuple[dict, dict]]] = {}   # salvans rader
+        self._tube_calls_t = 0
         self._confirmed: dict[str, int] = {}     # kontakt -> när vi frågade om den
         self._nuclear_confirm_t = -10**9          # när vi frågade om kärnladdningen
         self._neutral_warned: dict[str, int] = {}   # mål (eller "kurs") -> när vi varnade
@@ -158,8 +163,30 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
         self.world.emit(Transient("reload", o.x, o.y, o.depth, level, self.own.id, self.now))
         self.game.bus.publish(OwnSoundMade(self.now, "reload"))
 
+    # --- salvans rader -----------------------------------------------------------
+    def _say_tube(self, type: str, data: dict, **kw) -> None:
+        """En rad om en torped i vattnet. En salva ger samma rad för varje tub inom ett par sekunder
+        (konvoj-mot: "tid för torpeden från tub 1", 2, 3); de samlas till en rad (`TUBE_BATCH_S`)."""
+        key = (type, data.get("designation"))
+        self._tube_calls.setdefault(key, []).append((data, kw))
+        self._tube_calls_t = self.now
+
+    def _flush_tubes(self) -> None:
+        if not self._tube_calls or self.now - self._tube_calls_t < TUBE_BATCH_S:
+            return
+        calls, self._tube_calls = self._tube_calls, {}
+        for (type, _), items in calls.items():
+            if len(items) == 1:
+                data, kw = items[0]
+                self.say(type, data, **kw)
+                continue
+            data = {**items[0][0], "tubes": [d["tube"] for d, _ in items],
+                    "bearings": [d.get("bearing") for d, _ in items]}
+            self.say(type, data, **items[0][1])
+
     # --- löpande -----------------------------------------------------------------
     def update(self) -> None:
+        self._flush_tubes()
         for t in self.tubes:
             if t.loading:
                 total = RELOAD_QUIET_S if t.quiet else RELOAD_S
@@ -175,14 +202,14 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
             if r.t_hit is not None and not r.timed and self.now >= r.t_hit:
                 r.timed = True
                 tr = self.game.knowledge.tracks.get(r.designation) if r.designation else None
-                self.say("torp.time.sunk" if tr is not None and tr.sunk else "torp.time",
-                         {"tube": r.tube, "designation": r.designation}, kind="info")
+                self._say_tube("torp.time.sunk" if tr is not None and tr.sunk else "torp.time",
+                               {"tube": r.tube, "designation": r.designation}, kind="info")
             if self.now >= r.t_end + END_GRACE_S:
                 self._finish(r, "timeout")
                 if TORPEDO_TYPES[r.type].exercise:
                     self.say("torp.run.exercise_end", {"tube": r.tube})
                 else:
-                    self.say("torp.run.timeout", {"tube": r.tube}, quality=Quality.OSAKER)
+                    self._say_tube("torp.run.timeout", {"tube": r.tube}, quality=Quality.OSAKER)
 
         if self.now % 30 == 0:
             self._readiness()
@@ -361,7 +388,7 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
                     self.say("torp.run.turned", d, quality=e.quality, alarm=True)
             case "lost":
                 r.lost = True
-                self.say("torp.run.lost", d)
+                self._say_tube("torp.run.lost", d)
             case "detonated" if (early := self._early_s(r)) is not None:
                 # långt före beräknad tid: inte vid målet (förtidsdetonation, grund, annat fartyg)
                 self._finish(r, "early")
