@@ -307,3 +307,14 @@ def test_no_exit_suggestion_while_going_to_an_opening():
     for _ in range(10):
         g.tick()
     assert any(r.type == "nav.suggest.exit" for r in reports)
+
+
+def test_no_search_on_suggestion_while_going_to_an_opening():
+    """Arktis frö 3: 'sök vidare, fart 5' levererades sekunden efter att kaptenen sagt vak och avbröt den."""
+    from sim.stations.navigation.common import SAFE_ICE_DEPTH
+    g, _ = _arctic(1)
+    nav = g.station(NavigationStation)
+    order = f"fart 5, djup {SAFE_ICE_DEPTH}"
+    assert not nav.vetoes(order)
+    nav.vak = object()
+    assert nav.vetoes(order)

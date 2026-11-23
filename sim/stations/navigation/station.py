@@ -27,6 +27,7 @@ from ..base import Proposal, Station
 from .bottom import BottomMixin
 from .current import CurrentMixin, CurrentReport
 from .common import (
+    SAFE_ICE_DEPTH,
     DOWN_ORDER_HOLD_S,
     ASTERN_LOUD_KN,
     ASTERN_SLOW_KN,
@@ -608,6 +609,9 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         """Ingen i besättningen föreslår dykning där ordern förbjuder det, och ingen föreslår en fix
         i periskopet när kaptenen just beordrat oss ned."""
         if bool(DIVE_ORDER.search(order.lower())) and self._dive_forbidden_here():
+            return True
+        if self.vak is not None and order.strip() == f"fart 5, djup {SAFE_ICE_DEPTH}":
+            # "sök vidare" när kaptenen just sagt vak (arktis frö 3: svaret avbröt vaken, röken vann)
             return True
         if self.ship.ordered_depth > PERISCOPE_DEPTH and self.ship.depth <= PERISCOPE_DEPTH + 2 \
                 and isinstance(self.game.registry.parse(order), TakeFix):
