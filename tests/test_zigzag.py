@@ -344,3 +344,14 @@ def test_in_the_firing_position_too_deep_the_navigator_suggests_firing_depth():
     sug = [r for r in reports if r.type == "nav.suggest.attack_slow"]
     assert sug and sug[0].data["order"] == f"fart 3, djup {MAX_LAUNCH_DEPTH - 10}"
     assert "inte ut djupare än 100 meter" in sug[0].text
+
+
+def test_anchored_ships_are_not_a_convoy():
+    """Sundet-ut frö 51: två fartyg till ankars blev 'en konvoj, kurs 110, 0 knop'."""
+    from sim.zigzag import TrackPoint, groups
+    a = TrackPoint("S-2", 0.0, 0.0, 110.0, 0.0, False)
+    b = TrackPoint("S-6", 0.3, 0.0, 112.0, 0.2, False)
+    assert groups([a, b]) == []
+    c = TrackPoint("S-3", 0.0, 0.0, 110.0, 8.0, False)
+    d = TrackPoint("S-4", 0.3, 0.0, 112.0, 8.5, False)
+    assert len(groups([c, d])) == 1

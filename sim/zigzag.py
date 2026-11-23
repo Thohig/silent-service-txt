@@ -25,6 +25,7 @@ ZIGZAG_POS_NM = 0.8          # ett benläge kan ligga så här långt från basl
 GROUP_NM = 3.0               # fartyg i samma grupp ligger så här nära varandra
 GROUP_COURSE_DEG = 30.0
 GROUP_SPEED_KN = 4.0
+GROUP_MIN_KN = 3.0          # långsammare än så: ingen konvoj (ankrade, stillaliggande)
 ESCORT_NM = 5.0              # en jagare så nära konvojen räknas som eskort
 MIN_TURN_GAP_S = 180         # girar tätare än så räknas som samma gir
 MAX_LEG_SIGMA_NM = 1.0       # ett ben med sämre läge än så används inte
@@ -179,8 +180,8 @@ def groups(points: Sequence[TrackPoint]) -> list[list[TrackPoint]]:
     for i, a in enumerate(points):
         for j in range(i + 1, len(points)):
             b = points[j]
-            if a.escort or b.escort:
-                continue
+            if a.escort or b.escort or a.speed < GROUP_MIN_KN or b.speed < GROUP_MIN_KN:
+                continue        # fartyg till ankars "går ihop" i 0 knop (sundet-ut: "en konvoj, 0 knop")
             if distance(a.x, a.y, b.x, b.y) <= GROUP_NM and \
                     abs(angle_diff(a.course, b.course)) <= GROUP_COURSE_DEG and \
                     abs(a.speed - b.speed) <= GROUP_SPEED_KN:
