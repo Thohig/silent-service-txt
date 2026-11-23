@@ -3,3 +3,5 @@ __pycache__/
 logs/
 *.pyc
 web/dist/
+.DS_Store
+.claude/
