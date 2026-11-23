@@ -101,23 +101,21 @@
   "ja": {
    "utfall": {
     "lost": 2,
-    "patrol_end": 3,
-    "station_reached": 3
+    "station_reached": 6
    },
    "frön": {
     "0": "lost",
-    "1": "patrol_end",
+    "1": "station_reached",
     "2": "station_reached",
-    "3": "patrol_end",
-    "4": "patrol_end",
+    "3": "lost",
+    "4": "station_reached",
     "5": "station_reached",
     "6": "station_reached",
-    "7": "lost"
+    "7": "station_reached"
    },
    "minuter": {
-    "lost": 278,
-    "patrol_end": 360,
-    "station_reached": 179
+    "lost": 219,
+    "station_reached": 258
    }
   }
  },
@@ -142,12 +140,12 @@
   },
   "ja": {
    "utfall": {
-    "patrol_end": 5,
-    "station_reached": 3
+    "patrol_end": 6,
+    "station_reached": 2
    },
    "frön": {
     "0": "patrol_end",
-    "1": "station_reached",
+    "1": "patrol_end",
     "2": "patrol_end",
     "3": "patrol_end",
     "4": "station_reached",
@@ -157,7 +155,7 @@
    },
    "minuter": {
     "patrol_end": 55,
-    "station_reached": 48
+    "station_reached": 46
    }
   }
  },
@@ -196,7 +194,7 @@
     "7": "escaped"
    },
    "minuter": {
-    "escaped": 32,
+    "escaped": 41,
     "lost": 64
    }
   }
@@ -237,7 +235,7 @@
     "7": "escaped"
    },
    "minuter": {
-    "escaped": 20
+    "escaped": 21
    }
   }
  },
@@ -407,7 +405,7 @@
     "15": "convoy_missed"
    },
    "minuter": {
-    "convoy_missed": 106
+    "convoy_missed": 97
    }
   }
  },
@@ -440,29 +438,29 @@
   },
   "ja": {
    "utfall": {
-    "convoy_missed": 4,
-    "patrol_end": 12
+    "convoy_missed": 1,
+    "patrol_end": 15
    },
    "frön": {
     "0": "patrol_end",
     "1": "patrol_end",
     "2": "patrol_end",
-    "3": "patrol_end",
-    "4": "convoy_missed",
-    "5": "convoy_missed",
+    "3": "convoy_missed",
+    "4": "patrol_end",
+    "5": "patrol_end",
     "6": "patrol_end",
     "7": "patrol_end",
     "8": "patrol_end",
-    "9": "convoy_missed",
+    "9": "patrol_end",
     "10": "patrol_end",
     "11": "patrol_end",
-    "12": "convoy_missed",
+    "12": "patrol_end",
     "13": "patrol_end",
     "14": "patrol_end",
     "15": "patrol_end"
    },
    "minuter": {
-    "convoy_missed": 73,
+    "convoy_missed": 78,
     "patrol_end": 80
    }
   }
@@ -610,21 +608,21 @@
   },
   "ja": {
    "utfall": {
-    "escaped": 6,
-    "patrol_end": 2
+    "escaped": 4,
+    "patrol_end": 4
    },
    "frön": {
     "0": "escaped",
-    "1": "patrol_end",
-    "2": "escaped",
-    "3": "escaped",
+    "1": "escaped",
+    "2": "patrol_end",
+    "3": "patrol_end",
     "4": "escaped",
     "5": "patrol_end",
     "6": "escaped",
-    "7": "escaped"
+    "7": "patrol_end"
    },
    "minuter": {
-    "escaped": 190,
+    "escaped": 74,
     "patrol_end": 240
    }
   }
@@ -652,21 +650,21 @@
   },
   "ja": {
    "utfall": {
-    "lost": 6,
-    "patrol_end": 2
+    "lost": 4,
+    "patrol_end": 4
    },
    "frön": {
     "0": "lost",
     "1": "lost",
-    "2": "lost",
+    "2": "patrol_end",
     "3": "patrol_end",
     "4": "lost",
     "5": "patrol_end",
-    "6": "lost",
+    "6": "patrol_end",
     "7": "lost"
    },
    "minuter": {
-    "lost": 34,
+    "lost": 30,
     "patrol_end": 43
    }
   }
@@ -700,30 +698,30 @@
   },
   "ja": {
    "utfall": {
-    "clyde_done": 3,
-    "record_missed": 13
+    "clyde_done": 6,
+    "record_missed": 10
    },
    "frön": {
     "0": "record_missed",
-    "1": "record_missed",
-    "2": "record_missed",
-    "3": "record_missed",
-    "4": "record_missed",
+    "1": "clyde_done",
+    "2": "clyde_done",
+    "3": "clyde_done",
+    "4": "clyde_done",
     "5": "record_missed",
     "6": "record_missed",
-    "7": "record_missed",
-    "8": "clyde_done",
+    "7": "clyde_done",
+    "8": "record_missed",
     "9": "record_missed",
     "10": "record_missed",
     "11": "record_missed",
     "12": "clyde_done",
     "13": "record_missed",
-    "14": "clyde_done",
+    "14": "record_missed",
     "15": "record_missed"
    },
    "minuter": {
-    "clyde_done": 480,
-    "record_missed": 417
+    "clyde_done": 458,
+    "record_missed": 425
    }
   }
  },
@@ -817,7 +815,7 @@
     "7": "patrol_done"
    },
    "minuter": {
-    "patrol_done": 635
+    "patrol_done": 717
    }
   }
  },
@@ -862,7 +860,7 @@
     "1": "patrol_end",
     "2": "patrol_done",
     "3": "patrol_end",
-    "4": "patrol_done",
+    "4": "patrol_end",
     "5": "patrol_end",
     "6": "patrol_end",
     "7": "patrol_done",
@@ -870,13 +868,13 @@
     "9": "patrol_end",
     "10": "patrol_end",
     "11": "patrol_end",
-    "12": "patrol_end",
+    "12": "patrol_done",
     "13": "patrol_end",
     "14": "patrol_end",
     "15": "patrol_end"
    },
    "minuter": {
-    "patrol_done": 147,
+    "patrol_done": 150,
     "patrol_end": 175
    }
   }
@@ -902,11 +900,11 @@
   },
   "ja": {
    "utfall": {
-    "escaped": 2,
-    "patrol_end": 6
+    "escaped": 1,
+    "patrol_end": 7
    },
    "frön": {
-    "0": "escaped",
+    "0": "patrol_end",
     "1": "patrol_end",
     "2": "escaped",
     "3": "patrol_end",
@@ -916,7 +914,7 @@
     "7": "patrol_end"
    },
    "minuter": {
-    "escaped": 19,
+    "escaped": 17,
     "patrol_end": 22
    }
   }
@@ -944,14 +942,14 @@
   },
   "ja": {
    "utfall": {
-    "lost": 2,
-    "patrol_end": 2,
+    "lost": 1,
+    "patrol_end": 3,
     "shaken": 4
    },
    "frön": {
     "0": "shaken",
     "1": "patrol_end",
-    "2": "lost",
+    "2": "patrol_end",
     "3": "shaken",
     "4": "lost",
     "5": "shaken",
@@ -959,11 +957,11 @@
     "7": "shaken"
    },
    "minuter": {
-    "lost": 30,
+    "lost": 29,
     "patrol_end": 33,
     "shaken": 26
    }
   }
  },
- "_commit": "de1a306"
+ "_commit": "cc8eb9e"
 }
