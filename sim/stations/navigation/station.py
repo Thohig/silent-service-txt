@@ -219,7 +219,8 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         self._tide_fix_t, self._tide_sigma = 0, 0.0
         self._current_init()
         self.course_set_t = 0
-        self.down_ordered_t = -10**9    # när kaptenen senast beordrade oss djupare än antenndjup
+        self.down_ordered_t = -10**9
+        self.heading_for: tuple[str, float] | None = None   # "kurs mot X": platsen och kursen dit    # när kaptenen senast beordrade oss djupare än antenndjup
         self.tasks: dict[str, NavTask] = {}   # pågående fixar (tasks.py), per namn
         self._next_sound = 0
         self.vak: Opening | None = None

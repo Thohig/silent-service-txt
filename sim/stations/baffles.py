@@ -115,6 +115,9 @@ class BafflesMixin:
         nav = self._navigator()
         if nav is not None and (nav.steer is not None or nav.vak is not None):
             return                                   # navigatören styr (anfall, följa, farleden …)
+        if nav is not None and nav.heading_for is not None and \
+                abs(angle_diff(st.ordered_course, nav.heading_for[1])) < 5:
+            return      # "kurs mot övningsområdet": övningen sa tillbaka dit var tionde minut (frö 51)
         first = 1 if (self.now // CLEAR_COOLDOWN_S) % 2 == 0 else -1
         course = None
         for side in (first, -first):                 # inte mot kortets land eller grund

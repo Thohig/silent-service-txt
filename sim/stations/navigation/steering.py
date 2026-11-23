@@ -427,6 +427,7 @@ class SteeringMixin:
         self.steer = None
         self.course_set_t = self.now
         self.ship.order_course(c)
+        self.heading_for = (wp.name, c)          # sonars lyssningsgir drar oss inte av den här kursen
         self.say("nav.steer", {"name": wp.name, "course": c,
                                "range": distance(self.est_x, self.est_y, wx, wy),
                                "sigma": wp.sigma(self.now) + self.uncertainty()}, kind="ack")

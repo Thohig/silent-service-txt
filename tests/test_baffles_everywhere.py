@@ -155,3 +155,25 @@ def test_empty_listening_doubles_the_wait():
     for _ in range(CLEAR_AFTER_S):
         g.tick()
     assert any(t == "sonar.suggest.clear_baffles" for _, t in said)
+
+
+def test_no_baffle_turn_while_heading_for_a_named_place():
+    """Övningen frö 51: lyssningsgiren drog oss av 'kurs mot övningsområdet' var tionde minut."""
+    import random
+    from sim.game import Game
+    from sim.scenario import build_scenario
+    from sim.stations import NavigationStation, SonarRoom
+    g = Game(build_scenario("kuba", random.Random(1)), seed=1)
+    g.world.spawners.clear()
+    g.world.contacts, g.world.ais = [], []
+    said = []
+    from sim.events import ReportDelivered
+    g.bus.subscribe(ReportDelivered, lambda e: said.append(e.report.type))
+    st = g.world.own.state
+    st.course = st.ordered_course = 200.0
+    st.speed = st.ordered_speed = 10.0
+    st.depth = st.ordered_depth = 100.0
+    g.station(NavigationStation).heading_for = ("Övningsområdet", 200.0)
+    for _ in range(15 * 60):
+        g.tick()
+    assert "sonar.suggest.clear_baffles" not in said
