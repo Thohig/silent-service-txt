@@ -11,7 +11,8 @@ from sim.geo import fmt_course
 from sim.profile import ProfileView
 from sim.reports import Quality, Report
 
-from .central_render import CONTACT_STYLE, Needles, render_central
+from .central_render import Needles, render_central
+from .styles import CONTACT_STYLE
 from .profile_render import render_gauge
 from .strips import TelegramStrip
 

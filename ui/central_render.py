@@ -1,14 +1,14 @@
 """Centralen (центральный пост) som bild.
 
-Kaptenens blick förut genom centralen: mätare på väggarna (kurs, sidroder, djup, djuproder),
-periskopet mitt i rummet, stegen upp i tornet, besättningen vid pulpeterna. Allt ur egna
-instrument (`StatusSnapshot`) och vem som just rapporterat; om andra fartyg bara plottets
-kontakter på gyrot (bäringsrepeatern, ur kunskapen), aldrig sanningen.
+Kaptenens blick förut genom centralen: väggarna, periskopet mitt i rummet, stegen upp i tornet,
+besättningen vid pulpeterna. Bara egna instrument (`StatusSnapshot`) och vem som just rapporterat,
+aldrig kunskapen om andra fartyg (kontakterna står i översikten, `ui/overview_render.py`).
 
 Ren funktion: `render_central(status, speaking, t, width, height)` ger en rad `Text` per rad.
-Bilden ritas i den storlek den får (minst `W` × `H`): stor som huvudvy, liten bredvid loggen.
-Stor (`BIG`) har väggarna instrument i braille (`ui/instruments.py`): gyro, sidroder och telegraf
-till vänster, djup, fart, klocka och djuproder till höger. Visarna rör sig mjukt (`Needles`).
+Bilden ritas i den storlek den får (minst `W` × `H`). Två storlekar: stor (`BIG`, huvudvyn) har
+väggarna instrument i braille (`ui/central_instruments.py`, `ui/instruments.py`): gyro, sidroder och
+telegraf till vänster, djup, fart, klocka och djuproder till höger, visarna mjuka (`Needles`).
+Liten (bredvid loggen) är bara rummet: rör på väggarna, besättningen och lamporna.
 """
 from __future__ import annotations
 
@@ -19,16 +19,16 @@ from rich.text import Text
 
 from sim.game import StatusSnapshot
 
-from . import instruments as ins
 from .canvas import Canvas as _Canvas
+from .central_instruments import (AMBER, GREEN, JULGRAN, JULGRAN_CELL, PLANE_HOLD_DEG, RED,  # noqa: F401
+                                  Needles, draw_instruments, openings, plane_angle, rudder_angle,
+                                  shown_now, signed_diff, telegraph_lamp)
 from .placards import PLATE_STYLE, central_plate
 
 W, H = 40, 13                   # minsta storlek (och den lilla bilden bredvid loggen)
-CRUSH_M = 450.0
 SPEAK_S = 3.0                   # så länge en plats lyser efter en rapport
-DIAL_ROW = 1                    # mätarnas översta rad
+DIAL_ROW = 1                    # instrumentens översta rad
 BIG = (100, 22)                 # minst så stor: braillesinstrumenten
-NEEDLE_TAU_S = 0.5              # visarnas tröghet
 
 PALETTES = {
     "normal": {
@@ -52,17 +52,7 @@ ROLE_LIGHT = {
     "radio": "bold #d0a8ff", "starpom": "bold #f0f0b0", "trim": "bold #8fd7c6",
     "zampolit": "bold #ffafaf",
 }
-GREEN, RED, AMBER = "bold #5fd75f", "bold #ff5f5f", "bold #ffaf00"
-ASTERN_LAMP = ins.ASTERN_LAMP
 SKY_DAY, SKY_NIGHT = "#a8c8e8", "#283850"
-MARKER = "bold #f0c674"
-# färg per kontaktslag (huvudraden och bäringsrepeatern, som sonarvyns spår)
-CONTACT_STYLE = {"threat": "bold #ff7f5f", "contact": "bold #e8c860", "civil": "#a8b890",
-                 "benign": "#5f7a68", "friendly": "bold #5fd7ff"}
-
-# nålens riktning i åtta steg (0 = upp, medurs): (rad, kolumn, tecken)
-NEEDLE = [(-1, 0, "│"), (-1, 1, "╱"), (0, 1, "─"), (1, 1, "╲"),
-          (1, 0, "│"), (1, -1, "╱"), (0, -1, "─"), (-1, -1, "╲")]
 
 
 @dataclass(frozen=True)
@@ -94,25 +84,6 @@ class Geometry:
     @property
     def lamps(self) -> int:
         return self.h - 6
-
-    @property
-    def dial_h(self) -> int:
-        """Mätarnas höjd (udda): så stora som höjden ger, men två ska få plats på varje vägg."""
-        dh = max(5, (self.h - 6) // 2)
-        if dh % 2 == 0:
-            dh -= 1
-        region = self.left[1] - self.left[0] + 1
-        while dh > 5 and 2 * (2 * dh - 3) + 3 > region:
-            dh -= 2
-        return dh
-
-    @property
-    def dial_w(self) -> int:
-        return 2 * self.dial_h - 3
-
-    @property
-    def label(self) -> int:
-        return DIAL_ROW + self.dial_h
 
     @property
     def big(self) -> bool:
@@ -172,14 +143,9 @@ class Geometry:
     def right(self) -> tuple[int, int]:
         return self.mid + 4, self.w - 3
 
-    def dials(self) -> dict[str, int]:
-        """Mätarnas vänsterkant: två på varje vägg."""
-        out = {}
-        for (a, b), keys in ((self.left, ("kurs", "roder")), (self.right, ("djup", "djupror"))):
-            gap = max(0, (b - a + 1 - 2 * self.dial_w) // 3)
-            out[keys[0]] = a + gap
-            out[keys[1]] = a + 2 * gap + self.dial_w
-        return out
+    def pipes(self) -> tuple[int, ...]:
+        """Rörens rader på väggarna i lilla bilden."""
+        return tuple(r for r in (2, 4) if r < self.lamps - 1)
 
     def seated(self) -> dict[str, int]:
         """Huvudets kolumn för de sittande."""
@@ -207,32 +173,6 @@ class Geometry:
         return self.right[1] - 2 * len(JULGRAN) + 2
 
 
-def _signed_diff(a: float, b: float) -> float:
-    """b − a i (−180, 180]."""
-    return (b - a + 180.0) % 360.0 - 180.0
-
-
-def rudder_angle(s: StatusSnapshot) -> float:
-    """Sidrodrets läge, grader, styrbord positivt (ur girens riktning mot beordrad kurs)."""
-    if "course" not in s.changing:
-        return 0.0
-    d = _signed_diff(s.course, s.ordered_course)
-    return max(-35.0, min(35.0, d))
-
-
-PLANE_HOLD_DEG = 15.0      # rodret när det bär så mycket vikt det orkar
-
-
-def plane_angle(s: StatusSnapshot) -> float:
-    """Djuprodrens läge, grader, ned positivt. Vid djupändring mot det beordrade djupet,
-    annars så mycket som behövs för att bära vikten (en tung båt håller rodret uppåt)."""
-    if s.on_bottom:
-        return 0.0
-    if "depth" not in s.changing:
-        return max(-25.0, min(25.0, -s.plane_load * PLANE_HOLD_DEG))
-    return max(-25.0, min(25.0, s.ordered_depth - s.depth))
-
-
 def eyepiece(rel: float) -> str:
     """Okularet sett akterifrån, vridet mot periskopets bäring relativt fören (rel, grader):
     rakt förut handtagen åt sidorna, åt sidan en pil dit det ser, akterut linserna mot oss."""
@@ -249,143 +189,6 @@ def eyepiece(rel: float) -> str:
     return "".join(e)
 
 
-JULGRAN = ("Lucka", "Periskop", "Radar", "Antenn", "Ventil", "Blåsning")
-JULGRAN_CELL = 11               # "● Periskop" och mellanrum
-
-
-def openings(s: StatusSnapshot) -> list[tuple[str, str | None]]:
-    """Julgranen (skrovets öppningar och ventiler): namn och lampans färg (rött öppet, gult
-    blåser, grönt stängt). Bara egna instrument."""
-    up = s.periscope is not None and s.periscope_optic == "periskop"
-    state = (s.bridge != "shut", up, s.radar_up, s.transmitting, s.ventilating)
-    out = [(name, RED if is_open else GREEN) for name, is_open in zip(JULGRAN, state)]
-    out.append((JULGRAN[-1], AMBER if s.blowing else GREEN))
-    return out
-
-
-PERI_MODE = {"sweep": "svep", "look": "titt", "hold": "håller"}
-
-
-def _ring_cell(angle: float, rx: int, ry: int) -> tuple[int, int]:
-    """Var på mätarens ram en vinkel hamnar, relativt mitten."""
-    a = math.radians(angle)
-    dx, dy = math.sin(a), -math.cos(a)
-    k = 1.0 / max(abs(dx) / rx, abs(dy) / ry)
-    return round(k * dy), round(k * dx)
-
-
-def _dial(c: _Canvas, g: Geometry, col: int, angle: float, p: dict,
-          marker: float | None = None, top: str | None = None, style: str | None = None) -> None:
-    ring = style or p["ring"]
-    dw, dh = g.dial_w, g.dial_h
-    r0 = DIAL_ROW
-    c.text(r0, col, "╭" + "─" * (dw - 2) + "╮", ring)
-    for r in range(1, dh - 1):
-        c.text(r0 + r, col, "│" + " " * (dw - 2) + "│", ring)
-    c.text(r0 + dh - 1, col, "╰" + "─" * (dw - 2) + "╯", ring)
-    rx, ry = dw // 2, dh // 2
-    cr, cc = r0 + ry, col + rx
-    if top:
-        c.put(r0, cc, top, ring)
-    if marker is not None:
-        dr, dc = _ring_cell(marker, rx, ry)
-        c.put(cr + dr, cc + dc, "◆", MARKER)
-    dr, dc, ch = NEEDLE[round(angle / 45.0) % 8]
-    if dr == 0:                                   # vågrätt
-        for k in range(1, rx):
-            c.put(cr, cc + dc * k, ch, p["needle"])
-    else:                                         # lodrätt eller snett (tecknen är dubbelt så höga)
-        wide = 1 if dh == 5 else 2
-        for k in range(1, ry):
-            for j in range(wide if dc else 1):
-                c.put(cr + dr * k, cc + dc * (wide * k - j), ch, p["needle"])
-    c.put(cr, cc, "●", p["hub"])
-
-
-class Needles:
-    """Visarnas visade läge: följer instrumenten med tröghet, så att de svänger mjukt
-    i stället för att hoppa en gång per sekund. En per bild (widget)."""
-
-    def __init__(self, tau: float = NEEDLE_TAU_S) -> None:
-        self.tau = tau
-        self.values: dict[str, float] = {}
-        self.t: float | None = None
-
-    def update(self, s: StatusSnapshot, now: float) -> dict[str, float]:
-        targets = {"course": s.course, "depth": s.depth, "speed": s.speed,
-                   "rudder": rudder_angle(s), "planes": plane_angle(s)}
-        dt = 0.0 if self.t is None else max(0.0, min(2.0, now - self.t))
-        self.t = now
-        k = 1.0 - math.exp(-dt / self.tau) if dt > 0 else 0.0
-        for key, target in targets.items():
-            if key not in self.values:
-                self.values[key] = target
-            elif key == "course":
-                v = self.values[key]
-                self.values[key] = (v + _signed_diff(v, target) * k) % 360.0
-            else:
-                self.values[key] += (target - self.values[key]) * k
-        return dict(self.values)
-
-
-def repeater(s: StatusSnapshot) -> list[tuple[str, float, str]]:
-    """Bäringsrepeaterns märken: plottets hållna kontakter med bäring (numret i beteckningen,
-    färgen efter slaget som i huvudraden), hot först."""
-    out = []
-    for d, kind, b in zip(s.contacts_held, s.contact_kinds, s.contact_bearings):
-        if b is None:
-            continue
-        out.append((d.rsplit("-", 1)[-1], b, CONTACT_STYLE.get(kind, CONTACT_STYLE["contact"])))
-    return out
-
-
-def _big_instruments(c: _Canvas, g: Geometry, s: StatusSnapshot, shown: dict[str, float],
-                     p: dict, ring: str | None) -> None:
-    slots = g.slots()
-    turning = "course" in s.changing
-    diving = "depth" in s.changing
-    dials = {
-        "gyro": ins.gyro(shown["course"], s.ordered_course if turning else None, p,
-                         repeater(s)),
-        "djup": ins.depth_gauge(shown["depth"], s.ordered_depth if diving else None, p),
-        "fart": ins.speed_gauge(shown["speed"], s.ordered_speed, s.depth, s.cavitating, p,
-                                astern=s.astern, ordered_astern=s.ordered_astern),
-        "klocka": ins.clock_face(s.clock, p),
-        "sidror": ins.rudder_gauge(shown["rudder"], p),
-        "djupror": ins.planes_gauge(shown["planes"], p, pitch=s.pitch),
-        "telegraf": ins.telegraph(s.ordered_speed, s.speed, s.propulsion, s.reactor, p,
-                                  astern=s.astern, ordered_astern=s.ordered_astern),
-    }
-    # avläsningarna visar instrumentens exakta värde, visarna det trögare
-    dials["gyro"].readout[0] = (ins.fmt_course(s.course), "bold")
-    dials["djup"].readout[0] = (f"{s.depth:.0f} m", dials["djup"].readout[0][1])
-    for key, d in dials.items():
-        top, left, rows, cols = slots[key]
-        ins.draw_dial(c, top, left, rows, cols, d, p, ring)
-
-
-def _small_dials(c: _Canvas, g: Geometry, s: StatusSnapshot, shown: dict[str, float],
-                 p: dict, dial_style: str | None, blink: bool) -> None:
-    """Den lilla bilden: fyra enkla mätare med åtta visarlägen."""
-    dials = g.dials()
-    _dial(c, g, dials["kurs"], shown["course"], p, top="N",
-          marker=s.ordered_course if "course" in s.changing else None, style=dial_style)
-    _dial(c, g, dials["roder"], shown["rudder"] * 2.5, p, style=dial_style)
-
-    def depth_angle(d: float) -> float:
-        return -150.0 + 300.0 * min(max(d, 0.0) / CRUSH_M, 1.0)
-
-    deep = s.depth >= 300
-    _dial(c, g, dials["djup"], depth_angle(shown["depth"]), p,
-          marker=depth_angle(s.ordered_depth) if "depth" in s.changing else None,
-          style=RED if deep and blink else dial_style)
-    _dial(c, g, dials["djupror"], 90.0 + shown["planes"] * 2.0, p, style=dial_style)
-    for key, label in (("kurs", "kurs"), ("roder", "roder"), ("djup", "djup"),
-                       ("djupror", "djupr")):
-        col = dials[key] + g.dial_w // 2 - len(label) // 2
-        c.text(g.label, col, label, p["label"])
-
-
 def _seated(c: _Canvas, g: Geometry, col: int, p: dict, lit: str | None, lean: int = 0) -> None:
     c.put(g.head, col + lean, "●", lit or p["head"])
     c.text(g.body, col - 1, "▟█▙", lit or p["crew"])
@@ -398,8 +201,7 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
     width/height: bildens storlek i tecken (minst W × H). shown: visarnas läge (`Needles`),
     annars instrumentens."""
     g = Geometry(max(W, width), max(H, height))
-    shown = shown or {"course": s.course, "depth": s.depth, "speed": s.speed,
-                      "rudder": rudder_angle(s), "planes": plane_angle(s)}
+    shown = shown or shown_now(s)
     red = s.night or s.hunted
     p = PALETTES["red" if red else "normal"]
     speaking = speaking or {}
@@ -437,12 +239,15 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
         c.put(r, g.ladder, "●", p["head"])
         c.put(r + 1, g.ladder, "█", p["crew"])
 
-    # mätarna
-    dial_style = p["label"] if smoky else None
+    # stor: instrumenten på väggarna; liten: bara rören
     if g.big:
-        _big_instruments(c, g, s, shown, p, dial_style)
+        draw_instruments(c, g.slots(), s, shown, p, p["label"] if smoky else None)
     else:
-        _small_dials(c, g, s, shown, p, dial_style, blink)
+        for a, b in (g.left, g.right):
+            for k, r in enumerate(g.pipes()):
+                c.text(r, a, "═" * (b - a + 1), p["ring"])
+                for col in range(a + 3 + 2 * k, b - 1, 7):
+                    c.put(r, col, "⊗", p["label"])
 
     # pulpeterna
     for a, b in (g.left, g.right):
@@ -451,13 +256,8 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
     for role, col in g.intercom().items():
         c.put(g.lamps, col, "●" if role in lit else "○", lit.get(role) or p["lamp_off"])
     # maskintelegrafen: beordrad fart i fyra steg
-    steps = sum(s.ordered_speed >= v for v in (0.5, 6.0, 12.0, 20.0))
-    tele = GREEN if s.propulsion == "turbine" else "bold #5fafff"
-    if s.reactor != "online":
-        tele = AMBER
-    if s.ordered_astern:
-        tele = ASTERN_LAMP                          # back i maskin
     if not g.big:                                   # stor: telegrafen är ett instrument
+        steps, tele = telegraph_lamp(s)
         for i, ch in enumerate("▂▄▆█"):
             c.put(g.lamps, g.telegraph + i, ch, tele if i < steps else p["lamp_off"])
     # julgranen: skrovets öppningar, grönt stängt, rött öppet
@@ -477,11 +277,7 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
         eye = max(g.peri_eye_up, g.floor - s.periscope_up_s)
         for r in range(2, g.floor):
             c.text(r, g.peri, "┃┃", p["tube"])
-        c.text(eye, g.peri - 2, eyepiece(_signed_diff(s.course, s.periscope_train)), p["eye"])
-        if g.big:                                   # gradringen under okularet, vid pulpeten
-            label = (f"PERISKOP {ins.fmt_course(s.periscope_train)} · "
-                     f"{PERI_MODE.get(s.periscope, s.periscope)} · {s.periscope_power}")
-            c.text(g.floor, g.peri + 4, label, p["eye"])
+        c.text(eye, g.peri - 2, eyepiece(signed_diff(s.course, s.periscope_train)), p["eye"])
     c.text(g.floor, g.peri - 1, "▁▁▁▁", p["tube"])
 
     # besättningen

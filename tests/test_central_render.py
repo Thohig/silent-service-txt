@@ -1,16 +1,16 @@
-"""Centralen som bild: storlek, periskopet, ljuset, rapporterande platser, rök och vatten."""
+"""Centralen som bild: storlek, periskopet, ljuset, rapporterande platser, rök och vatten.
+Bara egna instrument: inga kontakter (de står i översikten)."""
 import asyncio
 from dataclasses import replace
 
 import pytest
 
 from sim.game import StatusSnapshot
-from ui.central_render import (DIAL_ROW, AMBER, CONTACT_STYLE, GREEN, RED, JULGRAN, eyepiece, openings,
-                               repeater, H, W, Geometry, plane_angle, render_central,
-                               rudder_angle)
+from ui.central_render import (DIAL_ROW, AMBER, GREEN, RED, JULGRAN, eyepiece, openings,
+                               H, W, Geometry, plane_angle, render_central, rudder_angle)
+from ui.styles import CONTACT_STYLE
 
 G = Geometry(W, H)
-DIALS = G.dials()
 FLOOR_ROW, PERI_COL, PERI_EYE_UP = G.floor, G.peri, G.peri_eye_up
 
 BASE = StatusSnapshot(clock=0, sim_time=0, course=90, ordered_course=90, speed=6,
@@ -37,13 +37,8 @@ def test_size_follows_the_space_given():
             assert all(len(r) == max(W, w) for r in rows)
 
 
-def test_big_room_has_bigger_dials_and_the_crew_apart():
-    small, big = Geometry(W, H), Geometry(150, 32)
-    assert big.dial_h > small.dial_h
-    for g in (small, big):
-        d = g.dials()
-        assert d["roder"] >= d["kurs"] + g.dial_w            # mätarna överlappar inte
-        assert d["djupror"] + g.dial_w <= g.w - 1
+def test_the_crew_sits_apart():
+    for g in (Geometry(W, H), Geometry(150, 32)):
         assert g.left[1] < g.ladder < g.peri < g.officer
         cols = sorted(g.seated().values())
         assert all(b - a >= 4 for a, b in zip(cols, cols[1:]))
@@ -62,12 +57,11 @@ def test_periscope_rises_with_the_mast():
     assert "▐██▌" not in "".join(plain(replace(up, periscope_optic="kikare")))
 
 
-def test_compass_needle_follows_course():
-    col = DIALS["kurs"] + 3
-    north = plain(replace(BASE, course=0))
-    assert north[DIAL_ROW + 1][col] == "│"
-    east = plain(replace(BASE, course=90))
-    assert east[DIAL_ROW + 2][col + 1] == "─"
+def test_small_room_has_pipes_and_no_dials():
+    rows = plain(BASE)
+    a, b = G.left
+    assert set(rows[2][a:b + 1]) <= {"═", "⊗"}
+    assert plain(replace(BASE, course=0)) == plain(replace(BASE, course=200, depth=250))
 
 
 def test_rudder_and_planes_follow_the_orders():
@@ -114,14 +108,11 @@ def test_eyepiece_turns_with_the_periscope_bearing():
     assert "═▐██▌▶" in plain(replace(up, periscope_train=180))[PERI_EYE_UP]   # kurs 090: styrbord tvärs
 
 
-def test_big_room_shows_the_periscope_bearing_and_power():
+def test_the_periscope_shows_only_the_eyepiece():
     up = replace(BASE, depth=15, ordered_depth=15, periscope="look", periscope_up_s=20,
                  periscope_train=47, periscope_power="hög")
-    g = Geometry(130, 36)
-    rows = plain(up, width=130, height=36)
-    assert "PERISKOP 047 · titt · hög" in rows[g.floor]
-    assert "PERISKOP" not in "".join(plain(replace(up, periscope=None), width=130, height=36))
-    assert "PERISKOP" not in "".join(plain(up))           # den lilla bilden: bara okularet
+    for kw in ({}, {"width": 130, "height": 36}):
+        assert "PERISKOP" not in "".join(plain(up, **kw))   # bäringen står i översikten
 
 
 def test_julgran_shows_every_opening():
@@ -145,19 +136,14 @@ def test_big_julgran_has_names_and_small_has_lamps():
     assert styles_at(replace(BASE, radar_up=True), G.lamps, G.julgran + 4) == RED
 
 
-def test_repeater_marks_plot_contacts_on_the_gyro_threats_on_top():
-    s = replace(BASE, contacts_held=("S-3", "S-12", "S-1"), contact_kinds=("threat", "contact", "civil"),
-                contact_bearings=(45.0, None, 300.0))
-    tags = repeater(s)
-    assert [t for t, _, _ in tags] == ["3", "1"]                # utan bäring: inget märke
-    assert tags[0] == ("3", 45.0, CONTACT_STYLE["threat"])
-    big = "".join(plain(s, width=130, height=36))
-    assert "S-3" not in big                                      # bara numret
-    rows = render_central(s, width=130, height=36)
-    assert any(sp.style == CONTACT_STYLE["threat"] and r.plain[sp.start:sp.end] == "3"
-               for r in rows for sp in r.spans)
-    small = render_central(s)                                    # den lilla bilden: ingen repeater
-    assert not any(sp.style == CONTACT_STYLE["threat"] for r in small for sp in r.spans)
+def test_no_contacts_in_the_central():
+    """Centralen läser bara egna instrument: plottets kontakter syns inte där."""
+    s = replace(BASE, contacts_held=("S-3", "S-1"), contact_kinds=("threat", "civil"),
+                contact_bearings=(45.0, 300.0))
+    for kw in ({}, {"width": 130, "height": 36}):
+        assert plain(s, **kw) == plain(BASE, **kw)
+        rows = render_central(s, **kw)
+        assert not any(sp.style == CONTACT_STYLE["threat"] for r in rows for sp in r.spans)
 
 
 def test_periscope_column_stays_clear_of_dials():

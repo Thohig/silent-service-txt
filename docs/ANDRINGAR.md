@@ -3,6 +3,17 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Centralen renodlad: bara egna instrument
+
+- Centralen visar bara den egna båten. Bäringsrepeatern på gyrot och periskopets gradring (`PERISKOP 047 · titt`)
+  är borta därifrån; de flyttar till översikten (nästa steg). `render_central` läser aldrig plottets kontakter
+  (`test_no_contacts_in_the_central`).
+- Renderaren delad: `ui/central_render.py` är scenen (rummet, figurerna, periskopet, lamporna, rök och vatten),
+  `ui/central_instruments.py` instrumenten (`rudder_angle`, `plane_angle`, `Needles`, julgranen `openings`,
+  `draw_instruments`). `CONTACT_STYLE` bor i `ui/styles.py`.
+- Två storlekar i stället för tre: lådmätarna i den lilla bilden är borta (huvudraden visar djup, kurs och fart);
+  väggarna har rör med ventilrattar. Mellanstorleken (lådmätare skalade upp till 100 × 22) användes aldrig i spelet.
+
 ## 2026-11-24 – Enklare ordergivning: j/n, ja på frågor, babord/styrbord, "Menade ni …?"
 
 - `j` och `n` räcker för ja och nej (`SUGGESTION_COMMANDS`).

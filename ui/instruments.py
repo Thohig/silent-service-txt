@@ -3,7 +3,7 @@
 Varje instrument är en `Dial`: skalans form (hel cirkel, övre halva eller högra halva),
 skalstreck, siffror, färgade zoner, markeringar (beordrat värde, kavitationsgräns) och
 visare. `draw_dial` skalar den till den ruta den får och skriver namn och avläsning på
-nedersta raden. Egna instrument, och på gyrot plottets kontakter (bäringsrepeatern, ur kunskapen).
+nedersta raden. Egna instrument; gyrot kan bära en bäringsrepeater (plottets kontakter, översikten).
 """
 from __future__ import annotations
 

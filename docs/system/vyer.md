@@ -70,28 +70,29 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   bruten axel; vårt djup, kortets botten och tunna nivåer i braille vid exakt djup) och djupmätaren bredvid loggen. Tab växlar (hytten, när starpom har befälet) → logg → sjökort → sonar → ubåten → periskopbild → logg, med luckan öppen brygga före
   periskopbild. Vyerna, orden som öppnar dem och Tab-ordningen står i registret `ui/views.py`
   (`REGISTRY`, `ViewDef`, `tab_order`); `SubApp` slår bara upp där.
-- **Centralen** (`ui/central_render.py`, `CentralView` i `ui/widgets.py`): bild av центральный пост.
+- **Centralen** (`ui/central_render.py` scenen, `ui/central_instruments.py` instrumenten, `CentralView` i
+  `ui/widgets.py`): bild av центральный пост. Bara egna instrument (`StatusSnapshot`) och vem som talar, aldrig
+  kunskapen om andra fartyg (renodlad 2026-11-24: bäringsrepeatern och periskopets gradring flyttade till
+  översikten; testet `test_no_contacts_in_the_central`).
   Huvudvyns layout efter fönstret (`GameScreen.on_resize`, klasserna `big`/`narrow`): minst 120 × 36 ⇒
   centralen fyller vyn (`#central-big`, inga figurer), loggen är en remsa (11 rader) med djupmätaren bredvid och hela
-  loggen är en egen vy (`LogScreen`, `ui/logview.py`: först i Tab-ordningen, `logg`; `central` tillbaka;
+  loggen är en egen vy (`LogScreen`, `ui/logview.py`, `logg`; `central` tillbaka;
   slutrapporten öppnar den). Mindre ⇒ loggen stor och en liten central (40 × 13) ovanför djupmätaren;
   under 100 kolumner bara djupmätaren. `ReportLog.emit` sparar raderna (`entries`) och speglar dem till
-  loggvyn (`mirror`); skriv aldrig loggrader med `write`. Bilden ritas i widgetens storlek (`Geometry`:
-  mätarna växer med höjden). Från 100 × 22 (`BIG`, `Geometry.slots`) är väggarna instrument i braille
-  (`ui/canvas.py`: `Braille` 2 × 4 prickar per ruta, stil efter prioritet; `ui/instruments.py`: `Dial`,
-  `draw_dial`): gyro, sidroder (±35°), telegraf (handtag = beordrad fart, gul visare = maskinens svar,
-  läget B längst till vänster = back),
-  djup 0–500 m med prov- och krosszon, bäringsrepeatern på gyrots ring (`repeater`: plottets hållna kontakter
-  med `StatusSnapshot.contact_bearings` ur kunskapen, numret i beteckningen i slagets färg `CONTACT_STYLE`, hot
-  överst; bara i stora bilden), fart 0–30 kn med kavitationszonen (6 + djup/25), klocka, djuproder
+  loggvyn (`mirror`); skriv aldrig loggrader med `write`. Två storlekar: från 100 × 22 (`BIG`, `Geometry.slots`)
+  är väggarna instrument i braille (`ui/canvas.py`: `Braille` 2 × 4 prickar per ruta, stil efter prioritet;
+  `ui/instruments.py`: `Dial`, `draw_dial`; `central_instruments.draw_instruments`): gyro, sidroder (±35°),
+  telegraf (handtag = beordrad fart, gul visare = maskinens svar, läget B längst till vänster = back),
+  djup 0–500 m med prov- och krosszon, fart 0–30 kn med kavitationszonen (6 + djup/25), klocka, djuproder
   med libell. Avläsningen är exakt; visarna följer med tröghet (`Needles`, τ 0,5 s, kursen den korta vägen)
-  och ritas tio gånger i sekunden (`CENTRAL_EVERY_S`, bara när huvudvyn syns). Under `BIG` de små
-  lådmätarna. Ren funktion `render_central(status, speaking, t, width, height, shown)`
-  ur `StatusSnapshot` (egna instrument, och plottets kontakter på gyrot) och vem som rapporterat senaste 3 s (`SubApp._spoke`, roll ⇒
-  plats eller snabbtelefonens lampa). Mätare kurs/sidroder/djup/djuproder (rodren härledda ur beordrat mot
-  verkligt), periskopet hissas med `periscope_up_s` och okularet vrids efter bäringen relativt fören
-  (`eyepiece`: handtagen rakt förut, pil åt sidorna, linserna akterut; stor bild: `PERISKOP 047 · titt · hög`
-  under pulpeten), stegen och luckan (himlen syns), maskintelegrafen,
+  och ritas tio gånger i sekunden (`CENTRAL_EVERY_S`, bara när huvudvyn syns). Den lilla bilden är bara rummet
+  (rör med ventilratt på väggarna, besättningen, lamporna; lådmätarna borttagna 2026-11-24: huvudraden visar
+  djup, kurs och fart). Ren funktion `render_central(status, speaking, t, width, height, shown)`
+  och vem som rapporterat senaste 3 s (`SubApp._spoke`, roll ⇒
+  plats eller snabbtelefonens lampa). Rodren härleds ur beordrat mot verkligt (`rudder_angle`, `plane_angle`),
+  periskopet hissas med `periscope_up_s` och okularet vrids efter bäringen relativt fören
+  (`eyepiece`: handtagen rakt förut, pil åt sidorna, linserna akterut), stegen och luckan (himlen syns),
+  maskintelegrafen (`telegraph_lamp`),
   julgranen (`openings`: lucka, periskop, radar, antenn, ventil rött när öppna, blåsning gult; liten bild
   lampor i rad, stor bild en tavla med namn under högra pulpeten), rött ljus på natten eller jagade (`night`, `hunted`), larmlampor,
   rök och vatten.
