@@ -329,6 +329,14 @@ PHRASES = {
     f"{d['range']} meter. Fart {kn(d['speed'])} knop" + (f", djup {d['depth']}" if d.get("depth") else "")
     + ".",
     "nav.vak.here": lambda d: f"Vi ligger under öppningen nu, {d['kind']}. Stoppar.",
+    "nav.vak.measure": lambda d: f"Vi ligger under öppningen nu, {d['kind']}. Saktar till {kn(d['speed'])} "
+    "knop och mäter upp den, sedan back till mitten. Back i maskin nu stoppar oss fortare, men "
+    "omkastningen hörs.",
+    "nav.vak.back_ordered": lambda d: (f"Navigatören. Jag säger stopp mitt i öppningen, cirka {d['range']} "
+                                       "meter akterut." if d["end"] else
+                                       "Navigatören. Öppningen fortsätter förut, jag säger stopp när vi står."),
+    "nav.vak.measured": lambda d: f"Isekolodet: öppningen slutar här, cirka {d['length']} meter lång. "
+    f"Back {kn(d['speed'])} knop till mitten, cirka {d['range']} meter.",
     "nav.suggest.up": lambda d: f"Kapten, vi står stilla under öppningen, {d['kind']} ovanför. "
     + ("Vi är vid Nord-7. Föreslår ytläge." if d.get("station") else
        "Föreslår periskopdjup." if d["open"] else "Föreslår ytläge, vi bryter igenom nyisen."),
@@ -660,6 +668,13 @@ RU_PHRASES = {
     "nav.vak.ack": lambda d: f"Есть, идём к полынье {d['no']}, пеленг {R.course(d['bearing'])}, "
     f"около {R.count(d['range'], R.METER)}. Ход {R.count(d['speed'], R.KNOT)}.",
     "nav.vak.here": lambda d: "Мы под полыньёй. Стоп.",
+    "nav.vak.measure": lambda d: "Мы под полыньёй. Малый ход, промеряем её, потом назад на середину. "
+    "Задний ход сейчас остановит быстрее, но будет слышно.",
+    "nav.vak.back_ordered": lambda d: (f"Штурман. Скажу стоп посередине полыньи, около "
+                                       f"{R.count(d['range'], R.METER)} за кормой." if d["end"] else
+                                       "Штурман. Полынья продолжается впереди, скажу стоп, когда встанем."),
+    "nav.vak.measured": lambda d: f"Эхоледомер: полынья кончается, длина около {R.count(d['length'], R.METER)}. "
+    f"Задний ход {R.count(d['speed'], R.KNOT)}, до середины около {R.count(d['range'], R.METER)}.",
     "nav.suggest.up": lambda d: f"{R.CAPTAIN}, мы стоим под полыньёй. "
     + ("Мы у станции Северный полюс семь. Предлагаю всплыть." if d.get("station") else
        "Предлагаю перископную глубину." if d["open"] else

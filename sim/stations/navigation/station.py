@@ -228,6 +228,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         self._vak_t = 0
         self._vak_stopping = False
         self._vak_here = False
+        self._vak_phase = ""                # "measure": över råken sakta tills slutet syns; "back": till mitten
         self._hull_ice: tuple[int, float, float] | None = None   # isekolodet för och akter (t, m, m)
         self._vak_tries = 0                 # gånger vi lagt om mot mitten för att skrovet inte rymdes
         self._surfacing_through: int | None = None  # öppningen vi föreslog ytläge genom (nyis)
@@ -488,6 +489,8 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                 s.order_course(c)
                 self._ack("course", {"course": c}, s.course == s.ordered_course)
             case SetSpeed(speed=v, astern=astern, level=level):
+                # back medan vi mäter upp råken: kaptenen bromsar själv, navigatören stoppar oss i mitten
+                vak = self.vak if astern and self._vak_phase in ("measure", "back") else None
                 self.vak = None
                 if isinstance(self.steer, Wait):
                     self.steer = None           # kaptenen tar över farten: vi håller inte läget
@@ -496,6 +499,8 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                 if astern:
                     self.steer = None           # inget styruppdrag går akterut
                     self._order_astern(v, level)
+                    if vak is not None and s.ordered_astern:
+                        self._vak_back_ordered(vak)
                     return
                 if v > 0:
                     self._lift()

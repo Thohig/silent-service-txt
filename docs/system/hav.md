@@ -69,7 +69,13 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   gånger medan röken tätnade). `vak` går tillbaka till en öppning vi lämnat de senaste 90 s (`JUST_PASSED_S`,
   `just_passed_opening`; "stoppa här" kom under en 30 m råk med öppet vatten och ordern när vi glidit förbi), och
   tar en öppning som dög för en minut sedan om ingen duger nu (maskins förslag om en öppning, 20 s senare
-  "ingen öppning loggad"). Maskin säger inte "vi har ingen öppning" de första 5 min efter att ha föreslagit en.
+  "ingen öppning loggad"). `vak` under en råk i fart (över 1,8 kn; 2026-11-24, arktis frö 21: stopp i 5 kn, ~130 m
+  glid förbi, ut 250 m och vänd, fyra försök på 16 min) stoppar inte på stället: navigatören saktar till 1,5 kn
+  (`VAK_MEASURE_KN`) rakt över (`nav.vak.measure`), och när isekolodet ser slutet back 2 kn till mitten
+  (`nav.vak.measured`, `_measure_opening`, `_back_to_centre`; omkastningen först under 2 kn, så den inte hörs).
+  Längre än 250 m (`LONG_OPENING_M`): stopp där vi är. Slår kaptenen back under mätningen (fortare stopp, hörs)
+  gäller vaken: stopp i mitten om slutet är sett, annars när farten framåt är borta (`nav.vak.back_ordered`).
+  Arktis ja-boten (8 frön): stationen nådd 5 ⇒ 6, arktis-kort 2 ⇒ 3. Maskin säger inte "vi har ingen öppning" de första 5 min efter att ha föreslagit en.
   Mätt (arktis-kort, ja-boten efter 1/5/20 s, 16 frön): stötar efter ytläge 7 ⇒ 3, "tjock is" efter
   ytläge 7 ⇒ 1, stationen nådd 17 ⇒ 13 av 48 (omläggningarna tar tid).
   Under isen föreslår ingen något annat medan ett förslag står obesvarat (2026-11-24, arktis-kort frö 3): maskins

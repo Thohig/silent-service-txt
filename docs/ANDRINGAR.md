@@ -3,6 +3,20 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Vaken: mät upp råken och lägg dig i mitten
+
+"Stoppa här" (`vak`) under en råk i fart stoppade på stället: i 5 kn glider vi ~130 m, förbi råken, och
+navigatören gick ut 250 m och vände ("Vi gled förbi öppningen", arktis frö 21: fyra försök på 16 min). Nu saktar
+navigatören till 1,5 kn rakt över råken ("mäter upp den"), och när isekolodet ser tjock is igen går han back 2 kn
+till mitten och stoppar där (`navigation/ice.py`, `_measure_opening`, `_back_to_centre`). Omkastningen görs under
+2 kn, så den inte hörs; i beskedet säger navigatören att back i maskin stoppar fortare men hörs, och slår kaptenen
+back under mätningen behåller navigatören vaken och stoppar oss i mitten (eller där vi står, om råken fortsätter
+förut). Backen som broms direkt (provad förut) ställde oss i kanten där råken började.
+
+Frö 21: ytläge genom nyis på första försöket tre gånger, och vid Nord-7 utan glid. Arktis ja-boten (8 frön):
+stationen nådd 5 ⇒ 6, arktis-kort 2 ⇒ 3; passiva oförändrade. Tester: `tests/test_icemap.py` (råk på 90 och
+190 m tvärs kursen i 5 kn, kaptenens back före och efter att slutet syns).
+
 ## 2026-11-24 – Krig-kort: färre fullföljda patruller var slump
 
 Ja-boten på 32 frön gav 10 `patrol_done` på 3c9ce48 och 5–6 efter provspelets andra omgång. Frö för frö bytte

@@ -4,10 +4,12 @@ from __future__ import annotations
 import math
 
 from ...events import IceSounded, OpeningNotFound
+from ...acoustics import ASTERN_TRANSIENT_MIN_KN
 from ...geo import NM_IN_M, angle_diff, bearing_to, distance, norm360
 from ...icemap import (
     BREAKABLE_M,
     HULL_HALF_M,
+    LONG_OPENING_M,
     MIN_SURFACE_LEN_M,
     OPEN_M,
     IceMap,
@@ -17,12 +19,14 @@ from ...icemap import (
     round_m,
     thickness_words,
 )
-from ...ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH
+from ...ownship import ANTENNA_DEPTH, BRAKE_KN_PER_S, PERISCOPE_DEPTH
 from .common import (
     DECEL_M_PER_S2,
     ICE_FIX_SIGMA_NM,
     JUST_PASSED_S,
+    VAK_BACK_KN,
     VAK_CENTRED_M,
+    VAK_MEASURE_KN,
     REPORT_OPENING_M,
     SAFE_ICE_DEPTH,
     SOUNDER_INTERVAL_S,
@@ -145,10 +149,19 @@ class IceMixin:
         self._vak_tries = 0
         cur = self.icemap.current
         if cur is not None and self.icemap.latest(self.now) is not None:
-            self.vak, self._vak_t, self._vak_stopping = cur, self.now, True
-            self._vak_here = True
-            s.order_speed(0)
-            self.say("nav.vak.here", {"kind": thickness_words(cur.thickest)}, kind="ack")
+            self.vak, self._vak_t, self._vak_here, self._vak_centering = cur, self.now, True, False
+            kind = thickness_words(cur.thickest)
+            if s.speed <= VAK_MEASURE_KN + 0.3:
+                self._vak_stopping, self._vak_phase = True, ""
+                s.order_speed(0)
+                self.say("nav.vak.here", {"kind": kind}, kind="ack")
+                return
+            # i fart glider vi förbi innan vi står (5 kn ~130 m; arktis frö 21: förbi, ut och vänd, fyra
+            # gånger på 16 min): sakta över råken tills isekolodet ser slutet, sedan back till mitten
+            self._vak_stopping, self._vak_phase = False, "measure"
+            s.order_speed(VAK_MEASURE_KN)
+            s.order_course(s.course)    # rakt över: ingen gir som sökspiralen redan beordrat (frö 21 vid Nord-7)
+            self.say("nav.vak.measure", {"kind": kind, "speed": VAK_MEASURE_KN}, kind="ack")
             return
         # en öppning vi just passerade (förslaget "stoppa här" kom medan vi låg under den, ordern när
         # vi glidit förbi): tillbaka dit, också en liten med öppet vatten som best() inte tar
@@ -171,6 +184,7 @@ class IceMixin:
     def _steer_for(self, o: Opening, quiet: bool = False, centering: bool = False) -> None:
         s = self.ship
         self.vak, self._vak_t, self._vak_stopping, self._vak_here = o, self.now, False, False
+        self._vak_phase = ""
         # lägga om mot mitten: stanna där, inte så fort öppningen är ovanför (då stod vi kvar i kanten
         # och sa "lägger oss mitt i den" två gånger på en sekund, arktis frö 51)
         self._vak_centering = centering
@@ -195,6 +209,12 @@ class IceMixin:
             self.vak = None
             s.order_speed(VAK_SPEED)
             self.say("nav.vak.timeout")
+            return
+        if self._vak_phase == "measure":
+            self._measure_opening(o)
+            return
+        if self._vak_phase == "back":
+            self._back_to_centre(o)
             return
         if not self._vak_stopping:
             course, rng_m = IceMap.course_and_range_m(self.est_x, self.est_y, o)
@@ -285,6 +305,54 @@ class IceMixin:
         else:
             self.suggest("vak_search", "nav.vak.search", {"depth": SAFE_ICE_DEPTH},
                          order=f"fart 5, djup {SAFE_ICE_DEPTH}", cooldown=0)
+
+    def _vak_stop(self) -> None:
+        self._vak_phase, self._vak_stopping = "", True
+        self.ship.order_speed(0)
+
+    def _measure_opening(self, o: Opening) -> None:
+        """Sakta över råken: stanna när den är lång nog bakom oss, annars back till mitten när
+        isekolodet ser dess slut."""
+        s = self.ship
+        if o.active:
+            if o.length_m >= LONG_OPENING_M and s.speed <= VAK_MEASURE_KN + 0.3:
+                self._vak_stop()        # lång: skrovet ryms i det vi redan passerat
+            return
+        if s.speed >= ASTERN_TRANSIENT_MIN_KN:
+            s.order_speed(0)            # omkastningen i fart hörs: sakta in först
+            return
+        course, rng_m = IceMap.course_and_range_m(self.est_x, self.est_y, o)
+        if abs(angle_diff(course, s.course)) < 90 or rng_m <= VAK_CENTRED_M:
+            self._vak_stop()            # mitten är inte bakom oss: stå här
+            return
+        self._vak_phase, self._vak_here = "back", False
+        s.order_speed(VAK_BACK_KN, astern=True)
+        self.say("nav.vak.measured", {"length": round_m(o.length_m), "range": round_m(rng_m),
+                                      "speed": VAK_BACK_KN}, quality=o.quality(self.now))
+
+    def _vak_back_ordered(self, o: Opening) -> None:
+        """Kaptenen slog back medan vi mätte upp råken: fortare stopp (omkastningen hörs). Navigatören
+        behåller vaken och stoppar oss i mitten av det vi mätt."""
+        self.vak, self._vak_phase, self._vak_here, self._vak_stopping = o, "back", False, False
+        _, rng_m = IceMap.course_and_range_m(self.est_x, self.est_y, o)
+        self.say("nav.vak.back_ordered", {"range": round_m(rng_m), "end": not o.active})
+
+    def _back_to_centre(self, o: Opening) -> None:
+        """Back mot råkens mitt; stopp när glidet tar oss resten."""
+        s = self.ship
+        if o.active:
+            # slutet inte sett (kaptenens back): råken fortsätter förut, mitten av det mätta ligger mot kanten
+            # vi kom in över. Stopp när farten framåt är borta.
+            if s.astern or s.speed == 0:
+                self._vak_stop()
+            return
+        course, rng_m = IceMap.course_and_range_m(self.est_x, self.est_y, o)
+        v = s.speed * 1852 / 3600
+        # stopp ur back: maskinen slår om mot farten och bromsar tre gånger så fort som vid stopp framåt
+        brake = BRAKE_KN_PER_S * 1852 / 3600 if s.astern else DECEL_M_PER_S2
+        passed = abs(angle_diff(course, s.course)) < 90      # mitten ligger för om oss: förbi den
+        if passed or (s.astern and rng_m <= v * v / (2 * brake) + 3):
+            self._vak_stop()
 
     # --- drivstationen ---------------------------------------------------------------
     def station_aim(self) -> tuple[str, float, float | None, dict] | None:

@@ -14,12 +14,7 @@ Inget just nu (webbversionen provad av kaptenen 2026-11-22: fungerar bra).
 
 ## Utreda
 
-- **Vaken under isen glider förbi** (arktis frö 21, skytt 2026-11-24): "stoppa här" i 5 kn när isekolodet ser
-  nyis ovanför, vi glider ~120 m förbi, vänder och missar eller står med tjock is för och akter. Fyra försök på
-  16 min, och sambandstillfället missades. Back i maskin provades (40 m i stället för 120 m) och blev sämre: vi
-  stannade i kanten där ekolodet först såg råken, glidet tog oss förut närmare mitten (arktis ja: förlorade
-  1 ⇒ 4 av 8, stationen nådd 5 ⇒ 3). Det som behövs är troligen att stanna mitt i råken: sakta in över den
-  och vända tillbaka till mitten när ekolodet ser dess slut.
+Inget just nu.
 
 ## Beslut som väntar på kaptenen
 

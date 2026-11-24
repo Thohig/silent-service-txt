@@ -340,3 +340,95 @@ def test_with_smoke_aboard_a_narrow_opening_at_the_station_is_for_the_masts():
     ups = [r for r in reports if r.type == "nav.suggest.up"]
     assert ups and ups[-1].data["order"] == "periskopdjup"
     assert not any(r.type == "nav.vak.narrow_station" for r in reports)
+
+
+@pytest.mark.parametrize("length_m", [90, 190])
+def test_stop_here_in_speed_measures_the_opening_and_backs_to_its_middle(length_m):
+    """'Stoppa här' i 5 kn under en råk: förut stopp på stället, ~130 m glid förbi, ut och vänd (arktis frö 21,
+    fyra försök på 16 min). Nu sakta över den tills isekolodet ser slutet och back till mitten."""
+    g, reports = _arctic(1)
+    nav = g.station(NavigationStation)
+    s = g.world.own.state
+    x0, y0 = s.x, s.y
+    a, b = y0 + 60 * M, y0 + (60 + length_m) * M      # råken tvärs över vår kurs norrut
+    g.world.env.ice.thickness_at = lambda x, y: 0.0 if a <= y <= b else 3.0
+    s.course = s.ordered_course = 0.0
+    s.speed = 5.0
+    s.order_speed(5.0)
+    s.depth = 60.0
+    s.order_depth(60.0)
+    for _ in range(120):
+        g.tick()
+        if s.y > a + 20 * M:
+            break
+    g.command("vak")
+    for _ in range(900):
+        g.tick()
+        if nav.vak is None and s.speed < 0.3:
+            break
+    types = [r.type for r in reports]
+    assert "nav.vak.measure" in types and "nav.vak.measured" in types
+    assert "nav.vak.overshot" not in types
+    assert abs(s.y - (a + b) / 2) < 25 * M          # tornet mitt i råken
+    assert abs(s.x - x0) < 20 * M                   # rakt över och tillbaka
+
+
+def test_captain_backs_while_the_opening_is_measured_and_the_navigator_stops_us_in_the_middle():
+    """Kaptenen väljer back i maskin medan navigatören mäter upp råken (fortare stopp, hörs):
+    vaken gäller fortfarande och navigatören stoppar oss mitt i det vi mätt."""
+    g, reports = _arctic(1)
+    nav = g.station(NavigationStation)
+    s = g.world.own.state
+    x0, y0 = s.x, s.y
+    a, b = y0 + 60 * M, y0 + 400 * M                  # lång råk: slutet syns inte före backen
+    g.world.env.ice.thickness_at = lambda x, y: 0.0 if a <= y <= b else 3.0
+    s.course = s.ordered_course = 0.0
+    s.speed = 5.0
+    s.order_speed(5.0)
+    s.depth = 60.0
+    s.order_depth(60.0)
+    for _ in range(120):
+        g.tick()
+        if s.y > a + 20 * M:
+            break
+    g.command("vak")
+    for _ in range(10):
+        g.tick()
+    g.command("back 2")
+    for _ in range(600):
+        g.tick()
+        if nav.vak is None and s.speed < 0.3:
+            break
+    assert any(r.type == "nav.vak.back_ordered" for r in reports)
+    assert s.speed < 0.3 and s.ordered_speed == 0
+    assert a + 30 * M < s.y < b                     # inne i råken, inte i kanten
+
+
+def test_captain_backs_after_the_end_is_seen_and_the_navigator_stops_us_in_the_middle():
+    g, reports = _arctic(1)
+    nav = g.station(NavigationStation)
+    s = g.world.own.state
+    y0 = s.y
+    a, b = y0 + 60 * M, y0 + 190 * M
+    g.world.env.ice.thickness_at = lambda x, y: 0.0 if a <= y <= b else 3.0
+    s.course = s.ordered_course = 0.0
+    s.speed = 5.0
+    s.order_speed(5.0)
+    s.depth = 60.0
+    s.order_depth(60.0)
+    for _ in range(120):
+        g.tick()
+        if s.y > a + 20 * M:
+            break
+    g.command("vak")
+    for _ in range(300):
+        g.tick()
+        if nav.vak is not None and not nav.vak.active:
+            break
+    g.command("back 3")
+    for _ in range(600):
+        g.tick()
+        if nav.vak is None and s.speed < 0.3:
+            break
+    assert any(r.type == "nav.vak.back_ordered" for r in reports)
+    assert abs(s.y - (a + b) / 2) < 30 * M
