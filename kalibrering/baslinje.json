@@ -100,24 +100,22 @@
   },
   "ja": {
    "utfall": {
-    "lost": 1,
     "patrol_end": 1,
-    "station_reached": 6
+    "station_reached": 7
    },
    "frön": {
     "0": "station_reached",
-    "1": "lost",
+    "1": "patrol_end",
     "2": "station_reached",
     "3": "station_reached",
-    "4": "patrol_end",
+    "4": "station_reached",
     "5": "station_reached",
     "6": "station_reached",
     "7": "station_reached"
    },
    "minuter": {
-    "lost": 199,
     "patrol_end": 360,
-    "station_reached": 215
+    "station_reached": 252
    }
   }
  },
@@ -967,5 +965,5 @@
    }
   }
  },
- "_commit": "c59554b"
+ "_commit": "70832d5"
 }
