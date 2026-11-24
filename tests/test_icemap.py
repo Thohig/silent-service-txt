@@ -432,3 +432,23 @@ def test_captain_backs_after_the_end_is_seen_and_the_navigator_stops_us_in_the_m
             break
     assert any(r.type == "nav.vak.back_ordered" for r in reports)
     assert abs(s.y - (a + b) / 2) < 30 * M
+
+
+def test_an_opening_the_ice_drifts_over_while_we_lie_still_is_dropped():
+    """Stilla på periskopdjup och isen driver in: öppningen ligger inte bakom oss (arktis frö 21: vak gick
+    tillbaka till den och missade)."""
+    g, _ = _arctic(1)
+    nav = g.station(NavigationStation)
+    s = g.world.own.state
+    s.speed = s.ordered_speed = 0.0
+    ice = g.world.env.ice
+    ice.thickness_at = lambda x, y: 0.0
+    for _ in range(30):
+        g.tick()
+    o = nav.icemap.current
+    assert o is not None
+    ice.thickness_at = lambda x, y: 3.0            # isen driver in över oss
+    for _ in range(12):
+        g.tick()
+    assert o.dropped
+    assert nav.just_passed_opening() is not o

@@ -109,6 +109,10 @@ class IceMixin:
         obs = IceSoundingObs(self.now, self.est_x, self.est_y, round(t, 2), round(d, 1))
         self.game.bus.publish(IceSounded(self.now, obs))
         closed = before if (before is not None and self.icemap.current is None) else None
+        if closed is not None and s.speed < 0.5 and obs.thickness > 2 * BREAKABLE_M:
+            # vi låg stilla och isen drev in över oss: öppningen är inte bakom oss, den har drivit bort
+            # (arktis frö 21: "vak" gick tillbaka till den, 50 m, och isekolodet visade tjock is)
+            self.game.bus.publish(OpeningNotFound(self.now, closed.no))
         if closed is not None and closed.length_m >= REPORT_OPENING_M and self.vak is None:
             self.say("nav.ice.passed", self.opening_data(closed), quality=closed.quality(self.now))
         # isen driver in över oss på grunt vatten, eller medan vi stiger mot en öppning; på väg mot

@@ -3,6 +3,14 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Öppningen som isen drev in över stryks
+
+Oraklet (ja-boten, frön 16–23, 176 spel) gav ett larm: arktis frö 21, "vak" 4 gånger på 15 min medan isen drev in
+över oss på periskopdjup. Navigatören räknade öppningen vi låg stilla under som "nyss passerad" och gick tillbaka
+dit: tjock is. Nu stryks en öppning som stänger medan vi ligger stilla med tjock is ovanför (`OpeningNotFound` i
+`_sound_ice`), så att varken navigatören eller maskin föreslår den igen. Övningen frö 19 tjatar inte längre om
+"kurs mot övningsområdet".
+
 ## 2026-11-24 – Lätta från botten också utan reaktorn
 
 Bombade på botten föreslår maskin att lätta (`eng.suggest.lift`), men bara med reaktorn i drift: krig frö 4 lade sig
