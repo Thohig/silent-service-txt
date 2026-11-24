@@ -14,6 +14,7 @@ from typing import Callable
 from textual.screen import Screen
 
 from .boat import BoatScreen
+from .central import CentralScreen
 from .bridge import BridgeScreen
 from .cabin import CabinScreen
 from .chart import ChartScreen
@@ -26,7 +27,7 @@ from .sonar import SonarScreen
 @dataclass(frozen=True)
 class ViewContext:
     """Det Tab-ordningen beror på."""
-    big: bool = False               # stort fönster: centralen är huvudvyn, loggen en egen vy
+    big: bool = False               # stort fönster: översikten är huvudvyn med loggremsan, loggen en egen vy
     command: str = "captain"        # starpom har befälet: hytten först
     bridge: str = "shut"            # tornluckan: bryggan bara när den inte är stängd
 
@@ -44,13 +45,16 @@ def _words(*w: str) -> frozenset[str]:
     return frozenset(w)
 
 
-# Tab-ordningen: (hytten) → översikt → (loggboken) → sjökort → sonar → ubåten → (bryggan) → periskopbilden.
+# Tab-ordningen: (hytten) → (översikt, i litet fönster) → central → (loggboken) → sjökort → sonar → ubåten → (bryggan) → periskopbilden.
 # Med folk på väg upp eller på bryggan kommer bryggan före periskopbilden (kikaren).
 REGISTRY: tuple[ViewDef, ...] = (
     ViewDef(CabinScreen, _words("hytt", "hytten", "kajuta", "kajutan"),
             tab=lambda c: c.command == "starpom"),
+    # i stort fönster är översikten huvudvyn: ordet stänger den vy som är öppen
     ViewDef(OverviewScreen, _words("översikt", "översikten", "oversikt", "oversikten", "lägesbild",
-                                   "lagesbild", "lägesbilden"), "översikt"),
+                                   "lagesbild", "lägesbilden"), "översikt",
+            tab=lambda c: not c.big, word_action="_overview_word"),
+    ViewDef(CentralScreen, _words("central", "centralen", "centralposten"), "central"),
     ViewDef(LogScreen, _words("logg", "loggen", "loggbok", "loggboken"), "logg",
             tab=lambda c: c.big, word_action="_log_word"),
     ViewDef(ChartScreen, _words("sjökort", "sjokort", "kort", "karta"), "sjökort"),
@@ -64,9 +68,6 @@ REGISTRY: tuple[ViewDef, ...] = (
     ViewDef(LogScreen, _words("telegram", "telegrammen", "telegrammet", "radiogram", "radiogrammen"),
             "telegram", tab=None, word_action="_telegrams"),
 )
-
-# centralen är huvudvyn: ordet stänger den vy som är öppen
-CENTRAL_WORDS = _words("central", "centralen")
 
 # alla helskärmsvyer (skärmar som ligger ovanpå spelets huvudskärm)
 SCREENS: tuple[type[Screen], ...] = tuple(dict.fromkeys(v.screen for v in REGISTRY))
@@ -84,9 +85,9 @@ def tab_order(ctx: ViewContext) -> tuple[type[Screen], ...]:
 
 def all_words() -> frozenset[str]:
     """Alla ord som öppnar eller stänger en vy."""
-    return frozenset().union(*(v.words for v in REGISTRY)) | CENTRAL_WORDS
+    return frozenset().union(*(v.words for v in REGISTRY))
 
 
 def manual_words() -> list[str]:
-    """Vyernas ord i handboken: centralen och sedan registrets ordning."""
-    return ["central"] + [v.name for v in REGISTRY if v.name]
+    """Vyernas ord i handboken, i registrets ordning."""
+    return [v.name for v in REGISTRY if v.name]

@@ -198,7 +198,7 @@ def test_tab_reaches_the_periscope_view(tmp_path):
             g.command("periskop")
             for _ in range(20):
                 g.tick()
-            await pilot.press("tab", "tab", "tab", "tab", "tab")   # översikt, sjökort, sonar, ubåten, periskop
+            await pilot.press(*["tab"] * 6)   # central, logg, sjökort, sonar, ubåten, periskop
             assert isinstance(app.screen, PeriscopeScreen)
             await pilot.pause(0.6)
             body = str(app.screen.query_one("#periscope-body").render())

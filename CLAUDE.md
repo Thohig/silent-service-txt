@@ -170,7 +170,7 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
 - `docs/system/besattning.md`: Radion och telegrammen, Rapporten till staben, Huvudstaben,
   Slutrapportens samband, Radiospaning, Kärnvapenrådet, Starpom, Trim och flytkraft, Back i maskin,
   Trimmaren, Besättningen under jakt, Fråga en gång
-- `docs/system/vyer.md`: Loggen, Översikten, Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
+- `docs/system/vyer.md`: Huvudskärmen, Loggen, Översikten, Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
 - `docs/system/granssnitt.md`: Huvudmenyn, Ljud
 
 Avslagna förslag (föreslå inte igen): tal på Linux (piper/espeak-ng), animering på sjökortet, bilder i

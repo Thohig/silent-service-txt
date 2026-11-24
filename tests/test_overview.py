@@ -121,11 +121,19 @@ def test_overview_screen_opens_with_its_word(tmp_path):
             await pilot.press("enter", "enter")
             for _ in range(5):
                 app.game.tick()
+            await pilot.press(*"sjökort", "enter")
+            await pilot.press(*"översikt", "enter")       # stort fönster: tillbaka till huvudvyn
+            await pilot.pause(0.6)
+            assert app.screen is app.gs()
+            from ui.widgets import OverviewPanel
+            body = str(app.gs().query_one(OverviewPanel).render())
+            assert "KONTAKTER" in body and "SJÖKORT" in body
+            await pilot.resize_terminal(90, 28)              # litet fönster: en egen vy
+            await pilot.pause(0.2)
             await pilot.press(*"översikt", "enter")
             await pilot.pause(0.6)
             assert isinstance(app.screen, OverviewScreen)
-            body = str(app.screen.query_one("#overview-body").render())
-            assert "KONTAKTER" in body and "SJÖKORT" in body
+            assert "KONTAKTER" in str(app.screen.query_one("#overview-body").render())
             await pilot.press("escape")
             assert not isinstance(app.screen, OverviewScreen)
 

@@ -38,14 +38,14 @@ from .strips import TelegramStrip
 from .telegram import (crew_announcement, order_header, order_signature, report_header,
                        telegram_number)
 from .teletype import Teletype
-from .views import CENTRAL_WORDS, SCREENS as VIEWS, ViewContext, tab_order, view_for
-from .widgets import CentralView, DepthGauge, ReportLog, StatusBar
+from .overview import OverviewScreen
+from .views import SCREENS as VIEWS, ViewContext, tab_order, view_for
+from .widgets import DepthGauge, OverviewPanel, ReportLog, StatusBar
 
 MAX_TICKS_PER_FRAME = 20
 GAUGE_EVERY_S = 0.5
-CENTRAL_EVERY_S = 0.1                  # centralens instrument: tio gånger i sekunden
-CENTRAL_MIN_WIDTH = 100                # smalare terminal: bara djupmätaren
-BIG_MIN = (120, 36)                    # minst så stort: centralen är huvudvyn, loggen en remsa
+OVERVIEW_EVERY_S = 0.5                 # översikten på huvudskärmen
+BIG_MIN = (100, 30)                    # minst så stort: översikten är huvudvyn, loggen en remsa
 SOUND_WORDS = {"ljud", "ljud av", "ljud på", "ljud pa"}
 SPEECH_WORDS = {"tal ryska": "ru", "tal svenska": "sv"}
 SPEECH_LEVEL_WORDS = {f"tal {lv}": lv for lv in LEVELS}      # tal allt, tal viktigt, tal larm, tal av
@@ -58,19 +58,17 @@ OVER_PLACEHOLDER = "Uppdraget är slut – Enter: tillbaka till huvudmenyn"
 
 
 class GameScreen(Screen):
-    """Spelets huvudskärm: statusrad, fjärrskrivaren, loggen, djupmätaren och orderraden.
+    """Spelets huvudskärm: statusrad, fjärrskrivaren, översikten, loggen, djupmätaren och orderraden.
     Logiken bor i SubApp; vyerna läggs ovanpå den här skärmen."""
 
     def compose(self) -> ComposeResult:
         yield StatusBar(id="status")
         yield Teletype("", id="intro")
         with Vertical(id="main"):
-            yield CentralView(id="central-big")
+            yield OverviewPanel(id="overview")
             with Horizontal(id="lower"):
                 yield ReportLog(id="log", wrap=True, markup=False, max_lines=2000)
-                with Vertical(id="side"):
-                    yield CentralView(id="central")
-                    yield DepthGauge(id="gauge")
+                yield DepthGauge(id="gauge")
         yield Input(placeholder="Order …   (skriv hjälp för en lista)", id="order")
 
     def on_mount(self) -> None:
@@ -78,12 +76,10 @@ class GameScreen(Screen):
         self.app._begin()
 
     def on_resize(self, event) -> None:
-        """Stort fönster: centralen fyller vyn och loggen blir en remsa (hela loggen i loggvyn).
-        Mindre: loggen stor och en liten central bredvid; smalt: bara djupmätaren."""
+        """Stort fönster: översikten fyller vyn och loggen blir en remsa (hela loggen i loggvyn).
+        Mindre: loggen stor med djupmätaren bredvid (översikten är då en vy i Tab-ordningen)."""
         w, h = event.size.width, event.size.height
-        big = w >= BIG_MIN[0] and h >= BIG_MIN[1]
-        self.set_class(big, "big")
-        self.set_class(not big and w < CENTRAL_MIN_WIDTH, "narrow")
+        self.set_class(w >= BIG_MIN[0] and h >= BIG_MIN[1], "big")
 
     @property
     def big(self) -> bool:
@@ -98,18 +94,12 @@ class SubApp(App):
     #status { height: 2; background: #1c2a20; color: #c8d0b0; }
     #intro  { height: 1fr; padding: 2 6; background: #120b09; }
     #main   { height: 1fr; }
-    #central-big { height: 1fr; display: none; background: #0b0f0c; }
+    #overview { height: 1fr; display: none; padding: 0 1; background: #0b0f0c; }
     #lower  { height: 1fr; }
-    GameScreen.big #central-big { display: block; }
-    GameScreen.big #lower { height: 11; }
-    GameScreen.big #central { display: none; }
-    GameScreen.big #side { width: 26; }
-    GameScreen.narrow #central { display: none; }
+    GameScreen.big #overview { display: block; }
+    GameScreen.big #lower { height: 9; }
     #log    { width: 1fr; padding: 0 1; background: #0b0f0c; scrollbar-size-vertical: 1; }
-    #side   { width: 42; background: #0f1611; }
-    GameScreen.narrow #side { width: 24; }
-    #central { height: 13; padding: 0 1; }
-    #gauge  { width: 100%; height: 1fr; padding: 1 1 0 1; background: #0f1611; color: #7f9a80; }
+    #gauge  { width: 26; height: 1fr; padding: 1 1 0 1; background: #0f1611; color: #7f9a80; }
     #order  { border: tall #2f4a36; background: #0f1611; }
     #order:focus { border: tall #5f8a66; }
     """
@@ -140,7 +130,7 @@ class SubApp(App):
         self.menu_sound: MenuSound | None = None   # musiken och hamnen i huvudmenyn
         self._sound_note: str | None = None
         self._gauge_t = 0.0
-        self._central_t = 0.0
+        self._overview_t = 0.0
         self._spoke: dict[str, float] = {}   # roll → när den senast rapporterade (väggklocka)
         self.language: str | None = None     # talets språk, gäller över uppdragen
         self.speech_level: str = DEFAULT_LEVEL   # vad som läses upp (ui/audio.py), gäller över uppdragen
@@ -237,10 +227,8 @@ class SubApp(App):
         self._game_ready = True
         self._spoke = {}
         try:
-            for view in self.gs().query(CentralView):
-                view.reset()
             self.gs().query_one(StatusBar).show(game.status())
-            self._show_central(game.status(), time.monotonic())
+            self._show_overview()
             if self.gs().query_one(Teletype).done:
                 self._show_footer()
         except NoMatches:
@@ -302,10 +290,6 @@ class SubApp(App):
 
     def _view_word(self, text: str) -> bool:
         """Ord som öppnar en vy (registret i `ui/views.py`) eller stänger den. Sant om ordet var ett sådant."""
-        if text in CENTRAL_WORDS:
-            if isinstance(self.screen, VIEWS):
-                self.pop_screen()
-            return True
         view = view_for(text)
         if view is None:
             return False
@@ -314,6 +298,14 @@ class SubApp(App):
         else:
             self._toggle_view(view.screen)
         return True
+
+    def _overview_word(self) -> None:
+        """Översikten: i stort fönster huvudvyn (ordet stänger den vy som är öppen), annars en vy."""
+        if self.gs().big:
+            if isinstance(self.screen, VIEWS):
+                self.pop_screen()
+        else:
+            self._toggle_view(OverviewScreen)
 
     def _log_word(self) -> None:
         """Loggboken: från telegrammen till hela loggen; i stort fönster en egen vy, annars
@@ -340,10 +332,11 @@ class SubApp(App):
             log.add_system(self.game.clock_str(), "Besättningen talar ryska, loggen är på svenska. "
                            "tal svenska byter språk.")
         if self.gs().big:
-            log.add_system(self.game.clock_str(), "Tab växlar mellan centralen, översikten, loggboken, sjökort, "
-                           "sonar (vattenfallet), ubåten (djupprofil och systemtavla) och periskopbild, i ytläge också bryggan.")
+            log.add_system(self.game.clock_str(), "Översikten visar allt vi vet. Tab växlar till centralen, loggboken, sjökort, "
+                           "sonar (vattenfallet), ubåten (djupprofil och systemtavla) och periskopbild, i ytläge också "
+                           "bryggan; Esc tillbaka till översikten.")
         else:
-            log.add_system(self.game.clock_str(), "Tab växlar mellan logg, översikt, sjökort, sonar, ubåten "
+            log.add_system(self.game.clock_str(), "Tab växlar mellan logg, översikt, central, sjökort, sonar, ubåten "
                            "(djupprofil och systemtavla) och periskopbild, i ytläge också bryggan.")
         key = self.scenario_key or ""
         ru, sv = crew_announcement(key, SCENARIOS[key].title if key in SCENARIOS else "")
@@ -400,8 +393,8 @@ class SubApp(App):
                                      bridge=st.bridge if st else "shut"))
 
     def action_cycle(self) -> None:
-        """Tab: huvudvyn → (loggboken, om centralen är huvudvy) → sjökort → sonar → ubåten →
-        periskop (och brygga) → huvudvyn."""
+        """Tab: huvudvyn → (översikten i litet fönster) → centralen → (loggboken, om översikten är
+        huvudvy) → sjökort → sonar → ubåten → periskop (och brygga) → huvudvyn."""
         if not self.running or self.game is None:
             return
         views = self.tab_views()
@@ -524,9 +517,9 @@ class SubApp(App):
             if now - self._gauge_t >= GAUGE_EVERY_S:
                 self._gauge_t = now
                 self.gs().query_one(DepthGauge).show(self.game.profile())
-            if now - self._central_t >= CENTRAL_EVERY_S:
-                self._central_t = now
-                self._show_central(status, now)
+            if now - self._overview_t >= OVERVIEW_EVERY_S:
+                self._overview_t = now
+                self._show_overview()
         except NoMatches:
             pass
 
@@ -546,14 +539,11 @@ class SubApp(App):
         except NoMatches:
             pass
 
-    def _show_central(self, status, now: float) -> None:
+    def _show_overview(self) -> None:
         gs = self.gs()
-        if self.screen is not gs:            # en vy ligger över: ingen ser centralen
-            return
-        speaking = {role: now - t for role, t in self._spoke.items()}
-        view = gs.query_one("#central-big" if gs.big else "#central", CentralView)
-        if view.display:
-            view.show(status, speaking, now)
+        if self.screen is not gs or not gs.big or self.game is None:
+            return                          # en vy ligger över, eller litet fönster: ingen ser den
+        gs.query_one(OverviewPanel).show(self.game)
 
     # ------------------------------------------------------------------ händelser
     def _on_report(self, e: ReportDelivered) -> None:

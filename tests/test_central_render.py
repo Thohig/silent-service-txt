@@ -37,12 +37,9 @@ def test_size_follows_the_space_given():
             assert all(len(r) == max(W, w) for r in rows)
 
 
-def test_the_crew_sits_apart():
+def test_walls_ladder_and_periscope_in_order():
     for g in (Geometry(W, H), Geometry(150, 32)):
-        assert g.left[1] < g.ladder < g.peri < g.officer
-        cols = sorted(g.seated().values())
-        assert all(b - a >= 4 for a, b in zip(cols, cols[1:]))
-        assert min(g.seated()[r] for r in ("engineer", "navigator", "plot")) >= g.officer + 3
+        assert g.left[1] < g.ladder < g.peri < g.right[0]
 
 
 def test_periscope_rises_with_the_mast():
@@ -153,11 +150,13 @@ def test_periscope_column_stays_clear_of_dials():
 
 @pytest.mark.slow
 def test_layout_follows_the_window(tmp_path):
-    """Stort fönster: centralen fyller vyn, loggen är en remsa och loggvyn visar allt.
-    Mindre: liten central bredvid loggen. Smalt: bara loggen och djupmätaren."""
+    """Stort fönster: översikten är huvudvyn med loggremsan, centralen en helskärmsvy och loggvyn
+    visar allt. Litet: loggen stor, översikten en vy i Tab-ordningen."""
     from ui.app import SubApp
+    from ui.central import CentralScreen
     from ui.logview import LogScreen
-    from ui.widgets import CentralView, ReportLog
+    from ui.overview import OverviewScreen
+    from ui.widgets import OverviewPanel, ReportLog
 
     async def run():
         app = SubApp(seed=1, log_dir=tmp_path, scenario="kuba")
@@ -167,36 +166,41 @@ def test_layout_follows_the_window(tmp_path):
                 app.game.tick()
             await pilot.pause(0.7)
             gs = app.gs()
-            big = gs.query_one("#central-big", CentralView)
-            small = gs.query_one("#central", CentralView)
-            assert gs.big and big.display and not small.display
-            assert big.size.height > 25 and big.size.width == 140
-            assert gs.query_one("#log", ReportLog).size.height < 12
-            lines = str(big.render()).split("\n")
-            assert len(lines) == big.size.height
-            assert any(0x2800 < ord(ch) <= 0x28FF for ch in "".join(lines))   # instrumenten
+            panel = gs.query_one(OverviewPanel)
+            assert gs.big and panel.display
+            assert gs.query_one("#log", ReportLog).size.height < 10
+            assert "KONTAKTER" in str(panel.render())
 
             await pilot.press(*"kurs 090", "enter")
-            await pilot.press("tab", "tab")              # översikten, sedan hela loggboken
+            await pilot.press("tab")                     # första vyn: centralen i helskärm
+            assert isinstance(app.screen, CentralScreen)
+            await pilot.pause(0.3)
+            body = app.screen.query_one("#central-body")
+            lines = str(body.render()).split("\n")
+            assert body.size.width >= 138 and len(lines) >= 38
+            assert any(0x2800 < ord(ch) <= 0x28FF for ch in "".join(lines))   # instrumenten
+            assert "LUTNING" in "".join(lines)
+            await pilot.press("tab")                     # sedan hela loggboken
             assert isinstance(app.screen, LogScreen)
             full = app.screen.query_one("#logview-log", ReportLog)
-            assert len(full.entries) == len(gs.query_one("#log", ReportLog).entries)
             for _ in range(10):
                 app.game.tick()
             await pilot.pause(0.2)
             assert len(full.entries) == len(gs.query_one("#log", ReportLog).entries)
-            await pilot.press(*"centralen", "enter")
-            assert not isinstance(app.screen, LogScreen)
-
-            await pilot.resize_terminal(110, 34)
-            await pilot.pause(0.7)
-            assert not gs.big and not big.display and small.display
-            await pilot.press("tab", "tab")              # ingen loggvy när loggen är stor
-            assert not isinstance(app.screen, LogScreen)
+            await pilot.press(*"översikt", "enter")      # tillbaka till huvudvyn
+            assert app.screen is gs
+            await pilot.press(*"central", "enter")
+            assert isinstance(app.screen, CentralScreen)
             await pilot.press("escape")
+            assert app.screen is gs
 
-            await pilot.resize_terminal(90, 30)
-            await pilot.pause(0.1)
-            assert not small.display and not big.display
+            await pilot.resize_terminal(90, 28)
+            await pilot.pause(0.3)
+            assert not gs.big and not panel.display
+            await pilot.press("tab")                     # litet: översikten är en vy
+            assert isinstance(app.screen, OverviewScreen)
+            await pilot.press("tab")
+            assert isinstance(app.screen, CentralScreen)
+            await pilot.press("escape")
 
     asyncio.run(run())

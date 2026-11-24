@@ -11,7 +11,6 @@ from sim.geo import fmt_course
 from sim.profile import ProfileView
 from sim.reports import Quality, Report
 
-from .central_render import Needles, render_central
 from .styles import CONTACT_STYLE
 from .profile_render import render_gauge
 from .strips import TelegramStrip
@@ -310,20 +309,14 @@ class DepthGauge(Static):
         self.update(Text("\n").join(render_gauge(view)))
 
 
-class CentralView(Static):
-    """Centralen som bild (ui/central_render.py): huvudvy i stort fönster, annars liten
-    ovanför djupmätaren. Visarna följer instrumenten med tröghet (`Needles`)."""
+class OverviewPanel(Static):
+    """Översikten på huvudskärmen (ui/overview_render.py), i den storlek widgeten har."""
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.needles = Needles()
-
-    def reset(self) -> None:
-        """Nytt uppdrag: visarna börjar där instrumenten står."""
-        self.needles = Needles()
-
-    def show(self, status: StatusSnapshot, speaking: dict[str, float], t: float) -> None:
-        """Ritas i den storlek widgeten har (minst den lilla bilden)."""
+    def show(self, game) -> None:
         w, h = self.content_size.width, self.content_size.height
-        shown = self.needles.update(status, t)
-        self.update(Text("\n").join(render_central(status, speaking, t, w, h, shown)))
+        if w < 40 or h < 8:
+            return
+        from .overview_render import render_overview
+        rows = render_overview(game.overview(), game.chart(), game.sonar(), game.profile(),
+                               game.systems(), w, h)
+        self.update(Text("\n").join(rows))

@@ -249,3 +249,62 @@ def clock_face(seconds: int, p: dict) -> Dial:
     d.needles.append((s * 6.0, 0.85, p["label"], 0.15))
     d.readout = [(f"{h:02d}:{m:02d}", "bold")]
     return d
+
+
+# --- de mindre instrumenten (helskärmscentralen, när väggen är hög nog) ------------------------
+PITCH_MAX_DEG = 10.0       # lutningsmätarens fulla utslag
+BILGE_MAX_T = 60.0         # vatten i båten: skalans slut
+
+
+def pitch_gauge(pitch: float, p: dict) -> Dial:
+    """Lutningsmätaren (дифферентометр): ± 10°, förut till höger (+ förlig, nosen ned)."""
+    a = lambda deg: max(-1.0, min(1.0, deg / PITCH_MAX_DEG)) * 80.0
+    d = Dial("top", a0=-80, a1=80, title="LUTNING")
+    d.ticks = [(a(v), v % 5 == 0) for v in range(-10, 11, 2)]
+    d.labels = [(-62, "akt"), (62, "för"), (0, "0")]
+    d.zones = [(a(-10), a(-6), YELLOW), (a(6), a(10), YELLOW)]
+    d.needles.append((a(pitch), 0.85, p["needle"], 0.0))
+    word = "förlig" if pitch > 0.3 else "akterlig" if pitch < -0.3 else "rak"
+    d.readout = [(f"{abs(pitch):.1f}° {word}".replace(".", ",") if word != "rak" else "rak", "bold")]
+    return d
+
+
+def trim_gauge(load: float, p: dict) -> Dial:
+    """Trimmen: hur mycket av djuprodrens förmåga som bär vikten (− lätt, + tung)."""
+    a = lambda v: max(-1.0, min(1.0, v)) * 80.0
+    d = Dial("top", a0=-80, a1=80, title="TRIM")
+    d.ticks = [(a(v / 4), v % 2 == 0) for v in range(-4, 5)]
+    d.labels = [(-62, "lätt"), (62, "tung"), (0, "0")]
+    d.zones = [(a(-1.0), a(-0.75), REDZONE), (a(0.75), a(1.0), REDZONE)]
+    d.needles.append((a(load), 0.85, p["needle"], 0.0))
+    word = "tung" if load > 0.05 else "lätt" if load < -0.05 else "i trim"
+    d.readout = [(f"{word} {abs(load) * 100:.0f} %" if word != "i trim" else word, "bold")]
+    return d
+
+
+def battery_gauge(level: float, reactor: str, p: dict) -> Dial:
+    """Batteriet 0–100 %, rött under 20 %; laddar när reaktorn går."""
+    a = lambda v: -80.0 + 160.0 * max(0.0, min(1.0, v))
+    d = Dial("top", a0=-80, a1=80, title="BATTERI")
+    d.ticks = [(a(v / 10), v % 5 == 0) for v in range(11)]
+    d.labels = [(-62, "0"), (62, "100")]
+    d.zones = [(a(0.0), a(0.2), REDZONE)]
+    low = level < 0.2
+    d.needles.append((a(level), 0.85, "bold #ff5f5f" if low else p["needle"], 0.0))
+    d.readout = [(f"{level * 100:.0f} %", "bold #ff5f5f" if low else "bold")]
+    if reactor != "online":
+        d.readout.append((" urladdning", "bold #ffaf00"))
+    return d
+
+
+def bilge_gauge(tons: float, p: dict) -> Dial:
+    """Vatten i båten (läns): 0–60 t, gult från 10, rött från 40."""
+    a = lambda t: -80.0 + 160.0 * max(0.0, min(1.0, t / BILGE_MAX_T))
+    d = Dial("top", a0=-80, a1=80, title="LÄNS")
+    d.ticks = [(a(t), t % 20 == 0) for t in range(0, int(BILGE_MAX_T) + 1, 10)]
+    d.labels = [(-62, "0"), (62, f"{BILGE_MAX_T:.0f} t")]
+    d.zones = [(a(10), a(40), YELLOW), (a(40), a(BILGE_MAX_T), REDZONE)]
+    wet = tons >= 0.5
+    d.needles.append((a(tons), 0.85, "bold #5fafff" if wet else p["needle"], 0.0))
+    d.readout = [(f"{tons:.0f} t" if wet else "torrt", "bold #5fafff" if wet else "bold")]
+    return d

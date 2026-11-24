@@ -111,10 +111,15 @@ def draw_instruments(c: Canvas, slots: dict[str, tuple[int, int, int, int]], s: 
         "djupror": ins.planes_gauge(shown["planes"], p, pitch=s.pitch),
         "telegraf": ins.telegraph(s.ordered_speed, s.speed, s.propulsion, s.reactor, p,
                                   astern=s.astern, ordered_astern=s.ordered_astern),
+        "lutning": ins.pitch_gauge(s.pitch, p),
+        "trim": ins.trim_gauge(s.plane_load, p),
+        "batteri": ins.battery_gauge(s.battery, s.reactor, p),
+        "lans": ins.bilge_gauge(s.flooding, p),
     }
     # avläsningarna visar instrumentens exakta värde, visarna det trögare
     dials["gyro"].readout[0] = (ins.fmt_course(s.course), "bold")
     dials["djup"].readout[0] = (f"{s.depth:.0f} m", dials["djup"].readout[0][1])
     for key, d in dials.items():
-        top, left, rows, cols = slots[key]
-        ins.draw_dial(c, top, left, rows, cols, d, p, ring)
+        if key in slots:                            # de mindre bara på en hög vägg
+            top, left, rows, cols = slots[key]
+            ins.draw_dial(c, top, left, rows, cols, d, p, ring)

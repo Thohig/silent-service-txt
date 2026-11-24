@@ -139,7 +139,7 @@ def test_tab_cycles_the_views(tmp_path):
             await pilot.pause(0.7)
             assert "DJUPMÄTARE" in str(app.gs().query_one(DepthGauge).render())
             await pilot.press(*"kurs 0")          # orderraden behåller texten
-            await pilot.press("tab", "tab", "tab", "tab")    # översikt → sjökort → sonar → ubåten
+            await pilot.press(*["tab"] * 5)    # central → logg → sjökort → sonar → ubåten
             assert isinstance(app.screen, BoatScreen)
             await pilot.pause(0.3)
             assert "▬▬▶" in str(app.screen.query_one("#boat-body").render())
@@ -150,11 +150,11 @@ def test_tab_cycles_the_views(tmp_path):
             app.save_screenshot(str(tmp_path / "profil.svg"))
             await pilot.press("escape")
             assert app.gs().query_one("#order").value == "kurs 0"
-            await pilot.press("tab", "tab")  # översikt → sjökort → sonar → ubåten → periskop → logg
+            await pilot.press("tab", "tab", "tab")  # central → logg → sjökort → sonar → ubåten → periskop
             assert isinstance(app.screen, ChartScreen)
             await pilot.press("tab", "tab")
             assert isinstance(app.screen, BoatScreen)
-            await pilot.press("tab", "tab")           # periskop → logg
+            await pilot.press("tab", "tab")           # periskop → översikten
             assert not isinstance(app.screen, (ChartScreen, BoatScreen))
             await pilot.press("ctrl+u", *"profil", "enter")
             assert isinstance(app.screen, BoatScreen)

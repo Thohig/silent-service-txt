@@ -115,8 +115,28 @@ def test_readouts_show_the_exact_value_while_needles_lag():
     assert math.isclose(shown["course"], 80.0)
 
 
-def test_big_room_has_no_crew_figures():
-    big = "\n".join(line.plain for line in render_central(BASE, width=150, height=29))
-    small = "\n".join(line.plain for line in render_central(BASE))
-    assert "▟█▙" not in big and "▐ ▌" not in big
-    assert small.count("▟█▙") == 6
+def test_no_crew_figures_in_any_size():
+    for kw in ({}, {"width": 150, "height": 29}, {"width": 160, "height": 38}):
+        text = "\n".join(line.plain for line in render_central(BASE, **kw))
+        assert "▟█▙" not in text and "▐ ▌" not in text
+
+
+def test_tall_wall_gets_the_smaller_instruments():
+    tall, low = Geometry(160, 38), Geometry(150, 26)
+    assert tall.strip_rows() > 0 and low.strip_rows() == 0
+    slots = tall.slots()
+    for name in ("lutning", "trim", "batteri", "lans"):
+        top, left, rows, cols = slots[name]
+        assert top + rows <= tall.lamps and rows >= 6
+    assert not {"lutning", "batteri"} & set(low.slots())
+    text = "\n".join(line.plain for line in render_central(BASE, width=160, height=38))
+    for word in ("LUTNING", "TRIM", "BATTERI", "LÄNS", "GYRO", "DJUP"):
+        assert word in text
+    assert "LUTNING" not in "\n".join(line.plain for line in render_central(BASE, width=150, height=26))
+
+
+def test_phone_panel_lights_the_speaker():
+    from ui.central_render import ROLE_LIGHT
+    rows = render_central(BASE, {"navigator": 0.5}, width=160, height=38)
+    assert any(sp.style == ROLE_LIGHT["navigator"] for r in rows for sp in r.spans)
+    assert "Navigatör" in "\n".join(r.plain for r in rows)

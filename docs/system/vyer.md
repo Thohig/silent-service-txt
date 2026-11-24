@@ -3,6 +3,13 @@
 Flyttat ur CLAUDE.md (2026-11-18). Arbetsreglerna står kvar där; här är hur systemen
 fungerar och deras siffror. Uppdatera här när systemet ändras.
 
+- **Huvudskärmen** (`GameScreen` i `ui/app.py`, 2026-11-24): statusraden, översikten (`OverviewPanel` i
+  `ui/widgets.py`, ritad varannan halvsekund medan den syns) och under den loggremsan (9 rader) med djupmätaren
+  bredvid. Från 100 × 30 (`BIG_MIN`, klassen `big`); mindre ⇒ loggen fyller skärmen med djupmätaren bredvid och
+  översikten är en vy (`OverviewScreen`, först i Tab-ordningen). `Esc` och `översikt` går tillbaka hit
+  (`SubApp._overview_word`). Hela loggen är en egen vy (`LogScreen`, `ui/logview.py`, `logg`; slutrapporten öppnar
+  den). `ReportLog.emit` sparar raderna (`entries`) och speglar dem till loggvyn (`mirror`); skriv aldrig
+  loggrader med `write`.
 - **Loggen** (`ReportLog` i `ui/widgets.py`, en `RichLog`): `min_width` 20, så raderna bryts efter panelens
   bredd; `RichLog`s standard 78 klippte loggen i fönster upp till ~100 kolumner (80×24: ord saknades).
   En rapport med färdiga rader (`data["table"]`, `table_header`) får en tabell under raden; den läses upp bara
@@ -11,7 +18,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   en tabell (kontakt, vad, bäring, avstånd, kurs och fart), färre sägs var för sig som förut. Sonars "hörs igen"
   samlas som de tappade (`sonar.regained.many`).
 - **Översikten** (`översikt`, `lägesbild`; `sim/overview.py`, `ui/overview_render.py`, `ui/overview.py`,
-  2026-11-24): allt kaptenen vet på en skärm, först i Tab-ordningen (efter hytten när starpom har befälet). Vänster spalt (55 %, från
+  2026-11-24): allt kaptenen vet på en skärm; huvudskärmen i stort fönster, annars en vy först i Tab-ordningen. Vänster spalt (55 %, från
   `TWO_COL_W` 100 kolumner): sjökortet kring vårt beräknade läge i den minsta skala som rymmer plottets lösningar
   på de hållna kontakterna (minst 3 nm åt varje håll, `chart_scale`), vattenfallet 10 min och djupprofilen, ritade av
   vyernas egna renderare. Höger spalt: kontakttabellen, lägesraderna med bäringsrepeatern bredvid (gyrot med
@@ -82,31 +89,28 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   fasta djup (`Level`), navigatörens djuplogg (var 10:e s), ekolodets bottenlodningar
   (bara efter `ekolod`), isekolodets lodningar och sonarrummets hörda ljud. `Game.profile()`
   samlar, `ui/profile_render.py` ritar sidovyn (tid vågrätt, botten i eget band under
-  bruten axel; vårt djup, kortets botten och tunna nivåer i braille vid exakt djup) och djupmätaren bredvid loggen. Tab växlar (hytten, när starpom har befälet) → översikt → logg → sjökort → sonar → ubåten → periskopbild → logg, med luckan öppen brygga före
+  bruten axel; vårt djup, kortets botten och tunna nivåer i braille vid exakt djup) och djupmätaren bredvid loggen. Tab växlar (hytten, när starpom har befälet) → (översikt, litet fönster) → central → (logg, stort fönster) → sjökort → sonar → ubåten → periskopbild → logg, med luckan öppen brygga före
   periskopbild. Vyerna, orden som öppnar dem och Tab-ordningen står i registret `ui/views.py`
   (`REGISTRY`, `ViewDef`, `tab_order`); `SubApp` slår bara upp där.
-- **Centralen** (`ui/central_render.py` scenen, `ui/central_instruments.py` instrumenten, `CentralView` i
-  `ui/widgets.py`): bild av центральный пост. Bara egna instrument (`StatusSnapshot`) och vem som talar, aldrig
-  kunskapen om andra fartyg (renodlad 2026-11-24: bäringsrepeatern och periskopets gradring flyttade till
-  översikten; testet `test_no_contacts_in_the_central`).
-  Huvudvyns layout efter fönstret (`GameScreen.on_resize`, klasserna `big`/`narrow`): minst 120 × 36 ⇒
-  centralen fyller vyn (`#central-big`, inga figurer), loggen är en remsa (11 rader) med djupmätaren bredvid och hela
-  loggen är en egen vy (`LogScreen`, `ui/logview.py`, `logg`; `central` tillbaka;
-  slutrapporten öppnar den). Mindre ⇒ loggen stor och en liten central (40 × 13) ovanför djupmätaren;
-  under 100 kolumner bara djupmätaren. `ReportLog.emit` sparar raderna (`entries`) och speglar dem till
-  loggvyn (`mirror`); skriv aldrig loggrader med `write`. Två storlekar: från 100 × 22 (`BIG`, `Geometry.slots`)
+- **Centralen** (`central`, Tab först i stort fönster; `ui/central.py` `CentralScreen`, `ui/central_render.py` scenen,
+  `ui/central_instruments.py` instrumenten): bild av центральный пост på hela skärmen (2026-11-24; förut huvudvyn och
+  en liten bild bredvid loggen). Bara egna instrument (`StatusSnapshot`) och vem som talar, aldrig kunskapen om andra
+  fartyg (bäringsrepeatern och periskopets gradring står i översikten; `test_no_contacts_in_the_central`). Inga
+  besättningsfigurer (avslaget): den som talar syns på snabbtelefonens panel under vänstra pulpeten (`PHONE`, en
+  lampa med namn per station i rollens färg i 3 s). Två storlekar: från 100 × 22 (`BIG`, `Geometry.slots`)
   är väggarna instrument i braille (`ui/canvas.py`: `Braille` 2 × 4 prickar per ruta, stil efter prioritet;
   `ui/instruments.py`: `Dial`, `draw_dial`; `central_instruments.draw_instruments`): gyro, sidroder (±35°),
   telegraf (handtag = beordrad fart, gul visare = maskinens svar, läget B längst till vänster = back),
   djup 0–500 m med prov- och krosszon, fart 0–30 kn med kavitationszonen (6 + djup/25), klocka, djuproder
-  med libell. Avläsningen är exakt; visarna följer med tröghet (`Needles`, τ 0,5 s, kursen den korta vägen)
-  och ritas tio gånger i sekunden (`CENTRAL_EVERY_S`, bara när huvudvyn syns). Den lilla bilden är bara rummet
-  (rör med ventilratt på väggarna, besättningen, lamporna; lådmätarna borttagna 2026-11-24: huvudraden visar
-  djup, kurs och fart). Ren funktion `render_central(status, speaking, t, width, height, shown)`
-  och vem som rapporterat senaste 3 s (`SubApp._spoke`, roll ⇒
-  plats eller snabbtelefonens lampa). Rodren härleds ur beordrat mot verkligt (`rudder_angle`, `plane_angle`),
-  periskopet hissas med `periscope_up_s` och okularet vrids efter bäringen relativt fören
-  (`eyepiece`: handtagen rakt förut, pil åt sidorna, linserna akterut), stegen och luckan (himlen syns),
+  med libell; på en hög vägg (≥ `TALL_ROWS` 22 rader, `Geometry.strip_rows`, ~30 % av höjden) en rad mindre
+  instrument under: LUTNING (дифферент ±10°, `pitch`), TRIM (rodrens last, lätt–tung, `plane_load`), BATTERI
+  (0–100 %, rött under 20, "urladdning" utan reaktor) och LÄNS (vatten i båten 0–60 t, `flooding`). Avläsningen är
+  exakt; visarna följer med tröghet (`Needles`, τ 0,5 s, kursen den korta vägen) och ritas tio gånger i sekunden
+  (`CENTRAL_EVERY_S`). Den lilla bilden (litet fönster) är bara rummet: rör med ventilrattar, tre lampor för
+  snabbtelefonen, telegrafens och julgranens lampor. Ren funktion `render_central(status, speaking, t, width, height,
+  shown)`, vem som rapporterat senaste 3 s ur `SubApp._spoke`. Rodren härleds ur beordrat mot verkligt
+  (`rudder_angle`, `plane_angle`), periskopet hissas med `periscope_up_s` och okularet vrids efter bäringen relativt
+  fören (`eyepiece`: handtagen rakt förut, pil åt sidorna, linserna akterut), stegen och luckan (himlen syns),
   maskintelegrafen (`telegraph_lamp`),
   julgranen (`openings`: lucka, periskop, radar, antenn, ventil rött när öppna, blåsning gult; liten bild
   lampor i rad, stor bild en tavla med namn under högra pulpeten), rött ljus på natten eller jagade (`night`, `hunted`), larmlampor,

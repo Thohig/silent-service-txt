@@ -3,6 +3,17 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Översikten är huvudskärmen, centralen på hela skärmen med fler instrument
+
+- Huvudskärmen är översikten med loggremsan (9 rader) och djupmätaren under, från 100 × 30 tecken. `Esc` och
+  `översikt` går tillbaka dit. I mindre fönster fyller loggen skärmen och översikten är en vy först i Tab-ordningen.
+- Centralen är en egen vy på hela skärmen (`central`, först i Tab-ordningen i stort fönster; `ui/central.py`). Inga
+  besättningsfigurer: snabbtelefonens panel med en lampa och namn per station visar vem som talar.
+- Fler instrument på en hög skärm: LUTNING (дифферент), TRIM (rodrens last), BATTERI och LÄNS (vatten i båten), i en
+  rad under de stora (`Geometry.strip_rows`, `ui/instruments.py`).
+- Borttaget: den lilla centralen bredvid loggen och `CentralView`; `CENTRAL_WORDS` (ordet `central` öppnar vyn).
+Tester: `tests/test_central_render.py` (layouten), `tests/test_instruments.py`, `tests/test_views.py`, Tab-testerna.
+
 ## 2026-11-24 – Talnivå: allt läses inte upp (loggen har allt)
 
 - `tal viktigt` (standard), `tal allt`, `tal larm`, `tal av`, och "Uppläsning" i inställningarna. Loggen har alltid

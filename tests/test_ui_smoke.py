@@ -56,7 +56,7 @@ def test_tab_shows_the_chart_while_the_game_runs(tmp_path):
             await pilot.press("enter", "enter")
             for _ in range(900):
                 app.game.tick()
-            await pilot.press("tab", "tab")  # översikten först
+            await pilot.press("tab", "tab", "tab")  # centralen och loggboken först
             assert isinstance(app.screen, ChartScreen)
             await pilot.pause(0.3)
             t0 = app.game.now
@@ -98,17 +98,20 @@ def test_orders_can_be_given_in_every_view(tmp_path):
         async with app.run_test(size=(110, 40)) as pilot:
             await pilot.press("enter", "enter")
             # under ytan: ingen brygga i Tab-ordningen
-            from ui.overview import OverviewScreen
-            for i, cls in enumerate((OverviewScreen, ChartScreen, SonarScreen, BoatScreen, PeriscopeScreen)):
+            from ui.central import CentralScreen
+            from ui.logview import LogScreen
+            for i, cls in enumerate((CentralScreen, LogScreen, ChartScreen, SonarScreen, BoatScreen,
+                                     PeriscopeScreen)):
                 await pilot.press("tab")
                 assert isinstance(app.screen, cls)
                 course = 100 + 10 * i
                 await pilot.press(*f"kurs {course}", "enter")
                 assert isinstance(app.screen, cls)            # vi stannar i vyn
                 assert app.game.world.own.state.ordered_course == course
-                assert "kurs" in str(app.screen.query_one(f"#{app.screen.PREFIX}-ticker").render())
+                if cls is not LogScreen:                      # loggboken har hela loggen, ingen rapportrad
+                    assert "kurs" in str(app.screen.query_one(f"#{app.screen.PREFIX}-ticker").render())
             # tillbaka till sjökortet: tangenterna styr vyn bara när raden är tom
-            await pilot.press("tab", "tab", "tab")
+            await pilot.press(*["tab"] * 4)
             assert isinstance(app.screen, ChartScreen)
             line = app.screen.query_one(OrderLine)
             await pilot.press("left")
@@ -163,7 +166,7 @@ def test_ending_returns_to_menu_and_next_mission_starts_clean(tmp_path):
             assert not first.over             # vakthavande frågar först
             await pilot.press(*"ja", "enter")
             assert first.over
-            await pilot.press("tab", "tab")   # vyerna går att titta på efter slutet
+            await pilot.press("tab")          # slutrapporten i loggboken, sedan sjökortet
             assert isinstance(app.screen, ChartScreen)
             await pilot.press("enter")        # Enter i vyn: tillbaka till huvudmenyn
             await pilot.pause()

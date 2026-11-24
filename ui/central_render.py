@@ -29,6 +29,7 @@ W, H = 40, 13                   # minsta storlek (och den lilla bilden bredvid l
 SPEAK_S = 3.0                   # så länge en plats lyser efter en rapport
 DIAL_ROW = 1                    # instrumentens översta rad
 BIG = (100, 22)                 # minst så stor: braillesinstrumenten
+TALL_ROWS = 22                  # så hög vägg (rader mellan taket och lamporna): en rad mindre instrument
 
 PALETTES = {
     "normal": {
@@ -53,6 +54,11 @@ ROLE_LIGHT = {
     "zampolit": "bold #ffafaf",
 }
 SKY_DAY, SKY_NIGHT = "#a8c8e8", "#283850"
+# snabbtelefonens panel (stora bilden): vem som talar, under vänstra pulpeten
+PHONE = (("sonar", "Sonar"), ("plot", "Plott"), ("navigator", "Navigatör"), ("engineer", "Maskin"),
+         ("torpedo", "Torped"), ("radio", "Radio"), ("trim", "Trim"), ("officer", "Vakthav."),
+         ("starpom", "Starpom"))
+PHONE_CELL = 12
 
 
 @dataclass(frozen=True)
@@ -89,10 +95,17 @@ class Geometry:
     def big(self) -> bool:
         return self.w >= BIG[0] and self.h >= BIG[1]
 
+    def strip_rows(self) -> int:
+        """De mindre instrumentens rad längst ned på väggarna (lutning, trim, batteri, läns):
+        bara när väggen är hög nog (helskärm), annars 0."""
+        rows = self.lamps - DIAL_ROW
+        return max(6, rows * 3 // 10) if rows >= TALL_ROWS else 0
+
     def slots(self) -> dict[str, tuple[int, int, int, int]]:
-        """De stora instrumentens rutor (top, left, rows, cols): den stora mätaren ytterst på
-        varje vägg, de mindre staplade närmare mitten."""
-        top, rows = DIAL_ROW, self.lamps - DIAL_ROW
+        """Instrumentens rutor (top, left, rows, cols): den stora mätaren ytterst på varje vägg,
+        de mindre staplade närmare mitten och, på en hög vägg, en rad mindre instrument under."""
+        strip = self.strip_rows()
+        top, rows = DIAL_ROW, self.lamps - DIAL_ROW - strip
         out = {}
         for (a, b), outer, inner in ((self.left, "gyro", ("sidror", "telegraf")),
                                      (self.right, "djup", ("fart", "djupror"))):
@@ -113,6 +126,11 @@ class Geometry:
             else:
                 out[inner[0]] = (top, x, upper, rest)
             out[inner[1]] = (top + upper, x, rows - upper, rest)
+        if strip:
+            for (a, b), names in ((self.left, ("lutning", "trim")), (self.right, ("batteri", "lans"))):
+                half = (b - a + 1) // 2
+                out[names[0]] = (top + rows, a, strip, half)
+                out[names[1]] = (top + rows, a + half, strip, b - a + 1 - half)
         return out
 
     @property
@@ -132,10 +150,6 @@ class Geometry:
         return self.head - 3
 
     @property
-    def officer(self) -> int:                   # vakthavandes huvud
-        return self.mid + 4
-
-    @property
     def left(self) -> tuple[int, int]:          # vänstra väggens område (från, till och med)
         return 2, self.mid - 5
 
@@ -146,16 +160,6 @@ class Geometry:
     def pipes(self) -> tuple[int, ...]:
         """Rörens rader på väggarna i lilla bilden."""
         return tuple(r for r in (2, 4) if r < self.lamps - 1)
-
-    def seated(self) -> dict[str, int]:
-        """Huvudets kolumn för de sittande."""
-        a, b = self.left
-        lo = self.officer + 4
-        hi = max(lo + 8, self.right[1] - 1 - (self.w - W) // 20)
-        out = {"ror": round(a + (b - a) * 0.25), "djupror": round(a + (b - a) * 0.75)}
-        for i, role in enumerate(("engineer", "navigator", "plot")):
-            out[role] = round(lo + (hi - lo) * i / 2)
-        return out
 
     def intercom(self) -> dict[str, int]:
         a = self.left[0]
@@ -187,11 +191,6 @@ def eyepiece(rel: float) -> str:
         case 6: e[0] = "◀"
         case 7: e[0] = "◤"
     return "".join(e)
-
-
-def _seated(c: _Canvas, g: Geometry, col: int, p: dict, lit: str | None, lean: int = 0) -> None:
-    c.put(g.head, col + lean, "●", lit or p["head"])
-    c.text(g.body, col - 1, "▟█▙", lit or p["crew"])
 
 
 def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
@@ -252,9 +251,10 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
     # pulpeterna
     for a, b in (g.left, g.right):
         c.text(g.console, a, "▒" * (b - a + 1), p["console"])
-    # snabbtelefonen (Kasjtan): lyser när sonar, radio eller torpedrummet talar
-    for role, col in g.intercom().items():
-        c.put(g.lamps, col, "●" if role in lit else "○", lit.get(role) or p["lamp_off"])
+    # snabbtelefonen (Kasjtan), lilla bilden: lyser när sonar, radio eller torpedrummet talar
+    if not g.big:
+        for role, col in g.intercom().items():
+            c.put(g.lamps, col, "●" if role in lit else "○", lit.get(role) or p["lamp_off"])
     # maskintelegrafen: beordrad fart i fyra steg
     if not g.big:                                   # stor: telegrafen är ett instrument
         steps, tele = telegraph_lamp(s)
@@ -280,20 +280,12 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
         c.text(eye, g.peri - 2, eyepiece(signed_diff(s.course, s.periscope_train)), p["eye"])
     c.text(g.floor, g.peri - 1, "▁▁▁▁", p["tube"])
 
-    # besättningen
-    if not g.big:                                   # stor: inga figurer, bara rummet
-        officer = lit.get("officer")
-        c.put(g.console, g.officer, "●", officer or p["head"])
-        c.text(g.head, g.officer - 1, "▟█▙", officer or p["crew"])
-        c.text(g.body, g.officer - 1, "▐ ▌", officer or p["crew"])
-    rud = shown["rudder"]
-    lean = 1 if rud > 5 else -1 if rud < -5 else 0
-    if not g.big:                                   # stor: instrumenten står ensamma vid pulpeterna
-        seats = g.seated()
-        _seated(c, g, seats["ror"], p, None, lean)
-        _seated(c, g, seats["djupror"], p, None)
-        for role in ("engineer", "navigator", "plot"):
-            _seated(c, g, seats[role], p, lit.get(role))
+    # snabbtelefonens panel i stora bilden: en lampa per station, tänd när den talar
+    if g.big:
+        for i, (role, name) in enumerate(PHONE):
+            r, col = g.head + i // 3, g.left[0] + PHONE_CELL * (i % 3)
+            c.put(r, col, "●", lit.get(role) or p["lamp_off"])
+            c.text(r, col + 2, name, p["label"])
 
     # larmlampor i taket: stridslarm rött, brand gult
     alarm = RED if s.hunted else AMBER if s.fire else None
