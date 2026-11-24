@@ -69,6 +69,21 @@ class SteeringMixin:
                      kind="ack")
 
     # --- anfall: till skjutläge vid sidan av målets väg -----------------------------
+    def _fire_depth_watch(self) -> None:
+        """I skjutläget men djupare än torpederna går ut, efter en undanmanöver: när jakten lugnat sig och
+        målet ännu inte är tvärs föreslår navigatören skjutdjupet. (krig-kort frö 12: skjutläget och
+        sprinten till 220 m samma sekund; förslaget om 90 m släpptes, kaptenen hade beslutat, och sedan
+        sa ingen något när jakten var över.)"""
+        from ..torpedo_room.common import MAX_LAUNCH_DEPTH
+        s = self.ship
+        if self.now >= self._attack_pass_t or self.steer is not None or \
+                s.ordered_depth <= MAX_LAUNCH_DEPTH or self.game.knowledge.hunted(self.now):
+            return
+        data = dict(self._attack_what, fire_depth=MAX_LAUNCH_DEPTH - ATTACK_DEPTH_MARGIN_M,
+                    max_depth=MAX_LAUNCH_DEPTH, minutes=(self._attack_pass_t - self.now) / 60)
+        self.suggest("attack_depth", "nav.suggest.attack_depth", data,
+                     order=f"djup {data['fire_depth']}", cooldown=600)
+
     def _start_attack(self, designation: str) -> None:
         self.vak = None
         d = (designation or "").upper().replace(" ", "")
@@ -137,6 +152,8 @@ class SteeringMixin:
                             side=1 if (ex - x) * vy - (ey - y) * vx > 0 else -1)
                 self.say("nav.attack.arrived", data, quality=q, alarm=True)
                 self._attack_arrived_t = self.now
+                self._attack_pass_t = self.now + round(along / v * 3600)
+                self._attack_what = {"what": data["what"], "designation": data["designation"]}
                 # tyst medan de kommer, och upp till skjutdjup om vi ligger för djupt för avfyring
                 from ..torpedo_room.common import MAX_LAUNCH_DEPTH
                 parts = []

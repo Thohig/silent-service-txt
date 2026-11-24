@@ -357,7 +357,8 @@ class Knowledge:
             return None
         obs = [o for o in tr.observations if o.t >= tr.tma_from_t]
         q = HUNTER_MANEUVER_Q if self.hunting(tr, t_now) else \
-            tma.ZIGZAG_MANEUVER_Q if self.zigzags(tr) or submerged_submarine(tr.classification) else None
+            tma.ZIGZAG_MANEUVER_Q if self.zigzags(tr) or submerged_submarine(tr.classification) or \
+            tr.friendly else None
         sol = solve(obs, t_now=t_now, own_now=own_now, maneuver_q=q)
         if sol is not None:
             sol = self._settled(tr, sol, obs, t_now)

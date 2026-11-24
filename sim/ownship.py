@@ -162,6 +162,11 @@ class OwnShip(Vessel):
             if not self.power and s.battery <= 0:
                 return 0.0
             return 5.0 * max(s.health["propulsion"], 0.3)
+        return self.turbine_max_speed()
+
+    def turbine_max_speed(self) -> float:
+        """Högsta fart på turbinen med de skador vi har (också när vi går på elmotorn nu)."""
+        s = self.sys
         v = 28.0 * max(s.health["propulsion"], 0.3)
         return min(v, 16.0) if s.steam_leak else v
 

@@ -73,7 +73,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   Övningsområdet 4,5 nm norr om mynningen, 1,5–2,5 nm vid sidan av leden; botten 350–420 m.
   Övningsledaren (`stations/training.py`, `TrainingOfficer`, roll vakthavande, tyst utan
   `Scenario.training`): stegen `dyk` (fart 6, periskopdjup), `svep`, `fix`, `framme` (fart 4), `djup100`,
-  `provdjup` (300 m, bara där kortet visar ≥ 340), `smyg`, `lyssna`, `torped`, `pd`, `upp` (bara med en titt
+  `provdjup` (300 m, bara där kortet visar ≥ 340; annars `kurs mot övningsområdet`, inte när vi redan styr dit inom 20°), `smyg`, `lyssna`, `torped`, `pd`, `upp` (bara med en titt
   ≤ 2 min gammal och inget fartyg < 1,0 nm). Varje steg föreslås som ja-order med förklaring, bockas av ur egna
   instrument, navigatörens fix eller periskopbilden; 30 s paus mellan stegen. Stegen `framme`–`lyssna`
   görs i övningsområdet (inom 1,5 nm, kvar tills 3 nm; utanför föreslås kurs dit); inget föreslås förrän kortet visar oss 0,5 nm utanför
@@ -127,7 +127,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   märker flyget via radarvarnaren, periskopet och transienterna `buoy`/`buoy_ping`.
   Radarvarnaren (vakthavande, var 10:e s på periskopdjup) publicerar `AirRadarHeard` med starkaste
   flygradarn eller None ⇒ `Knowledge.air_radar`, `air_close_t` (stark/mycket stark, `AIR_CLOSE`).
-  Vakthavande föreslår `djup 60` så länge flygradarn är nära (larm, spärr 2 min). Radion föreslår inte
+  Vakthavande föreslår `djup 60` så länge flygradarn är nära (larm, spärr 2 min), och ingen titt på konvojen
+  (`convoy_up`) de första `AIR_HOLD_S` (15 min) efter att den var nära (krig-kort frö 18: upp, flyget, ned och upp
+  igen fyra gånger på 19 min). Radion föreslår inte
   `sänd rapport` medan senaste svepet hörde flyget nära, och inte periskopdjup inom `AIR_QUIET_S` (2 min)
   efter; drev flyget ned oss under fönstret föreslår den periskopdjup igen efter 2 min
   (`radio.suggest.air_clear`), om minst `AIR_LEFT_S` (2½ min) av fönstret är kvar.

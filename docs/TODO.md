@@ -14,7 +14,11 @@ Inget just nu (webbversionen provad av kaptenen 2026-11-22: fungerar bra).
 
 ## Utreda
 
-Inget just nu (övningsfartyget och pingaren i jagad-kort frö 51 utredda och rättade 2026-11-24).
+- **Vaken under isen glider förbi** (arktis frö 21, skytt ja/skjut/lyssna 2026-11-24): navigatören föreslår
+  "stoppa här" i 5 kn när isekolodet visar nyis ovanför, vi glider ~150 m förbi, vänder och missar eller står
+  med tjock is för och akter ("för smal"). Fyra försök på 16 min (stoppa här, radion, stoppa här igen), och
+  sambandstillfället missades. Utred: borde förslaget sakta in först (fart 2 när ekolodet ser tunn is framför
+  sig), eller vaken räkna med glidsträckan och vända direkt?
 
 ## Beslut som väntar på kaptenen
 

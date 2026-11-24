@@ -275,6 +275,17 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
     säger varför det slutar (`why`: tappad, för osäker, för gammal).
   - *Ytläge:* sonar föreslår inte skiktet i ytläge med bryggan bemannad; trimmaren föreslår aldrig mer fart än
     maskinen har (på smygmotorn `djup 30` i stället för `fart 6`).
+  - *Läget ändrades* (provspelet 2026-11-24, `tests/test_suggestion_withdrawn.py`): ett obesvarat förslag som en
+    station nu säger nej till dras tillbaka med systemraden "Förslaget gäller inte längre" (`Game._drop_vetoed`).
+    Maskin säger nej till `turbin` när reaktorn inte är i drift (jagad frö 61: lätta från botten med turbinen,
+    snabbstopp 10 s senare, och ja gav "turbinen kan inte köras"). Maskins sprint går aldrig fortare än turbinen
+    orkar med skadorna (`OwnShip.turbine_max_speed`; krig-kort frö 20: fart 11, högsta 9,8). Navigatören föreslår
+    ingen bottenfix på väg ned mot botten eller under 2 kn (den nekas ändå). Samma anmärkningar som förra
+    inspektionen inom `INSPECT_SAME_S` (15 min): "Avdelningarna inspekterade, inget nytt" (jagad frö 3: samma
+    långa rad sex gånger på 20 min).
+  - *Skjutdjupet efter jakten* (`NavigationStation._fire_depth_watch`): framme i skjutläget men djupare än 100 m
+    (kaptenen valde sprinten samma sekund, krig-kort frö 12) föreslår navigatören `djup 90` när jakten lugnat sig
+    och målet ännu inte är tvärs (`nav.suggest.attack_depth`, spärr 10 min).
 - **Torpeden i döda sektorn och kring skenmålet** (`stations/incoming.py`, 2026-11-23): se Fiendens torpeder i
   `scenarier.md`. Tappad akterut ⇒ larmet gäller `TORPEDO_RUN_S`; stilla bäring men nivån stiger inte över
   `HOLDING_WINDOW_S` (90 s) två rop i rad ⇒ "den kommer inte närmare", inget larm, ingen ny undanmanöver
@@ -285,7 +296,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `PING_RATE_HORIZON_S` (30 s); efter ett längre uppehåll börjar pingarens bäring om från den nya pingen (en nära
   passages −1,7°/s framräknad över 91 s gav 55° fel). Två pingare i grinden skiljs på styrkan (`rl`, utjämnad;
   `PING_LEVEL_DEG_PER_DB` 3° per dB): jagad-kort frö 51 slog ihop två jagare i nästan samma bäring, och den som
-  passerade över oss blev "Någon söker" igen (2026-11-24).
+  passerade över oss blev "Någon söker" igen (2026-11-24). Två pingar tätare än `PING_MIN_GAP_S` (4 s) är samma
+  pingare bara på samma nivå (±`PING_DOUBLE_DB` 2 dB) och inom `PING_SAME_DEG` (jagarens dubbelping vid ett nytt
+  datum), och driften räknas inte ur dem: krig-kort frö 17 hade två jagare 5° och 4 dB isär som pingade med en
+  sekunds mellanrum; de blev en pingare i "snabb takt" med 2°/s drift, och "Någon söker" 15 gånger på 10 min.
 - **Tappade och åter hörda** (`SonarRoom._say_lost`, `_say_regained`): samlas på en rad tills ingen ny kommit på
   `LOST_BATCH_S` (20 s), högst `LOST_BATCH_MAX_S` (60 s); en kontakt som hörs igen eller tappas igen innan raden
   sagts nämns inte (konvojen vid hörgränsen i krig-kort: en tredjedel färre rader).

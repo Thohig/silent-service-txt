@@ -238,6 +238,8 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         self.exit_via: str | None = None      # vägen ut går först runt land
         self.steer: Steering | None = None    # styruppdraget (tasks.py): följ, anfall, väntläget …
         self._attack_arrived_t = -10**9       # senaste skjutläge (inget nytt anfallsförslag strax)
+        self._attack_pass_t = -10**9          # ... och när målet då skulle vara tvärs
+        self._attack_what: dict = {}
         self._fw_done = False                 # farleden är gången
         self._water = None                    # sjökortets vattenrutnät för vägsökning
         self._exit_cache: tuple[int, tuple | None, str | None] | None = None
@@ -762,6 +764,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
             self.dr_ticks.append((self.now, self.est_x, self.est_y))
         self._steer_step(Follow)
         if not self._steer_step(Attack) and self.now % ATTACK_STEP_S == 0:
+            self._fire_depth_watch()
             self._convoy_watch()
             self._harbor_watch()
         self._steer_step(Wait)

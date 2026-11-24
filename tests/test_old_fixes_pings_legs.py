@@ -125,3 +125,31 @@ def test_a_pingers_old_drift_is_not_carried_over_a_long_silence():
     assert len(sonar._pings) == 1
     (p,) = sonar._pings.values()
     assert p["bearing"] == 28.0 and "rate" not in p
+
+
+def test_two_pingers_a_second_apart_are_two_pingers():
+    """Krig-kort frö 17: två jagare 5° och 4 dB isär pingade med en sekunds mellanrum; de blev en pingare i
+    snabb takt med 2°/s drift, och varannan ping blev en ny: "Någon söker" 15 gånger på 10 min."""
+    from sim.events import ReportDelivered
+    g, sonar = _pinger_room()
+    said = []
+    g.bus.subscribe(ReportDelivered, lambda e: said.append(e.report.type))
+    t = 100
+    for _ in range(12):
+        t += 20
+        for dt, b, rl in ((0, 109.0, 132.0), (1, 104.0, 136.0)):
+            g.world.time = t + dt
+            sonar._on_sound(TransientHeard("ping", b, 80.0, None, rl))
+        g.tick()
+    assert len(sonar._pings) == 2
+    assert sorted(round(p["rl"]) for p in sonar._pings.values()) == [132, 136]
+    assert not any(p["fast"] for p in sonar._pings.values())
+
+
+def test_a_double_ping_from_one_pinger_is_the_same_pinger():
+    """Vid ett nytt datum pingar jagaren igen en sekund senare: samma nivå och bäring, samma pingare."""
+    g, sonar = _pinger_room()
+    for t, b in ((100, 50.0), (120, 51.0), (121, 49.5)):
+        g.world.time = t
+        sonar._on_sound(TransientHeard("ping", b, 80.0, None, 150.0))
+    assert len(sonar._pings) == 1

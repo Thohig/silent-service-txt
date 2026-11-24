@@ -93,6 +93,8 @@ ORDINAL = {1: "första", 2: "andra", 3: "tredje", 4: "fjärde", 5: "femte", 6: "
            7: "sjunde", 8: "åttonde", 9: "nionde"}
 INSPECT_NOTE = {"BRAND": "brand", "skada": "skador", "lågt": "batteriet lågt"}
 INSPECT_AFTER_S = 60         # avdelningarna rapporterar så här länge efter haverilarmet
+INSPECT_SAME_S = 900         # samma anmärkningar som förra inspektionen så nyss: "inget nytt" (jagad frö 3:
+                             # samma långa rad sex gånger på 20 min under bomberna)
 INSPECT_ALERTS = ("damage", "ice.collision", "bottom.collision", "fire")
 GROAN_SAY_S = 180       # skrovknaket under jakt sägs högst så här ofta
 
@@ -136,6 +138,7 @@ def _damage(d: dict) -> str:
 PHRASES = {
     "eng.status": _status,
     "eng.inspected": _inspected,
+    "eng.inspected.same": lambda d: "Avdelningarna inspekterade, inget nytt sedan förra inspektionen.",
     "eng.propulsion": lambda d: f"{ru('Jest')}, turbindrift." if d["mode"] == "turbine"
     else f"{ru('Jest')}, smygmotor. Högsta fart 5 knop.",
     "eng.refused": lambda d: f"Kapten, {d['reason']}.",
@@ -329,6 +332,7 @@ RU_PHRASES = {
     "eng.reactor.starting": lambda d: "Есть, вводим реактор. Около двадцати минут.",
     "eng.blow": lambda d: "Аварийное продувание! Продуть все цистерны!",
     "eng.inspected": _ru_inspected,
+    "eng.inspected.same": lambda d: "Отсеки осмотрены, без изменений.",
     "reactor.scram": lambda d: f"{R.CAPTAIN}, пульт! Сработала аварийная защита реактора. "
     "Идём на батарее и электромоторе, максимальный ход пять узлов.",
     "reactor.online": lambda d: "Реактор снова в работе.",
@@ -429,6 +433,7 @@ class EngineeringStation(Station):
         self._last_shock = -10**9
         self._last_groan = -10**9
         self._inspect_t: int | None = None     # avdelningarna rapporterar då
+        self._inspected_last: tuple | None = None   # förra inspektionens anmärkningar och tid
 
 
     def intercept(self, order: Order) -> bool:
@@ -611,7 +616,9 @@ class EngineeringStation(Station):
         """Smygmotor föreslås inte när de har oss: maskin uppdateras före sonar, och förslaget som
         gjordes samma sekund som jakten började kom efter 'de har troligen kontakt med oss' (jagad
         frö 41: smygmotor, och 8 s senare turbin och sprint). Sonars tysta undanmanöver för en torped
-        nära har fler delar och släpps igenom."""
+        nära har fler delar och släpps igenom. Turbin föreslås inte när reaktorn inte är i drift."""
+        if not self.own.power and any(p.strip().lower() == "turbin" for p in split_orders(order)):
+            return True     # reaktorn är inte i drift (snabbstopp efter förslaget: jagad frö 61)
         return order.strip().lower() == "smygmotor" and self.game.knowledge.hunted(self.now)
 
     def _hunt_quiet(self) -> bool:
@@ -641,7 +648,8 @@ class EngineeringStation(Station):
         depth_ok = depth - 40 <= st.ordered_depth <= max(deepest, depth)
         if depth_ok:
             depth = st.ordered_depth            # djupare duger: farten räknas där vi ska vara
-        speed = int(acoustics.cavitation_speed(depth)) - 1
+        # inte fortare än turbinen orkar med skadorna (krig-kort frö 20: fart 11, högsta 9,8)
+        speed = min(int(acoustics.cavitation_speed(depth)) - 1, int(own.turbine_max_speed()))
         if speed <= 6:
             return None
         # redan djupt och fort på turbinen: ett par knop till på ett nytt djup är inget nytt förslag
@@ -729,7 +737,13 @@ class EngineeringStation(Station):
             self._inspect_t = None
             remarks = [(n, note) for n, _, state, note in self._compartments()
                        if state in (WARN, DANGER)]
-            self.say("eng.inspected", {"remarks": remarks, "leak": s.leak_rate > 0})
+            found = (remarks, s.leak_rate > 0)
+            if remarks and self._inspected_last is not None and found == self._inspected_last[0] and \
+                    self.now - self._inspected_last[1] <= INSPECT_SAME_S:
+                self.say("eng.inspected.same", {})
+            else:
+                self.say("eng.inspected", {"remarks": remarks, "leak": s.leak_rate > 0})
+            self._inspected_last = (found, self.now)
 
         for m in self.game.crew.values():           # röken påverkar alla ombord
             m.traits["smoke"] = s.smoke

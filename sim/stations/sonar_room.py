@@ -61,6 +61,10 @@ PING_RATE_HORIZON_S = 30    # driften räknas fram högst så här långt; ett l
                             # (en gammal drift över 6 min gav 38° fel, en nära passages −1,7°/s över 91 s 55°)
 PING_LEVEL_DEG_PER_DB = 3.0 # två pingare i grinden: nivån skiljer dem (en dB väger som tre grader)
 PING_LEVEL_SMOOTH = 0.5     # ny ping väger så här mycket i pingarens nivå
+PING_MIN_GAP_S = 4          # en pingare pingar inte tätare (jagaren högst var 6:e s) utom dubbelpingen vid ett
+PING_DOUBLE_DB = 2.0        # nytt datum, på samma nivå och bäring: två pingar på en sekund som skiljer sig mer
+                            # är två pingare (krig-kort frö 17: två jagare 5° och 4 dB isär, en sekund emellan,
+                            # blev en pingare i snabb takt med 2°/s drift; "Någon söker" 15 gånger på 10 min)
 # Så starka pingar (mottagen nivå, dB) kommer från en jagare nära nog att jaga oss: en jagarping
 # på 230 dB når hit på ~8 nm (~5,5 nm genom skiktet). Svagare pingar i snabb takt jagar något
 # långt bort: sonar säger det, men inget stridslarm (HuntSigns) och inget förslag om att undvika.
@@ -687,6 +691,9 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                 expected = norm360(q.get("bearing", ev.bearing)
                                    + q.get("rate", 0.0) * min(since, PING_RATE_HORIZON_S))
                 off = abs(angle_diff(expected, ev.bearing))
+                if since < PING_MIN_GAP_S and (off > PING_SAME_DEG or
+                                               abs(ev.rl - q.get("rl", ev.rl)) > PING_DOUBLE_DB):
+                    continue                    # så tätt och så olika: en annan pingare
                 if ev.rl >= PING_NEAR_RL:
                     # en nära pingare kan svänga fort i bäring (245 → 326 på 90 s förbi oss)
                     gate = min(PING_SAME_MAX_NEAR_DEG, PING_SAME_DEG + PING_DRIFT_NEAR_DEG_PER_S * since)
@@ -718,9 +725,10 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                 dt = max(1, self.now - p["last"]) if p["last"] is not None else 1
                 expected = norm360(p["bearing"] + p.get("rate", 0.0) * dt)
                 new = norm360(expected + PING_SMOOTH * angle_diff(ev.bearing, expected))
-                rate = angle_diff(new, p["bearing"]) / dt      # driften ur den utjämnade bäringen
-                rate = rate if "rate" not in p else (1 - PING_RATE_GAIN) * p["rate"] + PING_RATE_GAIN * rate
-                p["rate"] = max(-PING_RATE_MAX, min(PING_RATE_MAX, rate))
+                if dt >= PING_MIN_GAP_S:        # bäringsbruset över en sekund är ingen drift
+                    rate = angle_diff(new, p["bearing"]) / dt      # driften ur den utjämnade bäringen
+                    rate = rate if "rate" not in p else (1 - PING_RATE_GAIN) * p["rate"] + PING_RATE_GAIN * rate
+                    p["rate"] = max(-PING_RATE_MAX, min(PING_RATE_MAX, rate))
                 p["bearing"] = new
             near, sure = self._ping_near(ev.rl)
             if p["last"] is None or self.now - p["last"] > 900:

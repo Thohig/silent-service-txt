@@ -378,6 +378,17 @@ class Game:
         return sug is not None and sug[0] == order and self.now - sug[2] < SAME_SUGGESTION_S and \
             (r.speaker != self.suggestion_by or not r.alarm or self.suggestion_alarm)
 
+    def _drop_vetoed(self) -> None:
+        """Det obesvarade förslaget dras tillbaka när någon station nu säger nej: läget har ändrats sedan
+        det lämnades (jagad frö 61: maskin föreslog turbin, reaktorn snabbstoppade, och ja gav 'turbinen
+        kan inte köras'; vakthavande säger nej till periskopdjup när jakten börjar)."""
+        sug = self.active_suggestion()
+        if sug is None or not any(st.vetoes(sug[0]) for st in self.stations):
+            return
+        self.suggestion = None
+        self.suggestion_alarm = False
+        self._system("order.suggestion_dropped", {"what": sug[0]})
+
     def _deeper_pending(self, order: str, pending: str) -> bool:
         """Är förslaget bara 'gå ned', och tar det obesvarade förslaget oss minst lika djupt? (konvoj-mot:
         maskins sprint till 220 m skrevs över av vakthavandes 'djup 60' 16 s senare)"""
@@ -519,6 +530,7 @@ class Game:
 
         for st in self.stations:
             st.update()
+        self._drop_vetoed()
 
         released = self._release_held()
         delivered = [released] if released else []

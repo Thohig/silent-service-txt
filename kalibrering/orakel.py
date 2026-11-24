@@ -4,7 +4,8 @@ förut (2026-11-23), nu automatiskt:
 
 - grund_utan_varning: grundstötning utan navigatörens varning (land, grund, kortets land) de sista
   10 min (Clyde: kortet framåt utan bestickets osäkerhet framåt).
-- skjutläge_för_djupt: "vi är i skjutläge" djupare än torpedernas skjutdjup utan förslag om att gå upp.
+- skjutläge_för_djupt: "vi är i skjutläge" djupare än torpedernas skjutdjup utan förslag om att gå upp
+  (inte när de har oss: då är djupet kaptenens val).
 - tjatar: samma förslag (samma order) levererat 4+ gånger på 20 min (pingpongen periskopdjup/djup 50).
 - låg_fart_kvar: en tillfällig låg fart (lyssningsgiren, ≤ 4 kn) som ingen tagit tillbaka efter
   30 min, utan jakt, styruppdrag eller smygmotor (lyssningsgiren som glömdes).
@@ -141,7 +142,10 @@ class Orakel:
                           f"senaste varning {(g.now - self.last_nav_warn) // 60} min sedan")
         if self.arrived_t is not None and g.now - self.arrived_t == 10:
             self.arrived_t = None
-            if o.ordered_depth > FIRE_DEPTH_M and not self.fire_depth_suggested:
+            # jagade: djupt är kaptenens val (sprinten samma sekund, krig-kort 12); navigatören
+            # föreslår skjutdjupet när jakten lugnat sig (_fire_depth_watch)
+            if o.ordered_depth > FIRE_DEPTH_M and not self.fire_depth_suggested and \
+                    not g.knowledge.hunted(g.now):
                 self.flag("skjutläge_för_djupt", f"i skjutläget på {o.ordered_depth:.0f} m beordrat djup")
         for v in w.contacts:
             if v.sunk and v.side == "neutral" and getattr(v, "is_ship", False) and v.id not in self.sunk_seen:

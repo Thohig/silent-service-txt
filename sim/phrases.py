@@ -105,6 +105,7 @@ PHRASES: dict[str, Phrase] = {
     "order.declined": lambda d: "Uppfattat, vi avvaktar.",
     "off.confirm_quit": lambda d: "Kapten, ska vi avbryta uppdraget? Svara ja för att bekräfta.",
     "order.suggestion_repeat": lambda d: f"Senaste förslaget: {d['text']}",
+    "order.suggestion_dropped": lambda d: f"Förslaget gäller inte längre: {d['what']}.",
     "system.text": lambda d: d["text"],
     # plott
     "plot.improved": _improved,
@@ -181,6 +182,7 @@ RU_PLOT: dict[str, Phrase] = {
 # Rapporter som aldrig läses upp (systemrader och tabeller, se ui/audio.py): de behöver ingen
 # rysk fras. Allt annat ska ha en (tests/test_russian.py).
 NO_SPEECH = frozenset({"system.help", "system.text", "order.executing", "order.suggestion_repeat",
+                       "order.suggestion_dropped",
                        "plot.table"})
 
 

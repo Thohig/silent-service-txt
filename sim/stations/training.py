@@ -239,6 +239,10 @@ class TrainingOfficer(Station):
                 a = self._area()
                 if a is not None:
                     x, y = self.game.own_position_estimate()
+                    st = self.own.state
+                    if st.ordered_speed > 0 and st.ordered_course is not None and \
+                            abs(angle_diff(st.ordered_course, bearing_to(x, y, a.x, a.y))) < 20:
+                        return      # vi går redan dit (ovning frö 19: samma förslag var 5:e min)
                     self.suggest("train_deeper", "train.suggest.deeper",
                                  {"depth": round(cd, -1), "name": a.name,
                                   "course": bearing_to(x, y, a.x, a.y),

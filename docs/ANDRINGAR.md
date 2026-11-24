@@ -3,6 +3,41 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Provspelet, omgång två: förslag som slutat gälla, pingarna, skjutdjupet
+
+Oraklets botar (ja, skjut, lyssna) på frön 16–23 i alla scenarier, och rapporttätheten i loggarna.
+
+**Förslag som slutat gälla** (`Game._drop_vetoed`): ett obesvarat förslag som en station nu säger nej till dras
+tillbaka med systemraden "Förslaget gäller inte längre". Maskin säger nej till `turbin` när reaktorn inte är i
+drift: jagad frö 61 och krig frö 21 föreslog att lätta med turbinen, reaktorn snabbstoppade, och ja gav "turbinen
+kan inte köras".
+
+**Två pingare en sekund isär** (`SonarRoom._on_sound`, `PING_MIN_GAP_S` 4 s, `PING_DOUBLE_DB` 2 dB): krig-kort
+frö 17 hade två jagare 5° och 4 dB isär som pingade med en sekunds mellanrum. De blev en pingare i "snabb takt"
+med 2°/s drift, och varannan ping blev en ny: "Någon söker" 15 gånger och "de har kontakt med oss" 11 gånger på
+10 min. Nu är två pingar så tätt samma pingare bara på samma nivå och bäring (jagarens dubbelping vid nytt datum),
+och driften räknas inte ur dem.
+
+**Skjutdjupet efter jakten** (`NavigationStation._fire_depth_watch`): krig-kort frö 12 kom till skjutläget samma
+sekund som kaptenen valde sprinten till 220 m; förslaget om 90 m släpptes (kaptenen hade beslutat) och sedan sa
+ingen något. Nu föreslår navigatören `djup 90` när jakten lugnat sig och målet ännu inte är tvärs. Oraklets
+`skjutläge_för_djupt` larmar inte längre när de har oss (då är djupet kaptenens val).
+
+**Bevakningsfartyget girar** (`Knowledge.resolve`): övningens bevakningsfartyg går ben på 2,5–4,5 nm mellan slumpade
+punkter och räknas nu som sicksackande (q = 30). Ovning frö 20 kallade det säkert på 3,8 nm kurs 249 när det låg
+på 1,5 nm kurs 170, rakt mot oss efter en lucka på 6,5 min. Ovning, 24 frön: goda grovt fel 3,2 % ⇒ 2,0 %, säkra
+0,4 % ⇒ 0 (2 % färre säkra). En längre spärr efter luckan (luckans längd) provades och gav inget.
+
+**Mindre:**
+- Maskins sprint går inte fortare än turbinen orkar med skadorna (`OwnShip.turbine_max_speed`; krig-kort frö 20:
+  "fart 11", högsta 9,8).
+- Navigatören föreslår ingen bottenfix på väg ned mot botten eller under 2 kn (kuba frö 16: nekad direkt).
+- Övningsledaren föreslår inte `kurs mot övningsområdet` när vi redan styr dit (ovning frö 19: fyra gånger på 15 min).
+- Vakthavande föreslår ingen titt på konvojen 15 min efter att flygradarn var nära (`AIR_HOLD_S`; krig-kort frö 18:
+  upp, flyget, ned och upp igen fyra gånger på 19 min).
+- Samma anmärkningar vid inspektionen inom 15 min: "inget nytt sedan förra inspektionen" (jagad frö 3: samma långa
+  rad sex gånger på 20 min).
+
 ## 2026-11-24 – Utredningarna och provspelet: pingarna, plottets lucka och spann, botten, isen
 
 **Pingarna** (`SonarRoom._on_sound`): två jagare i nästan samma bäring slogs ihop till en pingare, och en

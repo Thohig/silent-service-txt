@@ -293,8 +293,7 @@ class IncomingMixin:
         if turbine and own.sys.propulsion != "turbine":
             parts.append("turbin")
         if turbine:
-            speed = int(min(28.0 * max(own.sys.health["propulsion"], 0.3),
-                            16.0 if own.sys.steam_leak else 99.0))
+            speed = int(own.turbine_max_speed())
         else:
             speed = int(own.max_speed())
         parts.append(f"fart {speed}")

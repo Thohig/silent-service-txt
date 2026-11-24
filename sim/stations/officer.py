@@ -65,6 +65,8 @@ HUSH_SPEED_KN = 6          # tystnad i båten: jagade och högst så här fort (
 HUSH_LIFT_S = 60           # tystnaden hävs när det varit lugnt eller fort så här länge
 ESCORT_CLOSE_NM = 3.0      # en jagare så nära: föreslå inte att gå upp
 ESM_STRONG_S = 300         # mycket stark radar så nyligen: föreslå inte att gå upp
+AIR_HOLD_S = 900           # flygradar nära så nyligen: ingen titt på konvojen (krig-kort frö 18: upp, flyget,
+                           # ned, och 10 min senare upp igen, fyra gånger på 19 min)
 HUNTED_UP_DEPTH = 50       # jagade: ingen föreslår att gå så här grunt (master, flytkabeln, fix)
 SMOKE_MUST_VENT = 0.7      # så tät rök: ventilationen går före jakten (maskins larmgräns)
 
@@ -349,6 +351,7 @@ class OfficerStation(Station):
         self.radar_done_t: int | None = None
         self.photo_done_t: int | None = None
         self._esm_last: dict[str, tuple[str, int]] = {}      # radar: styrka, när hörd (flyg: när sagd)
+        self._air_close_t = -10**9                             # senast flygradar nära
         self._esm_said: dict[str, tuple[str, int, float]] = {}   # fartygsradar: styrka, när sagd, bäring
         self._next_esm = 0
         self._esm_fresh = True      # första svepet efter att vi kommit upp: sammanfatta de kända
@@ -565,7 +568,7 @@ class OfficerStation(Station):
         if (c is None and not big) or k.hunted(self.now):
             return
         escort = self._escort_close()
-        held_back = escort is not None or \
+        held_back = escort is not None or self.now - self._air_close_t <= AIR_HOLD_S or \
             any(strength == "mycket stark" and self.now - t <= ESM_STRONG_S
                 for strength, t in self._esm_last.values())
         st = self.own.state
@@ -756,6 +759,8 @@ class OfficerStation(Station):
                 b = norm360(world.true_bearing(v) + rng.gauss(0, 3))
                 self.say("off.esm.air", {"bearing": b, "strength": strength}, kind="contact",
                          alarm=close)
+            if close:
+                self._air_close_t = self.now
             if close and (d := self.dive_depth(60)) is not None:   # också när vi kommer upp igen
                 self.suggest("down_air", "off.suggest.down",
                              {"reason": "Flygradar, nära. De kan se våra master.", "why": "air", "depth": d},

@@ -77,8 +77,11 @@ class FixMixin:
     def _bfix_worthwhile(self) -> bool:
         """Kan en fix mot botten hjälpa här: kort med djup, brant botten, bestick sämre än kortet."""
         chart = self.game.knowledge.bathymetry
-        if chart is None or "bfix" in self.tasks or self.own.sys.on_bottom:
+        if chart is None or "bfix" in self.tasks or self.own.sys.on_bottom or self.own.sys.settle:
             return False
+        st = self.own.state
+        if st.speed < BFIX_MIN_SPEED and st.ordered_speed < BFIX_MIN_SPEED:
+            return False                    # nekas ändå (kuba frö 16: föreslagen på väg ned mot botten)
         sys = self.own.sys
         if sys.fire or sys.smoke > 0.2 or sys.flooding > 0:
             return False                    # annat går före
