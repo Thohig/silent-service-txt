@@ -56,7 +56,7 @@ def test_tab_shows_the_chart_while_the_game_runs(tmp_path):
             await pilot.press("enter", "enter")
             for _ in range(900):
                 app.game.tick()
-            await pilot.press("tab")
+            await pilot.press("tab", "tab")  # översikten först
             assert isinstance(app.screen, ChartScreen)
             await pilot.pause(0.3)
             t0 = app.game.now
@@ -98,7 +98,8 @@ def test_orders_can_be_given_in_every_view(tmp_path):
         async with app.run_test(size=(110, 40)) as pilot:
             await pilot.press("enter", "enter")
             # under ytan: ingen brygga i Tab-ordningen
-            for i, cls in enumerate((ChartScreen, SonarScreen, BoatScreen, PeriscopeScreen)):
+            from ui.overview import OverviewScreen
+            for i, cls in enumerate((OverviewScreen, ChartScreen, SonarScreen, BoatScreen, PeriscopeScreen)):
                 await pilot.press("tab")
                 assert isinstance(app.screen, cls)
                 course = 100 + 10 * i
@@ -107,7 +108,7 @@ def test_orders_can_be_given_in_every_view(tmp_path):
                 assert app.game.world.own.state.ordered_course == course
                 assert "kurs" in str(app.screen.query_one(f"#{app.screen.PREFIX}-ticker").render())
             # tillbaka till sjökortet: tangenterna styr vyn bara när raden är tom
-            await pilot.press("tab", "tab")
+            await pilot.press("tab", "tab", "tab")
             assert isinstance(app.screen, ChartScreen)
             line = app.screen.query_one(OrderLine)
             await pilot.press("left")
@@ -162,7 +163,7 @@ def test_ending_returns_to_menu_and_next_mission_starts_clean(tmp_path):
             assert not first.over             # vakthavande frågar först
             await pilot.press(*"ja", "enter")
             assert first.over
-            await pilot.press("tab")          # vyerna går att titta på efter slutet
+            await pilot.press("tab", "tab")   # vyerna går att titta på efter slutet
             assert isinstance(app.screen, ChartScreen)
             await pilot.press("enter")        # Enter i vyn: tillbaka till huvudmenyn
             await pilot.pause()
@@ -208,7 +209,7 @@ def test_log_view_keeps_mirroring_after_the_end_and_cabin_enter_goes_to_menu(tmp
             assert len(app.screen._timers) == 3            # inte dubbla (draw, förslag, …)
             await pilot.press("escape")
             await pilot.pause()
-            await pilot.press("tab")                       # stort fönster: loggvyn först
+            await pilot.press("tab", "tab")                # stort fönster: översikten, loggvyn
             await pilot.pause()
             main = app.gs().query_one("#log", ReportLog)
             await pilot.press(*"avbryt uppdraget", "enter")

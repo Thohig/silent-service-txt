@@ -340,7 +340,7 @@ class SubApp(App):
             log.add_system(self.game.clock_str(), "Besättningen talar ryska, loggen är på svenska. "
                            "tal svenska byter språk.")
         if self.gs().big:
-            log.add_system(self.game.clock_str(), "Tab växlar mellan centralen, loggboken, översikten, sjökort, "
+            log.add_system(self.game.clock_str(), "Tab växlar mellan centralen, översikten, loggboken, sjökort, "
                            "sonar (vattenfallet), ubåten (djupprofil och systemtavla) och periskopbild, i ytläge också bryggan.")
         else:
             log.add_system(self.game.clock_str(), "Tab växlar mellan logg, översikt, sjökort, sonar, ubåten "

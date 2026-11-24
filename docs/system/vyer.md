@@ -11,7 +11,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   en tabell (kontakt, vad, bäring, avstånd, kurs och fart), färre sägs var för sig som förut. Sonars "hörs igen"
   samlas som de tappade (`sonar.regained.many`).
 - **Översikten** (`översikt`, `lägesbild`; `sim/overview.py`, `ui/overview_render.py`, `ui/overview.py`,
-  2026-11-24): allt kaptenen vet på en skärm, efter loggboken först i Tab-ordningen. Vänster spalt (55 %, från
+  2026-11-24): allt kaptenen vet på en skärm, först i Tab-ordningen (efter hytten när starpom har befälet). Vänster spalt (55 %, från
   `TWO_COL_W` 100 kolumner): sjökortet kring vårt beräknade läge i den minsta skala som rymmer plottets lösningar
   på de hållna kontakterna (minst 3 nm åt varje håll, `chart_scale`), vattenfallet 10 min och djupprofilen, ritade av
   vyernas egna renderare. Höger spalt: kontakttabellen, lägesraderna med bäringsrepeatern bredvid (gyrot med
@@ -82,7 +82,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   fasta djup (`Level`), navigatörens djuplogg (var 10:e s), ekolodets bottenlodningar
   (bara efter `ekolod`), isekolodets lodningar och sonarrummets hörda ljud. `Game.profile()`
   samlar, `ui/profile_render.py` ritar sidovyn (tid vågrätt, botten i eget band under
-  bruten axel; vårt djup, kortets botten och tunna nivåer i braille vid exakt djup) och djupmätaren bredvid loggen. Tab växlar (hytten, när starpom har befälet) → logg → översikt → sjökort → sonar → ubåten → periskopbild → logg, med luckan öppen brygga före
+  bruten axel; vårt djup, kortets botten och tunna nivåer i braille vid exakt djup) och djupmätaren bredvid loggen. Tab växlar (hytten, när starpom har befälet) → översikt → logg → sjökort → sonar → ubåten → periskopbild → logg, med luckan öppen brygga före
   periskopbild. Vyerna, orden som öppnar dem och Tab-ordningen står i registret `ui/views.py`
   (`REGISTRY`, `ViewDef`, `tab_order`); `SubApp` slår bara upp där.
 - **Centralen** (`ui/central_render.py` scenen, `ui/central_instruments.py` instrumenten, `CentralView` i

@@ -177,7 +177,7 @@ def test_layout_follows_the_window(tmp_path):
             assert any(0x2800 < ord(ch) <= 0x28FF for ch in "".join(lines))   # instrumenten
 
             await pilot.press(*"kurs 090", "enter")
-            await pilot.press("tab")                     # första vyn: hela loggboken
+            await pilot.press("tab", "tab")              # översikten, sedan hela loggboken
             assert isinstance(app.screen, LogScreen)
             full = app.screen.query_one("#logview-log", ReportLog)
             assert len(full.entries) == len(gs.query_one("#log", ReportLog).entries)
@@ -191,7 +191,7 @@ def test_layout_follows_the_window(tmp_path):
             await pilot.resize_terminal(110, 34)
             await pilot.pause(0.7)
             assert not gs.big and not big.display and small.display
-            await pilot.press("tab")                     # ingen loggvy när loggen är stor
+            await pilot.press("tab", "tab")              # ingen loggvy när loggen är stor
             assert not isinstance(app.screen, LogScreen)
             await pilot.press("escape")
 

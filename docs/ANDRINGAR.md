@@ -18,7 +18,7 @@ Tester: `tests/test_speech_level.py`.
 
 ## 2026-11-24 – Översikten: allt kaptenen vet på en skärm
 
-- Ny vy `översikt` (eller `lägesbild`), efter loggboken först i Tab-ordningen. Undantag från regeln om inga nya vyer:
+- Ny vy `översikt` (eller `lägesbild`), först i Tab-ordningen. Undantag från regeln om inga nya vyer:
   den samlar de andra. Sjökortet kring oss (skalan rymmer kontakterna), vattenfallet 10 min och djupprofilen till
   vänster; kontakttabellen, uppdraget, periskopet, bäringsrepeatern och systemtavlans paneler till höger.
 - Kontakttabellen: plottets kontakter, hot först, med klassning, bäring och, där sjökortet visar lösningen, avstånd,

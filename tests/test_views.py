@@ -12,8 +12,8 @@ from ui.views import CENTRAL_WORDS, REGISTRY, SCREENS, ViewContext, manual_words
 
 def test_tab_order_follows_the_situation():
     assert tab_order(ViewContext()) == (OverviewScreen, ChartScreen, SonarScreen, BoatScreen, PeriscopeScreen)
-    assert tab_order(ViewContext(big=True))[:2] == (LogScreen, OverviewScreen)
-    assert tab_order(ViewContext(big=True, command="starpom"))[:2] == (CabinScreen, LogScreen)
+    assert tab_order(ViewContext(big=True))[:2] == (OverviewScreen, LogScreen)
+    assert tab_order(ViewContext(big=True, command="starpom"))[:3] == (CabinScreen, OverviewScreen, LogScreen)
     # med folk på bryggan kommer bryggan före periskopbilden (kikaren)
     assert tab_order(ViewContext(bridge="manned"))[-2:] == (BridgeScreen, PeriscopeScreen)
 
