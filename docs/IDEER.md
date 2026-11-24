@@ -7,7 +7,8 @@ CLAUDE.md.
 
 **Riktlinje (2026-11-19):** ubåtens realism går först, men spelaren ska inte få fler system att sköta.
 Realismen ligger hos besättningen: ett nytt system hörs i besättningens rapporter och förslag och märks
-när något går fel, ger högst en ny order (helst ingen) och syns i de vyer som finns (inga nya vyer).
+när något går fel, ger högst en ny order (helst ingen) och syns i de vyer som finns (inga nya vyer; undantaget är översikten, beställd 2026-11-24, som
+samlar det som redan finns).
 
 ## Nya system
 

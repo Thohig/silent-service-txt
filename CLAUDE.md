@@ -167,18 +167,19 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
 - `docs/system/besattning.md`: Radion och telegrammen, Rapporten till staben, Huvudstaben,
   Slutrapportens samband, Radiospaning, Kärnvapenrådet, Starpom, Trim och flytkraft, Back i maskin,
   Trimmaren, Besättningen under jakt, Fråga en gång
-- `docs/system/vyer.md`: Loggen, Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
+- `docs/system/vyer.md`: Loggen, Översikten, Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
 - `docs/system/granssnitt.md`: Huvudmenyn, Ljud
 
 Avslagna förslag (föreslå inte igen): tal på Linux (piper/espeak-ng), animering på sjökortet, bilder i
 terminalen (Kitty/sixel), besättningsfigurer i centralen, reaktorpanel i centralen,
-däckskanon, fler vyer (t.ex. plottbord, eldledning, besättningslista, hydrologi: det nya ska synas i
+däckskanon, fler vyer utöver översikten (t.ex. plottbord, eldledning, besättningslista, hydrologi: det nya ska synas i
 de vyer som finns), vakter och trötthet som system, besättningen som människor (personligheter,
 moral; starpom räcker), scenarierna Haveri (K-19), Räddningen, Spaningen och Avhopp, slumpade
 kriser, svårighet via besättningens kunskap, ljuskulor, undervattenstelefon i fler scenarier,
 primärkrets och strålningsdos, nödutrymning, tjänsteblad (spelade uppdrag sparade mellan körningar), luften som system (syre, regenereringspatroner), huvudbarlast och hydraulik som system, tröghets- och
 radionavigering i Arktis. Riktlinje: realismen ligger hos besättningen (rapporter, förslag, fel som
-märks), högst en ny order per system, inga nya vyer (se `docs/IDEER.md`).
+märks), högst en ny order per system, inga nya vyer (översikten, 2026-11-24, är undantaget: den samlar
+de andra; se `docs/IDEER.md`).
 
 Idéer som inte är beställda: `docs/IDEER.md`. Konkreta öppna uppgifter (köra om, prova för hand,
 utreda, beslut som väntar): `docs/TODO.md`. Stryk det som blir gjort där. Det som gjorts står i

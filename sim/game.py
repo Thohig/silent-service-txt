@@ -25,6 +25,7 @@ from . import phrases, russian
 from .chart import ChartView
 from .profile import ProfileView
 from .sonar_view import SonarView
+from .overview import OverviewView
 from .systems import SystemsView
 from .crew import CrewMember, Role
 from .events import (EventBus, GameEnded, Handover, OrderIssued, PositionReported,
@@ -630,6 +631,9 @@ class Game:
     def systems(self) -> SystemsView:
         return self._view("systems", self._build_systems)
 
+    def overview(self) -> OverviewView:
+        return self._view("overview", self._build_overview)
+
     # ------------------------------------------------------------------ sjökort
     def _build_chart(self) -> ChartView:
         """Sjökortet: stationernas element ur kunskapen, i beräknade koordinater."""
@@ -664,6 +668,14 @@ class Game:
         view = SystemsView(self.clock_str())
         for st in self.stations:
             view.items.extend(st.system_items())
+        return view
+
+    # ------------------------------------------------------------------ översikt
+    def _build_overview(self) -> OverviewView:
+        """Översikten: kontakttabellen och lägesraderna, ur stationernas kunskap."""
+        view = OverviewView(self.clock_str())
+        for st in self.stations:
+            view.items.extend(st.overview_items())
         return view
 
     # ------------------------------------------------------------------ status

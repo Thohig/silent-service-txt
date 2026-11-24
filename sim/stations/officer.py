@@ -27,6 +27,7 @@ from ..knowledge import AIR_CLOSE
 from ..fmt import count, fmt_course, kn, nm
 from ..geo import angle_diff, bearing_to, distance, norm360
 from ..orders import AskSuggestion, CommandSpec, Order
+from ..overview import Line
 from ..ownship import PERISCOPE_DEPTH
 from ..periscope import SightedObject
 from ..reports import Quality
@@ -332,6 +333,11 @@ RU_PHRASES = {
     + (f" Внимание, эсминец {R.contact(d['escort'])} рядом." if d.get("escort") else ""),
 }
 phrases.register_ru(RU_PHRASES)
+
+
+# ordern i översikten (Knowledge.order_tasks)
+TASK_TEXT = {"patrull": "patrullera", "rapport": "rapportera", "anfall": "anfalla", "foto": "fotografera",
+             "ut": "ta oss ut", "station": "nå målet", "övning": "övning", "inspelning": "spela in ljudet"}
 
 
 class OfficerStation(Station):
@@ -770,6 +776,26 @@ class OfficerStation(Station):
     def _surface_ships(self):
         return [v for v in self.world.contacts
                 if v.side != "own" and v.is_ship and not v.sunk and v.depth < 10]
+
+    # --- översikten ---------------------------------------------------------------
+    def overview_items(self) -> list:
+        """Uppdraget: vad ordern kräver (kunskapen), tidsgränsen och om fienden har oss."""
+        k = self.game.knowledge
+        items: list = []
+        tasks = [TASK_TEXT.get(t, t) for t in sorted(k.order_tasks)]
+        if tasks:
+            items.append(Line("UPPDRAG", "Ordern", ", ".join(tasks), "info"))
+        end = self.patrol_end
+        if end is not None:
+            left = max(0, end - self.now) // 60
+            items.append(Line("UPPDRAG", "Tiden ut",
+                              f"{self.game.clock_str(end)[:5]}, {left // 60} h {left % 60:02d} min kvar",
+                              "varning" if left < 30 else "info"))
+        if k.hunted(self.now):
+            items.append(Line("UPPDRAG", "Läget", "fienden har oss", "fara"))
+        elif k.threat_held():
+            items.append(Line("UPPDRAG", "Läget", "fiende i närheten", "varning"))
+        return items
 
     def update(self) -> None:
         world, st, rng = self.world, self.own.state, self.rng

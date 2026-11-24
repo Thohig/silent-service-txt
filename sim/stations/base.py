@@ -173,6 +173,10 @@ class Station:
         """Systemtavlans element (sim.systems) ur stationens egna instrument."""
         return []
 
+    def overview_items(self) -> list:
+        """Översiktens element (sim.overview) ur stationens kunskap och egna instrument."""
+        return []
+
     def propose(self, p: Proposal) -> bool:
         return self.suggest(p.key, p.type, p.data, order=p.order, cooldown=p.cooldown,
                             quality=p.quality)

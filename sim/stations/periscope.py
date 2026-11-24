@@ -37,6 +37,7 @@ from ..fmt import fmt_course, kn, nm
 from ..geo import angle_diff, norm360, velocity
 from ..ice import ice_view
 from ..orders import DESIG, CommandSpec, Order, Unknown, desig
+from ..overview import Line
 from ..ownship import PERISCOPE_DEPTH
 from .sweep import SweepCalls
 from ..periscope import (EVENT_S, crest_m, sea_sigma_f, wave_height_m, sky_of, AOB_SIGMA, TWILIGHT_AOB_F, EYE_BRIDGE_M, EYE_PERISCOPE_M, SECTOR_HALF_DEG, IceBearing,
@@ -294,6 +295,14 @@ class PeriscopeWatch(Station):
     def status_fields(self) -> dict:
         return {"periscope": self.mode, "periscope_train": self.train, "periscope_up_s": self.up_s,
                 "periscope_optic": self.optic, "periscope_power": self.shown_power}
+
+    def overview_items(self) -> list:
+        """Periskopets gradring i översikten medan det är uppe (förr på centralens golv)."""
+        if self.mode is None:
+            return []
+        what = {"sweep": "svep", "look": "titt", "hold": "håller"}.get(self.mode, self.mode)
+        label = "Kikaren" if self.optic != "periskop" else "Periskopet"
+        return [Line("PERISKOP", label, f"{fmt_course(self.train)} · {what} · {self.shown_power}", "info")]
 
     @property
     def busy(self) -> bool:

@@ -10,6 +10,21 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   aktiva sonarn samlar utropen i ett svep; fyra eller fler blir en rad (hur många, närmast, örlogsfartygen) och
   en tabell (kontakt, vad, bäring, avstånd, kurs och fart), färre sägs var för sig som förut. Sonars "hörs igen"
   samlas som de tappade (`sonar.regained.many`).
+- **Översikten** (`översikt`, `lägesbild`; `sim/overview.py`, `ui/overview_render.py`, `ui/overview.py`,
+  2026-11-24): allt kaptenen vet på en skärm, efter loggboken först i Tab-ordningen. Vänster spalt (55 %, från
+  `TWO_COL_W` 100 kolumner): sjökortet kring vårt beräknade läge i den minsta skala som rymmer plottets lösningar
+  på de hållna kontakterna (minst 3 nm åt varje håll, `chart_scale`), vattenfallet 10 min och djupprofilen, ritade av
+  vyernas egna renderare. Höger spalt: kontakttabellen, lägesraderna med bäringsrepeatern bredvid (gyrot med
+  plottets hållna kontakter, numret i slagets färg, flyttad från centralen) och systemtavlans paneler
+  (`render_compact_panels`, oroliga först). Smalare: höger spalt och sedan sjökortet.
+  `Station.overview_items()` ⇒ `Game.overview()` (`OverviewView`, byggd en gång per läge som de andra):
+  plottet ger en `ContactRow` per kontakt med bäring (tappade i 30 min, sjunkna inte): klassningens första led,
+  senaste bäringen och dess ålder, och där sjökortet visar lösningen (≥ osäker, hot, handel eller eget) den
+  framräknad till nu (bäring, avstånd, kurs, fart) med kvaliteten; plottet räknar inte om lösningen för vyn
+  (`test_reading_the_overview_does_not_change_the_game`). Lägesrader (`Line`): vakthavande UPPDRAG (ordern ur
+  `Knowledge.order_tasks`, tiden ut och kvar, varning under 30 min; "fienden har oss" fara, "fiende i närheten"
+  varning), periskopet PERISKOP (gradring, svep/titt/håller, förstoring; förr på centralens golv). Nytt system
+  syns här genom att ge `Line` ur sin kunskap.
 - **Sjökortet**: `Station.chart_items()` ger ritelement (`sim/chart.py`) ur
   kunskapen i beräknade koordinater; `Game.chart()` samlar, `ui/chart_render.py`
   rastrerar (en rad = två kolumner i höjd). Blyertsmärken (`PlotTeam.pencil`, ur `SoundHeard`, och ur `EventSighted` när bryggan eller periskopet
@@ -67,7 +82,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   fasta djup (`Level`), navigatörens djuplogg (var 10:e s), ekolodets bottenlodningar
   (bara efter `ekolod`), isekolodets lodningar och sonarrummets hörda ljud. `Game.profile()`
   samlar, `ui/profile_render.py` ritar sidovyn (tid vågrätt, botten i eget band under
-  bruten axel; vårt djup, kortets botten och tunna nivåer i braille vid exakt djup) och djupmätaren bredvid loggen. Tab växlar (hytten, när starpom har befälet) → logg → sjökort → sonar → ubåten → periskopbild → logg, med luckan öppen brygga före
+  bruten axel; vårt djup, kortets botten och tunna nivåer i braille vid exakt djup) och djupmätaren bredvid loggen. Tab växlar (hytten, när starpom har befälet) → logg → översikt → sjökort → sonar → ubåten → periskopbild → logg, med luckan öppen brygga före
   periskopbild. Vyerna, orden som öppnar dem och Tab-ordningen står i registret `ui/views.py`
   (`REGISTRY`, `ViewDef`, `tab_order`); `SubApp` slår bara upp där.
 - **Centralen** (`ui/central_render.py` scenen, `ui/central_instruments.py` instrumenten, `CentralView` i

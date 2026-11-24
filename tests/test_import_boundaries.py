@@ -6,7 +6,7 @@ from pathlib import Path
 SIM = Path(__file__).resolve().parents[1] / "sim"
 
 # Kunskapen: byggs bara av händelser på bussen.
-KNOWLEDGE = ("knowledge", "tma", "zigzag", "icemap", "periscope", "chart", "profile", "sonar_view", "war",
+KNOWLEDGE = ("knowledge", "tma", "zigzag", "icemap", "periscope", "chart", "profile", "sonar_view", "overview", "war",
              "systems", "reports", "events", "dispatch", "headquarters")
 
 # Sanningen och det som håller den (bara sensorer och stationer får läsa dem).

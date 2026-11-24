@@ -14,6 +14,7 @@ from ..fmt import count, fmt_course, minutes
 from ..geo import angle_diff, norm360
 from ..knowledge import ContactTrack
 from ..orders import DESIG, AskContact, CommandSpec, Order, desig
+from ..overview import ContactRow
 from ..reports import Quality
 from ..sonar_view import (KEEP_S as SONAR_KEEP_S, SONAR_SOURCES, SolutionTrace, TargetTurn,
                           track_kind)
@@ -399,6 +400,36 @@ class PlotTeam(Station):
                                  quality=sol.quality if sol else Quality.DALIG,
                                  faded=not tr.held or age > FADE_S))
         return items
+
+    # --- översikten ---------------------------------------------------------------
+    def overview_items(self) -> list:
+        """Kontakttabellen: varje kontakt plottet har en bäring på (tappade i FORGET_S), med
+        lösningen framräknad till nu där sjökortet visar den (≥ osäker), som på kortet."""
+        rows: list = []
+        own_x, own_y = self.game.own_position_estimate()
+        for tr in self.game.knowledge.tracks.values():
+            if tr.sunk or not tr.observations:
+                continue
+            o = tr.observations[-1]
+            age = self.now - o.t
+            if not tr.held and age > FORGET_S:
+                continue
+            row = ContactRow(tr.designation, track_kind(tr), tr.classification, tr.class_quality,
+                             tr.held, o.bearing, age)
+            sol = tr.solution
+            if sol is not None and sol.quality >= Quality.OSAKER and \
+                    (tr.threat or tr.civil or tr.friendly):
+                dt = (self.now - sol.t) / 3600.0
+                x, y = sol.x + sol.state[2] * dt, sol.y + sol.state[3] * dt
+                dx, dy = x - own_x, y - own_y
+                row = dataclasses.replace(
+                    row, bearing=norm360(math.degrees(math.atan2(dx, dy))), bearing_age_s=0,
+                    range_nm=math.hypot(dx, dy), course=sol.course, speed=sol.speed,
+                    quality=sol.quality)
+            elif sol is not None:
+                row = dataclasses.replace(row, quality=sol.quality)
+            rows.append(row)
+        return rows
 
     def _sunk_at(self, tr) -> tuple[float, float] | None:
         """Var plottet tror att kontakten sjönk: lösningen framräknad till dess, annars ingenstans."""

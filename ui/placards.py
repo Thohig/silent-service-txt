@@ -19,6 +19,7 @@ VIEW_RU = {
     "DJUPMÄTARE": "ГЛУБИНОМЕР",
     "BRYGGAN": "МОСТИК",
     "KAPTENENS HYTT": "КАЮТА КОМАНДИРА",
+    "ÖVERSIKT": "ОБСТАНОВКА",
 }
 
 # systemtavlans paneler ⇒ stridsavdelning eller tjänst

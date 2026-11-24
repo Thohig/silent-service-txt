@@ -3,6 +3,17 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Översikten: allt kaptenen vet på en skärm
+
+- Ny vy `översikt` (eller `lägesbild`), efter loggboken först i Tab-ordningen. Undantag från regeln om inga nya vyer:
+  den samlar de andra. Sjökortet kring oss (skalan rymmer kontakterna), vattenfallet 10 min och djupprofilen till
+  vänster; kontakttabellen, uppdraget, periskopet, bäringsrepeatern och systemtavlans paneler till höger.
+- Kontakttabellen: plottets kontakter, hot först, med klassning, bäring och, där sjökortet visar lösningen, avstånd,
+  kurs och fart framräknade till nu och kvaliteten; tappade nedtonade i 30 min. Ny krok `Station.overview_items()`,
+  `Game.overview()`, datan i `sim/overview.py` (kunskap, importtestet). Att läsa vyn ändrar inte spelet.
+- UPPDRAG (vakthavande): ordern, tiden ut och kvar, fienden har oss / fiende i närheten. PERISKOP: gradringen.
+Tester: `tests/test_overview.py`, `tests/test_views.py`.
+
 ## 2026-11-24 – Centralen renodlad: bara egna instrument
 
 - Centralen visar bara den egna båten. Bäringsrepeatern på gyrot och periskopets gradring (`PERISKOP 047 · titt`)

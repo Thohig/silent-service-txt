@@ -18,6 +18,7 @@ from .bridge import BridgeScreen
 from .cabin import CabinScreen
 from .chart import ChartScreen
 from .logview import LogScreen
+from .overview import OverviewScreen
 from .periscope import PeriscopeScreen
 from .sonar import SonarScreen
 
@@ -43,13 +44,15 @@ def _words(*w: str) -> frozenset[str]:
     return frozenset(w)
 
 
-# Tab-ordningen: (hytten) → (loggboken) → sjökort → sonar → ubåten → (bryggan) → periskopbilden.
+# Tab-ordningen: (hytten) → (loggboken) → översikt → sjökort → sonar → ubåten → (bryggan) → periskopbilden.
 # Med folk på väg upp eller på bryggan kommer bryggan före periskopbilden (kikaren).
 REGISTRY: tuple[ViewDef, ...] = (
     ViewDef(CabinScreen, _words("hytt", "hytten", "kajuta", "kajutan"),
             tab=lambda c: c.command == "starpom"),
     ViewDef(LogScreen, _words("logg", "loggen", "loggbok", "loggboken"), "logg",
             tab=lambda c: c.big, word_action="_log_word"),
+    ViewDef(OverviewScreen, _words("översikt", "översikten", "oversikt", "oversikten", "lägesbild",
+                                   "lagesbild", "lägesbilden"), "översikt"),
     ViewDef(ChartScreen, _words("sjökort", "sjokort", "kort", "karta"), "sjökort"),
     ViewDef(SonarScreen, _words("sonar", "sonarvy", "vattenfall", "vattenfallet", "hydrofon",
                                 "lurarna"), "sonar"),
