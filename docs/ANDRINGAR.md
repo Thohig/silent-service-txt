@@ -3,6 +3,18 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Stampvinkeln: båten lutar när den byter djup
+
+- Båten lutar när rodren byter djup: cirka 13° i 12 kn, ingen lutning under 2 kn (barlasten), fören 20° upp vid
+  nödblåsning. Syns på centralens lutningsmätare, libellen, panelen TRIM och i statusraden.
+- Navigatören väljer brant vinkel när fienden har oss eller en torped är i vattnet: djupbytet går 1,4× fortare
+  (högst 2,8 m/s), ~19°, och kvittensen säger "Brant vinkel".
+- Över 15° far lösa föremål i durken: maskin säger det, det hörs i vattnet (135 dB, jagare pejlar det), märket ≡ i
+  plottet och sonarvyn. En gång per brant läge.
+- Torpedrummet skjuter inte med mer än 7° lutning.
+Var: `sim/ownship.py` (`pitch`, `_pitch_step`, `steep`), `NavigationStation._steep`, `hull.clatter` i
+`stations/engineering.py`, `MAX_LAUNCH_PITCH`. Tester: `tests/test_pitch.py`.
+
 ## 2026-11-24 – Översikten är huvudskärmen, centralen på hela skärmen med fler instrument
 
 - Huvudskärmen är översikten med loggremsan (9 rader) och djupmätaren under, från 100 × 30 tecken. `Esc` och

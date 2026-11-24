@@ -164,6 +164,18 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (lodrätt, t.ex. genom en öppning i isen). Utjämningstanken −25 … +15 t (läckgränsen `TRIM_RESERVE_T` är
   dess 25 t) pumpas 1 t/min, för–akter 0,5 t/min (±8 t); pumparna hörs (`PUMP_LEVEL` 121 dB, ~+1,7 dB på
   smygmotorn, inget bredvid turbinen). Lutningen 0,6° per ton framåtlast.
+- **Lutningen (stampvinkeln)** (2026-11-24; sanning i `sim/ownship.py`, `OwnShip.pitch`, `_pitch_step`): båten lutar
+  när rodren byter djup. Vinkeln är den mellan farten framåt och den del av djupändringen rodren gör (`BALLAST_MPS`
+  0,25 m/s gör barlasten utan lutning), högst 30°, och ändras högst 3°/s; under 2 kn, i ytläge och på botten ingen;
+  vid nödblåsning fören 20° upp (`BLOW_PITCH_DEG`). Trimmens lutning (0,6° per ton framåtlast) läggs ovanpå.
+  Ett vanligt djupbyte i 12 kn lutar ~13°. Navigatören väljer brant vinkel (`own.sys.steep`,
+  `NavigationStation._steep`) när fienden har oss eller en torped är i vattnet: djupbytet går 1,4× fortare
+  (`STEEP_RATE_F`, högst 2,8 m/s), ~19° i 12 kn, och kvittensen säger "Brant vinkel". Över 15° (`CLATTER_DEG`)
+  far lösa föremål i durken: maskin säger det (`hull.clatter`), det hörs i vattnet (`Transient("clatter")`,
+  135 dB, `CLATTER_LEVEL`; jagare pejlar det som knaket) och blyertsen och sonarvyn får märket ≡; igen först när
+  båten varit nästan rak (< 5°). Torpedrummet skjuter inte med mer än 7° lutning (`MAX_LAUNCH_PITCH`, "vänta
+  tills djupet är nått"). Lutningen syns på centralens lutningsmätare och libell, panelen TRIM (varning från
+  15°) och i statusraden (`StatusSnapshot.pitch` är `OwnShip.pitch`). Tester: `tests/test_pitch.py`.
 - **Back i maskin** (2026-11-19; sanning i `sim/ship.py` och `sim/ownship.py`, order hos navigatören):
   `back N`, `back`/`sakta back` (2 kn), `halv back` (halva backfarten), `full back`; `fart N` går framåt
   igen och `stopp` stoppar. `ShipState.speed` är alltid farten genom vattnet (≥ 0) och `astern` riktningen,
