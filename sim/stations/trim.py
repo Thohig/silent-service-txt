@@ -22,7 +22,7 @@ from .. import trim as T
 from ..crew import Role
 from ..fmt import nm
 from ..orders import CommandSpec, Order
-from ..ownship import BROACH_DEPTH_M, heave_depth_f, heave_speed_f
+from ..ownship import BROACH_DEPTH_M, CLATTER_DEG, heave_depth_f, heave_speed_f
 from ..reports import Quality
 from ..russian import ru
 from ..systems import INFO, OFF, OK, WARN, Gauge, TrimTanks
@@ -388,10 +388,10 @@ class TrimStation(Station):
             txt = f"{_heavy(w)} {nm(abs(w))} ±{nm(self.sigma)} t ({q})"
         g("Vikt", txt, WARN if abs(w) > cap + T.CONTROL_LOST_T and not self._resting() else
           INFO if abs(w) >= TRIM_AT_T else OK)
-        p = t.pitch
+        p = own.pitch                    # lutningsmätaren: trimmen och djupbytet
         g("Lutning", "rak" if abs(p) < 0.5 else
           f"{nm(abs(p))}° {'förlig' if p > 0 else 'akterlig'}",
-          WARN if abs(p) >= 5 else INFO if abs(p) >= 1 else OK)
+          WARN if abs(p) >= CLATTER_DEG else INFO if abs(p) >= 1 else OK)
         span = T.BALLAST_MAX_T - T.BALLAST_MIN_T
         g("Utjämningstank", f"{t.ballast_t - T.BALLAST_MIN_T:.0f} av {span:.0f} t",
           WARN if t.ballast_t <= T.BALLAST_MIN_T + 2 else OK,
@@ -415,9 +415,8 @@ class TrimStation(Station):
         return items
 
     def status_fields(self) -> dict:
-        """Lutningsmätaren och rodrets last (egna instrument) till centralens mätare."""
-        t = self.own.sys.trim
-        return {"pitch": t.pitch, "plane_load": t.plane_load}
+        """Lutningsmätaren (trimmen och djupbytet) och rodrets last (egna instrument) till centralen."""
+        return {"pitch": self.own.pitch, "plane_load": self.own.sys.trim.plane_load}
 
 
 def _moves(order: Order) -> bool:

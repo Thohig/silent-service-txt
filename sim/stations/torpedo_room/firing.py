@@ -12,7 +12,7 @@ from ...weapons import ARM_DISTANCE_NM, TORPEDO_TYPES, launch_torpedo
 from .common import (
     ASPECT_MAX_SIGMA, ASPECT_MIN_KN, CONFIRM_S, HUNTING_RUN_S, LONG_RUN_S, LOST_CONE_DEG, LOST_LANE_S,
     NARROW_DEG, FireSalvo, FireTube,
-    MAX_LAUNCH_DEPTH, MAX_LAUNCH_SPEED, NEUTRAL_CONE_DEG, NEUTRAL_LANE_NM, NEUTRAL_STEP_S, N_TUBES,
+    MAX_LAUNCH_DEPTH, MAX_LAUNCH_PITCH, MAX_LAUNCH_SPEED, NEUTRAL_CONE_DEG, NEUTRAL_LANE_NM, NEUTRAL_STEP_S, N_TUBES,
     RIVAL_NM, Running, SALVO_GAP_MAX_NM, SALVO_GAP_NM, SEEKER_LANE_NM,
     SALVO_MAX, SALVO_STEP_DEG, TOO_CLOSE_MARGIN_NM, Tube,
 )
@@ -132,6 +132,9 @@ class FiringMixin:
             reason = f"vi är för djupt för avfyring, högst {MAX_LAUNCH_DEPTH} meter"
         elif st.speed > MAX_LAUNCH_SPEED:
             reason = f"farten är för hög för avfyring, högst {MAX_LAUNCH_SPEED} knop"
+        elif abs(self.own.pitch) > MAX_LAUNCH_PITCH:
+            reason = (f"båten lutar {abs(self.own.pitch):.0f} grader, högst {MAX_LAUNCH_PITCH} vid avfyring; "
+                      "vänta tills djupet är nått")
         elif b := self._blocked(tube.load):
             reason = b
         elif o.designation:

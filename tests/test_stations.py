@@ -193,12 +193,15 @@ def test_game_ends_when_patrol_is_over():
 
 def test_torpedoes_cannot_be_fired_deeper_than_100_m():
     g, reports = _game()
-    g.world.own.state.depth = 110
+    st = g.world.own.state
+    st.depth = st.ordered_depth = 110
+    _run(g, 15)                                # båten rak efter flytten (stampvinkeln)
     g.command("eld tub 1 kurs 090")
     _run(g, 10)
     assert any(r.type == "torp.refused" and "högst 100 meter" in r.text for r in reports)
     assert not any(isinstance(w, Torpedo) for w in g.world.contacts)
-    g.world.own.state.depth = 95
+    st.depth = st.ordered_depth = 95
+    _run(g, 15)
     g.command("eld tub 1 kurs 090")
     _run(g, 10)
     assert any(isinstance(w, Torpedo) for w in g.world.contacts)

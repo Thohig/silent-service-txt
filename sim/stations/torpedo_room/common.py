@@ -35,6 +35,7 @@ RELOAD_URGENT_COOLDOWN_S = 120   # kaptenen ville skjuta men ingen tub kunde: ge
 RELOAD_CLANK_S = 30     # torpeden körs in i tuben så här länge efter ordern; sedan stängs bakluckan
 MAX_LAUNCH_DEPTH = 100         # 627A: tuberna sköt från ungefär 100 m
 MAX_LAUNCH_SPEED = 12
+MAX_LAUNCH_PITCH = 7           # större lutning: torpeden går ur tuben snett (stampvinkeln, ownship.pitch)
 RUN_REPORT_AFTER = 10       # s efter avfyring innan sonar bekräftar normal gång
 TRACK_KEEP_S = 1800              # avslutade banor ligger kvar på kortet så länge
 TRACK_FADE_S = 600

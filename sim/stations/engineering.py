@@ -158,6 +158,8 @@ PHRASES = {
     "broach": lambda d: "Kapten, centralen! Sjön drog upp oss, tornet bröt ytan!",
     "leak_stopped": lambda d: "Läckan är tätad.",
     "hull.creak": lambda d: f"Skrovet knakar, kapten. {d['depth']:.0f} meter, under provdjup.",
+    "hull.clatter": lambda d: f"Lösa föremål far i durken, kapten, vi lutar {abs(d['pitch'])}° "
+    + ("förut" if d["pitch"] > 0 else "akterut") + ". Det hörs i vattnet.",
     "hull.groan": lambda d: "Skrovet knakar när vi går " + ("ned" if d.get("down") else "upp")
     + ", kapten. Det hörs i vattnet. Långsammare djupändring, i låg fart, knakar inte.",
     "damage": _damage,
@@ -347,6 +349,8 @@ RU_PHRASES = {
     "broach": lambda d: f"{R.CAPTAIN}, центральный! Волной подняло, рубка показалась!",
     "leak_stopped": lambda d: "Течь заделана.",
     "hull.groan": lambda d: f"{R.CAPTAIN}, корпус трещит. Нас слышно. Глубину менять медленнее.",
+    "hull.clatter": lambda d: f"{R.CAPTAIN}, дифферент {R.dec(abs(d['pitch']), R.DEGREE)} "
+    + ("на нос" if d["pitch"] > 0 else "на корму") + ". Незакреплённое падает, нас слышно.",
     "hull.creak": lambda d: f"Корпус трещит, товарищ командир. {R.count(d['depth'], R.METER)}, "
     "ниже рабочей глубины.",
     "damage": lambda d: f"Аварийная тревога! {_ru_damage_list(d)}{_ru_leak(d)}",
@@ -740,6 +744,8 @@ class EngineeringStation(Station):
                              "fire") or (type == "smoke" and data["level"] >= 0.7) or \
                 (type == "battery" and data["level"] <= 0.1)
             self.say(type, data, kind="info", alarm=alarm)
+            if type == "hull.clatter":              # plottets blyerts och sonarvyns marginal
+                self.game.bus.publish(OwnSoundMade(self.now, "clatter"))
             self._charge_felt(type, data)
             hard = type == "shock" and data.get("strength") == "kraftig" and not data.get("practice")
             if (type in INSPECT_ALERTS or hard) and self._inspect_t is None:

@@ -108,6 +108,7 @@ PHRASES = {
     "nav.speed.ack": _speed_ack,
     "nav.depth.ack": lambda d: (f"{ru('Jest')}, upp till ytan." if d["depth"] == 0 else
                                 f"{ru('Jest')}, djup {d['depth']:.0f} meter.")
+    + (" Brant vinkel." if d.get("steep") else "")
     + (" Det är under provdjup, kapten." if d.get("below_test") else "")
     + (f" Det är is ovanför, kapten, vi kommer inte högre än cirka {d['ice_ceiling']:.0f} meter."
        if d.get("ice_ceiling") else
@@ -414,6 +415,8 @@ phrases.register(PHRASES)
 def _ru_depth_ack(d: dict) -> str:
     txt = ("Есть, всплывать в надводное положение." if d["depth"] == 0 else
            f"Есть, глубина {R.count(d['depth'], R.METER)}.")
+    if d.get("steep"):
+        txt += " С большим дифферентом."
     if d.get("below_test"):
         txt += " Это ниже рабочей глубины, товарищ командир."
     if d.get("ice_ceiling"):

@@ -543,6 +543,8 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                     self.down_ordered_t = self.now
                 s.order_depth(d)
                 data = {"depth": d, "below_test": d > TEST_DEPTH}
+                if self._steep() and abs(d - s.depth) > 10:
+                    data["steep"] = True                # brant vinkel: det brådskar
                 latest = self.icemap.latest(self.now)
                 if latest is not None and not latest.usable and d < latest.draft + SAIL_TOP_M:
                     data["ice_ceiling"] = latest.draft + SAIL_TOP_M
@@ -777,7 +779,14 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         self.last_fix_t = self.now
         self.fix_sigma = sigma
 
+    def _steep(self) -> bool:
+        """Brant dykvinkel när det brådskar: fienden har oss eller en torped är i vattnet.
+        Annars normal vinkel (lösa föremål far inte, det hörs mindre)."""
+        k = self.game.knowledge
+        return k.hunted(self.now) or k.torpedo_alarm(self.now)
+
     def update(self) -> None:
+        self.own.sys.steep = self._steep()
         self._current_age()
         self._dead_reckon()
         if self.now % 60 == 0:

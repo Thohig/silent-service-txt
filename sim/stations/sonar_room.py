@@ -83,7 +83,8 @@ HEARD_SYMBOL = {
 }
 OWN_SYMBOL = {"ping": ("!", "own_sound"), "launch": ("»", "own_sound"),
               "decoy": ("o", "own_sound"), "blow": ("↑", "own_sound"),
-              "astern": ("◂", "own_sound"), "reload": ("¤", "own_sound")}
+              "astern": ("◂", "own_sound"), "reload": ("¤", "own_sound"),
+              "clatter": ("≡", "own_sound")}
 
 
 CONTACTS_NAMED = 2          # systemtavlan: så här många kontakter nämns vid namn

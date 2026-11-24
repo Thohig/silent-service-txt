@@ -24,6 +24,15 @@ TEST_DEPTH = 300.0
 GROAN_MIN_DEPTH = 80.0     # skrovknak vid snabb djupändring: bara så här djupt
 GROAN_RATE_MPS = 1.0       # ... och fortare än så (≈ 6 kn och uppåt med rodren)
 GROAN_STEP_M = 25.0        # ett knak per så många meter
+# Stampvinkeln (docs/system/besattning.md, Lutningen): båten lutar när rodren byter djup.
+BALLAST_MPS = 0.25         # den del av djupändringen barlasten gör (ingen lutning)
+PITCH_DYN_MAX_DEG = 30.0   # största lutning av djupbytet
+PITCH_SLEW_DEG_S = 3.0     # så fort båten ändrar lutning
+BLOW_PITCH_DEG = -20.0     # nödblåsning: fören upp
+STEEP_RATE_F = 1.4         # brant dykning (navigatören väljer den när det brådskar): fortare djupbyte
+STEEP_MAX_MPS = 2.8        # ... upp till så här
+CLATTER_DEG = 15.0         # brantare än så: lösa föremål far i durken och det hörs i vattnet
+CLATTER_REARM_DEG = 5.0    # ... igen först när båten varit nästan rak
 CRUSH_DEPTH = 450.0
 PERISCOPE_DEPTH = 18.0
 ANTENNA_DEPTH = 30.0
@@ -104,6 +113,9 @@ class OwnSystems:
     _battery_warned: set = field(default_factory=set)
     _last_creak: int = -10**9
     _groan_ref: float | None = None  # djupet vid förra knaket (kompressionen) under snabb djupändring
+    steep: bool = False              # brant dykning: navigatören väljer den när det brådskar
+    pitch_dyn: float = 0.0           # lutningen av djupbytet, grader (+ förlig, fören ned)
+    _clatter_armed: bool = True      # lösa föremål kan slamra igen (båten har varit rak)
 
 
 def heave_speed_f(speed: float) -> float:
@@ -133,6 +145,34 @@ class OwnShip(Vessel):
             self.sys.bridge = "manned"       # börjar i ytläge med folk på bryggan
 
     # ------------------------------------------------------------------ hjälp
+    @property
+    def pitch(self) -> float:
+        """Lutningen (дифферент) som lutningsmätaren visar: trimmen och djupbytet, + förlig."""
+        return max(-35.0, min(35.0, self.sys.trim.pitch + self.sys.pitch_dyn))
+
+    def _pitch_step(self, world, st, s, now: int, dt: float) -> None:
+        """Lutningen av djupbytet: vinkeln mellan farten framåt och den del av djupändringen rodren
+        gör (barlasten lutar inte båten); vid nödblåsning fören brant upp. Över CLATTER_DEG far lösa
+        föremål i durken: maskin säger det och det hörs i vattnet (en gång per brant läge)."""
+        vz = (st.depth - self._prev_depth) / dt if self._prev_depth is not None and dt > 0 else 0.0
+        if s.blowing:
+            target = BLOW_PITCH_DEG
+        elif st.speed < 2.0 or self.surfaced or s.on_bottom:
+            target = 0.0
+        else:
+            planes_vz = math.copysign(max(0.0, abs(vz) - BALLAST_MPS), vz)
+            target = math.degrees(math.atan2(planes_vz, st.speed * 0.5144))
+            target = max(-PITCH_DYN_MAX_DEG, min(PITCH_DYN_MAX_DEG, target))
+        step = PITCH_SLEW_DEG_S * dt
+        s.pitch_dyn += max(-step, min(step, target - s.pitch_dyn))
+        p = abs(self.pitch)
+        if p > CLATTER_DEG and s._clatter_armed:
+            s._clatter_armed = False
+            world.emit(Transient("clatter", st.x, st.y, st.depth, acoustics.CLATTER_LEVEL, self.id, now))
+            self.alert("hull.clatter", pitch=round(self.pitch))
+        elif p < CLATTER_REARM_DEG:
+            s._clatter_armed = True
+
     def _groan_step(self, world, st, s, now: int, dt: float) -> None:
         """Skrovet knakar var GROAN_STEP_M under en djupändring fortare än GROAN_RATE_MPS
         nedanför GROAN_MIN_DEPTH (stålet trycks ihop eller släpper). Långsamt knakar det inte."""
@@ -458,6 +498,8 @@ class OwnShip(Vessel):
         # djupstyrning: rodren behöver fart, barlasten verkar långsamt
         planes = max(s.health["planes"], 0.2) * (ASTERN_PLANES if st.astern else 1.0)
         st.depth_rate = min(2.0, max(0.2, (0.25 + 0.12 * st.speed) * planes))
+        if s.steep:                           # brant vinkel: fortare, men båten lutar mer
+            st.depth_rate = min(STEEP_MAX_MPS, st.depth_rate * STEEP_RATE_F)
         self._bridge_step(now)
         if self.bridge_open:
             st.depth_rate = 0.0               # inte ned med luckan öppen (vi ligger redan uppe)
@@ -479,7 +521,8 @@ class OwnShip(Vessel):
         self._trim_step(world, dt, regen)
         self._heave_step(world)
 
-        # skrov: snabb djupändring på djupet knakar (kompressionen), och det hörs i vattnet
+        # lutningen av djupbytet, sedan skrovet: snabb djupändring på djupet knakar (kompressionen)
+        self._pitch_step(world, st, s, now, dt)
         self._groan_step(world, st, s, now, dt)
         if st.depth > TEST_DEPTH:
             s.hull -= (st.depth - TEST_DEPTH) / 100.0 * 0.0015 * dt
