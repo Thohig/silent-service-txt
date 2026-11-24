@@ -244,6 +244,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         self._touching = False
         self._was_reversing = False           # maskinen slog mot farten förra sekunden
         self._settle_aim = 0.0
+        self._bombed_on_bottom_t = -10**9   # skarpa laddningar nära medan vi låg på botten
         # djupprofilen: djupmätaren (t, djup) och ekolodets bottenlodningar
         self.depth_log: list[tuple[int, float]] = [(0, s.depth)]
         self.course_log: list[tuple[int, float]] = [(0, round(s.course, 1))]   # sonarvyn: gyrot

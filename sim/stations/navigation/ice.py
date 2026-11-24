@@ -441,7 +441,10 @@ class IceMixin:
         if not self.under_ice():
             return
         if s.speed < 0.3 and s.ordered_speed == 0 and self.vak is None \
-                and "depth" not in s.changing() and not self.game.queue.has_kind("suggest"):
+                and "depth" not in s.changing() and not self.game.queue.has_kind("suggest") \
+                and self.game.active_suggestion() is None:
+            # (inte när ett förslag står obesvarat: arktis-kort frö 3 fick "öppning 6, 80 meter" och 6 s
+            # senare "sök vidare")
             # stilla under isen: gå till en känd öppning eller fortsätt söka
             o = self.best_opening()
             d = self.opening_data(o) if o is not None else None

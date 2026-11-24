@@ -89,10 +89,17 @@ HUNTER_PING_S = 300            # ett mål som pingat så nyss räknas som jagand
 # kvalitet i JUMP_HOLD_S. Likaså en lösning byggd över en lucka i bäringarna på mer än GAP_S som
 # slutade för mindre än GAP_HOLD_S sedan: målet kan ha girat i luckan. Mätt 2026-11-23 (ja-boten,
 # 7 scenarier × 8 frön): hopp > 1σ ⇒ säker grovt fel 13 % (annars 1,2 %), god 33 % (6 %).
+# GAP_S 600 ⇒ 180 (2026-11-24): övningens bevakningsfartyg girade 150° i en lucka på 6 min och
+# kallades säkert 3 s efter att sonar hörde det igen; goda grovt fel 5,2 % ⇒ 3,2 %, säkra lika många.
 JUMP_SIGMA = 1.0
 JUMP_DT_S = 20
 JUMP_HOLD_S = 120
-GAP_S = 600
+GAP_S = 180
+# Säker kräver bäringar över minst SURE_MIN_SPAN_S, om inget avstånd mätts i fönstret (periskop, radar, aktiv
+# sonar): korta lösningar på konvojens fartyg kallades säkra på 0,7–1,2 nm när de låg på 2,8–3,7 (konvoj frö 1,
+# 4, 5; ett nära långsamt mål och ett avlägset snabbt ger samma bäringar). Mätt 2026-11-24 (ja-boten, 7 scenarier,
+# 8 frön): säkra på 8–20 min grovt fel ~10 %, på över 20 min 0 %.
+SURE_MIN_SPAN_S = 1200
 GAP_HOLD_S = 300
 
 
@@ -379,6 +386,9 @@ class Knowledge:
             (gap_end is not None and t_now - gap_end < GAP_HOLD_S)
         if unsettled and sol.quality >= Quality.GOD:
             sol = replace(sol, quality=Quality(int(sol.quality) - 1))
+        if sol.quality == Quality.SAKER and ts[-1] - ts[0] < SURE_MIN_SPAN_S and \
+                not any(o.range_nm is not None for o in obs if o.t >= ts[0]):
+            sol = replace(sol, quality=Quality.GOD)     # för kort för att vara säker utan ett avstånd
         return sol
 
 

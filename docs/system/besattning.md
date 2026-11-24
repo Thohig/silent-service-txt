@@ -233,6 +233,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   - *Botten under anfall:* navigatören föreslår inte `botten` när skarpa laddningar fallit nära de senaste
     5 min (`Knowledge.charged_close`); ligger vi på botten och de bombar oss där föreslår maskin att lätta
     (`eng.suggest.lift`, larm: turbin och sprintfart, `_sprint(lift=True)`).
+    Har de bombat oss på botten föreslås den inte igen under jakten på `SETTLE_AFTER_BOMBED_S` (30 min;
+    jagad frö 61 la sig igen 9 min efter lyftet och sänktes där).
   - *För nära för att skjuta:* träffpunkten närmare än `ARM_DISTANCE_NM` + `TOO_CLOSE_MARGIN_NM` (0,25 +
     0,15 nm) ⇒ torpedrummet frågar en gång (`torp.too_close`, `_too_close`; också före en salva, inte
     kärnladdningen). En salva med bara en rak tub blir ett vanligt skott (`torp.salvo_single`).
@@ -279,7 +281,14 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (`level_slope`, `_Heard.flat_n`). En salva säger sina tuber på en rad (`TorpedoRoom._say_tube`, `TUBE_BATCH_S`).
 - **Okända pingare** (`SonarRoom._on_sound`): grinden för samma pingare räknar med pingarens egen bäringsdrift
   (`rate`, `PING_RATE_GAIN`, högst `PING_RATE_MAX` 2°/s) och `PING_DRIFT_DEG_PER_S` 0,4°/s; sundet: ett nära fartyg
-  som drog 0,8°/s gav fem "Någon söker" och fem stridslarm på två minuter.
+  som drog 0,8°/s gav fem "Någon söker" och fem stridslarm på två minuter. Driften räknas fram högst
+  `PING_RATE_HORIZON_S` (30 s); efter ett längre uppehåll börjar pingarens bäring om från den nya pingen (en nära
+  passages −1,7°/s framräknad över 91 s gav 55° fel). Två pingare i grinden skiljs på styrkan (`rl`, utjämnad;
+  `PING_LEVEL_DEG_PER_DB` 3° per dB): jagad-kort frö 51 slog ihop två jagare i nästan samma bäring, och den som
+  passerade över oss blev "Någon söker" igen (2026-11-24).
+- **Tappade och åter hörda** (`SonarRoom._say_lost`, `_say_regained`): samlas på en rad tills ingen ny kommit på
+  `LOST_BATCH_S` (20 s), högst `LOST_BATCH_MAX_S` (60 s); en kontakt som hörs igen eller tappas igen innan raden
+  sagts nämns inte (konvojen vid hörgränsen i krig-kort: en tredjedel färre rader).
 - **Fråga en gång** (`Station.confirm_once`, anropas i `intercept`; `CONFIRM_S` 60 s): en order som bryter
   mot uppdraget eller saknar skäl stoppas första gången med skälet, och samma order inom en minut
   verkställs. Navigatören: dykning i fjorden (`nav.fjord_dive`, övningen) och ytläge när plottet har en

@@ -214,13 +214,16 @@ för in varje färdigt steg där.
   osett de senaste 3 min (`RECENT_TURN_S`, kortat till tiden sedan senaste titt med kurs): sannolikheten lag/(lag + 7,5 min), gir 50° (1σ);
   säker bara med en färsk titt. Säkra lösningar på sicksackande mål med kurs > 3σ 28 % ⇒ 6 %; alla säkra grova 1,7 % ⇒ 1,1 %, > 3σ 5,1 % ⇒ 5,7 %.
   En lösning som inte satt sig (2026-11-23, `Knowledge._settled`) är ett steg lägre (god ⇒ osäker, säker ⇒ god): hopp > 1σ
-  (`JUMP_SIGMA`, mot lösningen minst 20 s före, i deras sammanlagda σ) de senaste 2 min, eller en lucka > 10 min i
+  (`JUMP_SIGMA`, mot lösningen minst 20 s före, i deras sammanlagda σ) de senaste 2 min, eller en lucka > 3 min (`GAP_S`) i
   bäringarna som slutade för < 5 min sedan. Säkra grova 1,1 % ⇒ 0,5 % (frön 9–16: 2,4 % ⇒ 0,2 %), goda 5,8 % ⇒ 2,8 %
   (6,5 % ⇒ 4,7 %), ~10 % färre säkra.
   Ubåtar i undervattensläge (`submerged_submarine`, sonars klassning) och konvojens eskort räknas som
   sicksackande, q = 30 (2026-11-23): duell-kort goda lösningar på ubåten grovt fel 69 % ⇒ 50 %, kurs > 90° fel
   56 % ⇒ 17 %; konvojernas säkra men grovt fel lösningar på jagarna 7 ⇒ 3 (32 spel).
-  Mätskripten: `kalibrering/tma_kvalitet.py`, `kalibrering/skott_saker.py`.
+  Säker kräver bäringar över minst 20 min (`SURE_MIN_SPAN_S`) om inget avstånd mätts i fönstret (2026-11-24): konvojens
+  fartyg kallades säkra på 0,7–1,2 nm efter 6–10 min (sant 2,8–3,7); säkra grovt fel 2,9 % ⇒ 0,4 %, > 3σ 3,6 % ⇒ 0,4 %,
+  16 % färre säkra. Luckan som sänker ett steg är > 3 min (`GAP_S`, förut 10): goda grovt fel 5,2 % ⇒ 3,2 %.
+  Mätskripten: `kalibrering/tma_kvalitet.py` (`GAP_S`, `SURE_MIN_SPAN_S`, `TMA_Q` ur miljön), `kalibrering/skott_saker.py`.
 - Radion: rapporten 6 s + 4 s per femsiffergrupp (kort ~22 s); fiendens pejlnät pejlar aldrig under
   10 s, alltid över 25 s, σ = 1,5 nm · √(30 s / längd), 0,7–3 nm (`DF_*` i `enemy.py`).
 - Back i maskin: broms 0,15 kn/s mot farten, backfart 8 kn (turbin) / 3 kn (smygmotor), gir ⅓ och
@@ -244,7 +247,7 @@ för in varje färdigt steg där.
 - Jakten (`docs/system/besattning.md`): maskins sprint 220 m, godtar beordrat 180–290 m; smygmotor tidigast
   10 min efter senaste jakttecknet; sonars undanmanöver uppåt bara till skiktet + 60 m; undervattenstelefonen
   och "mycket starka" 2, 4, 8 … högst 30 min emellan; skenmål högst var 20:e min; nära pingare (≥ 142 dB)
-  1,5°/s, högst 60°, okända 0,4°/s plus pingarens egen skattade drift (`rate`); ingen botten när skarpa laddningar fallit nära de senaste 5 min. Radarvarnaren
+  1,5°/s, högst 60°, okända 0,4°/s plus pingarens egen skattade drift (`rate`, framräknad högst 30 s), två pingare i grinden skiljs på styrkan; ingen botten när skarpa laddningar fallit nära de senaste 5 min, och inte igen under jakten på 30 min efter att de bombat oss på botten (`SETTLE_AFTER_BOMBED_S`). Radarvarnaren
   upprepar en fartygsradar efter 30 min (eller ny styrka, > 15° i bäring). Ytläge sedda: 60 s att dyka.
 - Tystnad i båten: jagade och på smygmotorn eller ≤ 6 kn (`OfficerStation._hush_watch`, hävs efter 60 s).
   Skrovknak 132 dB var 25:e m vid djupändring > 1 m/s under 80 m (rodren i ≳ 6 kn); maskin säger det under jakt.

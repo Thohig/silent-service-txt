@@ -34,7 +34,9 @@ from .recording import RecordingMixin
 from .sweep import SweepCalls
 
 BEARING_REPORT_DELTA = 5.0
-LOST_BATCH_S = 5           # kontakter som tappas inom så här kort tid sägs på en rad
+LOST_BATCH_S = 20          # tappade (och åter hörda) kontakter samlas på en rad tills ingen ny kommit på så länge,
+LOST_BATCH_MAX_S = 60      # ... högst så länge; en som hörs igen innan raden sagts nämns inte (krig-kort frö 61:
+                           # konvojen vid hörgränsen gav fyra rader "har tappat" på 50 s, 5 s förut)
 BEARING_REPORT_MAX_AGE = 300
 BEARING_MIN_GAP_S = 60       # samma kontakts bäring ropas inte oftare (jakt nära: annars var 5:e s)
 SMOOTH_OBS = 6
@@ -55,6 +57,10 @@ PING_KNOWN_S = 900          # en känd pingare som tappats som kontakt känns ig
 PING_SMOOTH = 0.5           # ny ping väger så här mycket i pingarens bäring
 PING_RATE_GAIN = 0.5        # ny drift väger så här mycket i pingarens skattade drift
 PING_RATE_MAX = 2.0         # pingarens bäringsdrift (°/s, ur pingarna) som grinden räknar med, högst
+PING_RATE_HORIZON_S = 30    # driften räknas fram högst så här långt; ett längre uppehåll börjar om bäringen
+                            # (en gammal drift över 6 min gav 38° fel, en nära passages −1,7°/s över 91 s 55°)
+PING_LEVEL_DEG_PER_DB = 3.0 # två pingare i grinden: nivån skiljer dem (en dB väger som tre grader)
+PING_LEVEL_SMOOTH = 0.5     # ny ping väger så här mycket i pingarens nivå
 # Så starka pingar (mottagen nivå, dB) kommer från en jagare nära nog att jaga oss: en jagarping
 # på 230 dB når hit på ~8 nm (~5,5 nm genom skiktet). Svagare pingar i snabb takt jagar något
 # långt bort: sonar säger det, men inget stridslarm (HuntSigns) och inget förslag om att undvika.
@@ -312,8 +318,8 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         self._ambient: float | None = None         # havsbruset sonaren senast sagt (dB)
         self._lost_batch: list[tuple[str, float | None]] = []   # tappade, ännu inte sagda
         self._regained_batch: list[tuple[str, float]] = []      # hörda igen, ännu inte sagda (som de tappade)
-        self._regained_t = 0
-        self._lost_t = 0
+        self._regained_t = self._regained_last = 0
+        self._lost_t = self._lost_last = 0
 
     def attach(self, bus) -> None:
         super().attach(bus)
@@ -500,6 +506,7 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                         if not self._regained_batch:
                             self._regained_t = self.now
                         self._regained_batch.append((ev.designation, ev.bearing))
+                        self._regained_last = self.now
                         continue
                     self.say("sonar.new_contact",
                              {"designation": ev.designation, "bearing": ev.bearing,
@@ -520,9 +527,14 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                     tr = self.game.knowledge.tracks.get(ev.designation)
                     if tr is not None and tr.sunk:
                         continue        # den sjönk: brytningsljudet är redan rapporterat
+                    if any(d == ev.designation for d, _ in self._regained_batch):
+                        # hörd igen och tappad innan det sagts: ingenting att säga
+                        self._regained_batch = [x for x in self._regained_batch if x[0] != ev.designation]
+                        continue
                     if not self._lost_batch:
                         self._lost_t = self.now
                     self._lost_batch.append((ev.designation, tr.last_bearing if tr else None))
+                    self._lost_last = self.now
                     if self.own.state.speed > 6 and not self.game.knowledge.hunted(self.now) \
                             and not self.own.bridge_open:   # i ytläge ser bryggan
                         self.suggest("slow", "sonar.suggest.slow",
@@ -539,9 +551,11 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                     # Torpedrummet rapporterar egna torpeder med tubnummer.
                     q = Quality.GOD if ev.se >= 6 else Quality.OSAKER
                     bus.publish(OwnTorpedoHeard(self.now, ev.no, ev.kind, ev.bearing, q, ev.se))
-        if self._lost_batch and self.now - self._lost_t >= LOST_BATCH_S:
+        if self._lost_batch and (self.now - self._lost_last >= LOST_BATCH_S
+                                 or self.now - self._lost_t >= LOST_BATCH_MAX_S):
             self._say_lost()
-        if self._regained_batch and self.now - self._regained_t >= LOST_BATCH_S:
+        if self._regained_batch and (self.now - self._regained_last >= LOST_BATCH_S
+                                     or self.now - self._regained_t >= LOST_BATCH_MAX_S):
             self._say_regained()
 
     def _say_lost(self) -> None:
@@ -670,15 +684,19 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                 since = self.now - q["last"] if q["last"] is not None else 0
                 # där pingaren borde vara nu efter sin egen bäringsdrift (ett nära fartyg som passerar
                 # drar 0,8°/s: sundet frö 51 gav fem "Någon söker" och fem stridslarm på två minuter)
-                expected = norm360(q.get("bearing", ev.bearing) + q.get("rate", 0.0) * since)
+                expected = norm360(q.get("bearing", ev.bearing)
+                                   + q.get("rate", 0.0) * min(since, PING_RATE_HORIZON_S))
                 off = abs(angle_diff(expected, ev.bearing))
                 if ev.rl >= PING_NEAR_RL:
                     # en nära pingare kan svänga fort i bäring (245 → 326 på 90 s förbi oss)
                     gate = min(PING_SAME_MAX_NEAR_DEG, PING_SAME_DEG + PING_DRIFT_NEAR_DEG_PER_S * since)
                 else:
                     gate = min(PING_SAME_MAX_DEG, PING_SAME_DEG + PING_DRIFT_DEG_PER_S * since)
-                if off <= gate and (best is None or off < best):
-                    unknown, best = k, off
+                # två jagare nära samma bäring: operatören skiljer dem på styrkan (jagad-kort frö 51
+                # slog ihop dem, och den som passerade över oss blev "Någon söker" igen)
+                cost = off + PING_LEVEL_DEG_PER_DB * abs(ev.rl - q.get("rl", ev.rl))
+                if off <= gate and (best is None or cost < best):
+                    unknown, best = k, cost
             if unknown is None and not ev.designation:
                 self._unknown_pingers += 1
             key = ev.designation or unknown or f"okänd{self._unknown_pingers}"
@@ -691,9 +709,11 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                 self._pings[key] = self._pings.pop(unknown)      # samma pingare, nu identifierad
             p = self._pings.setdefault(key, {"last": None, "fast": False, "close_t": -10**9,
                                              "slow_n": 0, "hunting": False})
+            p["rl"] = ev.rl if "rl" not in p else p["rl"] + PING_LEVEL_SMOOTH * (ev.rl - p["rl"])
             # utjämnad bäring: en enstaka brusig ping drar inte iväg grinden
-            if "bearing" not in p:
+            if "bearing" not in p or p["last"] is None or self.now - p["last"] > PING_RATE_HORIZON_S:
                 p["bearing"] = ev.bearing
+                p.pop("rate", None)
             else:
                 dt = max(1, self.now - p["last"]) if p["last"] is not None else 1
                 expected = norm360(p["bearing"] + p.get("rate", 0.0) * dt)

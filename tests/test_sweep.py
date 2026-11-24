@@ -118,9 +118,10 @@ def test_many_contacts_heard_again_on_one_line():
     sonar = g.station(SonarRoom)
     for i in (1, 2, 3):
         g.knowledge.on_detection(f"S-{i}", g.now)
-    sonar._regained_t = g.now
+    from sim.stations.sonar_room import LOST_BATCH_S
+    sonar._regained_t = sonar._regained_last = g.now
     sonar._regained_batch = [("S-1", 10.0), ("S-2", 20.0), ("S-3", 30.0)]
-    for _ in range(12):
+    for _ in range(LOST_BATCH_S + 7):
         g.tick()
     said = [r for r in reports if r.type.startswith("sonar.regained")]
     assert [r.type for r in said] == ["sonar.regained.many"]

@@ -124,6 +124,8 @@ SETTLE_SPEED = 1.0          # fart när vi går ned mot botten
 SETTLE_DESCEND_KN = 1.5     # gå ned först när farten är nere i detta
 SETTLE_EXTRA_M = 60         # sikta så här långt under kortets botten
 SETTLE_SUGGEST_MAX_M = 280  # föreslå att lägga oss på botten bara grundare än så
+SETTLE_AFTER_BOMBED_S = 1800  # bombade på botten: botten föreslås inte igen under jakten på så länge
+                              # (jagad frö 61: bombade på botten, lättade, nytt förslag 9 min senare, sänkta där)
 BOTTOM_WORDS = {"lera": "lerbotten", "sand": "sandbotten", "klippa": "klippbotten"}
 CONTOUR_MARGIN_NM = 4.0     # djupkurvor så här långt utanför kvadraten
 CONTOUR_LABEL_SPOTS = ((5, 5), (15, 5), (5, 15), (15, 15), (10, 10))   # andelar av kvadraten ×20

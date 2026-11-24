@@ -72,6 +72,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   "ingen öppning loggad"). Maskin säger inte "vi har ingen öppning" de första 5 min efter att ha föreslagit en.
   Mätt (arktis-kort, ja-boten efter 1/5/20 s, 16 frön): stötar efter ytläge 7 ⇒ 3, "tjock is" efter
   ytläge 7 ⇒ 1, stationen nådd 17 ⇒ 13 av 48 (omläggningarna tar tid).
+  Under isen föreslår ingen något annat medan ett förslag står obesvarat (2026-11-24, arktis-kort frö 3): maskins
+  "gå till öppning N" (`eng.suggest.vent_vak`) inte medan ytläge eller periskopdjup föreslagits, navigatörens "sök
+  vidare" (`nav.suggest.resume`) inte medan någon annan öppning föreslagits.
 - **Havsbotten:** `seabed.py` är sanning (`Environment.bottom_at`; bara ekolodet läser den).
   Scenariot ger också `chart_seabed`, det gamla sjökortets bild (`Seabed.chart_copy`:
   formerna flyttade, ingen ojämnhet, ibland utan berg) som blir `Knowledge.bathymetry`.

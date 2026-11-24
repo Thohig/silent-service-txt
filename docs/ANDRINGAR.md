@@ -3,6 +3,47 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Utredningarna och provspelet: pingarna, plottets lucka och spann, botten, isen
+
+**Pingarna** (`SonarRoom._on_sound`): två jagare i nästan samma bäring slogs ihop till en pingare, och en
+pingares bäringsdrift räknades fram hur länge som helst. Jagad-kort frö 51: S-2:s gamla drift över 6 min
+flyttade den 38°, och när den passerade över oss blev den "Någon söker" igen. Jagad frö 51: en nära passages
+−1,7°/s över 91 s gav 55° fel, ny pingare 2 s efter "har tappat S-2". Nu räknas driften fram högst 30 s
+(`PING_RATE_HORIZON_S`); efter ett längre uppehåll börjar pingarens bäring om, och två pingare i grinden skiljs
+på styrkan (`PING_LEVEL_DEG_PER_DB`). Provspel 2 h, frön 1–8: "Någon söker" jagad 22 ⇒ 17, jagad-kort 20 ⇒ 17,
+konvoj-kort 2 ⇒ 0 (det som är kvar är mest de första pingarna); "pingtakten ökat" utan beteckning 11 ⇒ 6, 9 ⇒ 6,
+3 ⇒ 1.
+
+**Luckan i plottet** (`knowledge.GAP_S` 600 ⇒ 180 s): övningens bevakningsfartyg girade 150° under 6 min utan
+bäringar och kallades säkert 3 s efter att sonar hörde det igen (ovning frö 7, 5,0 nm kurs 003, sant 3,5 nm kurs
+157). Nu är en lösning över en lucka > 3 min ett steg lägre i 5 min efter luckan. Mot sanningen (ja-boten,
+ovning/kuba/konvoj-kort/sundet/krig-kort, 8 frön): goda grovt fel 5,2 % ⇒ 3,2 %, > 3σ 6,2 % ⇒ 4,6 %; säkra
+lika många, grovt fel 0,4 %. Oraklet, ovning 16 frön: inga larm (förut 1 av 12). `tma_kvalitet.py` tar `GAP_S`
+från miljön.
+
+**Botten igen efter bomberna** (`navigation/bottom.py`, `SETTLE_AFTER_BOMBED_S` 30 min): jagad frö 61 la sig på
+botten, blev bombad där, lättade, och 9 min senare föreslog navigatören botten igen med samma jagare ovanför
+(sänkta där). Har skarpa laddningar fallit nära medan vi låg på botten föreslås botten inte igen under jakten på
+30 min. Jagad, ja-boten, 32 frön: räddade 21 ⇒ 23, förlorade 11 ⇒ 9.
+
+**Tappade och åter hörda på en rad** (`SonarRoom`, `LOST_BATCH_S` 5 ⇒ 20 s glidande, högst `LOST_BATCH_MAX_S`
+60 s): en konvoj vid hörgränsen gav fyra "har tappat" på 50 s. Nu samlas de tills ingen ny kommit på 20 s, och en
+kontakt som hörs igen (eller tappas igen) innan raden sagts nämns inte. Provspel frö 61–62: krig-kort 111 ⇒ 75
+rader, konvoj-kort 51 ⇒ 33, övriga oförändrade.
+
+**Säker kräver tid** (`knowledge.SURE_MIN_SPAN_S` 20 min): oraklet hittade konvojens fartyg säkra på 0,7–1,2 nm efter
+6–10 min bäringar när de låg på 2,8–3,7 nm, kursen 100–180° fel (konvoj frö 1, 4, 5). Mätt mot sanningen per spann:
+säkra på 8–20 min grovt fel ~10 %, på över 20 min 0 %. Nu är en lösning säker först när bäringarna spänner 20 min,
+om inget avstånd mätts i fönstret (periskop, radar, aktiv sonar). Ja-boten, konvoj/konvoj-kort/krig-kort/kuba/ovning/
+sundet/duell-kort, 8 frön: säkra grovt fel 2,9 % ⇒ 0,4 %, > 3σ 3,6 % ⇒ 0,4 % (konvoj 15 % ⇒ 0, krig-kort 8,8 % ⇒ 0),
+16 % färre säkra; goda 6,3 % ⇒ 6,6 %.
+
+**Under isen, förslag som krockade** (arktis-kort frö 3): navigatören föreslog öppning 6 och 6 s senare "sök vidare";
+maskin föreslog "gå till öppning 4" sekunden efter navigatörens ytläge genom nyisen. Nu föreslår ingen av dem något
+annat medan ett förslag står obesvarat (`engineering._smoke_advice`, `navigation/ice._ice_advice`).
+
+**Webbversionen:** ljudet är på från början, som i terminalen (hörs efter första tangenten eller klicket).
+
 ## 2026-11-23 (kväll) – Provspel i alla scenarier: torpeden i döda sektorn och det som hittades på vägen
 
 Provspelat med orakelbotarna (`skytt.py`, alla lägen, frön 8–15), provspelskaptenen (`provspel.py`, alla 22

@@ -23,6 +23,7 @@ from .common import (
     LAND_MARK_STEP_NM,
     LAND_SAFE_NM,
     LAND_TURNS,
+    SETTLE_AFTER_BOMBED_S,
     SETTLE_DESCEND_KN,
     SETTLE_EXTRA_M,
     SETTLE_SPEED,
@@ -174,6 +175,8 @@ class BottomMixin:
         if sys.settle and not sys.on_bottom and s.speed <= SETTLE_DESCEND_KN \
                 and s.ordered_depth < self._settle_aim:
             s.order_depth(self._settle_aim)
+        if sys.on_bottom and self.game.knowledge.charged_close(self.now, window=10):
+            self._bombed_on_bottom_t = self.now     # de hittade oss på botten: de kan det igen
         if sys.settle and not sys.on_bottom and s.depth >= self._settle_aim - 0.5:
             sys.settle = False
             self.say("nav.settle.not_reached", {"depth": s.depth}, alarm=True)
@@ -193,6 +196,8 @@ class BottomMixin:
             return None                 # radion ska upp och ta emot: lägg oss inte på botten nu
         if k.charged_close(self.now):
             return None                 # de bombar redan där vi är: botten gömmer oss inte nu
+        if k.hunted(self.now) and self.now - self._bombed_on_bottom_t < SETTLE_AFTER_BOMBED_S:
+            return None                 # samma jagare hittade oss på botten nyss: inte en gång till
         here = self.bottom_here()
         if here is None or here[1] is None or here[1] == "klippa" or here[0] > SETTLE_SUGGEST_MAX_M:
             return None

@@ -1,7 +1,7 @@
 # K-114 – att göra
 
 Konkreta öppna uppgifter: sådant som behöver köras om, provas, utredas eller beslutas. Idéer som
-inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-23. Ta bort det som blir gjort
+inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-24. Ta bort det som blir gjort
 och för in det i rätt dokument (CLAUDE.md, `docs/system/`, `kalibrering/README.md`).
 
 ## Köra om
@@ -14,17 +14,7 @@ Inget just nu (webbversionen provad av kaptenen 2026-11-22: fungerar bra).
 
 ## Utreda
 
-Oraklets kvarvarande larm (2026-11-23, `skytt.py ja alla`):
-- **Säker men fel på övningens bevakningsfartyg** (ovning 0, 2, 7): plottet säker på 5,9 nm när det låg på 2,3,
-  kursen 150° fel; lösningen spänner 30 min med en lucka på 18 min och ett par girar. Att räkna fartyget som
-  sicksackande (q = 30) tog bort felet men gjorde lösningen så sällan god att övningstorpeden inte sköts
-  (`test_short_variant_with_a_captain_who_fires`). Kanske: kortare fönster efter en märkt gir för mål som girar.
-  Mätt 2026-11-23 (ovning, 12 frön): de goda lösningarna med kursen ~100° fel kommer alla i minuten efter att
-  fartyget girat 130° (2°/s); bryggans nästa titt (var 60:e s) ser den nya kursen. Kvar är de säkra med lucka.
-
-- **Ny pingare mitt i jakten** (jagad-kort frö 51, provspel 2026-11-23, före rättelsen av pingargrinden): "Aktiv
-  sonar i bäring 019, någon söker" medan jagaren S-1 pingade från 013 och kontakten var tappad. Kör om
-  `provspel.py jagad-kort 1 51` och se om den känns igen nu.
+Inget just nu (övningsfartyget och pingaren i jagad-kort frö 51 utredda och rättade 2026-11-24).
 
 ## Beslut som väntar på kaptenen
 

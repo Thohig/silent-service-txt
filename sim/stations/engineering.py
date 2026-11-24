@@ -10,7 +10,7 @@ from ..reports import Quality
 from ..fmt import fmt_course, kn, nm
 from .. import russian as R
 from ..russian import ru
-from ..orders import CommandSpec, Order
+from ..orders import CommandSpec, Order, split_orders
 from ..ownship import (COMPONENT_LABEL, COMPONENTS, FLOOD_LOSS_T, PERISCOPE_DEPTH, SMOKE_LEVELS,
                        TEST_DEPTH, TRIM_RESERVE_T)
 from ..systems import (DANGER, INFO, OFF, OK, SEVERITY, WARN, Compartment, Flooding, Gauge,
@@ -671,6 +671,10 @@ class EngineeringStation(Station):
             return
         if nav.vak is not None or own.state.ordered_depth <= PERISCOPE_DEPTH:
             return          # redan på väg till en öppning eller upp: ventilera där uppe
+        sug = self.game.active_suggestion()
+        if sug is not None and any(p in ("ytläge", "periskopdjup") for p in split_orders(sug[0])):
+            return          # navigatören har just föreslagit upp genom öppningen vi står under (arktis-kort
+                            # frö 3: maskins "gå till öppning 4" skrev över det, och vi letade vidare i röken)
         o = nav.best_opening() if nav.under_ice() else None
         if o is not None:
             self.suggest("vent_vak", "eng.suggest.vent_vak", {"smoke": s.smoke, **nav.opening_data(o)},

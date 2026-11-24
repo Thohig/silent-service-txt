@@ -1,10 +1,22 @@
 """Plottets lösning som inte satt sig (2026-11-23): ett hopp från förra lösningen eller en lång
-lucka i bäringarna nyss ger ett steg lägre kvalitet en stund (`Knowledge._settled`)."""
+lucka i bäringarna nyss ger ett steg lägre kvalitet en stund (`Knowledge._settled`). Säker kräver
+bäringar över minst `SURE_MIN_SPAN_S` utan ett mätt avstånd (2026-11-24)."""
 from dataclasses import replace
+
+import pytest
+
+import sim.knowledge
 
 from sim.knowledge import (GAP_HOLD_S, GAP_S, JUMP_DT_S, JUMP_HOLD_S, ContactTrack, Knowledge)
 from sim.reports import Quality
 from sim.tma import BearingObs, Solution
+
+
+@pytest.fixture(autouse=True)
+def _no_span_rule(request, monkeypatch):
+    """Hopp och luckor prövas på korta serier: spannregeln har ett eget test."""
+    if "span" not in request.node.name:
+        monkeypatch.setattr(sim.knowledge, "SURE_MIN_SPAN_S", 0)
 
 
 def _sol(t, x, y, q=Quality.SAKER, sigma=0.1):
@@ -59,3 +71,17 @@ def test_poor_and_unsure_are_not_lowered():
     obs = _obs(range(0, 900, 20))
     k._settled(tr, _sol(900, 0.0, 3.0, Quality.OSAKER), obs, 900)
     assert k._settled(tr, _sol(930, 2.0, 3.0, Quality.OSAKER), obs, 930).quality == Quality.OSAKER
+
+
+def test_a_short_span_is_not_sure_without_a_measured_range():
+    """Konvoj frö 1, 4, 5: säker på 0,7–1,2 nm efter 6–10 min bäringar, sant 2,8–3,7 nm."""
+    from sim.knowledge import SURE_MIN_SPAN_S
+    k = Knowledge()
+    short = _obs(range(0, SURE_MIN_SPAN_S - 60, 20))
+    t = short[-1].t
+    assert k._settled(ContactTrack("S-1", 0), _sol(t, 0.0, 3.0), short, t).quality == Quality.GOD
+    ranged = short[:-1] + [replace(short[-1], range_nm=3.0, range_sigma=0.3, source="periskop")]
+    assert k._settled(ContactTrack("S-1", 0), _sol(t, 0.0, 3.0), ranged, t).quality == Quality.SAKER
+    long = _obs(range(0, SURE_MIN_SPAN_S + 60, 20))
+    t = long[-1].t
+    assert k._settled(ContactTrack("S-1", 0), _sol(t, 0.0, 3.0), long, t).quality == Quality.SAKER

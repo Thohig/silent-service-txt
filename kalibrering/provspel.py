@@ -81,7 +81,7 @@ def run(args):
                     sol = tr.solution
                     cls = tr.classification or ""
                     hostile = any(w in cls for w in ("jagare", "trupptransport", "tankfartyg", "ubåt")) \
-                        and key not in ("kuba", "kuba-kort", "jagad", "clyde", "arktis", "sundet", "ovning")
+                        and key.split("-")[0] not in ("kuba", "jagad", "clyde", "arktis", "sundet", "ovning")
                     if hostile and sol and sol.quality >= Quality.GOD and sol.range_nm <= 3.0 \
                             and t - sol.t < 60 and o.depth <= 100:
                         g.command(f"eld {tr.designation}")
