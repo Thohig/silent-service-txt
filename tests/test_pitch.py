@@ -80,3 +80,16 @@ def test_torpedo_room_refuses_with_too_much_pitch():
     assert reason is not None and "lutar" in reason
     g.world.own.sys.pitch_dyn = 0.0
     assert g.station(TorpedoRoom)._refusal(type("O", (), {"tube": 1, "designation": None})()) is None
+
+
+def test_steep_angle_only_going_down():
+    """Upp mot periskopdjupet med fienden nära går navigatören inte brant: det skulle slamra."""
+    g, reports = _game(steep=True)
+    st = g.world.own.state
+    st.depth = st.ordered_depth = 120.0
+    for _ in range(20):
+        g.tick()
+    most, _ = _dive(g, 30)
+    assert most < CLATTER_DEG
+    assert not any(r.type == "hull.clatter" for r in reports)
+    assert "Brant vinkel" not in next(r for r in reports if r.type == "nav.depth.ack").text

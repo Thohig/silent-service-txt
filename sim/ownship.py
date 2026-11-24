@@ -498,7 +498,7 @@ class OwnShip(Vessel):
         # djupstyrning: rodren behöver fart, barlasten verkar långsamt
         planes = max(s.health["planes"], 0.2) * (ASTERN_PLANES if st.astern else 1.0)
         st.depth_rate = min(2.0, max(0.2, (0.25 + 0.12 * st.speed) * planes))
-        if s.steep:                           # brant vinkel: fortare, men båten lutar mer
+        if s.steep and st.ordered_depth > st.depth:   # brant vinkel ned, undan: fortare, men lutar mer
             st.depth_rate = min(STEEP_MAX_MPS, st.depth_rate * STEEP_RATE_F)
         self._bridge_step(now)
         if self.bridge_open:
