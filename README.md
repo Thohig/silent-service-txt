@@ -75,7 +75,10 @@ Efter ett haverilarm rapporterar avdelningarna inom en minut vad de har inspekte
 Med ljudet på talar besättningen ryska (rösten Milena), medan loggen alltid är
 på svenska. Alla repliker som läses upp har ryskt tal; det som bara står i loggen (hjälpen,
 plottabellen) läses inte. `tal svenska` byter till svenskt tal, `tal ryska` tillbaka. Saknas Milena
-talar besättningen svenska.
+talar besättningen svenska. Allt läses inte upp: `tal viktigt` (standard) läser larm, förslag, kontakter,
+lösningar och svar, men kvittenserna bara som "Jest", inte rutinen (sonarens bäringar, "djupet nått") och inte
+samma sak om samma kontakt mer än var tredje minut. `tal allt` läser varje replik, `tal larm` bara larm och
+förslag och `tal av` inget. Vid tidskomprimering tystnar rutinen. Loggen har alltid allt.
 Ger du själv en order om samma sak (till exempel `fart 6` när besättningen
 föreslagit `fart 4`) släpps förslaget, och besättningen föreslår aldrig en
 kurs, fart, framdrivning eller ett djup som redan är beordrat. Ett larmförslag (till exempel

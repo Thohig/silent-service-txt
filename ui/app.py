@@ -27,7 +27,7 @@ from sim.fmt import fmt_course, kn, kn_dir
 from sim.scenario import SCENARIOS, build_scenario
 from sim.truthlog import TruthLog
 
-from .audio import SoundBoard, make_soundboard, sound_available
+from .audio import DEFAULT_LEVEL, LEVEL_TEXT, LEVELS, SoundBoard, make_soundboard, sound_available
 from .cabin import CabinScreen
 from .logview import LogScreen
 from .menu import MenuScreen
@@ -48,6 +48,7 @@ CENTRAL_MIN_WIDTH = 100                # smalare terminal: bara djupmätaren
 BIG_MIN = (120, 36)                    # minst så stort: centralen är huvudvyn, loggen en remsa
 SOUND_WORDS = {"ljud", "ljud av", "ljud på", "ljud pa"}
 SPEECH_WORDS = {"tal ryska": "ru", "tal svenska": "sv"}
+SPEECH_LEVEL_WORDS = {f"tal {lv}": lv for lv in LEVELS}      # tal allt, tal viktigt, tal larm, tal av
 SOUND_KEY = "ctrl+t"                   # t som i tal
 
 
@@ -142,6 +143,7 @@ class SubApp(App):
         self._central_t = 0.0
         self._spoke: dict[str, float] = {}   # roll → när den senast rapporterade (väggklocka)
         self.language: str | None = None     # talets språk, gäller över uppdragen
+        self.speech_level: str = DEFAULT_LEVEL   # vad som läses upp (ui/audio.py), gäller över uppdragen
         self.scenario_key: str | None = None
         self._screen: GameScreen | None = None
         self._pump_timer: Timer | None = None
@@ -284,6 +286,9 @@ class SubApp(App):
             return
         if text.lower() in SPEECH_WORDS:
             self.action_speech(SPEECH_WORDS[text.lower()])
+            return
+        if text.lower() in SPEECH_LEVEL_WORDS:
+            self.action_speech_level(SPEECH_LEVEL_WORDS[text.lower()])
             return
         self.captain_says(text)
 
@@ -463,6 +468,7 @@ class SubApp(App):
             game.bus, enabled, heading=lambda: game.status().course)
         if self.language is not None:
             self.sound.set_language(self.language)
+        self.sound.set_level(self.speech_level)
 
     def action_speech(self, language: str) -> None:
         """"tal ryska" / "tal svenska": vilket språk besättningen talar. Loggen är alltid svensk."""
@@ -477,6 +483,14 @@ class SubApp(App):
             msg = "Besättningen talar ryska. Loggen är på svenska." if russian \
                 else "Besättningen talar svenska."
         self.gs().query_one(ReportLog).add_system(self.game.clock_str(), msg)
+
+    def action_speech_level(self, level: str) -> None:
+        """"tal allt" / "tal viktigt" / "tal larm" / "tal av": vad som läses upp. Loggen har allt."""
+        self.speech_level = level
+        if self.sound is not None:
+            self.sound.set_level(level)
+        self.gs().query_one(ReportLog).add_system(
+            self.game.clock_str(), f"Talet: {LEVEL_TEXT[level]}. Loggen har allt.")
 
     # ------------------------------------------------------------------ realtid
     def _pump(self) -> None:

@@ -9,9 +9,9 @@ from sim.game import Game
 from sim.reports import Report
 from sim.scenario import build_scenario
 from ui.app import SubApp
-from ui.audio import (MAX_QUEUE, MIN_VOLUME, STALE_S, SoundBoard, cue_for, pan_of_bearing,
+from ui.audio import (ALL, ALARMS, IMPORTANT, REPEAT_S, SILENT, MAX_QUEUE, MIN_VOLUME, STALE_S, SoundBoard, cue_for, pan_of_bearing,
                       RATE, speech_parts, speech_text, stereo, synth_cues, synth_transients,
-                      write_wav)
+                      speech_rank, write_wav)
 
 
 class RecordingPlayer:
@@ -139,7 +139,7 @@ def test_cues_synthesize_to_valid_wav(tmp_path):
 def test_headless_game_speaks_crew_reports():
     bus_game = Game(build_scenario("kuba", random.Random(2)), seed=2)
     p = RecordingPlayer(cue_len=0.0)
-    board = SoundBoard(bus_game.bus, p)
+    board = SoundBoard(bus_game.bus, p, level=ALL)       # "tal allt": hela kvittensen
     bus_game.command("kurs 090")
     t = 0.0
     for _ in range(30):

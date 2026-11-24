@@ -11,9 +11,10 @@ from textual.widgets import Input, OptionList, Static
 from textual.widgets.option_list import Option
 
 from . import voices
-from .audio import RU_VOICE, sound_available
+from .audio import ALARMS, ALL, DEFAULT_LEVEL, IMPORTANT, LEVEL_TEXT, RU_VOICE, SILENT, sound_available
 
-SOUND, SPEECH, SEED, BACK = "ljud", "tal", "fro", "tillbaka"
+SOUND, SPEECH, LEVEL, SEED, BACK = "ljud", "tal", "niva", "fro", "tillbaka"
+LEVEL_CYCLE = (IMPORTANT, ALARMS, SILENT, ALL)        # uppläsningen i menyn, standard först
 NAME_WIDTH = 12
 
 
@@ -72,7 +73,9 @@ class SettingsScreen(Screen):
             sound += " (kräver macOS)"
         speech = "ryska" if app.language in (None, "ru") else "svenska"
         seed = "slumpat" if app.fixed_seed is None else str(app.fixed_seed)
+        level = getattr(app, "speech_level", DEFAULT_LEVEL)
         return [Option(_row("Ljud", sound), id=SOUND), Option(_row("Tal", speech), id=SPEECH),
+                Option(_row("Uppläsning", level), id=LEVEL),
                 Option(_row("Slumpfrö", seed), id=SEED), None,
                 Option(Text("Tillbaka", style="bold"), id=BACK)]
 
@@ -97,6 +100,12 @@ class SettingsScreen(Screen):
                 t.append(f"\n\nRösten {RU_VOICE} saknas, så besättningen talar svenska. Lägg "
                          "till den under Systeminställningar › Hjälpmedel › Talat innehåll › "
                          "Systemröst.", style="dim")
+        elif key == LEVEL:
+            level = getattr(app, "speech_level", DEFAULT_LEVEL)
+            t = Text(f"{LEVEL_TEXT[level].capitalize()}. Viktigt: larm, förslag, kontakter och "
+                     "svar; kvittenserna bara \"Jest\" och samma sak om samma kontakt högst var 3:e "
+                     "minut. Allt: varje replik. Larm: bara larm och förslag. Loggen har alltid allt. "
+                     "Under spelet: tal viktigt, tal allt, tal larm, tal av.")
         elif key == SEED:
             t = Text("Samma frö ger samma läge: fiendens start, väder, botten och besättningens "
                      "slump. Tomt ger ett nytt läge varje gång.")
@@ -121,6 +130,10 @@ class SettingsScreen(Screen):
                 app.menu_sound_sync()
         elif key == SPEECH:
             app.language = "sv" if app.language in (None, "ru") else "ru"
+        elif key == LEVEL:
+            level = getattr(app, "speech_level", DEFAULT_LEVEL)
+            app.speech_level = LEVEL_CYCLE[(LEVEL_CYCLE.index(level) + 1) % len(LEVEL_CYCLE)]
+            self._help(LEVEL)
         elif key == SEED:
             inp = self.query_one("#seed-input", Input)
             inp.value = "" if app.fixed_seed is None else str(app.fixed_seed)

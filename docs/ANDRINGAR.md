@@ -3,6 +3,19 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Talnivå: allt läses inte upp (loggen har allt)
+
+- `tal viktigt` (standard), `tal allt`, `tal larm`, `tal av`, och "Uppläsning" i inställningarna. Loggen har alltid
+  allt. Viktigt: larm, förslag, kontakter, lösningar och svar; inte rutinen (sonarens bäringar, "hörs igen", "djupet
+  nått", trimmen klar, dagsljuset).
+- Kvittenserna läses bara "Есть" (Jest), utom med `tal allt`.
+- Samma sak från samma station om samma kontakt läses inte igen inom 3 min speltid om inte kvaliteten ändrats.
+- Tidskomprimering: från ×2 tystnar rutinen, från ×8 allt utom larm och förslag.
+- Larm och förslag läses alltid (utom `tal av`), också upprepade (testat).
+- Mätt med ja-boten i sex scenarier: `tal viktigt` läser upp 42 % mindre än `tal allt`, `tal larm` 66 % mindre; loggboken har allt som förut.
+Var: `ui/audio.py` (`speech_rank`, `SoundBoard.wanted`, `set_level`), `ui/app.py`, `ui/settings.py`.
+Tester: `tests/test_speech_level.py`.
+
 ## 2026-11-24 – Översikten: allt kaptenen vet på en skärm
 
 - Ny vy `översikt` (eller `lägesbild`), efter loggboken först i Tab-ordningen. Undantag från regeln om inga nya vyer:

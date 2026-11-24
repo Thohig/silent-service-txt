@@ -41,7 +41,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `avbryt uppdraget`/`avsluta` ⇒ vakthavande frågar (`off.confirm_quit`, förslag `avbryt uppdraget
   bekräftat`), `ja` ⇒ utfallet `quit`.
 - **Ljud** (`ui/audio.py`): `SoundBoard` lyssnar bara på bussen – `ReportDelivered` ger tal (`spoken`: inte
-  systemrader eller rapporter med tabell, utom de som säger `data["spoken"]`, svepets rad)
+  systemrader eller rapporter med tabell, utom de som säger `data["spoken"]`, svepets rad; och bara det
+  talnivån släpper fram, se nedan)
   (rösterna i `ui/voices.py`, takt per roll) och larm (`CUE_BY_TYPE`); `SoundHeard` (med sensorns `se`) ger
   hydrofonljud panorerade efter relativ bäring (`TRANSIENT_SOUND`); `OwnSoundMade` ger egna
   ljud (ping, avfyring, skenmål, nödblåsning). Syntetiserade wav. Av som standard i `SubApp`.
@@ -64,3 +65,12 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   inte vid tyst gång eller jakt (`SoundBoard._ship_bell`). Vid överlämnandet läser vakthavande ett utrop i
   högtalaren (`crew_announcement` i `ui/telegram.py`: övning, operation eller krig efter stämpeln;
   `SoundBoard.announce`, ryska med Milena annars svenska; översättningen i loggen).
+- **Talnivån** (`ui/audio.py`, `SoundBoard.level`, `wanted`, 2026-11-24): `tal viktigt` (standard), `tal allt`, `tal larm`,
+  `tal av`; i inställningarna "Uppläsning" (`SubApp.speech_level`, gäller över uppdragen). Loggen har alltid allt, och
+  larmljuden går oavsett nivå. `speech_rank`: 2 larm (`alarm`) och förslag, 0 rutin (`kind == "done"` utom
+  `NOT_ROUTINE_TYPES`, och `ROUTINE_TYPES`: sonarens bäringar, "hörs igen", dagsljuset, trimmen klar …), annars 1.
+  `allt` läser 0–2, `viktigt` 1–2, `larm` 2, `av` inget (inte heller högtalarutropen). Utom med `allt`: kvittenserna
+  läses bara "Есть" (`SHORT_ACK_RU`; svenskt tal "Jest"), och samma typ från samma roll om samma kontakt
+  (`data["designation"]`) läses inte igen inom 3 min speltid (`REPEAT_S`) om inte kvaliteten ändrats; larm och förslag
+  upprepas alltid. Tidskomprimering: från ×2 (`COMPRESSED_SCALE`) tystnar rutinen, från ×8 (`FAST_SCALE`) allt utom
+  larm och förslag. Mätningen i `kalibrering/README.md` (Siffrorna): viktigt läser upp 42 % mindre än allt (loggen oförändrad).

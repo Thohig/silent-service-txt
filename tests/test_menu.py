@@ -87,7 +87,7 @@ def test_manual_lists_every_command_and_only_real_view_words():
     assert "avbryt uppdraget" in listed and "ja" in listed
     from ui.views import all_words
     assert set(VIEW_WORDS) <= all_words()
-    assert set(SOUND_WORDS) <= ui_app.SOUND_WORDS | set(ui_app.SPEECH_WORDS)
+    assert set(SOUND_WORDS) <= ui_app.SOUND_WORDS | set(ui_app.SPEECH_WORDS) | set(ui_app.SPEECH_LEVEL_WORDS)
 
 
 @pytest.mark.slow
@@ -108,6 +108,8 @@ def test_settings_change_sound_speech_and_seed_for_the_next_mission(tmp_path):
             assert isinstance(app.screen, SettingsScreen)
             await pilot.press("enter")                       # ljud av
             await pilot.press("down", "enter")               # tal svenska
+            await pilot.press("down", "enter")               # uppläsning: viktigt ⇒ larm
+            assert app.speech_level == "larm"
             await pilot.press("down", "enter", *"12x", "enter")
             assert app.fixed_seed is None                    # bara siffror
             await pilot.press(*"4711", "enter")

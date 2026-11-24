@@ -137,6 +137,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   60 s efter haverilarm eller kraftig tryckvåg.
 - **Ryskt tal**: varje station registrerar `RU_PHRASES` med `phrases.register_ru()` ur samma `data`;
   `render()` fyller `Report.speech` (kyrilliskt), annars `russian.fallback()` (vem som rapporterar).
+  Vad som läses upp avgör talnivån i `ui/audio.py` (`tal viktigt` standard, `allt`, `larm`, `av`; `speech_rank`,
+  `ROUTINE_TYPES`): ny rapport som är rutin ⇒ lägg typen där; larm och förslag läses alltid.
   Hjälp i `russian.py`: `course` (siffra för siffra), `count`/`dec` med rätt böjning, `contact`
   (S-1 → цель 1), `CLASS_RU`. Inget latinskt i talet (testas). `SoundBoard.language` ("ru" som
   standard, `tal ryska`/`tal svenska`); utan Milena svenskt tal. Ny fras ⇒ lägg till rysk fras (testet kräver det för alla utom `phrases.NO_SPEECH`, det som aldrig

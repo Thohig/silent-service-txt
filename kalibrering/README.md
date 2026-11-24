@@ -65,6 +65,12 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 ## Siffrorna
 
+**Talnivån (2026-11-24):** ja-boten 2 h per spel, frön 0–3, kuba, konvoj-kort, jagad-kort, ovning, sundet, krig-kort
+(2181 min, ett `SoundBoard` per nivå på samma spel, tecken i det som köas för uppläsning; loggen påverkas inte): allt 131 tecken/min och 115 repliker/h,
+viktigt 76 och 65 (42 % mindre uppläst), larm 44 och 26; alla 935 larm och förslag på de tre nivåerna. Störst kvar på viktigt:
+`plot.improved`, `plot.maneuver` (larm), `sonar.lost`, `sonar.classified`. Boten ger få order, så kvittenserna (som
+blir "Есть") väger mer i riktigt spel. Mätskriptet låg i scratchpad (en `SoundBoard` per nivå i `LEVELS`).
+
 **Utredningen av krig-kort och vaken under isen (2026-11-24, baslinjens commit 70832d5 för isen, c59554b för
 resten):** krig-kort ja-boten frö för frö (`perseed`-skript i scratchpad med `kontroll.run`): 3c9ce48 10 av 32
 hemma, d3d4621 5, c14e215 6; 12 frön bytte utfall åt båda håll, flödena skiljer sig efter några minuter (en rapport

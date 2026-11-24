@@ -37,7 +37,7 @@ import numpy as np
 
 from sim.events import EventBus, OwnSoundMade, ReportDelivered, SoundHeard
 from sim.reports import Report
-from sim.russian import segments
+from sim.russian import ru, segments
 
 from . import voices
 from . import ambience as _ambience
@@ -109,6 +109,26 @@ OWN_SOUND = {"ping": "own_ping", "launch": "launch", "decoy": "decoy", "blow": "
 MIN_VOLUME = 0.2                   # svagaste hörbara transient
 PAN_STEPS = 9                      # stereolägen från vänster till höger
 SAME_SOUND_S = 0.3                 # samma ljud tätare än så spelas en gång (tidskomprimering)
+
+# Talnivån ("tal allt", "tal viktigt", "tal larm", "tal av"): vad som läses upp. Loggen har allt.
+ALL, IMPORTANT, ALARMS, SILENT = "allt", "viktigt", "larm", "av"
+LEVELS = (ALL, IMPORTANT, ALARMS, SILENT)
+LEVEL_RANK = {ALL: 0, IMPORTANT: 1, ALARMS: 2, SILENT: 3}
+DEFAULT_LEVEL = IMPORTANT
+LEVEL_TEXT = {ALL: "allt läses upp", IMPORTANT: "det viktiga läses upp", ALARMS: "bara larm och förslag",
+              SILENT: "inget läses upp"}
+# Rutin (rang 0): läses bara upp med "tal allt". Allt med larm och alla förslag är rang 2.
+ROUTINE_KINDS = frozenset({"done"})
+ROUTINE_TYPES = frozenset({
+    "sonar.bearing", "sonar.regained", "sonar.regained.many", "sonar.ambient", "sonar.ping.slow",
+    "sonar.convoy.count", "off.esm.same", "off.hush.end", "trim.done", "trim.auto", "nav.current",
+    "nav.fairway.leg", "light.dawn", "light.sunrise", "light.sunrise_soon"})
+NOT_ROUTINE_TYPES = frozenset({"bridge.shut", "train.step.done"})     # "done" som ska höras
+REPEAT_S = 180                     # samma sak om samma kontakt sägs inte igen inom så här lång speltid
+COMPRESSED_SCALE = 2               # tidskomprimering: rutinen tystnar oavsett nivå
+FAST_SCALE = 8                     # ... och från så här fort: bara larm och förslag
+SHORT_ACK = ru("Jest") + "."       # kvittensen ("Есть.") utom med "tal allt"
+SHORT_ACK_RU = "Есть."
 
 MAX_QUEUE = 4                      # fler väntande repliker än så: släpp de oviktiga
 STALE_S = 12.0                     # oviktiga repliker som väntat längre släpps
@@ -336,6 +356,7 @@ class SoundBoard:
     heading: Callable[[], float] | None = None
     ru_voice: str | None = None    # rysk röst, annars läser den svenska rösten translittereringen
     language: str = "ru"           # "ru": allt tal på ryska (kräver ru_voice), "sv": svenska
+    level: str = DEFAULT_LEVEL     # talnivån (LEVELS): vad som läses upp
     ambience: Ambience | None = None
     out: AmbientOut | None = None
     queue: list[Line] = field(default_factory=list)
@@ -347,6 +368,7 @@ class SoundBoard:
     _last_played: dict[str, float] = field(default_factory=dict)
     _half_hour: int | None = None       # senaste halvtimmen klockan slagit (eller sett)
     _status = None                      # senaste StatusSnapshot (var kaptenen är)
+    _said: dict = field(default_factory=dict)   # (roll, typ, kontakt) ⇒ (speltid, kvalitet) senast uppläst
 
     def __post_init__(self) -> None:
         self.bus.subscribe(ReportDelivered, self._on_report)
@@ -378,7 +400,7 @@ class SoundBoard:
 
     def announce(self, ru: str, sv: str) -> None:
         """Högtalarutrop till besättningen (vakthavande): ryska med den ryska rösten, annars svenska."""
-        if not self.enabled or not self.speech:
+        if not self.enabled or not self.speech or self.level == SILENT:
             return
         parts = [(self.ru_voice, ru)] if self.speaks_russian else [(None, speech_text(sv))]
         self.queue.append(Line(parts, ROLE_RATE["officer"], urgent=True, queued_at=self._now,
@@ -420,10 +442,14 @@ class SoundBoard:
             # Talet börjar när larmet nästan har klingat av.
             delay = length * 0.7 if cue in ("general", "klaxon", "fire", "revun") else length * 0.5
             self._cue_until = max(self._cue_until, self._now + delay)
-        if not self.speech or not spoken(r):
+        if not self.speech or not spoken(r) or not self.wanted(r):
             return
-        if self.speaks_russian and r.speech:
-            parts: list[tuple[str | None, str]] = [(self.ru_voice, r.speech)]
+        if r.kind == "ack" and self.level != ALL:          # kvittensen: bara "Есть"
+            parts: list[tuple[str | None, str]] = \
+                [(self.ru_voice, SHORT_ACK_RU)] if self.speaks_russian \
+                else speech_parts(SHORT_ACK, self.ru_voice)
+        elif self.speaks_russian and r.speech:
+            parts = [(self.ru_voice, r.speech)]
         else:
             text = r.text
             if r.data.get("read_aloud"):
@@ -434,6 +460,38 @@ class SoundBoard:
                     queued_at=self._now, not_before=self._now + delay, effect=effect)
         self.queue.append(line)
         self._trim()
+
+    def wanted(self, r: Report) -> bool:
+        """Ska repliken läsas upp på den här talnivån? Vid tidskomprimering tystnar rutinen
+        (och från FAST_SCALE allt utom larm och förslag). Utom med "tal allt" sägs samma sak om
+        samma kontakt bara en gång på REPEAT_S, om inte kvaliteten ändrats. Larm och förslag
+        läses alltid upp (utom med "tal av")."""
+        rank = speech_rank(r)
+        need = LEVEL_RANK[self.level]
+        scale = getattr(self._status, "time_scale", 1)
+        if scale >= FAST_SCALE:
+            need = max(need, 2)
+        elif scale >= COMPRESSED_SCALE:
+            need = max(need, 1)
+        if rank < need:
+            return False
+        if rank == 2 or self.level == ALL:
+            return True
+        t = getattr(self._status, "sim_time", self._now)
+        key = (r.role, r.type, r.data.get("designation"))
+        last = self._said.get(key)
+        if last is not None and t - last[0] < REPEAT_S and last[1] == r.quality:
+            return False
+        self._said[key] = (t, r.quality)
+        return True
+
+    def set_level(self, level: str) -> None:
+        """Talnivån: allt, viktigt, larm eller av."""
+        if level not in LEVELS:
+            raise ValueError(level)
+        self.level = level
+        if level == SILENT:
+            self.queue.clear()
 
     def _trim(self) -> None:
         """Håll kön kort: vid tidskomprimering hinner ingen säga allt."""
@@ -611,6 +669,17 @@ def from_central(r: Report, status) -> bool:
             getattr(status, "captain_at", "central") != "cabin":
         return False
     return r.role not in ("starpom", "") and not r.alarm
+
+
+def speech_rank(r: Report) -> int:
+    """Hur viktig repliken är att höra: 2 larm och förslag, 1 viktigt, 0 rutin (ROUTINE_*)."""
+    if r.alarm or r.kind == "suggest":
+        return 2
+    if r.type in NOT_ROUTINE_TYPES:
+        return 1
+    if r.kind in ROUTINE_KINDS or r.type in ROUTINE_TYPES:
+        return 0
+    return 1
 
 
 def spoken(r: Report) -> bool:
