@@ -221,7 +221,9 @@ PHRASES = {
     "eng.suggest.blow": lambda d: f"Kapten, maskin! Vi tar in vatten och sjunker, "
     f"{d['flooding']:.0f} ton ombord. Föreslår nödblåsning!",
     "eng.suggest.lift": lambda d: f"Kapten, maskin! De bombar oss på botten, de har vårt läge. "
-    f"Föreslår att vi lättar: turbin och fart {d['speed']} på {d['depth']:.0f} meter, bort härifrån.",
+    + (f"Reaktorn står, men föreslår att vi lättar ändå: elmotorn, fart {d['speed']} på {d['depth']:.0f} meter, bort härifrån."
+       if d.get("electric") else
+       f"Föreslår att vi lättar: turbin och fart {d['speed']} på {d['depth']:.0f} meter, bort härifrån."),
     "eng.blow_confirm": lambda d: "Kapten, maskin. Ingen vatteninträngning och djupet är i ordning. "
     "Nödblåsningen tömmer högtrycksluften och tar oss rakt upp till ytan. Upprepa ordern om vi ska blåsa.",
     "eng.suggest.sprint": lambda d: "Kapten, maskin. De har oss redan på aktiv sonar, smygandet "
@@ -392,7 +394,8 @@ RU_PHRASES = {
     "eng.suggest.blow": lambda d: f"{R.CAPTAIN}, пульт! Принимаем воду и тонем, "
     f"{round(d['flooding'])} тонн внутри. Предлагаю аварийное продувание!",
     "eng.suggest.lift": lambda d: f"{R.CAPTAIN}, пульт! Бомбят нас на грунте, место наше знают. "
-    f"Предлагаю отрываться: турбина, {R.count(d['speed'], R.KNOT)}, глубина {R.count(d['depth'], R.METER)}.",
+    f"Предлагаю отрываться: {'электромотор' if d.get('electric') else 'турбина'}, "
+    f"{R.count(d['speed'], R.KNOT)}, глубина {R.count(d['depth'], R.METER)}.",
     "eng.blow_confirm": lambda d: f"{R.CAPTAIN}, пульт. Поступления воды нет, глубина в норме. "
     "Аварийное продувание выбросит нас на поверхность. Повторите приказ, если продуваем.",
     "eng.suggest.sprint": lambda d: f"{R.CAPTAIN}, пульт. Нас уже держат гидролокатором, тишина "
@@ -632,7 +635,7 @@ class EngineeringStation(Station):
         """Upptäckta: djupt och så fort det går utan kavitation. None om vi redan gör det.
         lift: vi ligger på botten och de bombar oss där: lätta och gå."""
         own, s, st = self.own, self.own.sys, self.own.state
-        if (s.on_bottom or s.settle) and not lift or not own.power:
+        if (s.on_bottom or s.settle) and not lift or not own.power and not lift:
             return None
         from .navigation import NavigationStation
         depth = SPRINT_DEPTH
@@ -648,6 +651,14 @@ class EngineeringStation(Station):
         depth_ok = depth - 40 <= st.ordered_depth <= max(deepest, depth)
         if depth_ok:
             depth = st.ordered_depth            # djupare duger: farten räknas där vi ska vara
+        if not own.power:
+            # reaktorn stoppad, på botten och bombade: lätta ändå och smyg bort på elmotorn (krig frö 4:
+            # snabbstopp av tryckvågen, och vi låg kvar på botten i 20 min tills de sänkte oss)
+            speed = min(int(acoustics.cavitation_speed(depth)) - 1, int(own.max_speed()))
+            if speed < 2:
+                return None
+            parts = [] if depth_ok else [f"djup {depth:.0f}"]
+            return ", ".join(parts + [f"fart {speed}"]), {"speed": speed, "depth": depth, "electric": True}
         # inte fortare än turbinen orkar med skadorna (krig-kort frö 20: fart 11, högsta 9,8)
         speed = min(int(acoustics.cavitation_speed(depth)) - 1, int(own.turbine_max_speed()))
         if speed <= 6:

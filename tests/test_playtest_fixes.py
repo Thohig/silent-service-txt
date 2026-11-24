@@ -289,6 +289,14 @@ def test_no_settling_under_attack_and_lift_off_when_bombed_on_the_bottom():
     g.world.own.state.speed = g.world.own.state.ordered_speed = 0
     order, data = g.station(EngineeringStation)._sprint(lift=True)
     assert "fart" in order and "turbin" in order
+    # reaktorn snabbstoppad av tryckvågen: lätta ändå, på elmotorn (krig frö 4 låg kvar och sänktes)
+    s.reactor = "scram"
+    s.propulsion = "electric"
+    assert not g.world.own.power
+    order, data = g.station(EngineeringStation)._sprint(lift=True)
+    assert "turbin" not in order and data["electric"] and 2 <= data["speed"] <= g.world.own.max_speed()
+    s.on_bottom = False
+    assert g.station(EngineeringStation)._sprint() is None      # utan botten: ingen sprint på batteriet
 
 
 def test_cavitation_advice_uses_the_depth_we_are_going_to():

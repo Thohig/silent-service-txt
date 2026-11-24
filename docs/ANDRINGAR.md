@@ -3,6 +3,14 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Lätta från botten också utan reaktorn
+
+Bombade på botten föreslår maskin att lätta (`eng.suggest.lift`), men bara med reaktorn i drift: krig frö 4 lade sig
+på 152 m, tryckvågen snabbstoppade reaktorn, och vi låg kvar i 20 min tills de sänkte oss. Nu föreslår maskin att
+lätta på elmotorn, så fort det går utan kavitation (`EngineeringStation._sprint(lift=True)`); utan botten ingen
+sprint på batteriet som förut. Frö 4 lättar nu men förloras ändå (två jagare i kontakt, 3 kn). Kontrollen visade
+också långa krig med ja-boten 7 ⇒ 4 fullföljda av 8: frön som byter utfall åt båda håll, som krig-kort.
+
 ## 2026-11-24 – Vaken: mät upp råken och lägg dig i mitten
 
 "Stoppa här" (`vak`) under en råk i fart stoppade på stället: i 5 kn glider vi ~130 m, förbi råken, och
