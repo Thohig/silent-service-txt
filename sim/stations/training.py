@@ -30,6 +30,7 @@ SUGGEST_S = 300              # obesvarat förslag upprepas (glesas ut av Station
 AREA_HEADING_DEG = 20      # vi styr redan mot övningsområdet: inget förslag om kursen dit
 AREA_NM = 1.5                # inom så här långt från övningsområdets mitt är vi framme
 AREA_LEAVE_NM = 3.0          # ... och kvar i området tills vi är så här långt bort
+AREA_HERE_NM = 0.5           # så nära mitten: provdjup här, inte "kurs mot övningsområdet" igen
 PROOF_MARGIN_M = 40          # provdjup bara där kortet visar så här mycket vatten under
 DIVED_M = 10                 # så djupt: vi har dykt
 DEPTH_DONE_M = 5             # beordrat djup nått inom så här många meter
@@ -235,13 +236,16 @@ class TrainingOfficer(Station):
             data["layer"] = self.world.env.layer_depth
         if key == "provdjup":
             cd = self._chart_depth()
-            if cd is not None and cd < TEST_DEPTH + PROOF_MARGIN_M:
-                a = self._area()
+            a = self._area()
+            x, y = self.game.own_position_estimate()
+            # framme i området: kortet nära gränsen där besticket tror att vi är skickar oss inte i cirklar
+            # kring mitten (ovning frö 19: "0,1 sjömil bort" och ny kurs var 5:e min i 35 min)
+            there = a is not None and distance(x, y, a.x, a.y) <= AREA_HERE_NM
+            if cd is not None and cd < TEST_DEPTH + PROOF_MARGIN_M and not there:
                 if a is not None:
-                    x, y = self.game.own_position_estimate()
                     st = self.own.state
                     if st.ordered_speed > 0 and st.ordered_course is not None and \
-                            abs(angle_diff(st.ordered_course, bearing_to(x, y, a.x, a.y))) < 20:
+                            abs(angle_diff(st.ordered_course, bearing_to(x, y, a.x, a.y))) < AREA_HEADING_DEG:
                         return      # vi går redan dit (ovning frö 19: samma förslag var 5:e min)
                     self.suggest("train_deeper", "train.suggest.deeper",
                                  {"depth": round(cd, -1), "name": a.name,

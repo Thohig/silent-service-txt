@@ -20,8 +20,16 @@ from .seabed import Seabed
 from .environment import Almanac, TidalStream
 from .reports import Quality
 from . import tma
+from .geo import angle_diff
 from .tma import HUNTER_MANEUVER_Q, BearingObs, Solution, solve
 from .zigzag import ConvoyEstimate, LegFix
+
+
+def _ship_like(tr: "ContactTrack") -> bool:
+    """Ett hållet fartyg som kan gå i konvoj: inte civilt, inte en ubåt, inte isljud eller drivstationen."""
+    c = tr.classification or ""
+    return tr.held and tr.sunk_t is None and not tr.civil and not submerged_submarine(c) and \
+        not any(w in c for w in ("isljud", "isskruvning", "drivstation", "ubåt", "torped", "bevakningsfartyg"))
 
 
 @dataclass
@@ -83,6 +91,12 @@ HUNTED_WINDOW_S = 300          # så länge efter senaste tecknet räknar vi med
 TORPEDO_ALARM_S = 60           # så länge efter senaste bäringen på en fientlig torped
 WAYPOINT_DRIFT_KN = 0.3          # isdrift åt okänt håll: så växer osäkerheten
 WAYPOINT_MOTION_KN = 2.0         # ett mål som rör sig: fel i meddelad kurs och fart, sicksack
+# Övningens bevakningsfartyg går ben på 2,5–4,5 nm (15–30 min) mellan slumpade punkter: girar, men inte som en
+# sicksack (q = 30 och regeln om osedda girar gjorde lösningen för sällan god för torpedövningen)
+PATROL_MANEUVER_Q = 10.0
+GROUP_MIN = 2                  # så många andra fartyg ...
+GROUP_DEG = 25.0               # ... inom så här många grader i bäring ...
+GROUP_RECENT_S = 300           # ... hörda så nyss: målet går i grupp (konvoj) och sicksackar
 HUNTER_PING_S = 300            # ett mål som pingat så nyss räknas som jagande
 # En lösning som flyttat sig mer än JUMP_SIGMA (förra lösningen, framräknad, mot den nya, i deras
 # sammanlagda σ) sedan den förra (minst JUMP_DT_S gammal) har inte satt sig: ett steg lägre i
@@ -340,6 +354,24 @@ class Knowledge:
         return (c is not None and c.contains(tr.designation)) \
             or len(tr.turns) >= 2
 
+    def grouped(self, tr: ContactTrack, t_now: int) -> bool:
+        """Går målet i grupp, innan plottet vet att det är en konvoj? Minst GROUP_MIN andra hållna fartyg
+        (inte civila, inte ubåtar eller is) hörda inom GROUP_DEG i bäring de senaste GROUP_RECENT_S. Konvojens
+        fartyg och eskort sicksackar från början (konvoj: goda lösningar grovt fel 17 % innan konvojen var känd)."""
+        if self.convoy is not None or not _ship_like(tr) or not tr.observations:
+            return False                # känd konvoj: medlemskapet avgör (zigzags)
+        b = tr.observations[-1].bearing
+        n = 0
+        for other in self.tracks.values():
+            if other is tr or not _ship_like(other) or not other.observations:
+                continue
+            o = other.observations[-1]
+            if t_now - o.t <= GROUP_RECENT_S and abs(angle_diff(o.bearing, b)) <= GROUP_DEG:
+                n += 1
+                if n >= GROUP_MIN:
+                    return True
+        return False
+
     def hunting(self, tr: ContactTrack, t_now: int) -> bool:
         """Jagar målet oss? Ett mål som pingar medan vi är jagade (snabb pingtakt, plask) girar hela
         tiden; en jagare som pingar i lugn patrull går sina ben."""
@@ -358,7 +390,7 @@ class Knowledge:
         obs = [o for o in tr.observations if o.t >= tr.tma_from_t]
         q = HUNTER_MANEUVER_Q if self.hunting(tr, t_now) else \
             tma.ZIGZAG_MANEUVER_Q if self.zigzags(tr) or submerged_submarine(tr.classification) or \
-            tr.friendly else None
+            self.grouped(tr, t_now) else PATROL_MANEUVER_Q if tr.friendly else None
         sol = solve(obs, t_now=t_now, own_now=own_now, maneuver_q=q)
         if sol is not None:
             sol = self._settled(tr, sol, obs, t_now)

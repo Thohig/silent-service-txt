@@ -35,6 +35,7 @@ from .sweep import SweepCalls
 
 BEARING_REPORT_DELTA = 5.0
 LOST_BATCH_S = 20          # tappade (och åter hörda) kontakter samlas på en rad tills ingen ny kommit på så länge,
+CONVOY_SAY_S = 600          # "hör N av M i konvojen" högst så här ofta (tappad helt, hörd igen: alltid)
 LOST_BATCH_MAX_S = 60      # ... högst så länge; en som hörs igen innan raden sagts nämns inte (krig-kort frö 61:
                            # konvojen vid hörgränsen gav fyra rader "har tappat" på 50 s, 5 s förut)
 BEARING_REPORT_MAX_AGE = 300
@@ -162,6 +163,13 @@ PHRASES = {
     + _and([c["designation"] + (f" ({fmt_course(c['last_bearing'])})" if c.get("last_bearing")
                                 is not None else "") for c in d["contacts"]]) + ".",
     "sonar.regained": lambda d: f"{d['designation']} hörs igen, bäring {fmt_course(d['bearing'])}.",
+    "sonar.convoy.lost": lambda d: "Kapten, sonar. Har tappat konvojen"
+    + (f", sista bäring {fmt_course(d['bearing'])}" if d.get("bearing") is not None else "") + ".",
+    "sonar.convoy.regained": lambda d: "Kapten, sonar. Konvojen hörs igen"
+    + (f", bäring {fmt_course(d['bearing'])}" if d.get("bearing") is not None else "")
+    + (f", {d['held']} av {d['total']} fartyg." if d["total"] > 1 else "."),
+    "sonar.convoy.count": lambda d: f"Kapten, sonar. Konvojen hörs {'svagare' if d['lost'] else 'bättre'}: "
+    f"vi hör {d['held']} av {d['total']} fartyg.",
     "sonar.regained.many": lambda d: "Kapten, sonar. "
     + _and([f"{c['designation']} ({fmt_course(c['bearing'])})" for c in d["contacts"]]) + " hörs igen.",
     "sonar.ping.first": lambda d: f"Kapten, sonar! Aktiv sonar i bäring {fmt_course(d['bearing'])}"
@@ -221,6 +229,9 @@ def _ru_far(d: dict) -> str:
     return "далеко" if d.get("sure") else "видимо, далеко"
 
 
+SHIP_RU = ("судно", "судна", "судов")
+
+
 def _ru_only_pings(d: dict) -> str:
     return " Шумов винтов не слышно, только посылки." if d.get("lost") else ""
 
@@ -247,6 +258,12 @@ RU_PHRASES = {
        else "") + ".",
     "sonar.lost.many": lambda d: f"{R.CAPTAIN}, акустик. Потеряны: "
     + ", ".join(R.contact(c["designation"]) for c in d["contacts"]) + ".",
+    "sonar.convoy.lost": lambda d: f"{R.CAPTAIN}, акустик. Конвой потерян"
+    + (f", последний пеленг {R.course(d['bearing'])}" if d.get("bearing") is not None else "") + ".",
+    "sonar.convoy.regained": lambda d: f"{R.CAPTAIN}, акустик. Конвой снова слышен"
+    + (f", пеленг {R.course(d['bearing'])}" if d.get("bearing") is not None else "") + ".",
+    "sonar.convoy.count": lambda d: f"{R.CAPTAIN}, акустик. Конвой слышен {'хуже' if d['lost'] else 'лучше'}: "
+    f"{R.count(d['held'], SHIP_RU)} из {d['total']}.",
     "sonar.regained": lambda d: f"{_ru_cap(R.contact(d['designation']))} снова слышна, пеленг "
     f"{R.course(d['bearing'])}.",
     "sonar.regained.many": lambda d: f"{R.CAPTAIN}, акустик. Снова слышны: "
@@ -324,6 +341,7 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         self._regained_batch: list[tuple[str, float]] = []      # hörda igen, ännu inte sagda (som de tappade)
         self._regained_t = self._regained_last = 0
         self._lost_t = self._lost_last = 0
+        self._convoy_said_t = -10**9            # senaste raden om hur många av konvojen vi hör
 
     def attach(self, bus) -> None:
         super().attach(bus)
@@ -562,9 +580,44 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                                      or self.now - self._regained_t >= LOST_BATCH_MAX_S):
             self._say_regained()
 
+    def _convoy_split(self, batch: list) -> tuple[list, list]:
+        """Delar en samlad rad i konvojens fartyg (konvojen känd i plottet) och de andra."""
+        c = self.game.knowledge.convoy
+        if c is None:
+            return [], batch
+        return [x for x in batch if c.contains(x[0])], [x for x in batch if not c.contains(x[0])]
+
+    def _convoy_count(self) -> tuple[int, int]:
+        """Konvojens fartyg som hörs nu, och alla som inte sjunkit."""
+        c, tracks = self.game.knowledge.convoy, self.game.knowledge.tracks
+        alive = [tracks[d] for d in (*c.members, *c.escorts) if d in tracks and tracks[d].sunk_t is None]
+        return sum(1 for tr in alive if tr.held), len(alive)
+
+    def _say_convoy(self, part: list, lost: bool) -> None:
+        """Konvojen som en enhet (2026-11-24: konvojen vid hörgränsen gav en rad per fartyg): tappad helt
+        eller hörd igen sägs alltid, annars hur många vi hör, högst var CONVOY_SAY_S."""
+        held, total = self._convoy_count()
+        bearings = [b for _, b in part if b is not None]
+        bearing = circular_mean(bearings) if bearings else None
+        if lost and held == 0:
+            self.say("sonar.convoy.lost", {"bearing": bearing}, kind="contact")
+        elif not lost and held == len(part):
+            self.say("sonar.convoy.regained", {"bearing": bearing, "held": held, "total": total},
+                     kind="contact")
+        elif self.now - self._convoy_said_t >= CONVOY_SAY_S:
+            self.say("sonar.convoy.count", {"held": held, "total": total, "lost": lost}, kind="contact")
+        else:
+            return
+        self._convoy_said_t = self.now
+
     def _say_lost(self) -> None:
         """De tappade kontakterna: en rad för en, en samlad rad för flera (t.ex. under skiktet)."""
         batch, self._lost_batch = self._lost_batch, []
+        convoy, batch = self._convoy_split(batch)
+        if convoy:
+            self._say_convoy(convoy, lost=True)
+        if not batch:
+            return
         if len(batch) == 1:
             d, b = batch[0]
             self.say("sonar.lost", {"designation": d, "last_bearing": b}, kind="contact")
@@ -576,6 +629,11 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         """Kontakterna som hörs igen: en rad för en, en samlad rad för flera (vi kom under skiktet
         eller ur döda sektorn: krig-kort gav sex rader samma minut)."""
         batch, self._regained_batch = self._regained_batch, []
+        convoy, batch = self._convoy_split(batch)
+        if convoy:
+            self._say_convoy(convoy, lost=False)
+        if not batch:
+            return
         if len(batch) == 1:
             d, b = batch[0]
             self.say("sonar.regained", {"designation": d, "bearing": b}, kind="contact")

@@ -23,10 +23,18 @@ sekund som kaptenen valde sprinten till 220 m; förslaget om 90 m släpptes (kap
 ingen något. Nu föreslår navigatören `djup 90` när jakten lugnat sig och målet ännu inte är tvärs. Oraklets
 `skjutläge_för_djupt` larmar inte längre när de har oss (då är djupet kaptenens val).
 
-**Bevakningsfartyget girar** (`Knowledge.resolve`): övningens bevakningsfartyg går ben på 2,5–4,5 nm mellan slumpade
-punkter och räknas nu som sicksackande (q = 30). Ovning frö 20 kallade det säkert på 3,8 nm kurs 249 när det låg
+**Bevakningsfartyget girar** (`Knowledge.resolve`, `PATROL_MANEUVER_Q`): övningens bevakningsfartyg går ben på 2,5–4,5
+nm mellan slumpade punkter och räknas med processbrus q = 10 (först 30, men då blev torpedövningens lösning för sällan
+god: 2 av 4 skott i ovning-kort; med 10 goda grovt fel 3,2 % ⇒ 2,6 %, säkra 0,4 % ⇒ 0,2 %, 24 frön). Ovning frö 20 kallade det säkert på 3,8 nm kurs 249 när det låg
 på 1,5 nm kurs 170, rakt mot oss efter en lucka på 6,5 min. Ovning, 24 frön: goda grovt fel 3,2 % ⇒ 2,0 %, säkra
 0,4 % ⇒ 0 (2 % färre säkra). En längre spärr efter luckan (luckans längd) provades och gav inget.
+
+**Konvojen** (mellansteg, kontrollen inte klar): fartyg som går i grupp räknas som sicksackande redan innan plottet
+känner konvojen (`Knowledge.grouped`: minst två andra hållna fartyg inom 25° i bäring de senaste 5 min; konvoj, 24
+frön: goda grovt fel 28 % ⇒ 21 %, krig-kort 5,3 % ⇒ 5,8 %, utfallen i krig-kort lika med och utan). Sonar säger
+konvojen som en enhet (`SonarRoom._say_convoy`): tappad helt och hörd igen alltid, "hör N av M fartyg" högst var
+10:e min. Övningsledaren skickar oss inte vidare när vi ligger inom 0,5 nm från områdets mitt (ovning frö 19:
+cirklar kring mitten i 35 min). Back i maskin under en öppning i isen provades och togs bort (se TODO).
 
 **Mindre:**
 - Maskins sprint går inte fortare än turbinen orkar med skadorna (`OwnShip.turbine_max_speed`; krig-kort frö 20:

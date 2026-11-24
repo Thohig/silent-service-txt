@@ -219,8 +219,9 @@ för in varje färdigt steg där.
   bäringarna som slutade för < 5 min sedan. Säkra grova 1,1 % ⇒ 0,5 % (frön 9–16: 2,4 % ⇒ 0,2 %), goda 5,8 % ⇒ 2,8 %
   (6,5 % ⇒ 4,7 %), ~10 % färre säkra.
   Ubåtar i undervattensläge (`submerged_submarine`, sonars klassning) och konvojens eskort räknas som
-  sicksackande, q = 30 (2026-11-23; övningens bevakningsfartyg, `ContactTrack.friendly`, sedan 2026-11-24: goda
-  grovt fel 3,2 % ⇒ 2,0 %, säkra 0,4 % ⇒ 0, 24 frön): duell-kort goda lösningar på ubåten grovt fel 69 % ⇒ 50 %, kurs > 90° fel
+  sicksackande, q = 30 (2026-11-23; fartyg i grupp innan konvojen är känd, `Knowledge.grouped`, sedan 2026-11-24:
+  konvoj goda grovt fel 28 % ⇒ 21 %, 24 frön; övningens bevakningsfartyg q = 10, `PATROL_MANEUVER_Q`: goda grovt fel
+  3,2 % ⇒ 2,6 %, säkra 0,4 % ⇒ 0,2 %, med 30 blev torpedövningens lösning för sällan god): duell-kort goda lösningar på ubåten grovt fel 69 % ⇒ 50 %, kurs > 90° fel
   56 % ⇒ 17 %; konvojernas säkra men grovt fel lösningar på jagarna 7 ⇒ 3 (32 spel).
   Säker kräver bäringar över minst 20 min (`SURE_MIN_SPAN_S`) om inget avstånd mätts i fönstret (2026-11-24): konvojens
   fartyg kallades säkra på 0,7–1,2 nm efter 6–10 min (sant 2,8–3,7); säkra grovt fel 2,9 % ⇒ 0,4 %, > 3σ 3,6 % ⇒ 0,4 %,

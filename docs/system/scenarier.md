@@ -34,6 +34,11 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   tak efter antal ben (2 ben ⇒ högst osäker, 3 ⇒ god). Benlängd = median av gap per kontakt.
   Gruppering: ≥ 2 icke-jagare inom 3 nm, ±30°, ±4 kn; jagare inom 5 nm är eskort. `ConvoyAssessed`
   ⇒ `Knowledge.convoy`. Konvojens girar sägs som `plot.convoy.turn`, inte `plot.maneuver`.
+  Innan konvojen är känd räknas fartyg som går i grupp (`Knowledge.grouped`: minst `GROUP_MIN` 2 andra hållna
+  fartyg, inte civila, ubåtar eller is, inom `GROUP_DEG` 25° i bäring hörda de senaste 5 min) som sicksackande
+  (konvoj, 24 frön: goda grovt fel 28 % ⇒ 21 %). Sonar säger konvojen som en enhet (`SonarRoom._say_convoy`):
+  "har tappat konvojen" och "konvojen hörs igen" alltid, "hör N av M fartyg" högst var 10:e min (`CONVOY_SAY_S`);
+  fartyg utanför konvojen som förut.
   Konvojfartyg och mål med två märkta girar (`Knowledge.zigzags`) räknas med processbrus q = 30
   (`tma.ZIGZAG_MANEUVER_Q`) i stället för 1: annars blev lösningen god/säker med för litet σ och 1–3 nm
   fel när målet girat inom fönstret.
