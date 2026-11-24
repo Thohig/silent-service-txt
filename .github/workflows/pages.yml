@@ -3,8 +3,17 @@
 # Kräver en gång: Settings › Pages › Source: GitHub Actions.
 name: pages
 
-# Körs bara för hand (Actions › pages › Run workflow), så att varje push inte kostar minuter.
+# Körs vid push till main när något som hamnar i webbversionen ändrats (sim/, ui/, web/, ikonerna), och för
+# hand (Actions › pages › Run workflow). Bara dokumentation publicerar inget.
 on:
+  push:
+    branches: [main]
+    paths:
+      - "sim/**"
+      - "ui/**"
+      - "web/**"
+      - "ikon/**"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:

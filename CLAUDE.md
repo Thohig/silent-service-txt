@@ -148,8 +148,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   (`ui/app.py`, `THREADS`; `Game.warm_up_steps`; `MenuSound(threaded=False)`). Ljudet: mixern till Web Audio
   (`web/web_audio.py`, `WebOut`, satt som `ui.ambience.OUTPUT`), talet med webbläsarens talsyntes
   (`voices.WebSpeech`), spelaren `audio.WebPlayer`; `ui/` känner aldrig `web/`. Publicerad på
-  https://thohig.github.io/silent-service-txt/, bara för hand (`.github/workflows/pages.yml`,
-  `workflow_dispatch`): efter ändringar i `sim/`, `ui/` eller `web/` kör `gh workflow run pages.yml`. `web/README.md`.
+  https://thohig.github.io/silent-service-txt/ av sig själv vid push till main som ändrar `sim/`, `ui/`, `web/` eller
+  `ikon/` (`.github/workflows/pages.yml`; för hand `workflow_dispatch`). `web/README.md`.
 - **Händelsebussen** (`events.py`) är synkron. `Knowledge` registreras före
   stationerna så att stationer alltid ser uppdaterad kunskap.
 - **Utbyggnadskrokar:** rapportfilter (`ReportQueue.filters`, ändrar `data`) för

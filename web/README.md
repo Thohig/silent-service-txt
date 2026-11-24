@@ -54,10 +54,11 @@ GitHub Pages: https://thohig.github.io/silent-service-txt/
 - **Första laddningen** hämtar ~15 MB (Pyodide, numpy, Textual); sedan har webbläsaren det i cache.
 
 ## Publicering
-`.github/workflows/pages.yml` bygger och publicerar bara för hand: Actions › pages › Run workflow, eller
+`.github/workflows/pages.yml` bygger och publicerar vid varje push till main som ändrar `sim/`, `ui/`, `web/` eller
+`ikon/` (sedan 2026-11-24; bara dokumentation publicerar inget), och för hand: Actions › pages › Run workflow, eller
 
     gh workflow run pages.yml --ref main
 
-Sidan uppdateras alltså inte av en push; kör det efter ändringar i `sim/`, `ui/` eller `web/`. Pages är
+Pages är
 påslaget (Source: GitHub Actions, 2026-11-21) och repot offentligt. Besökarna hämtar Pyodide och
 xterm.js från jsDelivr och Textual från PyPI; sidan har ingen spårning och sparar inget.

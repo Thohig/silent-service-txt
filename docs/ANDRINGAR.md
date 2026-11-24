@@ -3,6 +3,11 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Webbversionen publiceras vid push till main
+
+`.github/workflows/pages.yml` körs nu också vid push till main när `sim/`, `ui/`, `web/` eller `ikon/` ändrats (det som
+hamnar i webbversionen); bara dokumentation publicerar inget. För hand som förut (`workflow_dispatch`).
+
 ## 2026-11-24 – Vaken: stilla under en bit nyis går vi till öppningen som duger
 
 Maskin föreslog "öppning 10, 190 m" och ordern `vak` stoppade under en ny bit nyis på 20 m som isen drivit in över
