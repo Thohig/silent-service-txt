@@ -331,7 +331,7 @@ def test_tab_reaches_the_bridge_view_and_arrows_turn_it(tmp_path):
             g.world.env.sunrise, g.world.env.sunset = 0, 24 * 3600
             g.world.env.lat = None            # utan plats: ljuset följer sunrise/sunset
             _surface(g)
-            await pilot.press("tab", "tab", "tab", "tab")   # sjökort, sonar, ubåten; i ytläge före periskopet
+            await pilot.press("tab", "tab", "tab", "tab", "tab")   # översikt, sjökort, sonar, ubåten; i ytläge före periskopet
             assert isinstance(app.screen, BridgeScreen)
             await pilot.pause(0.6)
             body = str(app.screen.query_one("#bridge-body").render())
