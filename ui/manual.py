@@ -58,7 +58,9 @@ def manual_text() -> Group:
     return Group(
         Text("Order", style="bold"),
         Text("Flera order på en rad: kurs 090, fart 5; djup 100 (eller \"och\"). "
-             "Besättningens förslag godkänns med ja och avslås med nej.\n", style="dim"),
+             "Besättningens förslag godkänns med ja (j) och avslås med nej (n). Frågar en station om "
+             "din egen order svarar du ja i stället för att upprepa den. En felstavad order ger "
+             "\"Menade ni …?\", och ja verkställer det.\n", style="dim"),
         _grid([(h, " · ".join(helps)) for h, helps in order_sections()]),
         Text("\nVyer och ljud", style="bold"),
         _grid([("Vyer", " · ".join(VIEW_WORDS)), ("Ljud", " · ".join(SOUND_WORDS)), *KEYS]),
