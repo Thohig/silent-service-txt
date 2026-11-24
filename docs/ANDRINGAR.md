@@ -3,6 +3,13 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Vaken: stilla under en bit nyis går vi till öppningen som duger
+
+Maskin föreslog "öppning 10, 190 m" och ordern `vak` stoppade under en ny bit nyis på 20 m som isen drivit in över
+oss (arktis frö 16): för smal, och förslaget och ordern talade om olika öppningar. Nu går navigatören, när vi nästan
+står stilla under nyis kortare än båten, till den bästa loggade öppningen (`_go_to_opening`): den som maskin och
+radion nämner. Ordern är densamma. Arktis och duell som baslinjen.
+
 ## 2026-11-24 – Vaken: en kort råk med nyis är inte värd att backa till
 
 Oraklet efter vakändringen (arktis frö 16): navigatören mätte upp en råk med nyis på 50 m och backade dit, fast nyis

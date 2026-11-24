@@ -75,6 +75,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (`nav.vak.measured`, `_measure_opening`, `_back_to_centre`; omkastningen först under 2 kn, så den inte hörs).
   Nyis kortare än båten (`MIN_SURFACE_LEN_M`) är inte värd att backa till: `nav.vak.too_short` och nästa öppning,
   eller sök vidare i 3 kn. Öppningen isen driver in över medan vi ligger stilla stryks (`OpeningNotFound`).
+  Står vi nästan stilla under en sådan bit nyis går `vak` till den bästa loggade öppningen (den maskin nämner).
   Längre än 250 m (`LONG_OPENING_M`): stopp där vi är. Slår kaptenen back under mätningen (fortare stopp, hörs)
   gäller vaken: stopp i mitten om slutet är sett, annars när farten framåt är borta (`nav.vak.back_ordered`).
   Arktis ja-boten (8 frön): stationen nådd 5 ⇒ 6, arktis-kort 2 ⇒ 3. Maskin säger inte "vi har ingen öppning" de första 5 min efter att ha föreslagit en.

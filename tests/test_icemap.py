@@ -480,3 +480,23 @@ def test_a_short_stretch_of_new_ice_is_not_worth_backing_to():
     types = [r.type for r in reports]
     assert "nav.vak.too_short" in types and "nav.vak.measured" not in types
     assert not s.astern and s.ordered_speed > 0
+
+
+def test_vak_while_still_under_a_scrap_of_new_ice_goes_to_the_opening_that_will_do():
+    """Stilla under 20 m nyis och en god öppning loggad: 'vak' (maskins förslag nämner den goda) går dit i
+    stället för att stoppa där vi är (arktis frö 16)."""
+    g, reports = _arctic(1)
+    nav = g.station(NavigationStation)
+    x, y = nav.est_x, nav.est_y
+    t0 = g.now - 200
+    # en god öppning med öppet vatten 300 m söderut, passerad för ett par minuter sedan
+    for i, th in enumerate([3.0] + [0.0] * 12 + [3.0]):
+        nav.icemap.on_sounding(IceSoundingObs(t0 + 5 * i, x, y - (400 - 13 * i) * M, th, 0.89 * th))
+    good = nav.icemap.openings[-1]
+    # nu: stilla under en liten bit nyis
+    for i, th in enumerate([0.6, 0.6]):
+        nav.icemap.on_sounding(IceSoundingObs(g.now - 10 + 5 * i, x, y, th, 0.89 * th))
+    assert nav.icemap.current is not None and nav.icemap.current is not good
+    g.world.own.state.speed = 0.0
+    nav._go_to_opening()
+    assert nav.vak is good

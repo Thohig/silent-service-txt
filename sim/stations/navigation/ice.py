@@ -152,6 +152,15 @@ class IceMixin:
         s = self.ship
         self._vak_tries = 0
         cur = self.icemap.current
+        if cur is not None and not cur.open and cur.length_m < MIN_SURFACE_LEN_M and \
+                s.speed <= VAK_MEASURE_KN + 0.3:
+            # nästan stilla under en liten bit nyis (isen har drivit in över oss): den går varken att bryta
+            # igenom eller ta masterna genom. Gå till öppningen som duger, den maskin och radion nämner
+            # (arktis frö 16: maskin föreslog öppning 10, 190 m, och vi stoppade under 20 m nyis)
+            other = self.best_opening()
+            if other is not None and other is not cur:
+                self._steer_for(other)
+                return
         if cur is not None and self.icemap.latest(self.now) is not None:
             self.vak, self._vak_t, self._vak_here, self._vak_centering = cur, self.now, True, False
             kind = thickness_words(cur.thickest)
