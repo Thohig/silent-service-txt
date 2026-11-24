@@ -10,7 +10,8 @@ from ...reports import Quality
 from ...war import assess
 from ...weapons import ARM_DISTANCE_NM, TORPEDO_TYPES, launch_torpedo
 from .common import (
-    ASPECT_MAX_SIGMA, ASPECT_MIN_KN, CONFIRM_S, HUNTING_RUN_S, LONG_RUN_S, NARROW_DEG, FireSalvo, FireTube,
+    ASPECT_MAX_SIGMA, ASPECT_MIN_KN, CONFIRM_S, HUNTING_RUN_S, LONG_RUN_S, LOST_CONE_DEG, LOST_LANE_S,
+    NARROW_DEG, FireSalvo, FireTube,
     MAX_LAUNCH_DEPTH, MAX_LAUNCH_SPEED, NEUTRAL_CONE_DEG, NEUTRAL_LANE_NM, NEUTRAL_STEP_S, N_TUBES,
     RIVAL_NM, Running, SALVO_GAP_MAX_NM, SALVO_GAP_NM, SEEKER_LANE_NM,
     SALVO_MAX, SALVO_STEP_DEG, TOO_CLOSE_MARGIN_NM, Tube,
@@ -357,8 +358,16 @@ class FiringMixin:
         run_s = spec.range_nm / spec.speed * 3600
         out = []
         for tr in k.tracks.values():
-            if not tr.held or not tr.civil or tr.designation == target or not tr.observations \
-                    or tr.sunk_t is not None:
+            if not self._neutral(tr) or tr.designation == target or not tr.observations or tr.sunk_t is not None:
+                continue
+            if not tr.held:
+                # tappad nyss: fartyget är kvar, bara tyst för sonar (clyde-in frö 29: fiskebåten tappad 10 min
+                # före skottet, 35° från banan, och den målsökande torpeden tog den). Bara bäringen, brett.
+                lost_s = self.now - tr.observations[-1].t
+                b = tr.last_bearing
+                if lost_s <= LOST_LANE_S and any(abs(angle_diff(b, c)) <= LOST_CONE_DEG for c in courses):
+                    out.append({"designation": tr.designation, "classification": tr.classification,
+                                "bearing": b, "range": None, "lost_min": max(1, round(lost_s / 60))})
                 continue
             sol = tr.solution
             if sol is not None and sol.quality >= Quality.OSAKER:
@@ -388,6 +397,12 @@ class FiringMixin:
                     out.append({"designation": tr.designation, "classification": tr.classification,
                                 "bearing": b, "range": None})
         return out
+
+    @staticmethod
+    def _neutral(tr) -> bool:
+        """Klassad (minst god) som handelsfartyg eller fiskebåt: ett neutralt fartyg vi varnar för (clyde-in frö
+        29: fiskebåtarna räknades inte, och den målsökande torpeden tog en)."""
+        return tr.civil or tr.class_quality >= Quality.GOD and "fiskebåt" in tr.classification
 
     def _seeker_rivals(self, target: str, course: float, type_key: str) -> list[dict]:
         """Andra kända fartyg som enligt plottet ligger nära målet när den målsökande torpeden är

@@ -1,4 +1,5 @@
 """Civil trafik: handelsfartyg längs leder, maskering, klassning och regler för eld."""
+import dataclasses
 import pytest
 import random
 import statistics
@@ -263,3 +264,26 @@ def test_the_lane_warning_also_says_what_the_target_itself_is():
     _run(g, 5)
     warn = [r for r in reports if r.type == "torp.neutral"]
     assert warn and "S-7 själv är inte säkert klassad som örlogsfartyg" in warn[0].text
+
+
+def test_torpedo_room_warns_about_a_merchant_sonar_lost_a_few_minutes_ago():
+    """Ett handelsfartyg sonar tappat nyss är kvar, bara tyst (clyde-in frö 29: fiskebåten tappad 10 min före
+    skottet, 35° från banan, och den målsökande torpeden tog den)."""
+    g, reports = _game()
+    room = _target_and_merchant_behind(g)
+    tr = g.knowledge.track("S-8")
+    tr.held = False
+    tr.observations = [dataclasses.replace(ob, t=ob.t - 600) for ob in tr.observations]   # tappad för 10 min sedan
+    loaded = room.tubes[0].load
+    g.command("eld tub 1 mot S-7")
+    _run(g, 5)
+    assert room.tubes[0].load == loaded
+    warn = [r for r in reports if r.type == "torp.neutral"]
+    assert warn and "S-8" in warn[0].text and "tappad för" in warn[0].text
+    tr.observations = [dataclasses.replace(ob, t=ob.t - 900) for ob in tr.observations]   # för länge sedan
+    tr.held = False
+    room._neutral_warned.clear()
+    reports.clear()
+    g.command("eld tub 1 mot S-7")
+    _run(g, 5)
+    assert not any(r.type == "torp.neutral" for r in reports)

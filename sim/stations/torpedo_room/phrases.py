@@ -100,7 +100,8 @@ PHRASES = {
         f"bara {d['classification']}. ") + "Upprepa ordern om vi ska skjuta.",
     "torp.neutral": lambda d: "Kapten, torpedrummet. Varning: "
     + ", ".join(f"{n['designation']} ({n['classification']}, bäring {fmt_course(n['bearing'])}"
-                + (f", {nm(n['range'])} sjömil" if n.get("range") is not None else ", avståndet okänt")
+                + (f", {nm(n['range'])} sjömil" if n.get("range") is not None else
+                   f", tappad för {n['lost_min']} min sedan" if n.get("lost_min") else ", avståndet okänt")
                 + ")" for n in d["ships"])
     + ((f" ligger nära {d['target']} när den målsökande torpeden är framme" if all(
         n.get("from_target") is not None for n in d["ships"]) else

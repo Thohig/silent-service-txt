@@ -3,6 +3,16 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Torpedrummet varnar för fiskebåtar och för handelsfartyg sonar tappat nyss
+
+Oraklet (skjut/lyssna, frön 24–31): i clyde-in frö 29 tog en målsökande SET-53 fiskebåten S-1 utan varning.
+Torpedrummet varnade bara för kontakter klassade som handelsfartyg som sonar hörde just då; S-1 var klassad som
+fiskebåt och tappad 10 min före skottet, 35° från banan. Nu räknas fiskebåtar som neutrala i varningen
+(`FiringMixin._neutral`), och ett neutralt fartyg tappat de senaste 15 min (`LOST_LANE_S`) med sista bäringen inom
+45° från banan (`LOST_CONE_DEG`) ger varningen med "tappad för N min sedan". Clyde-in frö 28 (ett handelsfartyg som
+sonar aldrig hört, träffat efter 9 min gång) är kvar i oraklet: det fanns inget att varna för. Ja-boten: inga larm
+på 176 spel.
+
 ## 2026-11-24 – Webbversionen publiceras vid push till main
 
 `.github/workflows/pages.yml` körs nu också vid push till main när `sim/`, `ui/`, `web/` eller `ikon/` ändrats (det som
