@@ -3,6 +3,20 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Enklare ordergivning: j/n, ja på frågor, babord/styrbord, "Menade ni …?"
+
+- `j` och `n` räcker för ja och nej (`SUGGESTION_COMMANDS`).
+- Frågar en station om kaptenens egen order ("Svara ja om vi ska skjuta": fredstid, neutrala i banan, för nära, lång
+  gångtid, nödblåsning utan vatten, dykning i fjorden, ytläge med fiende nära) verkställer `ja` den, som att upprepa
+  ordern; `nej` släpper den. Stationen anropar `Game.asked()`; `Game.active_question` (60 s, `QUESTION_S`) gäller om
+  frågan är nyare än ett väntande förslag och syns i orderraden. Kärnladdningen kräver fortfarande upprepad order.
+- `styrbord 30`, `babord 30` (`sb`, `bb`, `gira babord 30`): gir från beordrad kurs; navigatören räknar kursen
+  (`TurnBy`, ny krok `Station.resolve` före `intercept`).
+- En felstavad order ger "Kapten? Menade ni \"periskopdjup\"?" som förslag, så att `ja` verkställer det
+  (`CommandRegistry.guess`: ett ord bytt mot närmaste i ordförrådet med `difflib`, eller två ihopskrivna). Aldrig
+  vapen eller avbryt uppdraget (`Order.WEAPON` på eld, salva, kärnvapenrådet).
+Tester: `tests/test_order_shortcuts.py`.
+
 ## 2026-11-24 – Torpedrummet varnar för fiskebåtar och för handelsfartyg sonar tappat nyss
 
 Oraklet (skjut/lyssna, frön 24–31): i clyde-in frö 29 tog en målsökande SET-53 fiskebåten S-1 utan varning.

@@ -225,7 +225,7 @@ PHRASES = {
        if d.get("electric") else
        f"Föreslår att vi lättar: turbin och fart {d['speed']} på {d['depth']:.0f} meter, bort härifrån."),
     "eng.blow_confirm": lambda d: "Kapten, maskin. Ingen vatteninträngning och djupet är i ordning. "
-    "Nödblåsningen tömmer högtrycksluften och tar oss rakt upp till ytan. Upprepa ordern om vi ska blåsa.",
+    "Nödblåsningen tömmer högtrycksluften och tar oss rakt upp till ytan. Svara ja om vi ska blåsa.",
     "eng.suggest.sprint": lambda d: "Kapten, maskin. De har oss redan på aktiv sonar, smygandet "
     f"hjälper inte nu. Föreslår turbin och fart {kn(d['speed'])} på {d['depth']:.0f} meter, "
     "där kaviterar vi inte. Djupt och fort bort.",

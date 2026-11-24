@@ -206,6 +206,7 @@ class FiringMixin:
                     self._confirmed.get(tr.designation, -10**9) < self.now - CONFIRM_S:
                 # torpedrummet frågar en gång; samma order inom en minut verkställs
                 self._confirmed[tr.designation] = self.now
+                self.game.asked()               # ja upprepar ordern
                 self.say("torp.confirm", {"designation": tr.designation,
                                           "classification": tr.classification,
                                           "civil": tr.civil}, quality=tr.class_quality)
@@ -268,6 +269,7 @@ class FiringMixin:
         if warned.get(designation, -10**9) >= self.now - CONFIRM_S:
             return False
         warned[designation] = self.now
+        self.game.asked()               # ja upprepar ordern
         self.say("torp.too_close", {"designation": designation, "range": dist}, alarm=True)
         return True
 
@@ -284,6 +286,7 @@ class FiringMixin:
             return False
         asked[tr.designation] = self.now
         rhythm = self._turn_rhythm(tr)
+        self.game.asked()               # ja upprepar ordern
         self.say("torp.long_shot", {"designation": tr.designation, "run_s": run_s, "type": type_key,
                                     "kind": rhythm[0] if rhythm else None},
                  quality=Quality.OSAKER, alarm=True)
@@ -450,6 +453,7 @@ class FiringMixin:
             tr = self.game.knowledge.track(target)
             if tr is not None and not tr.warship and not tr.friendly:
                 d.update(target_class=tr.classification, target_civil=tr.civil)
+        self.game.asked()               # ja upprepar ordern
         self.say("torp.neutral", d, quality=Quality.GOD)
         return False
 

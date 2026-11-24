@@ -122,6 +122,7 @@ from .common import (  # noqa: F401
     IceReport,
     ReportPosition,
     SetCourse,
+    TurnBy,
     SetDepth,
     SetSpeed,
     SettleOnBottom,

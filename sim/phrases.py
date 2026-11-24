@@ -102,6 +102,7 @@ PHRASES: dict[str, Phrase] = {
     "system.help": lambda d: d["text"],
     "order.executing": lambda d: f"Verkställer: {d['what']}.",
     "order.no_suggestion": lambda d: "Det finns inget förslag att verkställa, kapten.",
+    "order.did_you_mean": lambda d: f"Kapten? Menade ni \"{d['order']}\"?",
     "order.declined": lambda d: "Uppfattat, vi avvaktar.",
     "off.confirm_quit": lambda d: "Kapten, ska vi avbryta uppdraget? Svara ja för att bekräfta.",
     "order.suggestion_repeat": lambda d: f"Senaste förslaget: {d['text']}",
@@ -169,6 +170,7 @@ RU_PLOT: dict[str, Phrase] = {
     "товарищ командир.",
     "plot.no_contacts": lambda d: "Контактов нет, товарищ командир.",
     "order.no_suggestion": lambda d: "Предложений нет, товарищ командир.",
+    "order.did_you_mean": lambda d: "Товарищ командир? Не понял приказ.",
     "order.declined": lambda d: "Есть, ждём.",
     "off.confirm_quit": lambda d: "Товарищ командир, прервать задание?",
     "order.unknown": lambda d: "Товарищ командир, не понял." if d.get("reason")

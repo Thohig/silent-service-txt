@@ -255,11 +255,11 @@ PHRASES = {
     + (". Fritt att dyka här." if d.get("surfaced") else ".")
     + (f" {d['to']} ligger framför oss." if d.get("to") else ""),
     "nav.fjord_dive": lambda d: "Kapten, navigatören! Vi är inne i fjorden. Ordern förbjuder "
-    "dykning innanför mynningen! Upprepa ordern om vi ändå ska dyka.",
+    "dykning innanför mynningen! Svara ja om vi ändå ska dyka.",
     "nav.surface_confirm": lambda d: f"Kapten, navigatören! Plottet har {d['designation']}, "
     f"{d['classification']}" + (f", cirka {nm(d['range'])} sjömil bort" if d.get("range") is not None
                                 else ", avståndet okänt")
-    + ". I ytläge ser de oss. Upprepa ordern om vi ska upp.",
+    + ". I ytläge ser de oss. Svara ja om vi ska upp.",
     "nav.fairway.none": lambda d: "Kapten, vi har redan gått farleden ut." if d["done"]
     else "Kapten, det finns ingen farled framför oss på kortet.",
     "nav.suggest.fairway": lambda d: "Kapten, navigatören. Jag föreslår att vi följer farleden ut"

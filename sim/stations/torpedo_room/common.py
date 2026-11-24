@@ -60,6 +60,7 @@ TYPE_ALIASES = {
 
 @dataclass(frozen=True)
 class FireTube(Order):
+    WEAPON = True
     tube: int
     designation: str | None = None
     course: float | None = None
@@ -70,6 +71,7 @@ class FireTube(Order):
 @dataclass(frozen=True)
 class FireAt(Order):
     """Eld mot en kontakt: torpedrummet väljer tub (aldrig kärnladdningen)."""
+    WEAPON = True
     designation: str
 
 
@@ -81,6 +83,7 @@ class TorpedoReport(Order):
 @dataclass(frozen=True)
 class FireSalvo(Order):
     """Salva raka torpeder i solfjäder mot en kontakt; torpedrummet lägger spridningen."""
+    WEAPON = True
     designation: str
     tubes: tuple[int, ...] | None = None    # None: de laddade raka tuberna, högst SALVO_MAX
 

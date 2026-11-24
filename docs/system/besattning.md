@@ -313,5 +313,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `peace_broken`). Maskin: nödblåsning utan vatten i båten (> 0,5 t eller läcka), skrovskada eller
   djupfara (`eng.blow_confirm`). Ett förslag kaptenen sagt ja till (`Game.accepting`) och vakten före
   överlämnandet (`Game.warmup_running`) frågas aldrig; starpoms order går inte genom `intercept`.
+  Kaptenen svarar `ja` (eller `j`) på en fråga i stället för att upprepa ordern (2026-11-24): stationen anropar
+  `Game.asked()` när den frågar (`confirm_once`, och torpedrummets `torp.confirm`, `torp.neutral`, `torp.too_close`,
+  `torp.long_shot`), och `ja` inom `QUESTION_S` (60 s) verkställer den ordern om frågan är nyare än ett väntande
+  förslag (`Game.active_question`, syns i orderraden); `nej` släpper den. Fraserna säger "Svara ja om …".
+  Kärnladdningen (`torp.nuclear_confirm`) kräver fortfarande upprepad order.
   Sedda i ytläge har vi `SURFACE_GRACE_S` (60 s, `World._check_outcome`, `mission["seen_surfaced_t"]`)
   att dyka igen innan uppdraget slutar med `forced`.

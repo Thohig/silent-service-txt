@@ -165,6 +165,13 @@ class SetCourse(Order):
 
 
 @dataclass(frozen=True)
+class TurnBy(Order):
+    """Gir relativt beordrad kurs (`babord 30`, `styrbord 30`): navigatören räknar fram kursen
+    (`NavigationStation.resolve`), så att kaptenen slipper räkna."""
+    delta: int                    # grader, positivt styrbord
+
+
+@dataclass(frozen=True)
 class SetSpeed(Order):
     speed: float
     astern: bool = False         # back i maskin

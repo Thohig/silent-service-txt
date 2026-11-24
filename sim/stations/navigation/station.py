@@ -60,6 +60,7 @@ from .common import (
     IceReport,
     ReportPosition,
     SetCourse,
+    TurnBy,
     SetDepth,
     SetSpeed,
     SettleOnBottom,
@@ -80,6 +81,13 @@ def _course(m: re.Match) -> Order:
     if not 0 <= c < 360:
         return Unknown("", "kursen måste vara 000–359")
     return SetCourse(int(round(c)) % 360)
+
+
+def _turn(m: re.Match) -> Order:
+    d = num(m[2])
+    if not 0 < d <= 180:
+        return Unknown("", "giren kan vara 1–180 grader")
+    return TurnBy(int(round(d)) * (-1 if m[1] in ("babord", "bb") else 1))
 
 
 def _negative(m: re.Match) -> Order:
@@ -107,6 +115,8 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
     role = Role.NAVIGATOR
     COMMANDS = [
         CommandSpec(rf"(?:kurs|k|styr)\s+{NUM}", _course, "kurs 090"),
+        CommandSpec(rf"(?:gira\s+)?(babord|bb|styrbord|sb)\s+{NUM}(?:\s*(?:grader|°))?", _turn,
+                    "babord 30 / styrbord 30 (gir från beordrad kurs)"),
         CommandSpec(rf"(?:fart|f)\s+{NUM}(?:\s*(?:knop|kn))?", lambda m: SetSpeed(num(m[1])), "fart 5"),
         CommandSpec(r"stopp|stoppa|stopp i maskin", lambda m: SetSpeed(0.0), "stopp"),
         CommandSpec(rf"back(?: i maskin)?\s+{NUM}(?:\s*(?:knop|kn))?",
@@ -478,6 +488,13 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
             case SetDepth(depth=d):
                 return abs(s.ordered_depth - d) < 1.0
         return None
+
+    def resolve(self, order: Order) -> Order:
+        if isinstance(order, TurnBy):
+            s = self.ship
+            base = s.ordered_course if s.ordered_course is not None else s.course
+            return SetCourse(int(round(base + order.delta)) % 360)
+        return order
 
     def on_order(self, order: Order) -> None:
         s = self.ship

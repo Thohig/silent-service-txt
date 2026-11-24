@@ -32,6 +32,7 @@ class Order:
     """
     STANDING: ClassVar[bool] = False
     INSTRUMENT: ClassVar[bool] = False
+    WEAPON: ClassVar[bool] = False      # vapen (eld, salva, kärnvapenrådet): föreslås aldrig, inte heller som "menade ni"
 
 
 @dataclass(frozen=True)
@@ -145,10 +146,12 @@ class CommandSpec:
 class CommandRegistry:
     def __init__(self, specs: Iterable[CommandSpec] = ()):
         self._specs: list[CommandSpec] = []
+        self._vocab: list[str] | None = None
         self.register(*specs)
 
     def register(self, *specs: CommandSpec) -> None:
         self._specs.extend(specs)
+        self._vocab = None
 
     def parse(self, text: str) -> Order:
         t = normalize(text)
@@ -161,6 +164,31 @@ class CommandRegistry:
                     order = Unknown(text, order.reason)
                 return order
         return Unknown(text)
+
+    def guess(self, text: str) -> str | None:
+        """Menade kaptenen något annat? En felstavad order med ett ord bytt mot det närmaste ordet i
+        ordförrådet (`difflib`), eller två ord ihopskrivna, som då går att tolka. Aldrig vapen eller
+        avbryt uppdraget (det föreslås inte som ja-order)."""
+        import difflib
+        words = normalize(text).split()
+        if not words:
+            return None
+        if self._vocab is None:
+            self._vocab = sorted({w for s in self._specs
+                                  for w in re.findall(r"[a-zåäö]{3,}", s.pattern + " " + s.help)})
+        tries: list[list[str]] = []
+        for i, w in enumerate(words):
+            if len(w) >= 3 and w.isalpha():
+                for c in difflib.get_close_matches(w, self._vocab, n=3, cutoff=0.75):
+                    tries.append(words[:i] + [c] + words[i + 1:])
+        for i in range(len(words) - 1):
+            tries.append(words[:i] + [words[i] + words[i + 1]] + words[i + 2:])
+        for ws in tries:
+            cand = " ".join(ws)
+            order = self.parse(cand)
+            if not isinstance(order, (Unknown, Quit)) and not order.WEAPON and cand != normalize(text):
+                return cand
+        return None
 
     def help_text(self) -> str:
         return ("Order: " + " · ".join(s.help for s in self._specs if s.help)
@@ -183,9 +211,9 @@ QUIT_COMMAND = CommandSpec(
 HELP_COMMAND = CommandSpec(r"hjälp|hjalp|\?|order", lambda m: Help(), "hjälp")
 
 SUGGESTION_COMMANDS = [
-    CommandSpec(r"ja|verkställ|verkstall|gör så|gor sa|utför|utfor|aye|jest|есть",
+    CommandSpec(r"ja|j|verkställ|verkstall|gör så|gor sa|utför|utfor|aye|jest|есть",
                 lambda m: AcceptSuggestion(), "ja"),
-    CommandSpec(r"nej|avslå|avsla|avvakta", lambda m: DeclineSuggestion(), "nej"),
+    CommandSpec(r"nej|n|avslå|avsla|avvakta", lambda m: DeclineSuggestion(), "nej (j och n räcker)"),
     CommandSpec(r"(?:förslag|forslag|några förslag|nagra forslag|vad föreslår ni|"
                 r"vad foreslar ni)\s*\??", lambda m: AskSuggestion(), "förslag"),
     CommandSpec(r"(?:annat|nytt|nästa|nasta|fler)\s+(?:förslag|forslag)\s*\??",

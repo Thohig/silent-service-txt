@@ -166,7 +166,7 @@ def test_torpedo_room_asks_before_firing_at_an_unidentified_or_civil_contact():
     _run(g, 5)
     assert room.tubes[0].load == loaded
     ask = [r for r in reports if r.type == "torp.confirm"]
-    assert ask and "handelsfartyg" in ask[0].text and "Upprepa" in ask[0].text
+    assert ask and "handelsfartyg" in ask[0].text and "Svara ja" in ask[0].text
     g.command("eld tub 1 mot S-8")                   # kaptenen står fast
     _run(g, 5)
     assert room.tubes[0].load is None
@@ -209,7 +209,7 @@ def test_torpedo_room_warns_about_a_merchant_in_the_torpedo_lane():
     _run(g, 5)
     assert room.tubes[0].load == loaded                 # inget skott ännu
     warn = [r for r in reports if r.type == "torp.neutral"]
-    assert warn and "S-8" in warn[0].text and "Upprepa" in warn[0].text
+    assert warn and "S-8" in warn[0].text and "Svara ja" in warn[0].text
     g.command("eld tub 1 mot S-7")                     # kaptenen står fast: skott, ingen ny fråga
     _run(g, 5)
     assert room.tubes[0].load is None
@@ -222,7 +222,7 @@ def test_the_firing_solution_mentions_a_merchant_in_the_lane():
     g.command("skjutlösning S-7")
     _run(g, 5)
     warn = [r for r in reports if r.type == "torp.neutral"]
-    assert warn and "S-8" in warn[0].text and "Upprepa" not in warn[0].text
+    assert warn and "S-8" in warn[0].text and "Svara ja" not in warn[0].text
 
 
 def test_no_warning_when_the_merchant_is_well_off_the_lane():

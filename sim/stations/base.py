@@ -89,6 +89,11 @@ class Station:
         """Förslag att ge om kaptenen varit tyst länge. Bara ur kunskap och eget läge."""
         return []
 
+    def resolve(self, order: Order) -> Order:
+        """Kaptenens order innan den prövas: stationen kan göra om en relativ order till en vanlig
+        (navigatören: `babord 30` blir kursen). Standard: oförändrad."""
+        return order
+
     def intercept(self, order: Order) -> bool:
         """Kaptenens order innan den verkställs: sant om stationen tar hand om den (och
         säger varför), så att den inte går vidare. T.ex. medan kaptenen är på väg."""
@@ -107,6 +112,7 @@ class Station:
         if t is not None and self.now - t <= CONFIRM_S:
             return False
         asked[key] = self.now
+        self.game.asked()                   # ja upprepar ordern
         self.say(type, data or {}, alarm=True)
         return True
 

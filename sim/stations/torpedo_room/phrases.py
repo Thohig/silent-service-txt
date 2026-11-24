@@ -97,7 +97,7 @@ PHRASES = {
         f"Kapten, {d['designation']} är klassad som {d['classification']}. "
         if d["civil"] else
         f"Kapten, {d['designation']} är inte säkert klassad som örlogsfartyg, "
-        f"bara {d['classification']}. ") + "Upprepa ordern om vi ska skjuta.",
+        f"bara {d['classification']}. ") + "Svara ja om vi ska skjuta.",
     "torp.neutral": lambda d: "Kapten, torpedrummet. Varning: "
     + ", ".join(f"{n['designation']} ({n['classification']}, bäring {fmt_course(n['bearing'])}"
                 + (f", {nm(n['range'])} sjömil" if n.get("range") is not None else
@@ -112,7 +112,7 @@ PHRASES = {
     + ("" if not d.get("target_class") else
        f" Och {d['target']} själv är klassad som {d['target_class']}." if d.get("target_civil") else
        f" Och {d['target']} själv är inte säkert klassad som örlogsfartyg, bara {d['target_class']}.")
-    + ("" if d.get("preview") else " Upprepa ordern om vi ska skjuta."),
+    + ("" if d.get("preview") else " Svara ja om vi ska skjuta."),
     "torp.fired": lambda d: f"{ru('Torpeda vysjla')}! Tub {d['tube']} avfyrad, {d['type']}, kurs {fmt_course(d['course'])}"
     + (f", beräknad gångtid {_mmss(d['run_s'])}" if d.get("run_s") else "")
     + (". Lösningen var dålig, risk för miss." if d.get("quality") == Quality.DALIG else ".")
@@ -143,7 +143,7 @@ PHRASES = {
     "torp.salvo_single": lambda d: f"Ingen salva mot {d['designation']}: bara tub {d['tube']} hade "
     "en rak torped, den gick ensam.",
     "torp.weapons_hold": lambda d: "Kapten, torpedrummet. Ordern tillåter inte vapen nu: det är inte "
-    "krig och vi angrips inte med skarpa vapen. Ett skott kan starta kriget. Upprepa ordern om vi "
+    "krig och vi angrips inte med skarpa vapen. Ett skott kan starta kriget. Svara ja om vi "
     "ska skjuta.",
     "torp.leg_warning": lambda d: f"Kapten, torpedrummet. Varning: "
     + (f"{d['designation']} jagar och girar hela tiden, och en {d['type']} är framme om "
@@ -159,7 +159,7 @@ PHRASES = {
     f"{_mmss(d['run_s'])} med {d['type']}. På den tiden hinner "
     + {"convoy": "konvojen gira på sitt nästa ben", "hunting": "den gira flera gånger, den jagar",
        "zigzag": "den gira, den sicksackar"}.get(d.get("kind"), "den gira eller ändra fart")
-    + ", och då går torpeden fel. Närmare blir gångtiden kort. Upprepa ordern om vi ska skjuta ändå.",
+    + ", och då går torpeden fel. Närmare blir gångtiden kort. Svara ja om vi ska skjuta ändå.",
     "torp.suggest.close": lambda d: f"Kapten, torpedrummet. Föreslår anfall mot {d['designation']}: "
     "navigatören tar oss till skjutläge vid sidan av dess väg, där gångtiden blir kort.",
     "torp.time": lambda d: (f"Tid för torpederna från tub {_and(d['tubes'])}" if d.get("tubes")
@@ -167,7 +167,7 @@ PHRASES = {
     + (f" mot {d['designation']}" if d.get("designation") else "") + "!",
     "torp.too_close": lambda d: f"Kapten, torped! {d['designation']} är för nära, cirka "
     f"{nm(d['range'])} sjömil till träffpunkten. Torpeden armeras först efter en kvarts sjömil och "
-    "exploderar inte. Upprepa ordern om vi ändå skjuter.",
+    "exploderar inte. Svara ja om vi ändå skjuter.",
     "torp.time.sunk": lambda d: (f"Tid för torpederna från tub {_and(d['tubes'])}" if d.get("tubes")
                                  else f"Tid för torpeden från tub {d['tube']}")
     + f", men {d['designation']} har redan sjunkit. "

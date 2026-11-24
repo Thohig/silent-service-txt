@@ -36,7 +36,9 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
    Rapporter får aldrig avslöja sanningens id:n (`DD1`, `T1` …).
 4. **`sim/` importerar aldrig Textual.** Gränssnittet bor i `ui/`.
 5. **Besättningen föreslår åtgärder** via `Station.suggest(..., order="…")`;
-   kaptenen svarar `ja`/`nej`. **Vapenavfyring föreslås aldrig som ja-order.**
+   kaptenen svarar `ja`/`nej` (`j`/`n`). **Vapenavfyring föreslås aldrig som ja-order** (`Order.WEAPON`, också
+   inte som "Menade ni …?", `CommandRegistry.guess`). Frågar en station om kaptenens egen order (`Game.asked()`)
+   verkställer `ja` den som en upprepad order (`Game.active_question`); kärnladdningen kräver upprepad order.
    Förslag om sådant kaptenen redan beordrat släpps (`Game.suggestion_redundant`,
    `Order.STANDING`). Ett larmförslag står 30 s mot vanliga förslag (`ALARM_HOLD_S`): ett vanligt
    förslag väntar då i `Game.held` (det nyaste vinner) och kommer när larmet är besvarat, om det inte
@@ -61,7 +63,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 - **Stationer** (`sim/stations/`): en per system, ärver `Station`. Har `COMMANDS`
   (`CommandSpec`), `on_order`, `update`, `say`, `suggest`. Nya system = ny station
   i `DEFAULT_STATIONS`; `Game` ska inte behöva ändras. Krokar `Game` frågar alla stationer:
-  `intercept` (order medan kaptenen går; `confirm_once` frågar en gång om en order som bryter mot
+  `resolve` (gör om en relativ order till en vanlig: navigatörens `babord 30` blir kursen), `intercept` (order medan kaptenen går; `confirm_once` frågar en gång om en order som bryter mot
   uppdraget, aldrig om ett förslag kaptenen sagt ja till eller under uppvärmningen), `on_suggestion` (starpom beslutar), `vetoes` (förslag som
   inte får ges), `order_in_force` (gäller en bestående order fortfarande, innan ett förslag om samma order släpps), `keeps_time_scale` (ett larm som inte ska sänka tidskomprimeringen), `status_fields`
   (stationens fält i `StatusSnapshot`; `Game.status()` hämtar bara egen ubåt själv och känner ingen enskild station).

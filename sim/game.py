@@ -51,6 +51,7 @@ S = TypeVar("S", bound=Station)
 V = TypeVar("V")
 SUGGESTION_TTL = 300
 ALARM_HOLD_S = 30           # ett larmförslag står så länge mot vanliga förslag
+QUESTION_S = 60             # `ja` på en stations fråga om kaptenens order (som att upprepa den) så här länge
 HELD_MAX_S = 60             # ett förslag som väntat bakom ett larm släpps när det är så här gammalt
 SAME_SUGGESTION_S = 30      # en annan station föreslår samma order så här snart efter: släpps (senare
                             # kommer den fram, med sitt skäl: grundvarningen efter sonarns djupförslag)
@@ -213,6 +214,8 @@ class Game:
         self.warmup_pending = scenario.warmup is not None
         self.warmup_running = False      # vakten kör före kaptenen (warm_up)
         self.accepting = False           # kaptenen har sagt ja: ordern är besättningens förslag
+        self._order_text = ""            # ordern (en del av raden) som verkställs just nu
+        self.question: tuple[str, int] | None = None   # en station frågade om kaptenens order: (ordern, t)
         if not self.warmup_pending:
             self.logbook.attach(self.bus)
         elif warm_up:
@@ -448,6 +451,20 @@ class Game:
         self._deliver(r)
         return r
 
+    def asked(self) -> None:
+        """En station frågar om kaptenens order (\"Svara ja om vi ska skjuta\"): `ja` inom QUESTION_S
+        upprepar den."""
+        if self._order_text:
+            self.question = (self._order_text, self.now)
+
+    def active_question(self) -> str | None:
+        """Ordern en station just frågat om, om frågan är nyare än ett väntande förslag."""
+        q = self.question
+        if q is None or self.now - q[1] > QUESTION_S:
+            return None
+        sug = self.active_suggestion()
+        return q[0] if sug is None or sug[2] <= q[1] else None
+
     def active_suggestion(self) -> tuple[str, str, int] | None:
         if self.suggestion and self.now - self.suggestion[2] <= SUGGESTION_TTL:
             return self.suggestion
@@ -470,7 +487,10 @@ class Game:
         if self.over:
             return
         self.last_command_t = self.now
+        self._order_text = text
         order = self.registry.parse(text)
+        for st in self.stations:
+            order = st.resolve(order)
         if by == "captain" and any(st.intercept(order) for st in self.stations):
             self.log(f"ORDER {text!r} -> {order} (stoppad)")
             return
@@ -480,6 +500,12 @@ class Game:
                                                                    if order.reason else ""))
         self.log(f"ORDER {text!r} -> {order}" + ("" if by == "captain" else f" ({by})"))
         match order:
+            case AcceptSuggestion() if (q := self.active_question()) is not None:
+                # ja på en fråga om kaptenens egen order: som att upprepa den
+                self.question = None
+                self._system("order.executing", {"what": q})
+                self.command(q)
+                return
             case AcceptSuggestion():
                 sug = self.active_suggestion()
                 if sug is None:
@@ -492,6 +518,10 @@ class Game:
                     self.command(sug[0])
                 finally:
                     self.accepting = False
+                return
+            case DeclineSuggestion() if self.active_question() is not None:
+                self.question = None
+                self.say(Role.NAVIGATOR, "order.declined", {})
                 return
             case DeclineSuggestion():
                 self.suggestion = None
@@ -516,6 +546,9 @@ class Game:
             case Quit():
                 self.world.end("quit")
                 self._end()
+            case Unknown(reason="") if not many and (guess := self.registry.guess(text)) is not None:
+                # en felstavning: frågan "Menade ni …?" är ett förslag, så att ja verkställer det
+                self.say(Role.NAVIGATOR, "order.did_you_mean", {"text": text, "order": guess}, kind="suggest")
             case Unknown(reason=reason):
                 self.say(Role.NAVIGATOR, "order.unknown", {"reason": reason})
 
@@ -653,7 +686,7 @@ class Game:
             radar_up=sy.radar_until > self.now, transmitting=sy.transmit_until > self.now,
             blowing=sy.blowing,
             cavitating=s.speed > cavitation_speed(s.depth, s.prop_astern),
-            suggestion=sug[0] if sug else None, over=self.over,
+            suggestion=self.active_question() or (sug[0] if sug else None), over=self.over,
             fire=sy.fire, smoke=sy.smoke, ventilating=sy.ventilating, on_bottom=sy.on_bottom,
             bridge=sy.bridge,
             night=not self.world.env.is_day(self.now), hunted=self.knowledge.hunted(self.now),

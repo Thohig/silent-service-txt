@@ -57,8 +57,10 @@ till `logs/truth-*.log`; i webbläsaren hålls den bara i minnet och försvinner
 ## Order
 
 Besättningen föreslår själv åtgärder. Ett förslag med en färdig order visas
-som `[ja: …]` och på statusraden. Svara `ja` för att verkställa eller `nej`
-för att avslå. Du kan också be om förslag: `förslag` upprepar det som
+som `[ja: …]` och på statusraden. Svara `ja` (eller bara `j`) för att verkställa eller `nej`
+(`n`) för att avslå. Frågar en station om din egen order ("Svara ja om vi ska skjuta") verkställer `ja`
+den, som att upprepa ordern; `nej` släpper den. Förstår besättningen inte en order men känner igen
+en felstavning frågar navigatören "Menade ni …?", och `ja` verkställer det (aldrig vapen). Du kan också be om förslag: `förslag` upprepar det som
 väntar eller ger besättningens viktigaste förslag just nu, `förslag sonar`
 frågar en viss station och `annat förslag` ger nästa i tur.
 Avfyring föreslås aldrig som en ja-order.
@@ -100,8 +102,8 @@ De gamla ordformerna (`läge S-1`, `plot S-1`, `skjutlösning S-1`, `stjärnfix`
 
 | Område | Order |
 |---|---|
-| Manöver | `kurs 090` · `fart 5` · `stopp` · `back 3` · `djup 100` · `periskopdjup` · `antenndjup` · `ytläge` |
-| Förslag | `ja` · `nej` · `förslag` · `annat förslag` |
+| Manöver | `kurs 090` · `styrbord 30` · `babord 30` (gir från beordrad kurs; `sb`, `bb`) · `fart 5` · `stopp` · `back 3` · `djup 100` · `periskopdjup` · `antenndjup` · `ytläge` |
+| Förslag | `ja` (`j`) · `nej` (`n`) · `förslag` · `annat förslag` |
 | Tid | `tid 1` `tid 2` `tid 5` `tid 10` (faller till 1× vid larm); `tid 30` `tid 60` bara när starpom har befälet |
 | Starpom | `starpom har befälet` (kaptenen går till hytten) · `jag har befälet` (till centralen, befälet direkt) · `lägesrapport` (ring centralen; har kaptenen befälet svarar vakthavande) · `svara` (eller Enter i hytten när det ringer) · `sov` (60× tills starpom väcker) · `väck mig 04:30`. Order per telefon verkställs och starpom behåller befälet |
 | Sonar | `aktiv sonar` (ger avstånd men avslöjar oss) |

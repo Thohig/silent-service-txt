@@ -211,7 +211,7 @@ def test_a_long_straight_shot_is_asked_once_and_an_attack_is_suggested():
     _run(g, 30)
     assert not torp.in_water
     ask = [r for r in reports if r.type == "torp.long_shot"]
-    assert ask and "Upprepa ordern" in ask[0].text
+    assert ask and "Svara ja" in ask[0].text
     sug = [r for r in reports if r.type == "torp.suggest.close"]
     assert sug and sug[0].data["order"] == "anfall S-1"
     g.command("eld tub 1 mot S-1")              # kaptenen står fast: skott

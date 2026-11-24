@@ -33,7 +33,7 @@ VERDICT_DELAY_S = 10         # torpedrummets besked kommer efter zampolitens och
 
 @dataclass(frozen=True)
 class CallCouncil(Order):
-    pass
+    WEAPON = True
 
 
 ORDER_TEXT = {"forbidden": "ordern förbjuder kärnladdningen", "order_only": "bara på order från Moskva",
