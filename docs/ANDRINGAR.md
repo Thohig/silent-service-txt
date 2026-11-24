@@ -3,6 +3,13 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Krig-kort: färre fullföljda patruller var slump
+
+Ja-boten på 32 frön gav 10 `patrol_done` på 3c9ce48 och 5–6 efter provspelets andra omgång. Frö för frö bytte
+12 av 32 frön utfall, åt båda hållen, och flödena skiljer sig redan efter några minuter med en rapport 1–2 s
+senare (frö 0 och 8, `skillnad.py`); de fullföljda patrullerna slutar 127–172 min av 175, nära gränsen. På 64 nya
+frön (32–95): 3c9ce48 12, nuvarande 14. Över 96 frön 22 mot 20: ingen verklig skillnad, ingen ändring.
+
 ## 2026-11-24 – Provspelet, omgång två: förslag som slutat gälla, pingarna, skjutdjupet
 
 Oraklets botar (ja, skjut, lyssna) på frön 16–23 i alla scenarier, och rapporttätheten i loggarna.
