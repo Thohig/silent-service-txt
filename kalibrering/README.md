@@ -65,6 +65,12 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 ## Siffrorna
 
+**Stampvinkeln (2026-11-24, baslinjens commit 70832d5):** `kontroll.py` (35 min): krig ja hemma 4 ⇒ 7 av 8 (frön 0, 4, 5;
+förlorad median 513 ⇒ 337 min, ett frö), jagad ja undkom 6 ⇒ 7, duell ja undkom 3 som förut men median 54 ⇒ 93 min,
+duell-kort ja förlorad 4 ⇒ 5 (3 i en körning med brant vinkel också uppåt: brus). Första versionen gick brant också uppåt:
+konvoj-mot ja anfallet 4 ⇒ 2 (frö 0: uppåt mot periskopdjupet 21°, slammer, eskorten hörde oss och salvan kom aldrig
+iväg; `skillnad.py konvoj-mot 0`); med brant bara nedåt 4 som förut.
+
 **Talnivån (2026-11-24):** ja-boten 2 h per spel, frön 0–3, kuba, konvoj-kort, jagad-kort, ovning, sundet, krig-kort
 (2181 min, ett `SoundBoard` per nivå på samma spel, tecken i det som köas för uppläsning; loggen påverkas inte): allt 131 tecken/min och 115 repliker/h,
 viktigt 76 och 65 (42 % mindre uppläst), larm 44 och 26; alla 935 larm och förslag på de tre nivåerna. Störst kvar på viktigt:
