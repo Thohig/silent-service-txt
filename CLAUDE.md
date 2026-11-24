@@ -66,7 +66,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
   `resolve` (gör om en relativ order till en vanlig: navigatörens `babord 30` blir kursen), `intercept` (order medan kaptenen går; `confirm_once` frågar en gång om en order som bryter mot
   uppdraget, aldrig om ett förslag kaptenen sagt ja till eller under uppvärmningen), `on_suggestion` (starpom beslutar), `vetoes` (förslag som
   inte får ges), `order_in_force` (gäller en bestående order fortfarande, innan ett förslag om samma order släpps), `keeps_time_scale` (ett larm som inte ska sänka tidskomprimeringen), `status_fields`
-  (stationens fält i `StatusSnapshot`; `Game.status()` hämtar bara egen ubåt själv och känner ingen enskild station).
+  (stationens fält i `StatusSnapshot`; `Game.status()` hämtar bara egen ubåt själv och känner ingen enskild station),
+  `overview_items` (översiktens kontaktrader och lägesrader, `sim/overview.py`, `Game.overview()`).
 - **Navigatören** är paketet `sim/stations/navigation/`: `station.py` (stationen, bestick, order,
   `update`), `common.py` (konstanter och order), `phrases.py`, och delarna som `NavigationStation` ärver:
   `fixes.py`, `bottom.py`, `ice.py`, `steering.py`, `exit_route.py`, `current.py` (strömmen ur fixarna).

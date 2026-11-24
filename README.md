@@ -16,7 +16,8 @@ Textual), sedan ligger det i webbläsarens cache.
 
 - **Ljud:** på från början: musik, bakgrundsljud och besättningens tal. Webbläsaren släpper fram ljudet
   först efter en tangent eller ett klick. Ordern `ljud` (eller Inställningar i huvudmenyn) slår av och på. Besättningen talar ryska om webbläsaren har en rysk röst
-  (Safari och Chrome på Mac har Milena), annars svenska; `tal svenska` och `tal ryska` byter.
+  (Safari och Chrome på Mac har Milena), annars svenska; `tal svenska` och `tal ryska` byter. Allt läses inte upp: `tal viktigt` (standard),
+  `tal allt`, `tal larm` och `tal av` väljer hur mycket; loggboken har alltid allt.
 - **Tangenter:** `Tab` växlar vy, `Esc` går tillbaka och `ctrl+q` avslutar. Chrome tar själv `ctrl+t`
   och `ctrl+w`, så använd orden i stället.
 - **Skärm:** spelet behöver tangentbord och minst 100×30 tecken. På telefon nås vyerna med ord
@@ -254,6 +255,7 @@ sim/                 ren Python, ingen Textual
   pilotage.py        SANNING: lotsen; andra fartyg girar undan grunt vatten och land
   profile.py         djupprofilens element; stationerna bidrar via profile_items()
   systems.py         systemtavlans element; stationerna bidrar via system_items()
+  overview.py        översiktens kontaktrader och lägesrader; stationerna bidrar via overview_items()
   periscope.py       periskopbilden: synlig del, vinkel på bogen, lanternor (kunskap)
   convoy.py          SANNING: konvojens ledpunkt, sicksack, formation och nödgir
   theatre.py         SANNING: krigsskådeplatsen: krigspatrullens uppgifter, telegrammen, hemkallelsen, följderna
@@ -274,9 +276,13 @@ sim/                 ren Python, ingen Textual
     torpedo_room/    torpedrum, laddning och torpederna i vattnet; eldledningen i firing.py
 ui/                  Textual
   views.py           vyregistret: vyerna, orden som öppnar dem och Tab-ordningen
-  audio.py           tal, larm och hydrofonljud genom mixern (MixPlayer; reserv say/afplay; WebPlayer i webben)
+  audio.py           tal (talnivån: vad som läses upp), larm och hydrofonljud genom mixern (MixPlayer; reserv say/afplay; WebPlayer i webben)
   voices.py          rösterna: språk -> röst, uppläsning och rendering (macOS say; WebSpeech i webben)
   ambience.py        bakgrundsljud: mixer och slingor (sounddevice; output() väljer utgången)
+  central_render.py  centralen som bild (rummet, besättningen, periskopet; bara egna instrument)
+  central_instruments.py centralens mätare: roder, visarnas tröghet, julgranen, braillemätarna
+  overview.py        översikten i helskärm (allt kaptenen vet)
+  overview_render.py sjökort, vattenfall, profil, kontakttabell, uppdrag och tavla på en skärm
   chart.py           sjökortet i helskärm
   chart_render.py    rastrering av sjökortet till tecken
   boat.py            vyn Ubåten i helskärm (djupprofil och systemtavla)
