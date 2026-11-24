@@ -243,6 +243,9 @@ för in varje färdigt steg där.
   en fjärdedel av gångtiden före beräknad tid: torpedrummet säger `torp.run.early`, inte träff.
   Provskjutningen: `ytskott.py` (ytläge, stilla mål), `skott_saker.py` (säkra lösningar i scenarierna).
   Långvåg med flytkabeln ≤ 50 m och ≤ 5 kn, 5 min; hel med två av mörker, ≤ 3 kn och ≤ 40 m.
+- Vaken (`docs/system/hav.md`, Is): `vak` i fart (> 1,8 kn) saktar till 1,5 kn över råken (`VAK_MEASURE_KN`), back 2 kn
+  till mitten när isekolodet ser slutet (`VAK_BACK_KN`, omkastningen under 2 kn); > 250 m stopp där vi är; nyis kortare
+  än båten (120 m) inte värd att backa till; kaptenens back under mätningen behåller vaken.
 - Clyde: Polarisbåten 130 + 2·fart dB i ytläge; bandet 10 min med SE ≥ 8 dB (`stations/recording.py`);
   fyrfix σ 0,1 (två) / 0,2 (en); moln ≥ 0,6 stänger stjärnfixen. Firth-bottnen i ett rutnät 0,05 nm.
 - Omladdning: två slammer à 145 dB (torpeden in, bakluckan stängs); på smygmotorn eller jagade laddar

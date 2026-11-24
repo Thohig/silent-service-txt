@@ -65,6 +65,17 @@ kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 ## Siffrorna
 
+**Utredningen av krig-kort och vaken under isen (2026-11-24, baslinjens commit 70832d5 för isen, c59554b för
+resten):** krig-kort ja-boten frö för frö (`perseed`-skript i scratchpad med `kontroll.run`): 3c9ce48 10 av 32
+hemma, d3d4621 5, c14e215 6; 12 frön bytte utfall åt båda håll, flödena skiljer sig efter några minuter (en rapport
+1–2 s senare, `skillnad.py` frö 0 och 8). Frön 32–95: 3c9ce48 12, c14e215 14; över 96 frön 22 mot 20, slump.
+`kontroll.py` alla scenarier: krig ja hemma 7 ⇒ 4 av 8 (frön åt båda håll; frö 4 förlorad på botten när reaktorn
+snabbstoppat, nu lättar maskin på elmotorn men frö 4 förloras ändå). Vaken (mät upp råken, back till mitten, kort
+nyis inte värd att backa till, öppningen isen drivit in över stryks): arktis ja stationen 5 ⇒ 7 av 8 (median 227 ⇒
+252 min), arktis-kort 2 ⇒ 3; duell ja undan 5 ⇒ 3 av 8 (frön 0–7), men frön 8–23 9 ⇒ 8, över 24 frön 14 mot 11: slump.
+Oraklet (`skytt.py ja alla 16-23`, 176 spel): ett larm, arktis 16 "vak" 4 gånger på 19 min när isen driver (fyra olika
+lägen; förslag och order talar nu om samma öppning). `--slow` 1179 gick igenom.
+
 **Provspelet i alla scenarier (2026-11-23 kväll, baslinjens commit cc8eb9e):** `skytt.py` ja/skjut/lyssna frön
 8–15, `provspel.py` alla 22 scenarier (frö 31, 41, 51), `kaos.py` 88 spel utan undantag. Torpeden i döda sektorn
 (larmet gäller 12 min): duell-kort ja förlorad 13 ⇒ 6 av 16 (60 min), Svansen-kort 3 ⇒ 2, jagad oförändrad; försök
