@@ -73,6 +73,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   glid förbi, ut 250 m och vänd, fyra försök på 16 min) stoppar inte på stället: navigatören saktar till 1,5 kn
   (`VAK_MEASURE_KN`) rakt över (`nav.vak.measure`), och när isekolodet ser slutet back 2 kn till mitten
   (`nav.vak.measured`, `_measure_opening`, `_back_to_centre`; omkastningen först under 2 kn, så den inte hörs).
+  Nyis kortare än båten (`MIN_SURFACE_LEN_M`) är inte värd att backa till: `nav.vak.too_short` och nästa öppning,
+  eller sök vidare i 3 kn. Öppningen isen driver in över medan vi ligger stilla stryks (`OpeningNotFound`).
   Längre än 250 m (`LONG_OPENING_M`): stopp där vi är. Slår kaptenen back under mätningen (fortare stopp, hörs)
   gäller vaken: stopp i mitten om slutet är sett, annars när farten framåt är borta (`nav.vak.back_ordered`).
   Arktis ja-boten (8 frön): stationen nådd 5 ⇒ 6, arktis-kort 2 ⇒ 3. Maskin säger inte "vi har ingen öppning" de första 5 min efter att ha föreslagit en.

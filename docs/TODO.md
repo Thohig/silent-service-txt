@@ -14,7 +14,10 @@ Inget just nu (webbversionen provad av kaptenen 2026-11-22: fungerar bra).
 
 ## Utreda
 
-Inget just nu.
+- **Maskin föreslår en öppning, navigatören stoppar under en annan** (arktis frö 16, 04:38, oraklet 2026-11-24):
+  `eng.suggest.vent_vak` nämner öppning 10, 190 m bort, men "vak" stoppar under en ny nyisråk vi just ligger under
+  (låg fart: stopp direkt), 20 m och för smal. Ordern säger inte vilken öppning. Kanske `vak 10`, eller att
+  navigatören väljer en nämnd öppning när den nuvarande är nyis och osäker. Inte byggt.
 
 ## Beslut som väntar på kaptenen
 

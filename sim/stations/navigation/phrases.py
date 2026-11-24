@@ -332,6 +332,9 @@ PHRASES = {
     "nav.vak.measure": lambda d: f"Vi ligger under öppningen nu, {d['kind']}. Saktar till {kn(d['speed'])} "
     "knop och mäter upp den, sedan back till mitten. Back i maskin nu stoppar oss fortare, men "
     "omkastningen hörs.",
+    "nav.vak.too_short": lambda d: f"Isekolodet: öppningen slutar här, bara cirka {d['length']} meter nyis, för kort "
+    "att bryta igenom." + (f" Går till öppning {d['next']} i stället." if d["next"] else
+                           " Ingen annan öppning loggad, vi söker vidare i 3 knop."),
     "nav.vak.back_ordered": lambda d: (f"Navigatören. Jag säger stopp mitt i öppningen, cirka {d['range']} "
                                        "meter akterut." if d["end"] else
                                        "Navigatören. Öppningen fortsätter förut, jag säger stopp när vi står."),
@@ -670,6 +673,9 @@ RU_PHRASES = {
     "nav.vak.here": lambda d: "Мы под полыньёй. Стоп.",
     "nav.vak.measure": lambda d: "Мы под полыньёй. Малый ход, промеряем её, потом назад на середину. "
     "Задний ход сейчас остановит быстрее, но будет слышно.",
+    "nav.vak.too_short": lambda d: f"Эхоледомер: полынья кончается, всего около {R.count(d['length'], R.METER)} "
+    "молодого льда, пробить не можем." + (f" Идём к полынье {d['next']}." if d["next"] else
+                                         " Других полыней не отмечено, ищем дальше."),
     "nav.vak.back_ordered": lambda d: (f"Штурман. Скажу стоп посередине полыньи, около "
                                        f"{R.count(d['range'], R.METER)} за кормой." if d["end"] else
                                        "Штурман. Полынья продолжается впереди, скажу стоп, когда встанем."),

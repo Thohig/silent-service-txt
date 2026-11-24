@@ -325,6 +325,18 @@ class IceMixin:
         if s.speed >= ASTERN_TRANSIENT_MIN_KN:
             s.order_speed(0)            # omkastningen i fart hörs: sakta in först
             return
+        if not o.open and o.length_m < MIN_SURFACE_LEN_M:
+            # nyis kortare än båten: går inte att bryta igenom, och masterna går inte genom is (arktis frö 16:
+            # back till en 50 m råk med nyis, tjock is, och sedan ändå öppning 7 strax akterut)
+            self._vak_phase = ""
+            nxt = self.just_passed_opening() or self.best_opening()
+            self.say("nav.vak.too_short", {"length": round_m(o.length_m), "next": nxt.no if nxt else None})
+            if nxt is not None:
+                self._steer_for(nxt)
+            else:
+                self.vak = None
+                s.order_speed(VAK_SPEED)
+            return
         course, rng_m = IceMap.course_and_range_m(self.est_x, self.est_y, o)
         if abs(angle_diff(course, s.course)) < 90 or rng_m <= VAK_CENTRED_M:
             self._vak_stop()            # mitten är inte bakom oss: stå här

@@ -3,6 +3,14 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-24 – Vaken: en kort råk med nyis är inte värd att backa till
+
+Oraklet efter vakändringen (arktis frö 16): navigatören mätte upp en råk med nyis på 50 m och backade dit, fast nyis
+kortare än båten varken går att bryta igenom eller ta masterna genom; tjock is, och sedan ändå öppning 7 strax
+akterut. Nu säger navigatören att den är för kort och går till den öppning han annars skulle välja
+(`nav.vak.too_short`, `_measure_opening`), eller söker vidare i 3 kn. Arktis ja-boten (8 frön): stationen nådd
+6 ⇒ 7; duell som förut.
+
 ## 2026-11-24 – Öppningen som isen drev in över stryks
 
 Oraklet (ja-boten, frön 16–23, 176 spel) gav ett larm: arktis frö 21, "vak" 4 gånger på 15 min medan isen drev in

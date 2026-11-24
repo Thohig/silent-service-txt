@@ -452,3 +452,31 @@ def test_an_opening_the_ice_drifts_over_while_we_lie_still_is_dropped():
         g.tick()
     assert o.dropped
     assert nav.just_passed_opening() is not o
+
+
+def test_a_short_stretch_of_new_ice_is_not_worth_backing_to():
+    """Mätt upp: 50 m nyis går varken att bryta igenom eller ta masterna genom. Navigatören backar inte dit
+    (arktis frö 16) utan säger det och söker vidare."""
+    g, reports = _arctic(1)
+    nav = g.station(NavigationStation)
+    s = g.world.own.state
+    y0 = s.y
+    a, b = y0 + 60 * M, y0 + 90 * M
+    g.world.env.ice.thickness_at = lambda x, y: 0.5 if a <= y <= b else 3.0
+    s.course = s.ordered_course = 0.0
+    s.speed = 5.0
+    s.order_speed(5.0)
+    s.depth = 60.0
+    s.order_depth(60.0)
+    for _ in range(120):
+        g.tick()
+        if s.y > a + 10 * M:
+            break
+    g.command("vak")
+    for _ in range(300):
+        g.tick()
+        if any(r.type == "nav.vak.too_short" for r in reports):
+            break
+    types = [r.type for r in reports]
+    assert "nav.vak.too_short" in types and "nav.vak.measured" not in types
+    assert not s.astern and s.ordered_speed > 0
