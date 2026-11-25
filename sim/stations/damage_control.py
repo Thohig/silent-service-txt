@@ -9,13 +9,15 @@ pumparna tar. Larmen (läcka tätad, avdelning utrymd, rodren fast …) sägs av
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 
 from .. import phrases
 from .. import russian as R
 from ..crew import Role
-from ..damage import CAP_T, LEAK_KINDS, inflow_factor
+from ..damage import CAP_T, LEAK_KINDS, bilge_capacity, inflow_factor
 from ..fmt import nm
-from ..ownship import BILGE_T_PER_MIN, PERISCOPE_DEPTH, TEST_DEPTH
+from ..orders import CommandSpec, Order
+from ..ownship import PERISCOPE_DEPTH, TEST_DEPTH
 from ..russian import ru
 from .base import Station
 
@@ -34,9 +36,21 @@ LEAK_UP_MIN_DEPTH = 60      # grundare än så föreslås inte "grundare för l�
 LEAK_UP_FLOOR = 40          # och inte upp förbi detta
 LEAK_UP_MARGIN = 0.2        # ton/min mer än pumparna tar innan det är värt att gå upp
 LEAK_UP_EVERY_S = 600
+BILGE_HUSH_DANGER_T = 8.0   # tystnad i båten: pumparna står tills det är så mycket vatten
+BILGE_HOLD_DANGER_T = 15.0  # "läns stopp": pumparna står tills det är så mycket
+BILGE_SUGGEST_T = 3.0       # tystnad och så mycket vatten som stiger: föreslå länsning
+BILGE_SUGGEST_EVERY_S = 300
 TEST_DEPTH_STEP = 10        # provdjupet sagt igen när det sjunkit så mycket …
 TEST_DEPTH_EVERY_S = 90     # … men inte oftare än så …
 TEST_DEPTH_BIG_STEP = 30    # … om det inte sjunkit så här mycket
+
+
+@dataclass(frozen=True)
+class Pump(Order):
+    """länsa (on=True: pumparna går också i tystnad, tills båten är länsad) / läns stopp (on=False:
+    pumparna står utom i fara)."""
+    on: bool = True
+    STANDING = True
 
 
 def where(n: int) -> str:
@@ -58,6 +72,15 @@ PHRASES = {
     "dc.leak_held": lambda d: f"{KIND_SV[d['kind']].capitalize()} i {where(d['compartment'])} är kilad och "
     "stöttad, kapten. Den läcker kvar, mindre ju grundare vi går.",
     "dc.bulkheads_open": lambda d: "Läckorna är tätade och båten länsad, kapten. Skotten öppnas.",
+    "dc.bilge.on": lambda d: f"{ru('Jest')}, länsar. Pumparna hörs." if d["water"] > 0.05
+    else f"{ru('Jest')}. Båten är torr, pumparna står klara.",
+    "dc.bilge.off": lambda d: f"{ru('Jest')}, länspumparna stopp. Jag startar dem bara om vattnet blir farligt.",
+    "dc.bilge.hushed": lambda d: f"Kapten, maskin. Länspumparna stoppade för tystnaden, {nm(d['water'])} ton "
+    "i kölsvinet.",
+    "dc.bilge.danger": lambda d: f"Kapten, maskin! {nm(d['water'])} ton vatten, länspumparna går ändå.",
+    "dc.bilge.done": lambda d: "Båten är länsad, kapten. Pumparna står.",
+    "dc.suggest.bilge": lambda d: f"Kapten, maskin. {nm(d['water'])} ton vatten i kölsvinet och det stiger. "
+    "Ber att få länsa, pumparna hörs.",
     "dc.suggest.leak_up": lambda d: f"Kapten, maskin. Läckan ger {nm(d['rate'])} ton i minuten på "
     f"{d['depth']} meter, mer än pumparna tar. Föreslår djup {d['target']}: "
     + ("där tar pumparna den." if d.get("enough") else "där läcker det mindre."),
@@ -79,6 +102,15 @@ RU_PHRASES = {
     "dc.leak_held": lambda d: f"{KIND_RU[d['kind']].capitalize()} в {ORDINAL_RU[d['compartment']]} отсеке "
     "заделан временно, течь остаётся.",
     "dc.bulkheads_open": lambda d: "Течи заделаны, вода откачана. Отдраиваем переборки.",
+    "dc.bilge.on": lambda d: "Есть, откачиваем. Насосы слышно." if d["water"] > 0.05
+    else "Есть. Трюм сухой.",
+    "dc.bilge.off": lambda d: "Есть, осушительные насосы стоп.",
+    "dc.bilge.hushed": lambda d: f"{R.CAPTAIN}, механик. Осушительные насосы остановлены для тишины, "
+    f"в трюме {R.dec(d['water'], R.TON)}.",
+    "dc.bilge.danger": lambda d: f"{R.CAPTAIN}, механик! {R.dec(d['water'], R.TON)} воды, запускаю насосы.",
+    "dc.bilge.done": lambda d: "Трюм осушен, насосы остановлены.",
+    "dc.suggest.bilge": lambda d: f"{R.CAPTAIN}, механик. В трюме {R.dec(d['water'], R.TON)} воды, "
+    "прибывает. Прошу разрешения откачивать.",
     "dc.suggest.leak_up": lambda d: f"{R.CAPTAIN}, механик. Течь больше, чем откачивают насосы. "
     f"Предлагаю глубину {R.count(d['target'], R.METER)}.",
 }
@@ -89,16 +121,79 @@ class DamageControlStation(Station):
     """Skadekontrollen: förslag mot fastnade roder och läckor som pumparna inte rår på,
     provdjupet när skrovet tagit skada."""
     role = Role.ENGINEER
+    COMMANDS = [
+        CommandSpec(r"länsa|lansa|länsa båten|lansa baten|starta länspumparna|starta lanspumparna",
+                    lambda m: Pump(True), "länsa"),
+        CommandSpec(r"läns stopp|lans stopp|stoppa länspumparna|stoppa lanspumparna|länsa inte|lansa inte",
+                    lambda m: Pump(False), "läns stopp"),
+    ]
 
     def __init__(self, game):
         super().__init__(game)
+        self.bilge_mode = "auto"         # auto (tystnad stänger av), on (kaptenen: länsa), hold (läns stopp)
+        self._hushed_said = False
+        self._danger_said = False
+        self._last_water = 0.0
         self._test_said = TEST_DEPTH
         self._test_t = -10**9
 
+    def on_order(self, order: Order) -> None:
+        if isinstance(order, Pump):
+            self.bilge_mode = "on" if order.on else "hold"
+            self._danger_said = False
+            self.say("dc.bilge.on" if order.on else "dc.bilge.off", {"water": self.own.sys.flooding}, kind="ack")
+            self._bilge()
+
+    def order_in_force(self, order: Order) -> bool | None:
+        if isinstance(order, Pump):
+            return self.bilge_mode == ("on" if order.on else "hold")
+        return None
+
     def update(self) -> None:
+        self._bilge()
         self._jam_advice()
         self._test_depth_watch()
         self._leak_advice()
+
+    def _hushed(self) -> bool:
+        from .officer import OfficerStation
+        try:
+            return self.game.station(OfficerStation).hushed
+        except KeyError:
+            return False
+
+    def _bilge(self) -> None:
+        """Länspumparna: på som standard; tystnad i båten stänger av dem tills vattnet blir farligt
+        (`länsa` kör dem ändå); `läns stopp` stänger av dem utom i fara."""
+        dmg, water = self.own.sys.dmg, self.own.sys.flooding
+        rising = water > self._last_water + 1e-6
+        self._last_water = water
+        if self.bilge_mode == "on":
+            on = True
+            if water <= 0.05:
+                self.bilge_mode = "auto"
+                self.say("dc.bilge.done", {})
+        elif self.bilge_mode == "hold":
+            on = water >= BILGE_HOLD_DANGER_T
+        else:
+            hushed = self._hushed()
+            on = not hushed or water >= BILGE_HUSH_DANGER_T
+            if hushed and not on and water > 0.5 and not self._hushed_said:
+                self._hushed_said = True
+                self.say("dc.bilge.hushed", {"water": water})
+            if not hushed:
+                self._hushed_said = False
+            if hushed and not on and rising and water >= BILGE_SUGGEST_T:
+                self.suggest("bilge", "dc.suggest.bilge", {"water": water}, order="länsa",
+                             cooldown=BILGE_SUGGEST_EVERY_S)
+        danger = self.bilge_mode != "on" and on and water >= min(BILGE_HUSH_DANGER_T, BILGE_HOLD_DANGER_T) and \
+            (self.bilge_mode == "hold" or self._hushed())
+        if danger and not self._danger_said:
+            self._danger_said = True
+            self.say("dc.bilge.danger", {"water": water}, alarm=True)
+        elif not danger:
+            self._danger_said = False
+        dmg.bilge_on = on
 
     def _jam_advice(self) -> None:
         dmg, st = self.own.sys.dmg, self.own.state
@@ -126,7 +221,7 @@ class DamageControlStation(Station):
         own, s, st = self.own, self.own.sys, self.own.state
         if st.depth < LEAK_UP_MIN_DEPTH or not s.dmg.leaks or own.surfaced:
             return
-        pumps = BILGE_T_PER_MIN if s.dmg.bilge_on else 0.0
+        pumps = bilge_capacity(st.depth) if s.dmg.bilge_on else 0.0
         # bara det som läcker kvar: en spricka som kilats, en läcka i en utrymd avdelning (de andra tätas snart)
         rate = sum(lk.rate(st.depth) for lk in s.dmg.leaks
                    if (lk.held or lk.compartment in s.dmg.evacuated) and not s.dmg.water[lk.compartment] >=

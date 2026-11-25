@@ -202,3 +202,52 @@ def test_battery_fire_is_reported_in_the_battery_room():
     txt = PHRASES["fire"]({"compartment": "batterirummet", "room": 2})
     assert "batteriet" in txt and "Turbinen" not in txt
     assert "batterirummet" in PHRASES["fire.out"]({"room": 2})
+
+
+def test_bilge_pumps_take_less_the_deeper_and_are_heard():
+    assert D.bilge_capacity(0) == pytest.approx(D.BILGE_T_PER_MIN)
+    assert D.bilge_capacity(250) == pytest.approx(D.BILGE_T_PER_MIN * 0.5)
+    assert D.bilge_capacity(480) == pytest.approx(D.BILGE_T_PER_MIN * D.BILGE_MIN_F)
+    w = _world(depth=100, speed=3)
+    quiet = w.own.radiated_level(w.env)
+    w.own.sys.dmg.water[5] = 2.0
+    _run(w, 1)
+    assert D.pumping(w.own) and w.own.radiated_level(w.env) > quiet + 1
+
+
+def test_hush_stops_the_bilge_pumps_and_the_crew_asks_to_pump():
+    from sim.stations.officer import OfficerStation
+    g, reports = _game()
+    own = g.world.own
+    off = g.station(OfficerStation)
+    off._hush_watch = lambda: None                  # tystnad i båten hela provet
+    off.hushed = True
+    own.add_leak(5, "svetsfog", 1.5)
+    for _ in range(300):
+        g.tick()
+    assert not own.sys.dmg.bilge_on and own.sys.flooding > D.BILGE_T_PER_MIN
+    assert any(r.type == "dc.bilge.hushed" for r in reports)
+    sug = [r for r in reports if r.type == "dc.suggest.bilge"]
+    assert sug and sug[0].data["order"] == "länsa"
+    g.command("ja")
+    for _ in range(5):
+        g.tick()
+    assert own.sys.dmg.bilge_on
+
+
+def test_bilge_stop_holds_the_pumps_until_the_water_is_dangerous():
+    g, reports = _game()
+    own = g.world.own
+    g.command("läns stopp")
+    own.sys.dmg.water[6] = 5.0
+    for _ in range(5):
+        g.tick()
+    assert not own.sys.dmg.bilge_on and any(r.type == "dc.bilge.off" for r in reports)
+    own.sys.dmg.water[6] = 16.0
+    for _ in range(5):
+        g.tick()
+    assert own.sys.dmg.bilge_on and any(r.type == "dc.bilge.danger" for r in reports)
+    g.command("länsa")
+    for _ in range(3):
+        g.tick()
+    assert any(r.type == "dc.bilge.on" for r in reports)

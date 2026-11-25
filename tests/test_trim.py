@@ -99,6 +99,7 @@ def test_lackvatten_ar_vikt():
     w = _world(depth=100, speed=2)
     _run(w, 1)
     w.own.sys.flooding = 10.0
+    w.own.sys.dmg.bilge_on = False                      # länspumparna står (de tar 0,8 t/min här)
     _run(w, 120)
     assert w.own.sys.trim.weight_t > 9
     assert w.own.state.depth > 105                      # 2 knop bär inte 10 ton

@@ -54,7 +54,6 @@ ASTERN_TURN = 1 / 3           # rodret tar dåligt när båten går akterut
 ASTERN_PLANES = 0.3           # djuprodrens bärförmåga akterut, andel
 REPAIR_S = 1200               # tid att reparera en komponent helt
 SEVERE_CAP = 0.75             # svår skada: det närmaste går inte att laga bättre än så till sjöss
-BILGE_T_PER_MIN = 0.5         # länspumparna (med kraft)
 PROP_RATTLE_HEALTH = 0.7      # framdrivningen så skadad: axeln slår och båten hörs mer
 PROP_RATTLE_DB = 3.0
 BRIDGE_MAN_S = 20             # luckan öppen och utkikarna uppe så här länge efter att vi kommit upp
@@ -310,6 +309,8 @@ class OwnShip(Vessel):
             lvl = acoustics.power_sum(lvl, acoustics.BLOW_LEVEL)
         if s.trim.pumping and (self.power or s.battery > 0.02):
             lvl = acoustics.power_sum(lvl, trim.PUMP_LEVEL)
+        if damage.pumping(self):
+            lvl = acoustics.power_sum(lvl, damage.BILGE_LEVEL)
         return lvl
 
     def self_noise(self) -> float:
@@ -555,7 +556,10 @@ class OwnShip(Vessel):
                 self.alert("surfaced")
 
         # vatteninträngning: läckorna, tätningen och länspumparna (damage.py)
-        damage.step(self, dt, BILGE_T_PER_MIN if regen and s.dmg.bilge_on else 0.0)
+        bilge = damage.pumping(self)
+        damage.step(self, dt, damage.bilge_capacity(st.depth) if bilge else 0.0)
+        if bilge and not self.power:
+            s.battery = max(0.0, s.battery - damage.BILGE_BATTERY_PER_H / 3600 * dt)
         self._trim_step(world, dt, regen)
         damage.jam_step(self, dt)
         self._heave_step(world)
