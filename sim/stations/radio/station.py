@@ -9,6 +9,7 @@ from ...headquarters import Headquarters
 from ...events import (ContactSunk, Handover, InterceptHeard, NuclearOrderRead, OwnActionLogged, PhotoTaken, ReportTransmitted)
 from ...icemap import thickness_words
 from ...orders import DESIG, CommandSpec, Order, desig
+from ...overview import Line
 from ...reports import Quality
 from ...ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH
 from ...profile import Cable, Level
@@ -181,6 +182,19 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
         if d and d["range"] > RADIO_VAK_MAX_M:
             d = {}                      # för långt bort för att hinna dit
         return True, d
+
+    def overview_items(self) -> list:
+        """Sambandet under UPPDRAG i översikten: öppet nu (och till när), annars nästa tillfälle."""
+        i = self.window_pending()
+        if i is not None and self.windows[i] <= self.now:
+            end = self.windows[i] + self.window_len
+            return [Line("UPPDRAG", "Samband", f"öppet nu, till {self.game.clock_str(end)[:5]}", "varning")]
+        nxt = next((w for w in self.windows if w > self.now), None)
+        if nxt is None:
+            return []
+        mins = (nxt - self.now) // 60
+        return [Line("UPPDRAG", "Samband", f"nästa {self.game.clock_str(nxt)[:5]}, om {mins // 60} h {mins % 60:02d} min",
+                     "info")]
 
     def system_items(self) -> list:
         items: list = []

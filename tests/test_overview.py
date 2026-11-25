@@ -155,3 +155,10 @@ def test_quality_and_lost_always_fit_in_a_narrow_table():
             lost = "∅" if w < 60 else "tappad"
             assert len(t) == w and "osäker" in t and (lost in t) == (not held), (w, t)
             assert "12,3" in t and "172" in t
+
+
+def test_next_radio_window_under_the_mission():
+    g = _game("kuba", ticks=5)
+    line = next((ln for ln in g.overview().lines if ln.label == "Samband"), None)
+    assert line is not None and line.panel == "UPPDRAG"
+    assert line.text.startswith("nästa ") and "min" in line.text
