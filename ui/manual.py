@@ -22,7 +22,8 @@ from .views import manual_words
 # gränssnittets egna ord (vyerna ur registret i ui/views.py, ljudet i ui/app.py) och tangenter
 VIEW_WORDS = manual_words()
 SOUND_WORDS = ["ljud", "tal ryska", "tal svenska", "tal viktigt", "tal allt", "tal larm", "tal av"]
-KEYS = [("Tab", "nästa vy"), ("Esc", "tillbaka till huvudvyn"), ("ctrl+t", "ljud av och på"),
+KEYS = [("Tab", "nästa vy"), ("Esc", "tillbaka till huvudvyn"),
+        ("PageUp", "loggboken över vyn, bläddra bakåt (PageDown framåt, Esc upp)"), ("ctrl+t", "ljud av och på"),
         ("ctrl+q", "stäng programmet")]
 
 

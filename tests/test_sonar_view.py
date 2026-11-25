@@ -231,7 +231,7 @@ def test_sonar_screen_keys_and_words(tmp_path):
             assert app.game.world.own.state.ordered_course == 200
             await pilot.press("escape")
             assert not isinstance(app.screen, SonarScreen)
-            await pilot.press("tab", "tab", "tab")   # stort fönster: översikt → loggboken → sjökort → sonar
+            await pilot.press("tab", "tab")   # översikt → central → sjökort → sonar
             assert isinstance(app.screen, ChartScreen)
             await pilot.press("tab")
             assert isinstance(app.screen, SonarScreen)

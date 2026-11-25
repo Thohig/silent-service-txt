@@ -25,6 +25,12 @@ class OrderLine(Input):
     """Orderraden i en vy: vyns tangenter gäller bara när raden är tom."""
 
     async def _on_key(self, event) -> None:
+        if event.key == "escape" and not self.value:
+            from .logdrawer import close_drawer
+            if close_drawer(self.screen):     # loggboken nere: Esc fäller upp den först
+                event.stop()
+                event.prevent_default()
+                return
         keys = getattr(self.screen, "EMPTY_KEYS", {})
         if not self.value and event.key in keys:
             event.stop()
@@ -69,6 +75,12 @@ class ViewScreen(Screen):
     def draw(self) -> None:          # ritas av underklassen
         pass
 
+    def on_resize(self, event) -> None:
+        """Loggboken (lagret) följer skärmens höjd. (Körs också när underklassen har en egen.)"""
+        from .logdrawer import drawer_on
+        if (d := drawer_on(self)) is not None:
+            d.place()
+
     def action_close(self) -> None:
         self.app.pop_screen()
 
@@ -84,9 +96,11 @@ class ViewScreen(Screen):
         if game.over:
             line.placeholder = "Uppdraget är slut – Enter: huvudmenyn   (Esc tillbaka)"
             return
+        from .logdrawer import drawer_on
+        esc = "(Esc loggen upp)" if drawer_on(self) is not None else "(Esc tillbaka)"
         sug = game.status().suggestion
-        line.placeholder = f"Förslag: ja = {sug} · nej avslår   (Esc tillbaka)" if sug \
-            else PLACEHOLDER
+        line.placeholder = f"Förslag: ja = {sug} · nej avslår   {esc}" if sug \
+            else PLACEHOLDER.replace("(Esc tillbaka)", esc)
 
     # --- de senaste rapporterna ---------------------------------------------------
     def _push_ticker(self, line: Text) -> None:

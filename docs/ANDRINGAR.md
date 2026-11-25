@@ -3,6 +3,16 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-25 – Loggboken är ett lager (PageUp), översikten huvudskärm i alla fönster
+
+- Loggboken var en egen vy i Tab-ordningen (stort fönster) eller huvudskärmen (litet). Nu fälls den ned över den
+  vy som är öppen med PageUp och fälls upp med Esc eller PageDown förbi slutet (`ui/logdrawer.py`); orderraden
+  behåller fokus, så kaptenen kan läsa bakåt och ge order i sjökortet eller periskopet. `logg` växlar den,
+  `telegram` visar bara remsorna, slutrapporten fäller ned den i full höjd. L gick inte: orderraden tar alla
+  bokstäver (`läget`, `länsa`, `ladda` …). Översikten är huvudskärm också i små fönster (loggremsan 7 rader,
+  9 från 100 × 30); vyerna `LogScreen` och `OverviewScreen` är borta. Tab: central → sjökort → sonar → ubåten →
+  periskopbild. Provat i 80 × 24 med `run_test` och skärmbilder; inte i en riktig terminal eller i webbläsaren.
+
 ## 2026-11-25 – Vakthavandes "djup 60" glesas ut obesvarat
 
 - Kuba-kort frö 7 på periskopdjup med jagare och flyg: "Föreslår djup 60" sju gånger på sju minuter medan kaptenen

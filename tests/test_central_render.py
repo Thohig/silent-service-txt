@@ -159,12 +159,11 @@ def test_periscope_column_stays_clear_of_dials():
 
 @pytest.mark.slow
 def test_layout_follows_the_window(tmp_path):
-    """Stort fönster: översikten är huvudvyn med loggremsan, centralen en helskärmsvy och loggvyn
-    visar allt. Litet: loggen stor, översikten en vy i Tab-ordningen."""
+    """Översikten är huvudvyn med loggremsan, centralen en helskärmsvy och loggboken ett lager som
+    visar allt, i stort och litet fönster."""
     from ui.app import SubApp
     from ui.central import CentralScreen
-    from ui.logview import LogScreen
-    from ui.overview import OverviewScreen
+    from ui.logdrawer import DrawerLog, drawer_on
     from ui.widgets import OverviewPanel, ReportLog
 
     async def run():
@@ -189,9 +188,10 @@ def test_layout_follows_the_window(tmp_path):
             assert body.size.width >= 138 and len(lines) >= 38
             assert any(0x2800 < ord(ch) <= 0x28FF for ch in "".join(lines))   # instrumenten
             assert "LUTNING" in "".join(lines)
-            await pilot.press("tab")                     # sedan hela loggboken
-            assert isinstance(app.screen, LogScreen)
-            full = app.screen.query_one("#logview-log", ReportLog)
+            await pilot.press("pageup")                  # loggboken över centralen
+            await pilot.pause(0.2)
+            assert isinstance(app.screen, CentralScreen) and drawer_on(app.screen) is not None
+            full = app.screen.query_one(DrawerLog)
             for _ in range(10):
                 app.game.tick()
             await pilot.pause(0.2)
@@ -205,9 +205,8 @@ def test_layout_follows_the_window(tmp_path):
 
             await pilot.resize_terminal(90, 28)
             await pilot.pause(0.3)
-            assert not gs.big and not panel.display
-            await pilot.press("tab")                     # litet: översikten är en vy
-            assert isinstance(app.screen, OverviewScreen)
+            assert not gs.big and panel.display          # litet: också översikten, kortare remsa
+            assert gs.query_one("#log", ReportLog).size.height <= 7
             await pilot.press("tab")
             assert isinstance(app.screen, CentralScreen)
             await pilot.press("escape")

@@ -67,11 +67,11 @@ def test_staff_telegrams_reach_knowledge_with_numbers():
 @pytest.mark.slow
 def test_telegram_opens_the_log_with_only_the_strips(tmp_path):
     from ui.app import SubApp
-    from ui.logview import LogScreen
+    from ui.logdrawer import drawer_on
     from ui.strips import TelegramStrip
 
     def shown(app):
-        log = app.screen.query_one("#logview-log")
+        log = app.screen.query_one("#drawer-log")
         return "\n".join("".join(seg.text for seg in line) for line in log.lines)
 
     async def run():
@@ -88,16 +88,17 @@ def test_telegram_opens_the_log_with_only_the_strips(tmp_path):
             assert sum(isinstance(e, TelegramStrip) for e in main.entries) == 2
             await pilot.press(*"telegram", "enter")
             await pilot.pause(0.3)
-            assert isinstance(app.screen, LogScreen) and app.screen.only_telegrams
+            assert drawer_on(app.screen).only_telegrams
             txt = shown(app)
             assert "ШИФРОГРАММА" in txt and "РАДИОГРАММА № 1" in txt and "HUVUDSTABEN" in txt
             assert "Du har befälet" not in txt
-            await pilot.press("space")                                  # hela loggen
+            await pilot.press(*"logg", "enter")                         # hela loggen
             await pilot.pause(0.3)
-            assert not app.screen.only_telegrams and "Du har befälet" in shown(app)
+            assert not drawer_on(app.screen).only_telegrams and "Du har befälet" in shown(app)
             await pilot.press(*"telegram", "enter")
-            assert app.screen.only_telegrams
-            await pilot.press(*"telegram", "enter")                     # igen stänger
-            assert not isinstance(app.screen, LogScreen)
+            assert drawer_on(app.screen).only_telegrams
+            await pilot.press(*"telegram", "enter")                     # igen fäller upp den
+            await pilot.pause()
+            assert drawer_on(app.screen) is None
 
     asyncio.run(run())

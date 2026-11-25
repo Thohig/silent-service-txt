@@ -113,7 +113,6 @@ def test_empty_overview_says_so():
 @pytest.mark.slow
 def test_overview_screen_opens_with_its_word(tmp_path):
     from ui.app import SubApp
-    from ui.overview import OverviewScreen
 
     async def run():
         app = SubApp(seed=1, log_dir=tmp_path, scenario="kuba")
@@ -128,14 +127,12 @@ def test_overview_screen_opens_with_its_word(tmp_path):
             from ui.widgets import OverviewPanel
             body = str(app.gs().query_one(OverviewPanel).render())
             assert "KONTAKTER" in body and "SJÖKORT" in body
-            await pilot.resize_terminal(90, 28)              # litet fönster: en egen vy
-            await pilot.pause(0.2)
+            await pilot.resize_terminal(80, 24)              # litet fönster: också huvudskärmen
+            await pilot.press(*"sjökort", "enter")
             await pilot.press(*"översikt", "enter")
             await pilot.pause(0.6)
-            assert isinstance(app.screen, OverviewScreen)
-            assert "KONTAKTER" in str(app.screen.query_one("#overview-body").render())
-            await pilot.press("escape")
-            assert not isinstance(app.screen, OverviewScreen)
+            assert app.screen is app.gs()
+            assert "KONTAKTER" in str(app.gs().query_one(OverviewPanel).render())
 
     asyncio.run(run())
 

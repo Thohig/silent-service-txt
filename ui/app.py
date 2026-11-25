@@ -29,7 +29,7 @@ from sim.truthlog import TruthLog
 
 from .audio import DEFAULT_LEVEL, LEVEL_TEXT, LEVELS, SoundBoard, make_soundboard, sound_available
 from .cabin import CabinScreen
-from .logview import LogScreen
+from .logdrawer import close_drawer, drawer_on, open_drawer, page_down, page_up
 from .menu import MenuScreen
 from .menu_audio import MenuSound
 from .menutext import INK as PAPER_INK
@@ -38,14 +38,13 @@ from .strips import TelegramStrip
 from .telegram import (crew_announcement, order_header, order_signature, report_header,
                        telegram_number)
 from .teletype import Teletype
-from .overview import OverviewScreen
 from .views import SCREENS as VIEWS, ViewContext, tab_order, view_for
 from .widgets import DepthGauge, OverviewPanel, ReportLog, StatusBar
 
 MAX_TICKS_PER_FRAME = 20
 GAUGE_EVERY_S = 0.5
 OVERVIEW_EVERY_S = 0.5                 # översikten på huvudskärmen
-BIG_MIN = (100, 30)                    # minst så stort: översikten är huvudvyn, loggen en remsa
+BIG_MIN = (100, 30)                    # minst så stort: loggremsan 9 rader (annars 7)
 SOUND_WORDS = {"ljud", "ljud av", "ljud på", "ljud pa"}
 SPEECH_WORDS = {"tal ryska": "ru", "tal svenska": "sv"}
 SPEECH_LEVEL_WORDS = {f"tal {lv}": lv for lv in LEVELS}      # tal allt, tal viktigt, tal larm, tal av
@@ -76,10 +75,12 @@ class GameScreen(Screen):
         self.app._begin()
 
     def on_resize(self, event) -> None:
-        """Stort fönster: översikten fyller vyn och loggen blir en remsa (hela loggen i loggvyn).
-        Mindre: loggen stor med djupmätaren bredvid (översikten är då en vy i Tab-ordningen)."""
+        """Översikten fyller vyn och loggen är en remsa under den (hela loggen: PageUp, `logg`);
+        i stort fönster är remsan längre."""
         w, h = event.size.width, event.size.height
         self.set_class(w >= BIG_MIN[0] and h >= BIG_MIN[1], "big")
+        if (d := drawer_on(self)) is not None:
+            d.place()
 
     @property
     def big(self) -> bool:
@@ -94,9 +95,8 @@ class SubApp(App):
     #status { height: 2; background: #1c2a20; color: #c8d0b0; }
     #intro  { height: 1fr; padding: 2 6; background: #120b09; }
     #main   { height: 1fr; }
-    #overview { height: 1fr; display: none; padding: 0 1; background: #0b0f0c; }
-    #lower  { height: 1fr; }
-    GameScreen.big #overview { display: block; }
+    #overview { height: 1fr; padding: 0 1; background: #0b0f0c; }
+    #lower  { height: 7; }
     GameScreen.big #lower { height: 9; }
     #log    { width: 1fr; padding: 0 1; background: #0b0f0c; scrollbar-size-vertical: 1; }
     #gauge  { width: 26; height: 1fr; padding: 1 1 0 1; background: #0f1611; color: #7f9a80; }
@@ -105,6 +105,9 @@ class SubApp(App):
     """
     BINDINGS = [Binding("ctrl+q", "quit", "Avsluta", priority=True),
                 Binding("tab", "cycle", "Nästa vy", priority=True),
+                Binding("pageup", "log_page(-1)", "Loggboken", priority=True),
+                Binding("pagedown", "log_page(1)", "Loggboken", priority=True),
+                Binding("escape", "log_close", "Loggboken upp", show=False),
                 Binding(SOUND_KEY, "sound", "Ljud", priority=True)]
 
     def __init__(self, seed: int | None = None, log_dir: Path | str = "logs",
@@ -300,22 +303,31 @@ class SubApp(App):
         return True
 
     def _overview_word(self) -> None:
-        """Översikten: i stort fönster huvudvyn (ordet stänger den vy som är öppen), annars en vy."""
-        if self.gs().big:
-            if isinstance(self.screen, VIEWS):
-                self.pop_screen()
-        else:
-            self._toggle_view(OverviewScreen)
+        """Översikten är huvudskärmen: ordet stänger den vy som är öppen."""
+        if isinstance(self.screen, VIEWS):
+            self.pop_screen()
 
     def _log_word(self) -> None:
-        """Loggboken: från telegrammen till hela loggen; i stort fönster en egen vy, annars
-        stänger ordet vyn (loggen syns på huvudskärmen)."""
-        if isinstance(self.screen, LogScreen) and self.screen.only_telegrams:
-            self.screen.set_telegrams(False)
-        elif self.gs().big:
-            self._toggle_view(LogScreen)
-        elif isinstance(self.screen, VIEWS):
-            self.pop_screen()
+        """Loggboken (lagret över vyn): från telegrammen till hela loggen, annars av och på."""
+        d = drawer_on(self.screen)
+        if d is not None and not d.only_telegrams:
+            close_drawer(self.screen)
+        else:
+            open_drawer(self.screen)
+
+    # ------------------------------------------------------------------ loggboken som lager
+    def action_log_page(self, step: int) -> None:
+        """PageUp: fäll ned loggboken, sedan en sida bakåt; PageDown framåt och upp förbi slutet."""
+        if not self.running or self.game is None or isinstance(self.screen, CabinScreen):
+            return
+        if step < 0:
+            page_up(self.screen)
+        else:
+            page_down(self.screen)
+
+    def action_log_close(self) -> None:
+        """Esc på huvudskärmen: fäll upp loggboken (i vyerna gör orderraden det, `OrderLine`)."""
+        close_drawer(self.screen)
 
     def _start(self) -> None:
         self.close_menu_sound()
@@ -331,13 +343,11 @@ class SubApp(App):
         if self.sound is not None and self.sound.enabled and self.sound.speaks_russian:
             log.add_system(self.game.clock_str(), "Besättningen talar ryska, loggen är på svenska. "
                            "tal svenska byter språk.")
-        if self.gs().big:
-            log.add_system(self.game.clock_str(), "Översikten visar allt vi vet. Tab växlar till centralen, loggboken, sjökort, "
-                           "sonar (vattenfallet), ubåten (djupprofil och systemtavla) och periskopbild, i ytläge också "
-                           "bryggan; Esc tillbaka till översikten.")
-        else:
-            log.add_system(self.game.clock_str(), "Tab växlar mellan logg, översikt, central, sjökort, sonar, ubåten "
-                           "(djupprofil och systemtavla) och periskopbild, i ytläge också bryggan.")
+        log.add_system(self.game.clock_str(), "Översikten visar allt vi vet. Tab växlar till centralen, sjökort, "
+                       "sonar (vattenfallet), ubåten (djupprofil och systemtavla) och periskopbild, i ytläge också "
+                       "bryggan; Esc tillbaka till översikten.")
+        log.add_system(self.game.clock_str(), "PageUp fäller ned loggboken i vilken vy som helst och bläddrar "
+                       "bakåt, PageDown framåt, Esc fäller upp den.")
         key = self.scenario_key or ""
         ru, sv = crew_announcement(key, SCENARIOS[key].title if key in SCENARIOS else "")
         log.add_system(self.game.clock_str(), f"Vakthavande i högtalaren: {sv}")
@@ -371,30 +381,26 @@ class SubApp(App):
         self.push_screen(cls())
 
     def _telegrams(self) -> None:
-        """Loggboken med bara telegrammen (i alla fönsterstorlekar); igen stänger."""
+        """Loggboken med bara telegrammen, över den vy som är öppen; igen fäller upp den."""
         if not self.running or self.game is None:
             return
-        if isinstance(self.screen, LogScreen):
-            if self.screen.only_telegrams:
-                self.pop_screen()
-            else:
-                self.screen.set_telegrams(True)
-            return
-        if isinstance(self.screen, VIEWS):
-            self.pop_screen()
-        self.push_screen(LogScreen(telegrams=True))
+        d = drawer_on(self.screen)
+        if d is not None and d.only_telegrams:
+            close_drawer(self.screen)
+        else:
+            open_drawer(self.screen, telegrams=True)
 
     def tab_views(self) -> tuple[type[Screen], ...]:
-        """Tab-ordningen efter läget (`ui/views.tab_order`): under ytan ingen brygga, loggboken
-        bara i stort fönster, hytten när starpom har befälet."""
+        """Tab-ordningen efter läget (`ui/views.tab_order`): under ytan ingen brygga, hytten när
+        starpom har befälet."""
         st = self.game.status() if self.game is not None else None
         return tab_order(ViewContext(big=self._screen is not None and self._screen.big,
                                      command=st.command if st else "captain",
                                      bridge=st.bridge if st else "shut"))
 
     def action_cycle(self) -> None:
-        """Tab: huvudvyn → (översikten i litet fönster) → centralen → (loggboken, om översikten är
-        huvudvy) → sjökort → sonar → ubåten → periskop (och brygga) → huvudvyn."""
+        """Tab: översikten (huvudskärmen) → centralen → sjökort → sonar → ubåten → periskop (och
+        brygga) → översikten."""
         if not self.running or self.game is None:
             return
         views = self.tab_views()
@@ -541,8 +547,8 @@ class SubApp(App):
 
     def _show_overview(self) -> None:
         gs = self.gs()
-        if self.screen is not gs or not gs.big or self.game is None:
-            return                          # en vy ligger över, eller litet fönster: ingen ser den
+        if self.screen is not gs or self.game is None:
+            return                          # en vy ligger över: ingen ser den
         gs.query_one(OverviewPanel).show(self.game)
 
     # ------------------------------------------------------------------ händelser
@@ -568,8 +574,7 @@ class SubApp(App):
         title = SCENARIOS[key].title if key in SCENARIOS else ""
         gs.query_one(ReportLog).add_ending(
             e.summary, header=report_header(key, title, self.game.secret_order))
-        if gs.big:
-            self.push_screen(LogScreen())    # slutrapporten får inte plats i remsan
+        open_drawer(gs, full=True)          # slutrapporten får inte plats i remsan
         inp = gs.query_one("#order", Input)
         inp.placeholder = OVER_PLACEHOLDER
         inp.focus()

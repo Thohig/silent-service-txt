@@ -108,7 +108,6 @@ def test_tab_cycles_through_the_boat_view(tmp_path):
     from ui.app import SubApp
     from ui.boat import BoatScreen
     from ui.chart import ChartScreen
-    from ui.logview import LogScreen
 
     async def run():
         app = SubApp(seed=2, log_dir=tmp_path, scenario="kuba")
@@ -118,7 +117,7 @@ def test_tab_cycles_through_the_boat_view(tmp_path):
                 app.game.tick()
             from ui.sonar import SonarScreen
             from ui.central import CentralScreen
-            for cls in (CentralScreen, LogScreen, ChartScreen, SonarScreen, BoatScreen):
+            for cls in (CentralScreen, ChartScreen, SonarScreen, BoatScreen):
                 await pilot.press("tab")
                 assert isinstance(app.screen, cls)
             await pilot.pause(0.6)
@@ -126,7 +125,7 @@ def test_tab_cycles_through_the_boat_view(tmp_path):
             assert "MASKIN" in body and "53-61" in body and "▬▶" in body
             app.save_screenshot(str(tmp_path / "ubaten.svg"))
             await pilot.press("tab", "tab")       # periskopbilden, sedan översikten
-            assert not isinstance(app.screen, (LogScreen, ChartScreen, BoatScreen))
+            assert not isinstance(app.screen, (ChartScreen, BoatScreen))
             for word in ("system", "profil", "ubåt"):
                 await pilot.press(*word, "enter")
                 assert isinstance(app.screen, BoatScreen)

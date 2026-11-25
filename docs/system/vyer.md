@@ -4,12 +4,18 @@ Flyttat ur CLAUDE.md (2026-11-18). Arbetsreglerna står kvar där; här är hur 
 fungerar och deras siffror. Uppdatera här när systemet ändras.
 
 - **Huvudskärmen** (`GameScreen` i `ui/app.py`, 2026-11-24): statusraden, översikten (`OverviewPanel` i
-  `ui/widgets.py`, ritad varannan halvsekund medan den syns) och under den loggremsan (9 rader) med djupmätaren
-  bredvid. Från 100 × 30 (`BIG_MIN`, klassen `big`); mindre ⇒ loggen fyller skärmen med djupmätaren bredvid och
-  översikten är en vy (`OverviewScreen`, först i Tab-ordningen). `Esc` och `översikt` går tillbaka hit
-  (`SubApp._overview_word`). Hela loggen är en egen vy (`LogScreen`, `ui/logview.py`, `logg`; slutrapporten öppnar
-  den). `ReportLog.emit` sparar raderna (`entries`) och speglar dem till loggvyn (`mirror`); skriv aldrig
-  loggrader med `write`.
+  `ui/widgets.py`, ritad varannan halvsekund medan den syns) och under den loggremsan med djupmätaren bredvid,
+  9 rader från 100 × 30 (`BIG_MIN`, klassen `big`), annars 7. `Esc` och `översikt` går tillbaka hit
+  (`SubApp._overview_word`). Översikten är ingen vy i Tab-ordningen (sedan 2026-11-25; förut var den det i små
+  fönster, där loggen var huvudskärm). `ReportLog.emit` sparar raderna (`entries`) och speglar dem till
+  loggboken när den är nere (`mirror`); skriv aldrig loggrader med `write`.
+- **Loggboken som lager** (`ui/logdrawer.py`, `LogDrawer`, 2026-11-25; förut vyn `LogScreen`): PageUp i vilken vy
+  som helst (också huvudskärmen, inte hytten) fäller ned hela loggen över vyns nedre 70 % ovanför orderraden
+  (`overlay: screen`, `place()` efter höjden; Textuals `position: absolute` ensam tog plats i layouten). Den står
+  sist; PageUp en sida bakåt, PageDown framåt och förbi slutet upp, `Esc` (tom orderrad: `OrderLine`, på
+  huvudskärmen appens binding) upp. Orderraden behåller fokus, så order går att ge med loggen nere. `logg`
+  växlar, `telegram` visar bara remsorna (`DrawerLog.only_telegrams`), slutrapporten fäller ned den i full höjd.
+  Ingen bokstav: orderraden tar alla (`läget`, `länsa` …). Mellanslag växlar inte filter (vyerna använder det).
 - **Loggen** (`ReportLog` i `ui/widgets.py`, en `RichLog`): `min_width` 20, så raderna bryts efter panelens
   bredd; `RichLog`s standard 78 klippte loggen i fönster upp till ~100 kolumner (80×24: ord saknades).
   En rapport med färdiga rader (`data["table"]`, `table_header`) får en tabell under raden; den läses upp bara
