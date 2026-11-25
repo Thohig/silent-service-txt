@@ -18,7 +18,7 @@ from .geo import NM_IN_M, angle_diff, velocity
 from .sky import julian_day, moon_phase, moon_position, sun_position
 
 if TYPE_CHECKING:
-    from .weather import Weather
+    from .weather import Showers, Weather
     from .seabed import Seabed
     from .ice import IceField
 
@@ -314,6 +314,7 @@ class Environment:
     # under spelet med `weather` (World sätter den varje tick).
     sea_state: int = 3
     weather: Weather | None = None     # sjögången som ändras (sim/weather.py), annars fast
+    showers: Showers | None = None     # regn och dimma som kommer och går (sim/weather.py)
     clouds: Clouds | None = None       # molntäcket; utan det klar himmel
     lights: tuple = ()                 # fyrarna som lyser (seabed.Lighthouse), Clyde
 
@@ -341,7 +342,15 @@ class Environment:
         efter sjögången (background_noise gäller vid Beaufort 3)."""
         if self.ice is not None:
             return self.ice.noise_at(x, y)
-        return self.background_noise + sea_noise_db(self.sea_state)
+        rain = self.showers.rain_db_now() if self.showers is not None else 0.0     # regnet smattrar på ytan
+        return self.background_noise + sea_noise_db(self.sea_state) + rain
+
+    def fog_vis(self) -> float | None:
+        """Sikten i dimman (nm) om det är dimma, annars None."""
+        return self.showers.fog_vis_now() if self.showers is not None else None
+
+    def raining(self) -> bool:
+        return self.showers is not None and self.showers.kind == "rain"
 
     def clock(self, sim_t: int) -> int:
         return (self.clock_start + sim_t) % 86400
@@ -368,13 +377,16 @@ class Environment:
     def light(self, sim_t: int) -> Light:
         """Ljuset vid simtid sim_t (sparas per sekund)."""
         cache = self.__dict__.setdefault("_light_cache", {})
+        fog = self.fog_vis()
         key = (sim_t, self.clock_start, self.lat, self.date, self.sunrise, self.sunset,
-               self.sea_state)
+               self.sea_state, fog)
         hit = cache.get(key)
         if hit is not None:
             return hit
         f = SEA_VIS_F[min(max(int(self.sea_state), 0), len(SEA_VIS_F) - 1)]
         vis = dict(day_vis=self.day_visibility_nm * f, night_vis=self.night_visibility_nm * f)
+        if fog is not None:                                # dimman: sikten är dimmans, dag som natt
+            vis = {k: min(v, fog) for k, v in vis.items()}
         if self.lat is None or self.date is None:
             elev, az = self._fallback_sun(sim_t)
             out = Light(elev, az, **vis)

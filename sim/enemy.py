@@ -45,6 +45,7 @@ from .environment import MOON_SIL_DEG, MOON_SIL_LIGHT, radar_clutter_f, sea_ping
 from .geo import angle_diff, bearing_to, distance, norm360
 from .seabed import bottom_clutter, shallow_reverb
 from .weapons import Decoy, Torpedo, drop_charges
+from .weather import RAIN_RADAR_F
 
 if TYPE_CHECKING:
     from .world import World
@@ -316,6 +317,8 @@ class DestroyerAI:
             p = 0.2                                     # dag 10, natt 6 nm i lugn sjö
         elif own.masts_up(world.time):
             det_r, p = self.MAST_NM * radar_clutter_f(sea), self.MAST_P * self.glitter_factor(world)
+            if world.env.raining():
+                det_r *= RAIN_RADAR_F           # regnklotter på radarn
         else:
             return
         if r < det_r and self.rng.random() < p:

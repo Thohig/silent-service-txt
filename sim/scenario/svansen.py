@@ -12,6 +12,7 @@ import math
 import random
 from typing import Any
 
+from ..weather import Showers
 from ..arctic import DriftStation, EnemySub, SubDatum, SubmarineAI
 from ..environment import Environment
 from ..goals import ShakeGoal
@@ -65,7 +66,7 @@ def _tail_watch_pilot(game: Any, t: int) -> None:
 
 def tail_short_scenario(rng: random.Random) -> Scenario:
     start_clock = 2 * 3600 + 43 * 60                  # 02:43, vakten lämnar över 02:51
-    env = Environment(clock_start=start_clock, sea_state=3, night_visibility_nm=1.5,
+    env = Environment(showers=Showers(rain_per_h=0.15, fog_per_h=0.05), clock_start=start_clock, sea_state=3, night_visibility_nm=1.5,
                       background_noise=60.0, current_set=30.0, current_kn=0.3,
                       **_place(NORWEGIAN_SEA_PLACE))
     size = TAIL_SIZE_NM

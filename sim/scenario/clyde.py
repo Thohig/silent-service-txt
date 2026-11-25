@@ -14,6 +14,7 @@ import random
 from dataclasses import replace
 from typing import Any
 
+from ..weather import Showers
 from ..clyde import POLARIS_ROUTE, ClydeTraffic, FishingAI, TransitAI
 from ..entities import Vessel
 from ..geo import bearing_to, distance
@@ -103,7 +104,7 @@ def clyde_scenario(rng: random.Random, short: bool = False) -> Scenario:
         breaks.append((t, t + dur))
         t += dur + clouds_rng.randint(80 * 60, 180 * 60)
     clouds = Clouds(cover=clouds_rng.uniform(0.75, 0.95), breaks=tuple(breaks))
-    env = Environment(clock_start=start_clock, sea_state=3, background_noise=64.0,
+    env = Environment(showers=Showers(rain_per_h=0.3, fog_per_h=0.15), clock_start=start_clock, sea_state=3, background_noise=64.0,
                       current_kn=0.0, seabed=seabed, tide=tide, clouds=clouds,
                       lights=CLYDE_LIGHTS, **_place(CLYDE_PLACE, utc_offset_h=1.0))
     own = OwnShip(ShipState(x=16.8 + rng.uniform(-0.4, 0.4), y=2.6 + rng.uniform(-0.3, 0.3),

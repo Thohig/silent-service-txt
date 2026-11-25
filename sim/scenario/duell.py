@@ -18,6 +18,7 @@ import math
 import random
 from typing import Any
 
+from ..weather import Showers
 from ..arctic import DOORS_S, FIRE_EVERY_S, DriftStation, EnemySub, SubDatum, SubmarineAI
 from ..environment import ArcticProfile, Environment
 from ..geo import bearing_to, distance
@@ -70,7 +71,7 @@ class IceIsland(DriftStation):
 def duel_scenario(rng: random.Random, short: bool = False, torpedo: bool = False) -> Scenario:
     start_clock = 3 * 3600
     ice = IceField(random.Random(rng.random()), drift_set=200.0, drift_kn=0.2)
-    env = Environment(profile=ArcticProfile(), clock_start=start_clock, ice=ice, sea_state=1,
+    env = Environment(showers=Showers(fog_per_h=0.1), profile=ArcticProfile(), clock_start=start_clock, ice=ice, sea_state=1,
                       background_noise=52.0, current_set=150.0, current_kn=0.1,
                       night_visibility_nm=1.0, **_place(ARCTIC_PLACE))
     size = DUEL_SHORT_SIZE_NM if short else DUEL_SIZE_NM

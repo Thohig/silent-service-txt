@@ -17,7 +17,7 @@ from ..ship import ShipState
 from ..traffic import TrafficGenerator
 from ..world import World
 from .common import CONVOY_PLACE, RadioMessage, Scenario, Warmup, _compass, _crew, _place
-from ..weather import Weather
+from ..weather import Showers, Weather
 from .kuba import KUBA_AIR, KUBA_TRAFFIC
 
 CONVOY_ORDER = """\
@@ -55,7 +55,7 @@ def convoy_scenario(rng: random.Random, run_in_nm: tuple[float, float] = (16.0, 
     """Konvojen: krig, en eskorterad konvoj sicksackar förbi; sänk ett fartyg och kom undan."""
     start_clock = 6 * 3600 + 30 * 60                   # 06:30, just efter gryningen
     size = 20.0
-    env = Environment(clock_start=start_clock, sea_state=5, **_place(CONVOY_PLACE),   # hård vind
+    env = Environment(showers=Showers(rain_per_h=0.2, fog_per_h=0.08), clock_start=start_clock, sea_state=5, **_place(CONVOY_PLACE),   # hård vind
                       weather=Weather(4, 6, trend=((0, 5),)))
     ox, oy = size / 2, rng.uniform(5.0, 8.0)
     own = OwnShip(ShipState(x=ox, y=oy, course=0, speed=4, depth=60, max_depth=400))

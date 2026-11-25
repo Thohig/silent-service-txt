@@ -35,6 +35,7 @@ from .recording import RecordingMixin
 from .sweep import SweepCalls
 
 BEARING_REPORT_DELTA = 5.0
+FOGHORN_REPORT_S = 900     # mistluren från samma fartyg (eller bäring) sägs högst så ofta
 CLASS_BATCH_S = 5          # klassningar samlas på en rad tills ingen ny kommit på så länge …
 CLASS_BATCH_MAX_S = 20     # … högst så länge
 LOST_BATCH_S = 20          # tappade (och åter hörda) kontakter samlas på en rad tills ingen ny kommit på så länge,
@@ -163,6 +164,11 @@ def _and(items: list[str]) -> str:
 
 
 PHRASES = {
+    "sonar.rain": lambda d: (f"Kapten, sonar. Regn på ytan, det smattrar i lurarna: havsbruset har ökat cirka "
+                             f"{abs(d['db']):.0f} dB. Vi hör sämre, kontakterna hörs kortare.") if d["on"] else
+    "Kapten, sonar. Regnet har slutat, vi hör längre igen.",
+    "sonar.foghorn": lambda d: f"Kapten, sonar. Mistlur i bäring {fmt_course(d['bearing'])}"
+    + (f", från {d['designation']}" if d.get("designation") else "") + ". Ett fartyg i dimma däruppe.",
     "sonar.ambient": lambda d: f"Kapten, sonar. Havsbruset har {'ökat' if d['db'] > 0 else 'minskat'} "
     f"cirka {abs(d['db']):.0f} dB. " + ("Vi hör sämre, kontakterna hörs kortare." if d["db"] > 0
                                         else "Vi hör längre nu."),
@@ -262,6 +268,10 @@ def _ru_cap(s: str) -> str:
 
 
 RU_PHRASES = {
+    "sonar.rain": lambda d: f"{R.CAPTAIN}, акустик. " + ("Дождь на поверхности, слышимость хуже." if d["on"]
+                                                         else "Дождь кончился, слышимость лучше."),
+    "sonar.foghorn": lambda d: f"{R.CAPTAIN}, акустик. Туманный горн, пеленг {R.course(d['bearing'])}. "
+    "Наверху туман.",
     "sonar.ambient": lambda d: f"{R.CAPTAIN}, акустик. Шумы моря "
     + ("усилились, слышимость хуже." if d["db"] > 0 else "ослабли, слышимость лучше."),
     "sonar.active.refused": lambda d: f"{R.CAPTAIN}, акустик. Выполнить не могу.",
@@ -366,6 +376,7 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         self.own_marks: list[OwnMark] = []
         self._ambient: float | None = None         # havsbruset sonaren senast sagt (dB)
         self._lost_batch: list[tuple[str, float | None]] = []   # tappade, ännu inte sagda
+        self._rain = False
         self._class_batch: list[tuple[str, str, Quality]] = []    # klassningar, ännu inte sagda
         self._class_t = self._class_last = 0
         self._regained_batch: list[tuple[str, float]] = []      # hörda igen, ännu inte sagda (som de tappade)
@@ -522,6 +533,13 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         if self.world.env.ice is not None:
             return
         n = self.world.background_at_own()
+        rain = self.world.env.raining()
+        if rain != self._rain:                      # regnet börjar eller slutar: sonar hör smattret
+            self._rain = rain
+            if self._ambient is not None:
+                self.say("sonar.rain", {"on": rain, "db": n - self._ambient})
+            self._ambient = n
+            return
         if self._ambient is None:
             self._ambient = n
         elif abs(n - self._ambient) >= AMBIENT_REPORT_DB:
@@ -923,6 +941,9 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                     self.say("sonar.explosion", {**d, "practice": practice, "near": near,
                                                  "quality": q.value}, kind="contact",
                              alarm=not practice, quality=q)
+        elif ev.kind == "foghorn":
+            if self._dedupe(f"foghorn{ev.designation or round(ev.bearing, -1)}", FOGHORN_REPORT_S):
+                self.say("sonar.foghorn", d, kind="contact")
         elif ev.kind == "buoy":
             if self._dedupe("buoy", 300):
                 self.say("sonar.buoy", d, kind="contact", alarm=True)

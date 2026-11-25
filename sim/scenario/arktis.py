@@ -5,6 +5,7 @@ import math
 import random
 from typing import Any
 
+from ..weather import Showers
 from ..arctic import DriftStation, EnemySub, SubmarineAI
 from ..environment import ArcticProfile, Environment
 from ..fmt import nm
@@ -46,7 +47,7 @@ def arctic_scenario(rng: random.Random, short: bool = False) -> Scenario:
     gått mot den i 20 min, ubåten är närmare och branden kommer snart (arctic_short_scenario)."""
     start_clock = 2 * 3600
     ice = IceField(random.Random(rng.random()), drift_set=200.0, drift_kn=0.25)
-    env = Environment(profile=ArcticProfile(), clock_start=start_clock, ice=ice, sea_state=1,
+    env = Environment(showers=Showers(fog_per_h=0.1), profile=ArcticProfile(), clock_start=start_clock, ice=ice, sea_state=1,
                       background_noise=52.0, current_set=150.0, current_kn=0.1,
                       night_visibility_nm=1.0, **_place(ARCTIC_PLACE))   # polarnatt
     x, y = 10.0, 3.0

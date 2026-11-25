@@ -95,6 +95,8 @@ class World:
         env = self.env
         if env.weather is not None:
             env.weather.step(env, self.time)    # sjögången (sim/weather.py)
+        if env.showers is not None:
+            env.showers.step(self.time)         # regn och dimma (sim/weather.py)
         ice = env.ice
         for v in [self.own, *self.contacts]:
             if v.sunk or isinstance(v, Torpedo):

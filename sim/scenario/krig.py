@@ -18,7 +18,7 @@ from ..seabed import kuba_seabed
 from ..ship import ShipState
 from ..theatre import Theatre, TheatreDef
 from ..traffic import Lane, TrafficDef, TrafficGenerator
-from ..weather import Weather
+from ..weather import Showers, Weather
 from ..world import World
 from .common import Scenario, Warmup, _crew, _place
 from .konvoj import _convoy_watch_pilot
@@ -90,7 +90,7 @@ def war_scenario(rng: random.Random, tdef: TheatreDef | None = None,
     """Krigspatrullen: en konvoj i ordern, sedan uppgifter från staben tills den kallar hem oss.
     short: vi ligger nära nordkanten (den korta varianten, en kortare väg ut)."""
     tdef = tdef or TheatreDef(recall_after_s=WAR_RECALL_S)
-    env = Environment(clock_start=WAR_START, sea_state=4, **_place(WAR_PLACE),
+    env = Environment(showers=Showers(rain_per_h=0.2, fog_per_h=0.08), clock_start=WAR_START, sea_state=4, **_place(WAR_PLACE),
                       weather=Weather(3, 5, trend=((0, 4),)))
     if short:
         ox, oy = size / 2 + rng.uniform(-3.0, 3.0), size - rng.uniform(*WAR_SHORT_EDGE_NM)

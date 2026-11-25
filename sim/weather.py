@@ -55,3 +55,50 @@ class Weather:
         else:
             d = -1 if r < P_DRIFT else 1 if r < 2 * P_DRIFT else 0
         env.sea_state = min(self.hi, max(self.lo, cur + d))
+
+
+# --- regn och dimma ---------------------------------------------------------------------------
+# Episoder som kommer och går (sanning): regn höjer havsbruset (smattret på ytan, sonar hör det) och
+# ger klotter på radarn; dimma sänker sikten för periskopet, bryggan och utkiken (radarn ser genom
+# den). Handelsfartygen i dimma blåser i mistluren (traffic.py). Egen slumpström
+# (`Game.rng_for("showers")`); utan ström (ett `World` utan `Game`) kommer inget väder.
+RAIN_RADAR_F = 0.7          # radarns räckvidd mot master i regn
+
+
+@dataclass
+class Showers:
+    rain_per_h: float = 0.0                   # så många regnskurar per timme (i medel)
+    fog_per_h: float = 0.0                    # och dimbankar
+    rain_db: tuple[float, float] = (3.0, 8.0)     # havsbruset ökar så mycket (dB)
+    fog_vis_nm: tuple[float, float] = (0.2, 0.8)  # sikten i dimman
+    duration_s: tuple[int, int] = (15 * 60, 60 * 60)
+    rng: random.Random | None = None
+    kind: str | None = None                   # "rain", "fog" eller None just nu
+    level: float = 0.0                        # dB (regn) eller sjömil (dimma)
+    until: int = 0
+    next_t: int | None = None
+
+    def step(self, t: int) -> None:
+        if self.rng is None or self.rain_per_h + self.fog_per_h <= 0:
+            return
+        if self.kind is not None and t >= self.until:
+            self.kind = None
+            self.next_t = None
+        if self.kind is not None:
+            return
+        if self.next_t is None:
+            rate = (self.rain_per_h + self.fog_per_h) / 3600.0
+            self.next_t = t + int(self.rng.expovariate(rate))
+            return
+        if t < self.next_t:
+            return
+        fog = self.rng.random() < self.fog_per_h / (self.rain_per_h + self.fog_per_h)
+        self.kind = "fog" if fog else "rain"
+        self.level = self.rng.uniform(*(self.fog_vis_nm if fog else self.rain_db))
+        self.until = t + self.rng.randint(*self.duration_s)
+
+    def rain_db_now(self) -> float:
+        return self.level if self.kind == "rain" else 0.0
+
+    def fog_vis_now(self) -> float | None:
+        return self.level if self.kind == "fog" else None

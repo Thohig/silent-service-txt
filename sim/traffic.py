@@ -16,7 +16,7 @@ import random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .entities import Vessel
+from .entities import Transient, Vessel
 from .geo import bearing_to, distance
 from .ship import ShipState
 
@@ -27,6 +27,8 @@ VIA_ARRIVE_NM = 0.08        # en brytpunkt (grind) passeras så här nära
 ARRIVE_NM = 0.5             # framme vid ledens slut: gå vidare rakt fram
 STOP_NM = 3.0               # sovjetiskt fraktfartyg stoppar när en jagare är så nära
 STOP_S = (15 * 60, 35 * 60) # så länge det ligger stilla innan det vänder hem
+FOGHORN_EVERY_S = 120       # en lång signal i dimma högst varannan minut
+FOGHORN_LEVEL = 150.0       # dB i vattnet (luren låter genom skrovet och ytan)
 MIN_START_RANGE_NM = 3.0    # lägg inte ut fartyg ovanpå ubåten från start
 
 
@@ -73,10 +75,18 @@ class MerchantAI:
     def aware(self) -> bool:
         return False
 
+    @property
+    def _horn_phase(self) -> int:
+        """Var i varvet mistluren ljuder (ur id:t, ingen slump: fartygen tutar inte i takt)."""
+        return sum(map(ord, self.vessel.id)) % FOGHORN_EVERY_S
+
     def step(self, world: World) -> None:
         v, s = self.vessel, self.vessel.state
         if v.sunk or self.state == "moored":
             return
+        if world.env.fog_vis() is not None and (world.time + self._horn_phase) % FOGHORN_EVERY_S == 0:
+            # i dimma: en lång signal med mistluren (sjövägsreglerna), hörs i vattnet
+            world.emit(Transient("foghorn", s.x, s.y, 0.0, FOGHORN_LEVEL, v.id, world.time))
         if self.state == "stopped":
             if world.time >= self.resume_t:
                 self.state = "homeward"

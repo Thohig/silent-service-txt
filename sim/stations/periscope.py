@@ -138,8 +138,9 @@ def _lights_contact(d: dict) -> str:
 
 
 PHRASES = {
-    "off.periscope.up": lambda d: "Periskop upp." if d.get("bearing") is None
-    else f"Periskop upp, kort titt i bäring {fmt_course(d['bearing'])}.",
+    "off.periscope.up": lambda d: ("Periskop upp." if d.get("bearing") is None
+                                   else f"Periskop upp, kort titt i bäring {fmt_course(d['bearing'])}.")
+    + (f" Dimma, sikten cirka {kn(d['fog'])} sjömil." if d.get("fog") is not None else ""),
     "off.periscope.hold": lambda d: "Periskop upp. Det står uppe tills ni fäller det, kapten.",
     "off.periscope.down": lambda d: "Periskop ner.",
     "off.periscope.is_down": lambda d: "Kapten, periskopet är nere.",
@@ -349,7 +350,7 @@ class PeriscopeWatch(Station):
                 look_s = LOOK_S if bearing is None else SHORT_LOOK_S
                 self._raise("sweep" if bearing is None else "look",
                             self.own.state.course if bearing is None else bearing, look_s)
-                self._say("off.periscope.up", {"bearing": bearing}, kind="ack")
+                self._say("off.periscope.up", {"bearing": bearing, "fog": self.world.env.fog_vis()}, kind="ack")
             case PeriscopeHold():
                 if self.mode != "hold" and not self._may_raise():
                     return

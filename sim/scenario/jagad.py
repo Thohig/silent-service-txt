@@ -4,6 +4,7 @@ from __future__ import annotations
 import math
 import random
 
+from ..weather import Showers
 from ..air import AirDef, AirPatrol
 from ..enemy import DestroyerAI
 from ..entities import Vessel
@@ -68,7 +69,7 @@ def hunted_scenario(rng: random.Random, short: bool = False) -> Scenario:
     short: kort variant (`jagad-kort`): kvadraten 8 nm, DD1 1,5 nm bort i anfallsgång med
     skarpa bomber från start, DD2 spärrar den korta vägen ut över djupt vatten."""
     start_clock = 40 * 60                               # 00:40, mörkt
-    env = Environment(clock_start=start_clock, sea_state=3, **_place(KUBA_PLACE))
+    env = Environment(showers=Showers(rain_per_h=0.2), clock_start=start_clock, sea_state=3, **_place(KUBA_PLACE))
     size = HUNTED_SHORT_SIZE if short else 20.0
     # botten först: ubåten börjar på djupt vatten några sjömil från bankens kant
     sb_rng = random.Random(rng.random())

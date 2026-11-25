@@ -94,7 +94,11 @@ def sea_words(beaufort: int) -> str:
 
 PHRASES = {
     "bridge.manned": lambda d: "Luckan öppen, utkikarna på bryggan."
-                               + (f" {sea_words(d['sea'])}." if "sea" in d else ""),
+                               + (f" {sea_words(d['sea'])}." if "sea" in d else "")
+                               + (f" Tät dimma, sikten cirka {kn(d['fog'])} sjömil." if d.get("fog") is not None
+                                  else " Regn." if d.get("rain") else ""),
+    "bridge.fog": lambda d: f"Bryggan: dimman kommer in, sikten cirka {kn(d['fog'])} sjömil." if d.get("fog")
+    is not None else "Bryggan: dimman lättar, sikten är god igen.",
     "bridge.sea": lambda d: f"Bryggan: sjön {'ökar' if d['up'] else 'mojnar'}. {sea_words(d['sea'])}.",
     "bridge.clearing": lambda d: f"Utrym bryggan! Alla man ned, luckan stängs. "
     f"Cirka {d['seconds']} sekunder.",
@@ -123,6 +127,8 @@ def _contact_ru(d: dict) -> str:
 
 
 RU_PHRASES = {
+    "bridge.fog": lambda d: "Мостик: туман, видимость плохая." if d.get("fog") is not None
+    else "Мостик: туман рассеивается.",
     "bridge.manned": lambda d: "Рубочный люк открыт, сигнальщики на мостике."
                                + (f" Волнение {R.count(d['sea'], ('балл', 'балла', 'баллов'))}."
                                   if "sea" in d else ""),
@@ -150,6 +156,7 @@ class BridgeWatch(Station):
 
     def __init__(self, game):
         super().__init__(game)
+        self._fog_said: float | None = None
         # egen slump, så att utkiken inte flyttar resten av spelets dragningar;
         # fröet ur spelets (oanvända) tillstånd, alltså samma för samma frö
         self.rng = game.rng_for("bridge")
@@ -172,6 +179,10 @@ class BridgeWatch(Station):
         if new or self.now % LOOK_EVERY_S == 0:
             self._look()
             self._sweep_calls.flush(force=True)
+        fog = self.world.env.fog_vis()       # utkiken ser dimman komma och lätta
+        if (fog is None) != (self._fog_said is None):
+            self.say("bridge.fog", {"fog": fog})
+        self._fog_said = fog
         sea = self.world.env.sea_state       # utkiken ser sjön ändras (vädret)
         if self._sea_said is not None and sea != self._sea_said:
             self.say("bridge.sea", {"sea": sea, "up": sea > self._sea_said})
@@ -185,7 +196,9 @@ class BridgeWatch(Station):
         prev, self._hatch = self._hatch, b
         if b == "manned":
             self._sea_said = self.world.env.sea_state
-            self.say("bridge.manned", {"sea": self._sea_said})
+            self._fog_said = self.world.env.fog_vis()
+            self.say("bridge.manned", {"sea": self._sea_said, "fog": self._fog_said,
+                                       "rain": self.world.env.raining()})
         elif b == "clearing":
             self.game.bus.publish(BridgeSighted(self.now, None))
             self.say("bridge.clearing", {"seconds": BRIDGE_CLEAR_S}, kind="ack")

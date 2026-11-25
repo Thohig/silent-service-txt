@@ -15,7 +15,7 @@ from ..seabed import kuba_seabed
 from ..ship import ShipState
 from ..traffic import Lane, TrafficDef, TrafficGenerator
 from ..world import World
-from ..weather import Weather
+from ..weather import Showers, Weather
 from .common import KUBA_PLACE, RadioMessage, Scenario, Warmup, _crew, _place
 
 SECRET_ORDER = """\
@@ -61,7 +61,7 @@ KUBA_AIR = AirDef()
 
 def default_scenario(rng: random.Random) -> Scenario:
     start_clock = 4 * 3600 + 30 * 60
-    env = Environment(clock_start=start_clock, sea_state=3, **_place(KUBA_PLACE),
+    env = Environment(showers=Showers(rain_per_h=0.25), clock_start=start_clock, sea_state=3, **_place(KUBA_PLACE),
                       weather=Weather(2, 5, trend=((0, 3), (2 * 3600, 4))))   # prognosen i ordern
     own = OwnShip(ShipState(x=10.0, y=3.0, course=0, speed=5, depth=100, max_depth=400))
     dd = Vessel("DD1", "destroyer",
