@@ -3,6 +3,23 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-25 – Liv i världen: regn och dimma, vrak, fiske, helikopter, B-36, ljudet ombord, kollision med fartyg
+
+- Kollision med fartyg (`sim/collision.py`): ett fartyg som går över oss på periskopdjup slår i tornet (periskop och
+  radio), skrov mot skrov efter den relativa farten; en jagare med skarpa order rammar en ubåt den ser grunt
+  (`DestroyerAI._ram`); sonar ropar vid stående bäring och stigande styrka. `tests/test_collision.py`.
+- Regn och dimma (`weather.Showers`), vrak (`seabed.Wreck`), fisket (`sim/fishing.py`), helikoptern (`sim/helo.py`),
+  B-36 (`sim/foxtrot.py`): se `docs/system/hav.md` och `scenarier.md`. Tester: `test_showers.py`, `test_wrecks.py`,
+  `test_fishing.py`, `test_helo.py`, `test_foxtrot.py`.
+- Ljudet ombord följer skadekontrollen: läckan sprutar, kölsvinet droppar, pumparna dunkar, reparationen slår (eller
+  filar tyst i tystnad), fläktarna står i tystnad (`ui/ambience.py`; statusraden `pumps`, `leak_rate`, `repairing`,
+  `hushed`).
+- Konvojens klassningar på en rad (`sonar.classified.many`).
+- Buggar längs vägen: fiskebåtar räknades som hot (vakthavande föreslog att vänta på mörkret för en); torpedrummet
+  varnade inte för vänliga fartyg nära målet (bara övningens bevakningsfartyg ska undantas); sonars undanmanöver
+  föreslog ett djup under det sänkta provdjupet (jagad frö 84); ett förslag och dess eget larm samma sekund (jagad-kort
+  frö 4); `länsa` i en torr båt sa två saker; packboxarna tjatade på besättningens egna 280 m (krig frö 2).
+
 ## 2026-11-25 – Skadekontrollen: läckor, avdelningar, länspumpar, reparation och belastning
 
 Vad det betyder i spel (`docs/system/besattning.md`, Skadekontrollen; `sim/damage.py`, `stations/damage_control.py`):

@@ -58,7 +58,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 
 ## Arkitektur i korthet
 - **Sanningslager:** `world.py` (tick-ordning dokumenterad där), `ownship.py`, `damage.py` (skadorna, läckorna, vattnet
-  i avdelningarna, belastningen; `OwnSystems.dmg`), `collision.py` (kollision med fartyg; jagaren rammar), `ice.py`,
+  i avdelningarna, belastningen; `OwnSystems.dmg`), `collision.py` (kollision med fartyg; jagaren rammar),
+  `fishing.py` (trålarna), `helo.py` (helikoptern), `foxtrot.py` (B-36), `weather.py` (sjögången, regn och dimma), `ice.py`,
   `enemy.py`, `weapons.py`, `environment.py`, `acoustics.py`, `entities.py`, `pilotage.py`
   (lotsen: andra fartyg girar undan land, efter AI:erna).
   Transienter/emissioner som skapas under ett tick blir hörbara nästa tick.
@@ -165,8 +166,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 
 Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där):
 - `docs/system/scenarier.md`: Civil trafik, Konvoj, Konvoj i plottet, Anfall, Övningen, Jagarkaptenerna,
-  Flyg, Fiendens torpeder (med nedräkningen), Clyde, Krigspatrullen, Svansen (döda sektorn är beskriven där)
-- `docs/system/hav.md`: Land skymmer, Ljuset, Molnen, Fyrarna, Firth of Clyde, Is, Havsbotten, Strömmen,
+  Flyg, Helikoptern, B-36, Fiendens torpeder (med nedräkningen), Clyde, Krigspatrullen, Svansen (döda sektorn är beskriven där)
+- `docs/system/hav.md`: Regn och dimma, Vrak, Fisket, Land skymmer, Ljuset, Molnen, Fyrarna, Firth of Clyde, Is, Havsbotten, Strömmen,
   Sjögången, Vädret
 - `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden
 - `docs/system/besattning.md`: Skadekontrollen (läckor, avdelningar, länspumpar, reparation, belastning), Radion och telegrammen, Rapporten till staben, Huvudstaben,

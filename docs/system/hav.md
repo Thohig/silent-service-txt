@@ -167,3 +167,27 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   Besättningen märker det med sina instrument: bryggan (`bridge.sea`), periskopet vid nästa titt
   (`off.periscope.sea`), sonaren när havsbruset ändrats ≥ 2 dB (`sonar.ambient`, läses var 60:e s, inte
   under isen) och trimmaren när djupmätaren börjar slå (Sjögången ovan).
+- **Regn och dimma** (`weather.Showers`, `Environment.showers`; 2026-11-25): episoder som kommer och går (egen
+  slumpström `Game.rng_for("showers")`, `rain_per_h`/`fog_per_h`, 15–60 min). Regn höjer havsbruset 3–8 dB
+  (`Environment.noise_at`) och ger klotter på jagarens radar mot master (`RAIN_RADAR_F` 0,7); sonar hör det börja och
+  sluta (`sonar.rain`). Dimma sätter sikten till 0,2–0,8 nm dag som natt (`Environment.light`): periskopet säger det
+  när det hissas, bryggan när dimman kommer och lättar (`bridge.fog`), och handelsfartygen blåser i mistluren varannan
+  minut (`Transient("foghorn")`, 150 dB, hörs bara nära i vattnet; `sonar.foghorn`). Radarn ser genom dimman. Per
+  scenario: kuba regn 0,25/h, jagad 0,2, konvoj och krig regn 0,2 och dimma 0,08, Clyde 0,3 och 0,15, sundet 0,1
+  och 0,2, övning och svansen 0,15 och 0,05, Arktis och duellen dimma 0,1.
+- **Vrak** (`seabed.Wreck`, `Seabed.wrecks`, `place_wrecks`; 2026-11-25): två vrak på kubabanken (tankfartyg och
+  fraktfartyg sänkta 1942), två på kustbanken i sundet, tre i Clyde; egen slump ur scenariots värden. Kortet
+  (`chart_copy`) har de flesta (`WRECK_UNCHARTED_P` 0,25 saknas), lite fel i läget, ritade som Ш och kända platser
+  (`Knowledge` gör dem till `Waypoint`, "vraket"/"vrak 1" …, `kurs mot vraket`). Ekolodet rakt över ett vrak
+  (`WRECK_ECHO_NM` 0,04) ser ett föremål; står ett vrak på kortet inom 0,8 nm från besticket blir det en fix
+  (`nav.wreck`). En ubåt på botten inom 0,1 nm från ett vrak smälter ihop med dess eko (`WRECK_CLUTTER_DB` 8 dB
+  mer i jagarens och bojarnas aktiva sonar). Jagade föreslår navigatören kurs mot ett vrak på kortet inom 2 nm på
+  ett djup vi kan ligga på, och vid vraket botten (`nav.suggest.wreck`, `wreck_settle`).
+- **Fisket** (`sim/fishing.py`; 2026-11-25): trålare (`Trawler`, kind fishing) på bankerna i kuba (tre), jagad (två)
+  och sundet (två), och i kuba en sovjetisk spaningstrålare (kind spytrawler), som jagaren skuggar en halvtimme av
+  varje och en halv (`DestroyerAI.shadow`, sista 30 min av 90). Trålen går 0,25 nm akterut på 60 m (bottentrål
+  5 m över botten där det är grundare); vajern från aktern ned dit. Går tornet eller skrovet genom den fastnar vi
+  (`trawl.caught`): framdrivningen −0,15, farten ned, fiskaren ropar på radion (jagare inom 12 nm får ett läge,
+  σ 0,5 nm); 30 s fart framåt sliter vajern (`trawl.free`). Sonar säger när en fiskebåt trålar (`sonar.trawling`).
+  Fiskelamporna syns 6 nm på natten (inte i dimma; periskopet och bryggan). Fiskebåtar räknas inte som hot
+  (`ContactTrack.benign`); spaningstrålaren är vänlig för plottet men torpedrummet varnar för den.
