@@ -73,6 +73,18 @@ def _short_class(c: str) -> str:
 
 
 COMPACT_W = 60                  # smalare kontakttabell: kortare lösning, kvaliteten syns alltid
+DRIFT_STILL = 0.3               # långsammare bäringsdrift (°/min) än så: ingen pil
+
+
+def _drift(rate: float | None, compact: bool) -> str:
+    """Operatörens bäringsdrift efter bäringen: ▸ drar höger (medurs), ◂ vänster; i bred tabell med
+    °/min. Fast bredd så att kolumnerna står i linje."""
+    if rate is None or abs(rate) < DRIFT_STILL:
+        return "  " if compact else "      "
+    arrow = "▸" if rate > 0 else "◂"
+    if compact:
+        return arrow + " "
+    return f"{arrow}{abs(rate):.1f}".replace(".", ",").rjust(5)[:5] + " "
 
 
 def contact_line(r: ContactRow, w: int) -> Text:
@@ -94,11 +106,13 @@ def contact_line(r: ContactRow, w: int) -> Text:
     lost = " ∅" if compact else " tappad"   # ∅ som i sonarvyn och på sjökortet
     tail_w = len("osäker") + len(lost)      # fast bredd: kolumnerna står i linje i tabellen
     desig = 5 if not compact else len(r.designation) + 1
-    cw = max(3, min(14, w - desig - 4 - len(sol) - tail_w))
+    drift = _drift(r.drift, compact)
+    cw = max(3, min(14, w - desig - 4 - len(drift) - len(sol) - tail_w))
     t = Text(no_wrap=True, overflow="crop")
     t.append(f"{r.designation:<{desig}}", style=style)
     t.append(f"{_short_class(r.classification)[:cw]:<{cw}} ", style=style if r.held else "dim")
     t.append(fmt_course(r.bearing), style="bold" if r.held else "dim")
+    t.append(drift, style="#9fb8a0")
     t.append(sol, style=sol_style)
     if r.quality is not None:
         t.append(r.quality.label, style=QUALITY_STYLE[r.quality])

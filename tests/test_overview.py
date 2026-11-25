@@ -162,3 +162,15 @@ def test_next_radio_window_under_the_mission():
     line = next((ln for ln in g.overview().lines if ln.label == "Samband"), None)
     assert line is not None and line.panel == "UPPDRAG"
     assert line.text.startswith("nästa ") and "min" in line.text
+
+
+def test_bearing_drift_in_the_contact_table():
+    r = ContactRow("S-3", "threat", "jagare", Quality.SAKER, True, 52.0, 0, 2.3, 218.0, 10.7, Quality.GOD,
+                   drift=1.84)
+    wide, narrow = contact_line(r, 80).plain, contact_line(r, 44).plain
+    assert "▸1,8" in wide and "▸" in narrow and "god" in narrow
+    left = contact_line(replace(r, drift=-2.5), 80).plain
+    assert "◂2,5" in left
+    still = contact_line(replace(r, drift=0.1), 80).plain
+    assert "▸" not in still and "◂" not in still
+    assert still.index("god") == wide.index("god")           # i linje med eller utan pil

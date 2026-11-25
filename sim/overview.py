@@ -28,6 +28,7 @@ class ContactRow:
     course: float | None = None
     speed: float | None = None
     quality: Quality | None = None
+    drift: float | None = None          # bäringsdriften, grader per minut, + medurs (bara hållna)
 
 
 @dataclass(frozen=True)

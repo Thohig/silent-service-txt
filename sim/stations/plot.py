@@ -17,7 +17,7 @@ from ..orders import DESIG, AskContact, CommandSpec, Order, desig
 from ..overview import ContactRow
 from ..reports import Quality
 from ..sonar_view import (KEEP_S as SONAR_KEEP_S, SONAR_SOURCES, SolutionTrace, TargetTurn,
-                          track_kind)
+                          bearing_drift, track_kind)
 from ..tma import (MANEUVER_CHI2, MANEUVER_SPLIT, MAX_TARGET_KN, BearingObs, Solution,
                    maneuver_statistic, own_maneuvered, predicted_bearing, solve)
 from ..zigzag import (ConvoyEstimate, LegFix, TrackPoint, base_course, escorts_near, groups,
@@ -414,8 +414,10 @@ class PlotTeam(Station):
             age = self.now - o.t
             if not tr.held and age > FORGET_S:
                 continue
+            drift = bearing_drift([(b.t, b.bearing) for b in tr.observations if b.source == "sonar"],
+                                  self.now) if tr.held else None
             row = ContactRow(tr.designation, track_kind(tr), tr.classification, tr.class_quality,
-                             tr.held, o.bearing, age)
+                             tr.held, o.bearing, age, drift=drift)
             sol = tr.solution
             if sol is not None and sol.quality >= Quality.OSAKER and \
                     (tr.threat or tr.civil or tr.friendly):
