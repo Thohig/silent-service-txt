@@ -135,6 +135,8 @@ class DamageState:
     cap: dict[str, float] = field(default_factory=dict)     # det en komponent kan lagas till till sjöss
     planes_jam: int = 0                     # +1 rodren fast i dykläge, −1 i stigläge
     jam_left: float = 0.0
+    jam_order: float = 0.0                  # det beordrade djupet att gå tillbaka till efter omkopplingen
+    _jam_set: float = -1.0
     bilge_on: bool = True                   # länspumparna (skadekontrollen styr dem)
     battery_shorted: bool = False           # saltvatten i batteriet har kortslutit (en gång)
     repair: str | None = None               # komponenten som lagas (skadekontrollen väljer; None: den första)
@@ -206,6 +208,7 @@ def maybe_jam(own: OwnShip, rng) -> None:
     diff = st.ordered_depth - st.depth
     direction = 1 if diff > 2 else -1 if diff < -2 else (1 if rng.random() < 0.5 else -1)
     dmg.planes_jam, dmg.jam_left = direction, float(JAM_MANUAL_S)
+    dmg.jam_order = dmg._jam_set = st.ordered_depth      # kaptenens djup: dit igen när rodren är omkopplade
     own.alert("dc.planes_jammed", down=direction > 0)
 
 
@@ -282,16 +285,22 @@ def jam_step(own: OwnShip, dt: float) -> None:
     s, st, dmg = own.sys, own.state, own.sys.dmg
     if not dmg.planes_jam:
         return
+    if st.ordered_depth != dmg._jam_set:
+        dmg.jam_order = st.ordered_depth             # kaptenen har beordrat ett nytt djup under tiden
     dmg.jam_left -= dt
     if dmg.jam_left <= 0 or own.surfaced or s.on_bottom or s.blowing:
         dmg.planes_jam = 0
+        # tillbaka till det beordrade djupet (förut låg båten kvar där rodren drivit den, konvoj-mot frö 3:
+        # på 3,6 m, och eskorten rammade); inte vid nödblåsning (då ska vi upp)
+        if not s.blowing:
+            st.ordered_depth = dmg.jam_order
         if dmg.jam_left <= 0:
             own.alert("dc.planes_manual")
         return
     v = -st.speed if st.astern else st.speed
     st.depth_rate = 0.0
     st.depth = max(0.0, st.depth + dmg.planes_jam * JAM_MPS_PER_KN * v * dt)
-    st.ordered_depth = st.depth
+    st.ordered_depth = dmg._jam_set = st.depth
 
 
 def shock(own: OwnShip, amount: float = 1.0) -> None:

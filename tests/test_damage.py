@@ -434,3 +434,16 @@ def test_sonars_evasive_dive_stays_above_the_lowered_test_depth():
     own.state.depth = own.state.ordered_depth = 100
     d = g.station(SonarRoom)._evasive_target()
     assert d is None or d <= own.test_depth() - 20
+
+
+def test_after_manual_control_the_boat_returns_to_the_ordered_depth():
+    """Konvoj-mot frö 3: rodren fastnade i stigläge och båten blev liggande på 3,6 m efter omkopplingen
+    (det beordrade djupet följde med upp), och eskorten rammade den."""
+    w = _world(depth=17, speed=6)
+    own = w.own
+    own.state.ordered_depth = 17
+    own.sys.health["planes"] = 0.3
+    D.maybe_jam(own, random.Random(2))
+    own.sys.dmg.planes_jam = -1                     # stigläge
+    _run(w, D.JAM_MANUAL_S + 1)
+    assert own.sys.dmg.planes_jam == 0 and own.state.ordered_depth == 17

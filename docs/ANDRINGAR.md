@@ -19,7 +19,8 @@ visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/READM
   förlorad ⇒ undkom) och krig ja (fullföljd 7 ⇒ 5; frö 4 och 5 slutar i tidsgränsen, en förlust som förut).
   Kuba-kort ja (rapporten sänd 3 ⇒ 6 av 8, radions förvarning) ingår i den nya baslinjen. Med helikopterns Mk 44
   förlorade ja-boten 6 av 8 i krig; den är av.
-- Buggar längs vägen: fiskebåtar räknades som hot (vakthavande föreslog att vänta på mörkret för en); torpedrummet
+- Buggar längs vägen: efter ett fastnat djuproder låg båten kvar där rodren drivit den (det beordrade djupet följde
+  med; konvoj-mot frö 3 blev liggande på 3,6 m och rammades), nu tillbaka till kaptenens djup; fiskebåtar räknades som hot (vakthavande föreslog att vänta på mörkret för en); torpedrummet
   varnade inte för vänliga fartyg nära målet (bara övningens bevakningsfartyg ska undantas); sonars undanmanöver
   föreslog ett djup under det sänkta provdjupet (jagad frö 84); ett förslag och dess eget larm samma sekund (jagad-kort
   frö 4); `länsa` i en torr båt sa två saker; packboxarna tjatade på besättningens egna 280 m (krig frö 2).
