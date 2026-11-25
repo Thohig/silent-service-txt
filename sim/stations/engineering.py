@@ -90,6 +90,7 @@ def _smoke_word(v: float) -> str:
 
 ORDINAL = {1: "första", 2: "andra", 3: "tredje", 4: "fjärde", 5: "femte", 6: "sjätte",
            7: "sjunde", 8: "åttonde", 9: "nionde"}
+ROMAN = ("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX")
 FIRE_ROOM = {2: "batterirummet", 6: "turbinrummet"}
 FIRE_ROOM_RU = {2: "во втором отсеке", 6: "в турбинном отсеке"}
 
@@ -563,8 +564,8 @@ class EngineeringStation(Station):
             g("Nödblåsning", "pågår", WARN)
         dmg = s.dmg
         if dmg.leaks:
-            g("Läckor", ", ".join(f"{ORDINAL[lk.compartment]} ({nm(lk.rate(own.state.depth))} t/min)"
-                                  for lk in dmg.leaks), DANGER if s.leak_rate > 1.0 else WARN)
+            g("Läckor", " · ".join(f"{ROMAN[lk.compartment - 1]} {nm(lk.rate(own.state.depth))}" for lk in dmg.leaks)
+              + " t/min", DANGER if s.leak_rate > 1.0 else WARN)
         g("Länspumpar", ("går" if dmg.bilge_on and s.flooding > 0.05 else "på" if dmg.bilge_on else "stoppade")
           + f", {nm(bilge_capacity(own.state.depth))} t/min här", WARN if not dmg.bilge_on and s.flooding > 0.5
           else INFO if dmg.bilge_on and s.flooding > 0.05 else OK)

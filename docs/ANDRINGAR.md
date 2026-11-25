@@ -3,6 +3,28 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-25 – Skadekontrollen: läckor, avdelningar, länspumpar, reparation och belastning
+
+Vad det betyder i spel (`docs/system/besattning.md`, Skadekontrollen; `sim/damage.py`, `stations/damage_control.py`):
+- Skadan sitter där laddningen small: akter om oss rodren och nionde avdelningen, förut sonaren och tuberna. Haverilarmet
+  säger var ("Lätta skador vid nionde avdelningen: rodren. Vatteninträngning i nionde, skotten stängda").
+- Läckor med sort (packbox, rörgenomföring, svetsfog, spricka) ger mer vatten ju djupare vi är och tätas av avdelningens
+  folk, aldrig av sig själva; en spricka läcker kvar, och maskin föreslår då ett djup där pumparna tar det.
+- Vattnet ligger i sin avdelning (genomskärningen visar det, skotten gula när de är stängda) och lutar båten; halvfull lämnas
+  avdelningen. Saltvatten i batteriet ger kortslutning och brand i andra avdelningen.
+- Länspumparna tar mindre på djupet, hörs och står i tystnad tills vattnet blir farligt (`länsa`, `läns stopp`).
+- Maskin lagar en sak i taget i sin ordning eller kaptenens (`reparera roder`), hörbart med slag eller tyst i halva takten;
+  svåra skador och saltvatten går inte att laga helt till sjöss. Systemtavlan visar läckorna, pumparna, skotten och provdjupet.
+- Ett skadat skrov sänker provdjupet (och krossdjupet); besättningens gå-ned-förslag håller sig ovanför. Skrovet nöts som
+  förut bara under det konstruerade provdjupet (mot det sänkta gav det en ond cirkel: jagad frö 63).
+- Djuprodret kan fastna (maskin föreslår back 5), skadad framdrivning hörs.
+- Fel av belastning: tryckvågor gör snabbstopp och ångläcka vanligare en tid, full fart i 20 min värmer lagren (30 min:
+  de skär), kavitation gröper propellern, djupkörning nära provdjupet får packboxen att släppa. Maskin varnar och föreslår först.
+
+Buggar hittade längs vägen: ett larm att gå ned med samma djup som förslaget som stod svaldes (jagad frö 3, sonars skäl
+"så att de tappar ekot" försvann); "Vi lagar …" kom före haverilarmet om samma skada; provdjupet ropades ut tre gånger på
+tio sekunder under bomberna. Tester: `tests/test_damage.py` (31), `tests/test_suggestion_sense.py`.
+
 ## 2026-11-25 – Buggjakt med botarna (frön 61–72)
 
 - `ytläge` kraschade spelet när plottet hade ett örlogsfartyg utan lösning före ett hot med lösning inom 4 nm
