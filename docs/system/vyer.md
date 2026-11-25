@@ -110,7 +110,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   klockan, så att fartmätaren får hela rutan (låg vägg: fart och klocka sida vid sida). Mätarnas etiketter som
   skulle krocka med en tidigare ritas inte (`draw_dial`). Avläsningen är
   exakt; visarna följer med tröghet (`Needles`, τ 0,5 s, kursen den korta vägen) och ritas tio gånger i sekunden
-  (`CENTRAL_EVERY_S`). Den lilla bilden (litet fönster) är bara rummet: rör med ventilrattar, tre lampor för
+  (`CENTRAL_EVERY_S`). Mellanstorleken (helskärm i ett 80 × 24-fönster, bilden minst `READOUT_MIN_H` 16 rader men mindre än `BIG`,
+  2026-11-25) har instrumentens namn och avläsning som rader på väggarna (`draw_readouts`, `READOUT_WALLS`: gyro,
+  sidroder, telegraf, lutning, trim; djup, fart, djuproder, batteri, läns, klocka). Den lilla bilden (bredvid loggen) är bara rummet: rör med ventilrattar, tre lampor för
   snabbtelefonen, telegrafens och julgranens lampor. Ren funktion `render_central(status, speaking, t, width, height,
   shown)`, vem som rapporterat senaste 3 s ur `SubApp._spoke`. Rodren härleds ur beordrat mot verkligt
   (`rudder_angle`, `plane_angle`), periskopet hissas med `periscope_up_s` och okularet vrids efter bäringen relativt

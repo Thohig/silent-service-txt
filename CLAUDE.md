@@ -46,7 +46,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
    foto – föreslås inte när det beordrade djupet är under periskopdjup; vakthavande säger nej till allt
    som tar oss uppåt medan fienden har oss). Vetot prövas också när förslaget levereras, och samma order
    från en annan station (eller samma med ett annat skäl, om det inte gör ett larm av det) inom 30 s släpps
-   (`Game._suggestion_stale`). Ett obesvarat förslag som en station nu säger nej till dras tillbaka med en
+   (`Game._suggestion_stale`); ett förslag att gå ned släpps när det obesvarade redan tar oss minst lika djupt, också ett
+   larm, och då blir det som står ett larm (`_deeper_pending`). Ett obesvarat förslag som en station nu säger nej till dras tillbaka med en
    systemrad (`Game._drop_vetoed`, `order.suggestion_dropped`; turbin efter snabbstopp). De första 2 min efter att kaptenen beordrat oss ned föreslår ingen masterna
    (`DOWN_ORDER_HOLD_S`), och smygmotor föreslås inte när de har oss. Ett förslag kommer aldrig före en
    rapport nära det i kön (`ReportQueue`). Gå-ned-förslag tar djupet ur `Station.dive_depth()`. Vid tystnad (10 min) tar vakthavande initiativ ur

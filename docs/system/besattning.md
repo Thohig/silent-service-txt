@@ -25,8 +25,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   mottagningen står still (`radio.cable.fast`, förslag `fart 3`); under is flyter den inte (`radio.ice`).
   Förvarningen `radio.prewarn_vlf` föreslår `djup 40` och/eller `fart 3` (det som behövs, `_up_order`) i
   stället för antenndjup; går vi beordrat fortare än 5 kn (följer, anfaller) föreslås antenndjup, eftersom
-  masten tar emot i vilken fart som helst; kräver ordern en rapport (`report_required`) gäller antenndjup
-  som förut (`radio.prewarn`). `up_depth()` säger hur grunt radion behöver oss (30 eller 50 m); sonar föreslår inte
+  masten tar emot i vilken fart som helst; kräver ordern en rapport (`report_required`) föreslås
+  periskopdjup, eftersom rapporten ska sändas (`radio.prewarn` med `send`; antenndjup gav bara mottagningen, 2026-11-25). `up_depth()` säger hur grunt radion behöver oss (30 eller 50 m); sonar föreslår inte
   skiktet och starpom säger nej till djupare under tiden. Långvågens kvalitet (`_vlf_quality`, fasta
   regler): mörker, fart ≤ 3 kn och djup ≤ 40 m ger var sitt plus, två ⇒ hel; annars stympad: remsan
   med nummer "?" och oläsbara grupper (`garble`, 45 % ░, `rng_for("radio")`), `radio.garbled` en gång per
@@ -206,7 +206,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   σ = (0,2 + 0,03·rodrens last)·(1,6 − skicklighet)); kvalitet ur σ (0,4/0,8/1,6 t). Trimmar bort ≥ 1 t
   (0,3 t när vi ligger still) själv på turbinen; på smygmotorn ber han först (`trim.suggest`, `trimma`), men
   inte medan ett annat förslag väntar eller ligger i kön (det skulle ta dess plats); i fara (obalans > rodren
-  + 2 t) pumpar han alltid och säger varför. Order: `trimma`, `trim stopp` (inga pumpar utom i fara),
+  + 2 t) pumpar han alltid och säger varför, och föreslår den lägsta fart där rodren bär vikten medan pumparna
+  arbetar (`_speed_advice`, `trim.suggest.speed`, larmförslag, högst var 5:e min, `CARRY_EVERY_S`; inte när vi
+  ligger still eller backar; 2026-11-25 efter jagad frö 63: vatteninträngning i 1 kn och båten sjönk gång på gång). Order: `trimma`, `trim stopp` (inga pumpar utom i fara),
   `trim` (rapport med kvalitet), `ligg still` (fart 0, kräver σ ≤ 0,6 och ≤ 1 t, annars ber han att få trimma;
   slutar vid order om fart). Starpom får besluta om alla fyra. Panelen TRIM (vikt ± σ, lutning,
   utjämningstank, pumpar), `TrimTanks` till genomskärningen (tankarna i I, III och IX med vattennivå) och
