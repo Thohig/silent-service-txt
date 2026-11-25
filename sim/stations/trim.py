@@ -51,6 +51,7 @@ HEAVE_MARGIN_M = 1.0           # marginal till ytan som räcker
 HEAVE_MAX_KN = 7               # fortare går inte med masten uppe
 HEAVE_SAFE_DEPTH = 25
 HEAVE_EVERY_S = 600
+CARRY_EVERY_S = 300            # förslaget om fart när rodren inte bär vikten, högst så ofta
 
 
 @dataclass(frozen=True)
@@ -117,6 +118,8 @@ PHRASES = {
     "trim.danger": lambda d: f"Kapten, trim! Båten är {_heavy(d['weight'])}, cirka {_tons(d['weight'])}, "
     "rodren bär det inte i den här farten. " + _pump_text(d).capitalize() + ", pumparna hörs.",
     "trim.suggest": lambda d: f"Kapten, trim. {_state(d)}. Ber att få trimma, pumparna hörs.",
+    "trim.suggest.speed": lambda d: f"Kapten, trim! Vi {'sjunker' if d['weight'] > 0 else 'stiger'} medan "
+    f"pumparna arbetar. Föreslår fart {d['speed']}, så bär rodren de {_tons(d['weight'])}.",
     "trim.hold": lambda d: f"{ru('Jest')}, pumparna stilla. Jag pumpar bara om båten blir farlig.",
     "trim.hover": lambda d: f"{ru('Jest')}, ligger still på {d['depth']:.0f} meter. "
     "Trimmar efter behov, pumparna går ibland.",
@@ -166,6 +169,8 @@ RU_PHRASES = {
     "trim.danger": lambda d: f"{R.CAPTAIN}, трюмный! Лодка {'тяжёлая' if d['weight'] > 0 else 'лёгкая'}, "
     f"около {R.dec(abs(d['weight']), R.TON)}, рули не держат на этом ходу. "
     f"{_ru_pump(d).capitalize()}, насосы слышно.",
+    "trim.suggest.speed": lambda d: f"{R.CAPTAIN}, трюмный! Лодка {'проваливается' if d['weight'] > 0 else 'всплывает'}. "
+    f"Предлагаю ход {R.count(d['speed'], R.KNOT)}, рули удержат.",
     "trim.suggest": lambda d: f"{R.CAPTAIN}, трюмный. {_ru_state(d)}. Прошу разрешения "
     "удифферентоваться, насосы слышно.",
     "trim.hold": lambda d: "Есть, насосы стоят. Откачиваем только при опасности.",
@@ -284,6 +289,7 @@ class TrimStation(Station):
         if danger:
             self.say("trim.danger", self._pump())
             self._announced = True
+            self._speed_advice()
         elif t.hover or not self._silent():
             d = self._pump()
             if abs(d["ballast"]) >= REPORT_PUMP_T:
@@ -292,6 +298,22 @@ class TrimStation(Station):
         elif not self._other_pending():
             self.suggest("trim", "trim.suggest", {**self._data(), **self._plan()},
                          order="trimma", cooldown=600, quality=self.quality)
+
+    def _speed_advice(self) -> None:
+        """Rodren bär inte vikten i den här farten: föreslå den lägsta fart där de bär den medan
+        pumparna arbetar (jagad frö 63: vatteninträngning i 1 kn, båten sjönk gång på gång och
+        navigatören föreslog bara djupet igen)."""
+        st, own = self.own.state, self.own
+        if own.sys.trim.hover or st.ordered_astern:
+            return
+        w, health = abs(self.est), own.sys.health["planes"]
+        top = int(own.max_speed())
+        v = next((v for v in range(max(int(st.ordered_speed) + 1, 2), top + 1)
+                  if T.plane_capacity(v, health) >= w), None)
+        if v is None:
+            return
+        self.suggest("carry", "trim.suggest.speed", {"weight": self.est, "speed": v},
+                     order=f"fart {v}", cooldown=CARRY_EVERY_S, quality=self.quality, alarm=True)
 
     def _other_pending(self) -> bool:
         """Väntar ett annat förslag på kaptenens svar? Då väntar trimningen (den är sällan

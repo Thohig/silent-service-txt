@@ -167,3 +167,20 @@ def test_djuprodret_bar_vikten_och_libellen_visar_lutningen():
     level = ins.libell(0.0, span=ins.PITCH_SPAN_DEG)
     bow_down = ins.libell(4.0, span=ins.PITCH_SPAN_DEG)
     assert level != bow_down and level.index("○") == 4
+
+
+def test_nar_rodren_inte_bar_foreslar_han_fart():
+    """Jagad frö 63: vatteninträngning i 1 kn, båten sjönk gång på gång och ingen föreslog mer fart."""
+    g, reports = _game(depth=150.0, speed=1.0, propulsion="electric")
+    _run(g, 30)
+    g.world.own.sys.flooding = 4.0
+    _run(g, 120)
+    assert any(r.type == "trim.danger" for r in reports)
+    sug = [r for r in reports if r.type == "trim.suggest.speed"]
+    assert sug and sug[0].alarm and sug[0].data["order"].startswith("fart ")
+    v = int(sug[0].data["order"].split()[1])
+    assert 2 <= v <= g.world.own.max_speed()
+    assert "sjunker" in sug[0].text
+    g.command("ja")
+    _run(g, 120)
+    assert g.world.own.state.depth < 160
