@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 # att ha sagt något sedan förra gången, fördubblas väntetiden för varje gång.
 BACKOFF_BASE_S = 420
 BACKOFF_MAX_S = 3600
+ALARM_BACKOFF_MAX_S = 600   # larm som glesas ut (alarm_backoff): högst så här länge mellan upprepningarna
 CONFIRM_S = 60              # confirm_once: en upprepad order inom så här lång tid verkställs
 
 
@@ -226,7 +227,8 @@ class Station:
 
     def suggest(self, key: str, type: str, data: dict[str, Any] | None = None, *,
                 order: str | None = None, cooldown: int = 600,
-                quality: Quality | None = None, alarm: bool = False) -> bool:
+                quality: Quality | None = None, alarm: bool = False,
+                alarm_backoff: bool = False) -> bool:
         """Föreslå en åtgärd. order är texten som utförs om kaptenen svarar ja.
 
         Samma förslag (key) upprepas inte inom cooldown sekunder. Ett förslag
@@ -234,7 +236,9 @@ class Station:
         Game.suggestion_redundant) och förbrukar då ingen cooldown.
 
         Har kaptenen inte sagt något sedan förslaget senast gavs glesas det ut:
-        väntetiden fördubblas för varje obesvarad upprepning (larm undantagna).
+        väntetiden fördubblas för varje obesvarad upprepning (larm undantagna). Med alarm_backoff
+        glesas också ett larm ut, från dess egen cooldown och högst till ALARM_BACKOFF_MAX_S
+        (vakthavandes "djup 60" för radarn kom en gång i minuten medan kaptenen teg).
         """
         if order and self.game.suggestion_redundant(order, self.now):
             return False
@@ -242,10 +246,14 @@ class Station:
             return False
         last = self._suggested.get(key)
         n = 0
-        if last is not None and not alarm and self.game.last_command_t <= last:
+        if last is not None and (not alarm or alarm_backoff) and self.game.last_command_t <= last:
             n = self._unanswered.get(key, 0) + 1
-        wait = cooldown if n == 0 else \
-            min(max(cooldown, BACKOFF_BASE_S) * 2 ** n, BACKOFF_MAX_S)
+        if n == 0:
+            wait = cooldown
+        elif alarm:
+            wait = min(cooldown * 2 ** n, max(cooldown, ALARM_BACKOFF_MAX_S))
+        else:
+            wait = min(max(cooldown, BACKOFF_BASE_S) * 2 ** n, BACKOFF_MAX_S)
         if last is not None and self.now - last < wait:
             return False
         self._suggested[key] = self.now

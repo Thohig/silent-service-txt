@@ -157,6 +157,20 @@ def test_alarm_suggestion_does_not_back_off():
     assert gaps and all(gap == 300 for gap in gaps)
 
 
+def test_alarm_with_backoff_thins_out_but_not_past_ten_minutes():
+    """Vakthavandes "djup 60" för radarn kom en gång i minuten medan kaptenen teg (kuba-kort frö 7)."""
+    g, _ = _game()
+    eng = g.station(EngineeringStation)
+    times = []
+    for _ in range(2500):
+        if eng.suggest("d", "eng.suggest.restart", order="djup 60", cooldown=120, alarm=True,
+                       alarm_backoff=True):
+            times.append(g.now)
+        g.tick()
+    gaps = [b - a for a, b in zip(times, times[1:])]
+    assert gaps[:3] == [240, 480, 600] and all(gap == 600 for gap in gaps[3:])
+
+
 # --- larmförslag står mot vanliga förslag (Game.held, ALARM_HOLD_S) ------------------------
 from sim.game import ALARM_HOLD_S, HELD_MAX_S  # noqa: E402
 from sim.reports import Report  # noqa: E402

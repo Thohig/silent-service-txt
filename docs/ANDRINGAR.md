@@ -3,6 +3,42 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-25 – Vakthavandes "djup 60" glesas ut obesvarat
+
+- Kuba-kort frö 7 på periskopdjup med jagare och flyg: "Föreslår djup 60" sju gånger på sju minuter medan kaptenen
+  teg (fartygsradarn och flygradarn turades om, larm glesades aldrig ut). `Station.suggest(..., alarm_backoff=True)`
+  fördubblar nu ett obesvarat larms väntan från dess egen cooldown, högst 10 min (`ALARM_BACKOFF_MAX_S`); används
+  för vakthavandes och periskopets `off.suggest.down`. Varje skäl har sin egen nyckel, så ett nytt skäl kommer fram.
+  Samma spel: 2 förslag på 15 min. `tests/test_suggestions.py::test_alarm_with_backoff_thins_out_but_not_past_ten_minutes`.
+
+## 2026-11-25 – Förklaringarna bryts mellan posterna i 80 kolumner
+
+- Ubåten-vyn i 80 × 24: förklaringen bröts av terminalen mitt i ("····" sist på en rad, "sjökortets djup" på nästa),
+  och med höjden 2 syntes raden "Sonar hörde …" och tavlans normalt/varning/fara aldrig. Nu packas posterna efter
+  bredden (`profile_render.legend_items`, `pack_legend`; `#boat-legend` har höjden auto, högst 5). Djupmätaren
+  säger "ingen lodning" (förut "ekolod ej lodat", som bröts) och klipper i stället för att bryta.
+  `tests/test_boat.py::test_legend_breaks_between_items_and_fits_the_width`.
+
+## 2026-11-25 – Plottet tar tillbaka "nu god" när målet manövrerat strax efter
+
+- Kaosboten (krig-kort, clyde-in): "Lösningen på S-2 är nu god" och 1–30 s senare "S-2 har troligen ändrat kurs …
+  vi börjar om". Nu släpps ett köat `plot.improved` för kontakten när manövern upptäcks, och har det redan sagts
+  inom 2 min (`RECALL_IMPROVED_S`) säger `plot.maneuver` "Lösningen vi nyss gav gäller inte, vi börjar om".
+  `tests/test_tma.py::test_maneuver_right_after_good_takes_the_good_back`.
+
+## 2026-11-25 – Radion väntar på djupet för en jagare med dålig lösning eller nyss tappad
+
+- Konvoj-kort frö 5: jagaren var säker på 4,1 nm, plottet började om efter en manöver (dålig lösning, 5,8 nm), och
+  radion föreslog djup 40 för långvågen; två minuter senare hade jagaren oss. Nu räknas en jagare eller ubåt som
+  nära också på en dålig lösning, med avståndet minus 1σ (högst 30 %, `POOR_NEAR_F`), och en sådan som plottet
+  tappat de senaste 15 min (`LOST_RECENT_S`, `_threat_lost`) utan att den säkert var längre bort än 5 nm
+  (`radio.wait_lost`). Vakthavandes påminnelse vid tystnad (`idle_proposals`) föreslår inte heller att gå upp då.
+  `radio.wait` säger "kanske 5,8 sjömil, lösningen är dålig och den kan vara närmare"; `radio.clear` säger "inget
+  hört av S-4 på 15 minuter" eller "plottet har inga hot nära längre" (förut "plottet har nu kontakten på 5,0
+  sjömil" när inget hot fanns kvar). `kontroll.py` för kuba-kort, konvoj-kort, krig-kort: som baslinjen
+  (kuba-kort ja 3 rapporterade av 8 som förut). `tests/test_report.py`; `test_starpom.py` tar frö 23 (frö 2
+  väntar nu på djupet).
+
 ## 2026-11-25 – Radion säger när fönstret stänger utan rapport
 
 - Kuba-kort frö 7: jagaren hade oss genom hela sambandstillfället, radion teg (sändningen pejlas) och spelet tog

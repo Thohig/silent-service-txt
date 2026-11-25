@@ -773,9 +773,11 @@ class OfficerStation(Station):
             if close:
                 self._air_close_t = self.now
             if close and (d := self.dive_depth(60)) is not None:   # också när vi kommer upp igen
+                # obesvarat glesas det ut (flygradarn och fartygsradarn turades om, "djup 60" en gång i
+                # minuten medan kaptenen teg); ett annat skäl har egen nyckel och kommer fram
                 self.suggest("down_air", "off.suggest.down",
                              {"reason": "Flygradar, nära. De kan se våra master.", "why": "air", "depth": d},
-                             order=f"djup {d}", cooldown=120, alarm=True)
+                             order=f"djup {d}", cooldown=120, alarm=True, alarm_backoff=True)
         self.game.bus.publish(AirRadarHeard(self.now, strongest))
 
     def _surface_ships(self):
@@ -857,7 +859,7 @@ class OfficerStation(Station):
                     # (inte samma sekund som flygradarns förslag om samma djup: ett räcker)
                     self.suggest("down_esm", "off.suggest.down",
                                  {"reason": "Radarn är mycket stark.", "why": "esm", "depth": d},
-                                 order=f"djup {d}", cooldown=300, alarm=True)
+                                 order=f"djup {d}", cooldown=300, alarm=True, alarm_backoff=True)
             if self._esm_fresh and known:
                 self.say("off.esm.same", {"n": known}, kind="contact")
             self._esm_fresh = False

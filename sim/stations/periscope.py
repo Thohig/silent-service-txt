@@ -713,7 +713,7 @@ class PeriscopeWatch(Station):
         if (d := self.dive_depth(60)) is not None:
             self.suggest("down_air", "off.suggest.down", {"reason": "Flygplan i sikte.", "why": "aircraft",
                                                            "depth": d},
-                         order=f"djup {d}", cooldown=300, alarm=True)
+                         order=f"djup {d}", cooldown=300, alarm=True, alarm_backoff=True)
         return SightedObject("aircraft", "helikopter" if getattr(v, "helo", False) else "flygplan",
                              bearing, r_meas, Quality.OSAKER,
                              detail="lågt" if low else "", seen_t=self.now)
