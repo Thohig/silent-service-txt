@@ -26,12 +26,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  # Två jobb: paketet laddas upp i byggjobbet och publiceras i ett eget jobb. I ett och samma jobb hittade
+  # deploy-pages ibland inte paketet som just laddats upp ("Found 0 artifact(s)", 2026-11-24, två gånger).
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
       - name: Packa webbversionen
@@ -39,5 +38,14 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v5

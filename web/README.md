@@ -59,6 +59,9 @@ GitHub Pages: https://thohig.github.io/silent-service-txt/
 
     gh workflow run pages.yml --ref main
 
+Två jobb sedan 2026-11-25: `build` packar och laddar upp, `deploy` publicerar. I ett jobb hittade publiceringen
+ibland inte paketet som just laddats upp ("Found 0 artifact(s)").
+
 Pages är
 påslaget (Source: GitHub Actions, 2026-11-21) och repot offentligt. Besökarna hämtar Pyodide och
 xterm.js från jsDelivr och Textual från PyPI; sidan har ingen spårning och sparar inget.
