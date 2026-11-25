@@ -114,6 +114,10 @@ class StatusSnapshot:
     plane_load: float = 0.0         # andel av djuprodrens förmåga som bär vikten (+ tung)
     astern: bool = False            # båten går akterut (speed är farten genom vattnet)
     ordered_astern: bool = False    # back i maskin beordrad
+    pumps: str | None = None        # pumparna som går: "bilge" (länspumparna), "trim", eller None
+    leak_rate: float = 0.0          # läckorna, ton per minut (skadekontrollen)
+    repairing: str | None = None    # "loud" (slag) eller "quiet" (tyst arbete) medan något lagas
+    hushed: bool = False            # tystnad i båten (vakthavande): fläktarna stoppade
 
 
 def build_registry(station_classes: list[type[Station]]) -> CommandRegistry:

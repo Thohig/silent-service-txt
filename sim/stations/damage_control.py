@@ -297,6 +297,13 @@ class DamageControlStation(Station):
             self.suggest("repair_planes", "dc.suggest.repair_planes", {}, order="reparera roder",
                          cooldown=300, alarm=True)
 
+    def status_fields(self) -> dict:
+        """Länspumparna, läckorna och reparationen till statusraden (ljudet i centralen)."""
+        from ..damage import pumping
+        s = self.own.sys
+        return {**({"pumps": "bilge"} if pumping(self.own) else {}), "leak_rate": s.leak_rate,
+                "repairing": None if s.dmg.repair is None else "quiet" if s.dmg.repair_quiet else "loud"}
+
     def order_in_force(self, order: Order) -> bool | None:
         if isinstance(order, Repair) and order.component is not None:
             return self.repair_first == order.component

@@ -35,6 +35,8 @@ from .recording import RecordingMixin
 from .sweep import SweepCalls
 
 BEARING_REPORT_DELTA = 5.0
+CLASS_BATCH_S = 5          # klassningar samlas på en rad tills ingen ny kommit på så länge …
+CLASS_BATCH_MAX_S = 20     # … högst så länge
 LOST_BATCH_S = 20          # tappade (och åter hörda) kontakter samlas på en rad tills ingen ny kommit på så länge,
 CONVOY_SAY_S = 600          # "hör N av M i konvojen" högst så här ofta (tappad helt, hörd igen: alltid)
 LOST_BATCH_MAX_S = 60      # ... högst så länge; en som hörs igen innan raden sagts nämns inte (krig-kort frö 61:
@@ -167,6 +169,8 @@ PHRASES = {
     "sonar.new_contact": lambda d: f"{ru('Tovarisjtj komandir')}, sonar! Ny kontakt i bäring {fmt_course(d['bearing'])}. "
     f"Betecknas {d['designation']}. {d['classification'][:1].upper()}{d['classification'][1:]}.",
     "sonar.classified": lambda d: f"{d['designation']} klassas som {d['classification']}.",
+    "sonar.classified.many": lambda d: "Kapten, sonar. Klassningar: " + "; ".join(
+        f"{_and(g['designations'])} är {g['classification']}" for g in d["groups"]) + ".",
     "sonar.bearing": lambda d: f"{d['designation']}, bäring {fmt_course(d['bearing'])}, "
     f"{d['strength']} signal" + {1: ", bäringen drar höger", -1: ", bäringen drar vänster"}
     .get(d.get("drift", 0), "") + ".",
@@ -266,6 +270,9 @@ RU_PHRASES = {
     f"{_ru_cap(R.classification(d['classification']))}.",
     "sonar.classified": lambda d: f"{_ru_cap(R.contact(d['designation']))}: "
     f"{R.classification(d['classification'])}.",
+    "sonar.classified.many": lambda d: f"{R.CAPTAIN}, акустик. Классификация: " + "; ".join(
+        ", ".join(R.contact(x) for x in g["designations"]) + f" — {R.classification(g['classification'])}"
+        for g in d["groups"]) + ".",
     "sonar.bearing": lambda d: f"{_ru_cap(R.contact(d['designation']))}, пеленг "
     f"{R.course(d['bearing'])}, сигнал {STRENGTH_RU.get(d['strength'], '')}"
     + {1: ", пеленг смещается вправо", -1: ", пеленг смещается влево"}.get(d.get("drift", 0), "")
@@ -359,6 +366,8 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         self.own_marks: list[OwnMark] = []
         self._ambient: float | None = None         # havsbruset sonaren senast sagt (dB)
         self._lost_batch: list[tuple[str, float | None]] = []   # tappade, ännu inte sagda
+        self._class_batch: list[tuple[str, str, Quality]] = []    # klassningar, ännu inte sagda
+        self._class_t = self._class_last = 0
         self._regained_batch: list[tuple[str, float]] = []      # hörda igen, ännu inte sagda (som de tappade)
         self._regained_t = self._regained_last = 0
         self._lost_t = self._lost_last = 0
@@ -562,9 +571,12 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                         continue        # utkiken (periskop, brygga) har redan sett bättre
                     bus.publish(ClassificationChanged(self.now, ev.designation,
                                                       ev.classification, ev.quality))
-                    self.say("sonar.classified",
-                             {"designation": ev.designation, "classification": ev.classification},
-                             kind="contact", quality=ev.quality)
+                    # samlas några sekunder: konvojen klassades på sex rader samma minut (kaos krig frö 91)
+                    self._class_batch = [x for x in self._class_batch if x[0] != ev.designation]
+                    if not self._class_batch:
+                        self._class_t = self.now
+                    self._class_batch.append((ev.designation, ev.classification, ev.quality))
+                    self._class_last = self.now
                 case Lost():
                     bus.publish(ContactLost(self.now, ev.designation))
                     tr = self.game.knowledge.tracks.get(ev.designation)
@@ -595,6 +607,9 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                     # Torpedrummet rapporterar egna torpeder med tubnummer.
                     q = Quality.GOD if ev.se >= 6 else Quality.OSAKER
                     bus.publish(OwnTorpedoHeard(self.now, ev.no, ev.kind, ev.bearing, q, ev.se))
+        if self._class_batch and (self.now - self._class_last >= CLASS_BATCH_S
+                                  or self.now - self._class_t >= CLASS_BATCH_MAX_S):
+            self._say_classified()
         if self._lost_batch and (self.now - self._lost_last >= LOST_BATCH_S
                                  or self.now - self._lost_t >= LOST_BATCH_MAX_S):
             self._say_lost()
@@ -655,6 +670,20 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         else:
             return
         self._convoy_said_t = self.now
+
+    def _say_classified(self) -> None:
+        """Klassningarna: en rad för en, en samlad rad för flera (konvojen), grupperade efter klassning."""
+        batch, self._class_batch = self._class_batch, []
+        if len(batch) == 1:
+            d, c, q = batch[0]
+            self.say("sonar.classified", {"designation": d, "classification": c}, kind="contact", quality=q)
+            return
+        groups: dict[str, list[str]] = {}
+        for d, c, _ in batch:
+            groups.setdefault(c, []).append(d)
+        self.say("sonar.classified.many", {"groups": [{"designations": ds, "classification": c}
+                                                      for c, ds in groups.items()]},
+                 kind="contact", quality=min(q for *_, q in batch))
 
     def _say_lost(self) -> None:
         """De tappade kontakterna: en rad för en, en samlad rad för flera (t.ex. under skiktet)."""

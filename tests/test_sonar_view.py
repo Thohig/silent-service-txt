@@ -354,3 +354,36 @@ def test_waterfall_labels_keep_a_gap():
     text = "\n".join(_plain(render_sonar(_view(now=600, items=items), 52, 9, window_s=600)))
     assert "S-7S-3" not in text and "S-3S-7" not in text
     assert "S-7" in text                                    # den första får sin etikett
+
+
+def test_several_classifications_come_on_one_line():
+    """Kaos krig frö 91: konvojen klassades på sex rader samma minut."""
+    import random
+    from sim.events import ReportDelivered
+    from sim.game import Game
+    from sim.reports import Quality
+    from sim.scenario import build_scenario
+    from sim.sonar import ClassificationUpdate
+    from sim.stations.sonar_room import SonarRoom
+    g = Game(build_scenario("kuba", random.Random(1)), seed=1)
+    reports = []
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    sonar = g.station(SonarRoom)
+    orig = sonar.sensor.update
+    events = [ClassificationUpdate("S-5", "ytfartyg, stort", Quality.GOD),
+              ClassificationUpdate("S-6", "ytfartyg, stort", Quality.GOD),
+              ClassificationUpdate("S-7", "tankfartyg", Quality.OSAKER)]
+    sent = []
+
+    def update(world, xy):
+        out = orig(world, xy)
+        if not sent:
+            sent.append(True)
+            out = [*out, *events]
+        return out
+    sonar.sensor.update = update
+    for _ in range(40):
+        g.tick()
+    many = [r for r in reports if r.type == "sonar.classified.many"]
+    assert len(many) == 1 and not [r for r in reports if r.type == "sonar.classified" and "S-5" in r.text]
+    assert "S-5 och S-6 är ytfartyg, stort; S-7 är tankfartyg" in many[0].text

@@ -52,7 +52,8 @@ def test_hull_creaks_on_depth_change_and_groans_near_test_depth():
 
 def test_cavitation_flooding_and_surface():
     assert "cavitation" in ambient_targets(_st(speed=20, cavitating=True))
-    assert "flooding" in ambient_targets(_st(flooding=0.1))
+    assert "flooding" in ambient_targets(_st(flooding=0.1, leak_rate=0.5))     # läckan sprutar
+    assert "drip" in ambient_targets(_st(flooding=0.5))                       # vatten utan läcka droppar
     surf = ambient_targets(_st(depth=0.0))
     assert "waves" in surf and "ice" not in ambient_targets(_st(depth=0.0, under_ice=True))
 
@@ -177,3 +178,15 @@ def test_contact_sound_follows_a_new_classification():
     for _ in range(100):
         amb.render(1024)
     assert [lay.sample for lay in amb.layers.values()] == ["screws_warship"]
+
+
+def test_the_boat_sounds_like_its_damage_control():
+    """Läckan sprutar, vattnet i kölsvinet droppar, pumparna dunkar, reparationen slår eller filar tyst,
+    och i tystnad står fläktarna."""
+    t = ambient_targets(_st(leak_rate=1.0, flooding=4.0))
+    assert "flooding" in t and "drip" not in t
+    t = ambient_targets(_st(leak_rate=0.0, flooding=4.0, pumps="bilge", repairing="loud"))
+    assert {"drip", "pumps", "repair"} <= set(t)
+    t = ambient_targets(_st(repairing="quiet", hushed=True))
+    assert t["repair"].sample == "repair_quiet" and "aircon" not in t
+    assert "aircon" in ambient_targets(_st())

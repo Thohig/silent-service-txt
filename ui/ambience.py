@@ -91,8 +91,18 @@ def ambient_targets(st, tracks: Iterable = ()) -> dict[str, Target]:
     groan = _clip((depth - 270) / 60) * 0.5 + (0.2 if damage > 0.3 and depth > 100 else 0.0)
     if groan > 0.01:
         out["groan"] = Target("groan", groan)
-    if st.flooding > 0:
-        out["flooding"] = Target("flooding", 0.25 + 0.3 * _clip(st.flooding * 4))
+    leak = getattr(st, "leak_rate", 0.0)
+    if leak > 0.01:                                   # vatten som sprutar in (skadekontrollen)
+        out["flooding"] = Target("flooding", 0.2 + 0.35 * _clip(leak / 2))
+    elif st.flooding > 0.3:                           # vatten i kölsvinet: det droppar och skvalpar
+        out["drip"] = Target("drip", 0.08 + 0.12 * _clip(st.flooding / 20))
+    pumps = getattr(st, "pumps", None)
+    if pumps:
+        out["pumps"] = Target("pumps", 0.10 if pumps == "bilge" else 0.07, rate=1.0 if pumps == "bilge" else 1.15)
+    repairing = getattr(st, "repairing", None)
+    if repairing:
+        out["repair"] = Target("repair" if repairing == "loud" else "repair_quiet",
+                               0.12 if repairing == "loud" else 0.06)
     if depth < 2.0:
         out["waves"] = Target("waves", 0.25)
 
@@ -108,7 +118,7 @@ def ambient_targets(st, tracks: Iterable = ()) -> dict[str, Target]:
 
     # --- centralen: luften, besättningen och det som hotar -------------------
     quiet = st.propulsion == "electric" or st.hunted       # tyst gång: ingen pratar
-    if st.reactor == "online":
+    if st.reactor == "online" and not getattr(st, "hushed", False):   # tystnad: fläktarna stoppade
         out["aircon"] = Target("aircon", 0.035 if quiet else 0.07)
     if not quiet and not st.over:
         out["crew"] = Target("crew", 0.05)
@@ -143,7 +153,8 @@ def ambient_targets(st, tracks: Iterable = ()) -> dict[str, Target]:
 
 CABIN_GAIN = 0.55          # genom skottet till hytten
 CABIN_KEEP = ("reactor", "turbine", "electric", "flow", "creak", "groan", "aircon", "crew",
-              "flooding", "fire", "fans", "vent", "ice", "cavitation", "waves")
+              "flooding", "fire", "fans", "vent", "ice", "cavitation", "waves", "drip", "pumps", "repair",
+              "repair_quiet")
 
 
 def in_cabin(st) -> bool:
@@ -446,6 +457,53 @@ def synth_flooding() -> np.ndarray:
     return _norm(_shaped(34, 200, 6000, -1) * _lfo(3.0, 0.2) + _shaped(35, 40, 300, -3) * 0.5)
 
 
+def synth_pumps() -> np.ndarray:
+    """Länspumpen (och trimpumpen): elmotorns vin, kolvarnas dunk och vattnet i röret."""
+    motor = _tone(100) * 0.5 + _tone(200) * 0.25 + _tone(300) * 0.1
+    thump = _lfo(2.5, 0.8) * _shaped(41, 40, 200, -3)
+    slurp = _shaped(42, 300, 2500, -2) * _lfo(2.5, 0.6, 1.5) * 0.4
+    return _norm(motor * 0.4 + thump * 0.6 + slurp)
+
+
+def _drop(rng) -> np.ndarray:
+    n = int(RATE * rng.uniform(0.04, 0.09))
+    t = np.arange(n) / RATE
+    f = rng.uniform(700, 1600) * (1 + 2.5 * t / t[-1])          # droppen: ton som stiger
+    return np.sin(2 * np.pi * np.cumsum(f) / RATE) * np.exp(-t / 0.025) * rng.uniform(0.3, 1.0)
+
+
+def synth_drip() -> np.ndarray:
+    """Vatten i kölsvinet: droppar och skvalp när båten rör sig."""
+    slosh = _shaped(43, 80, 900, -4) * _lfo(1 / 3, 0.9) * 0.35
+    return _norm(_events(44, 9, _drop) + slosh)
+
+
+def _bang(rng) -> np.ndarray:
+    n = int(RATE * rng.uniform(0.25, 0.5))
+    t = np.arange(n) / RATE
+    ring = sum(a * np.sin(2 * np.pi * f * t) for f, a in ((rng.uniform(380, 520), 1.0),
+                                                            (rng.uniform(1100, 1500), 0.5), (2600, 0.2)))
+    return (ring + rng.standard_normal(n) * 0.6 * np.exp(-t / 0.004)) * np.exp(-t / 0.08)
+
+
+def synth_repair() -> np.ndarray:
+    """Reparation som hörs: slag mot stål, en mejsel, ett skiftnyckelgrepp."""
+    return _norm(_events(45, 5, _bang) + 0.15 * _shaped(46, 200, 3000, -2) * _lfo(0.8, 0.9))
+
+
+def _ratchet(rng) -> np.ndarray:
+    n = int(RATE * rng.uniform(0.3, 0.6))
+    clicks = (np.arange(n) % int(RATE / rng.uniform(18, 30)) == 0).astype(float)
+    return np.convolve(clicks, np.exp(-np.arange(60) / 8) * np.random.default_rng(47).standard_normal(60),
+                       mode="same") * 0.5
+
+
+def synth_repair_quiet() -> np.ndarray:
+    """Tyst reparation: spärrnyckel, filning, försiktiga grepp."""
+    file = _shaped(48, 1500, 6000, -1) * _lfo(1.5, 1.0) * 0.25
+    return _norm(_events(49, 4, _ratchet) + file)
+
+
 def synth_waves() -> np.ndarray:
     """Ytläge: vågor som slår mot skrovet."""
     swell = _lfo(1 / 3, 0.9) * _lfo(1 / 2, 0.4, 1.3)
@@ -577,6 +635,7 @@ def synth_ambience() -> dict[str, np.ndarray]:
         "ice": synth_ice(), "fire": synth_fire(), "fans": synth_fans(), "vent": synth_vent(),
         "screws_merchant": synth_screws_merchant(), "screws_warship": synth_screws_warship(),
         "screws_sub": synth_screws_sub(), "screws_unknown": synth_screws_unknown(),
-        "generator": synth_generator(),
+        "generator": synth_generator(), "pumps": synth_pumps(), "drip": synth_drip(),
+        "repair": synth_repair(), "repair_quiet": synth_repair_quiet(),
         "crew": synth_crew(), "aircon": synth_aircon(), "dread": synth_dread(),
     }

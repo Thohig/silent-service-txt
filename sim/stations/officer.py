@@ -418,6 +418,9 @@ class OfficerStation(Station):
         return self.game.knowledge.hunted(self.now) and not own.surfaced and \
             own.state.depth > 20 and (own.sys.propulsion == "electric" or own.state.speed <= HUSH_SPEED_KN)
 
+    def status_fields(self) -> dict:
+        return {"hushed": self.hushed}
+
     def _hush_watch(self) -> None:
         if self._quiet_wanted():
             self._hush_off_t = None

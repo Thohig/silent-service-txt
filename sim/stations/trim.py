@@ -438,7 +438,8 @@ class TrimStation(Station):
 
     def status_fields(self) -> dict:
         """Lutningsmätaren (trimmen och djupbytet) och rodrets last (egna instrument) till centralen."""
-        return {"pitch": self.own.pitch, "plane_load": self.own.sys.trim.plane_load}
+        return {"pitch": self.own.pitch, "plane_load": self.own.sys.trim.plane_load,
+                **({"pumps": "trim"} if self.own.sys.trim.pumping else {})}
 
 
 def _moves(order: Order) -> bool:
