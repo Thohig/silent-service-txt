@@ -25,11 +25,12 @@ _SOURCE = {
     "tanker": (143.0, 1.0),          # tungt lastat tankfartyg
     "ssbn": (130.0, 2.0),            # Polarisubåt i ytläge: vågsvallet och skruven nära ytan
     "fishing": (128.0, 1.5),         # fiskebåt, diesel
+    "spytrawler": (133.0, 1.5),      # sovjetisk spaningstrålare: diesel och generatorerna till radion
 }
 
 # Målstyrka (ekostyrka) för aktiv sonar
 TARGET_STRENGTH = {"destroyer": 25.0, "merchant": 28.0, "submarine": 15.0, "decoy": 15.0,
-                   "ssbn": 20.0, "fishing": 15.0,
+                   "ssbn": 20.0, "fishing": 15.0, "spytrawler": 17.0,
                    "patrol": 18.0, "guardship": 22.0, "moored": 28.0, "transport": 31.0, "tanker": 32.0}
 
 # Transienter (momentana ljud)

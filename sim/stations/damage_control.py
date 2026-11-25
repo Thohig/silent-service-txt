@@ -147,6 +147,10 @@ PHRASES = {
        else "")
     + (f". Vatteninträngning i {ORDINAL[d['compartment'] if d['where'] != 'sail' else 3]}, skotten stängda."
        if d.get("leak") else "."),
+    "trawl.caught": lambda d: f"{ru('Avarijnaja trevoga')}! Vi har gått in i en trål, kapten! Vajern drar i "
+    "skrovet och propellern har fått något i sig. Fiskaren däruppe känner det, han ropar säkert på radion. "
+    "Fart framåt en stund sliter vajern.",
+    "trawl.free": lambda d: "Trålvajern har slitits, kapten. Vi är loss.",
     "dc.suggest.leak_up": lambda d: f"Kapten, maskin. Läckan ger {nm(d['rate'])} ton i minuten på "
     f"{d['depth']} meter, mer än pumparna tar. Föreslår djup {d['target']}: "
     + ("där tar pumparna den." if d.get("enough") else "där läcker det mindre."),
@@ -199,6 +203,8 @@ RU_PHRASES = {
         "Над нами прошло судно, удар в рубку! Повреждены перископ и антенны." if d["where"] == "sail"
         and d.get("from_above") else "Нас таранили!" if d.get("rammed") else "Столкновение!")
     + (" Поступление воды." if d.get("leak") else ""),
+    "trawl.caught": lambda d: "Аварийная тревога! Мы зацепили трал! Трос тянет корпус, на винт что-то намотало.",
+    "trawl.free": lambda d: "Трос оборвался, мы освободились.",
     "dc.suggest.leak_up": lambda d: f"{R.CAPTAIN}, механик. Течь больше, чем откачивают насосы. "
     f"Предлагаю глубину {R.count(d['target'], R.METER)}.",
 }

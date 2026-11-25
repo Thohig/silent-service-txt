@@ -167,6 +167,8 @@ PHRASES = {
     "sonar.rain": lambda d: (f"Kapten, sonar. Regn på ytan, det smattrar i lurarna: havsbruset har ökat cirka "
                              f"{abs(d['db']):.0f} dB. Vi hör sämre, kontakterna hörs kortare.") if d["on"] else
     "Kapten, sonar. Regnet har slutat, vi hör längre igen.",
+    "sonar.trawling": lambda d: f"Kapten, sonar. {d['designation']} trålar, vinscharna och vajrarna hörs. "
+    "Trålen hänger några hundra meter akterom den, en bit ned: håll undan akterom den.",
     "sonar.foghorn": lambda d: f"Kapten, sonar. Mistlur i bäring {fmt_course(d['bearing'])}"
     + (f", från {d['designation']}" if d.get("designation") else "") + ". Ett fartyg i dimma däruppe.",
     "sonar.ambient": lambda d: f"Kapten, sonar. Havsbruset har {'ökat' if d['db'] > 0 else 'minskat'} "
@@ -270,6 +272,8 @@ def _ru_cap(s: str) -> str:
 RU_PHRASES = {
     "sonar.rain": lambda d: f"{R.CAPTAIN}, акустик. " + ("Дождь на поверхности, слышимость хуже." if d["on"]
                                                          else "Дождь кончился, слышимость лучше."),
+    "sonar.trawling": lambda d: f"{R.CAPTAIN}, акустик. {_ru_cap(R.contact(d['designation']))} тралит. "
+    "Не подходите к нему с кормы.",
     "sonar.foghorn": lambda d: f"{R.CAPTAIN}, акустик. Туманный горн, пеленг {R.course(d['bearing'])}. "
     "Наверху туман.",
     "sonar.ambient": lambda d: f"{R.CAPTAIN}, акустик. Шумы моря "
@@ -594,6 +598,11 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                     if not self._class_batch:
                         self._class_t = self.now
                     self._class_batch.append((ev.designation, ev.classification, ev.quality))
+                    if "fiskebåt" in ev.classification and ev.quality >= Quality.GOD and \
+                            self._dedupe(f"trawl{ev.designation}", 10**9):
+                        # vinscharna och vajrarna hörs: han trålar (en gång per båt)
+                        self.say("sonar.trawling", {"designation": ev.designation}, kind="contact",
+                                 extra_delay=CLASS_BATCH_S + 2)
                     self._class_last = self.now
                 case Lost():
                     bus.publish(ContactLost(self.now, ev.designation))

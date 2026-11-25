@@ -54,6 +54,9 @@ def test_qualities_follow_uncertainty():
 def _game_at_periscope_depth(seed=3, day=False, dd_range=2.0):
     g = Game(default_scenario(random.Random(seed)), seed=seed)
     w = g.world
+    fleet = [v for v in w.contacts if v.kind in ("fishing", "spytrawler")]    # bara jagaren och handeln
+    w.contacts = [v for v in w.contacts if v not in fleet]
+    w.ais = [a for a in w.ais if getattr(a, "vessel", None) not in fleet]
     st = w.own.state
     st.depth = st.ordered_depth = 15.0
     st.speed = st.ordered_speed = 3.0

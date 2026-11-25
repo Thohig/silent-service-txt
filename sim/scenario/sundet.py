@@ -4,6 +4,7 @@ from __future__ import annotations
 import random
 from typing import Any
 
+from ..fishing import add_fleet
 from ..weather import Showers
 from ..entities import Vessel
 from ..environment import Environment, TidalStream
@@ -159,6 +160,8 @@ def strait_scenario(rng: random.Random, short: bool = False, out: bool = False) 
     windows = [(c - start_clock) for c in (6 * 3600 + 30 * 60, 8 * 3600) if c > start_clock + 3600]
     known = [("Ankarplatsen", ax + rng.gauss(0, 0.2), ay + rng.gauss(0, 0.2), 0.4, 0),
              ("Nätet", cx + rng.gauss(0, 0.05), net_y + rng.gauss(0, 0.15), 0.2, 0)]
+    add_fleet(world, seabed.base, 2, (1.0, 1.0, size - 1.0, size - 1.0),         # trålare på kustbanken
+              lambda x, y: 40 < seabed.depth_at(x, y) < 150)
     return Scenario(world, _crew(), STRAIT_ORDER, start_clock,
                     radio_windows=windows, radio_messages=list(STRAIT_RADIO),
                     known_positions=known, chart_seabed=chart,

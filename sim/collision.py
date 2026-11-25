@@ -37,7 +37,7 @@ SAIL_HALF_BEAM_M = 2.0
 SURFACE_KEEL_M = 7.0        # i ytläge går kölen så djupt (seabed.SURFACE_DRAFT_M)
 SUPERSTRUCTURE_M = -30.0    # ytfartygets överbyggnad: ovanför ytan, når allt
 DRAFT_M = {"destroyer": 5.5, "merchant": 8.0, "transport": 9.0, "tanker": 11.0, "patrol": 2.5,
-           "guardship": 4.0, "fishing": 4.0, "moored": 8.0}
+           "guardship": 4.0, "fishing": 4.0, "spytrawler": 4.5, "moored": 8.0}
 DRAFT_DEFAULT_M = 6.0
 SUBMARINES = ("submarine", "ssbn")
 APART_M = 60.0              # skilda åt: samma fartyg kan träffa igen

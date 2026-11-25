@@ -786,7 +786,7 @@ class EngineeringStation(Station):
                         self.now - self._last_groan < GROAN_SAY_S:
                     continue
                 self._last_groan = self.now
-            alarm = type in ("reactor.scram", "damage", "collision", "surfaced", "broach", "ice.collision", "ice.bump",
+            alarm = type in ("reactor.scram", "damage", "collision", "trawl.caught", "surfaced", "broach", "ice.collision", "ice.bump",
                              "bottom.collision", "bottom.touch", "bottom.pressed", "net.caught",
                              "fire") or (type == "smoke" and data["level"] >= 0.7) or \
                 (type == "battery" and data["level"] <= 0.1)

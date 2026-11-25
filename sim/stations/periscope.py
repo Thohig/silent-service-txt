@@ -33,6 +33,7 @@ from ..crew import Role
 from ..events import (OwnActionLogged, BearingObserved, ClassificationChanged, ContactDetected, EventSighted,
                       PeriscopeBlocked,
                       PeriscopeSighted, PositionReported)
+from ..fishing import lit_at_night
 from ..fmt import fmt_course, kn, nm
 from ..geo import angle_diff, norm360, velocity
 from ..ice import ice_view
@@ -532,7 +533,8 @@ class PeriscopeWatch(Station):
             if not self._looked(world.true_bearing(v)):
                 continue
             r = world.true_range(v)
-            if v.is_ship and v.depth < 10 and r <= vis and world.in_sight(v.state.x, v.state.y):
+            lit = lit_at_night(v, r, day, world.env.fog_vis())         # fiskelamporna på natten
+            if v.is_ship and v.depth < 10 and (r <= vis or lit) and world.in_sight(v.state.x, v.state.y):
                 if not self._spots(v.kind, r, eye, world.true_bearing(v)):
                     continue
                 self._seen[v.id] = self._ship(v, r, light, eye)

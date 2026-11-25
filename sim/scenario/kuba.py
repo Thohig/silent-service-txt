@@ -15,6 +15,7 @@ from ..seabed import kuba_seabed
 from ..ship import ShipState
 from ..traffic import Lane, TrafficDef, TrafficGenerator
 from ..world import World
+from ..fishing import add_fleet
 from ..weather import Showers, Weather
 from .common import KUBA_PLACE, RadioMessage, Scenario, Warmup, _crew, _place
 
@@ -84,6 +85,11 @@ def default_scenario(rng: random.Random) -> Scenario:
     sb_rng = random.Random(rng.random())
     env.seabed = kuba_seabed(sb_rng, (own.state.x, own.state.y), world.size_nm)
     chart = env.seabed.chart_copy(sb_rng, err_nm=0.5)
+    # fiskebåtar på banken och en sovjetisk spaningstrålare, som jagaren skuggar en stund i taget (egen slump)
+    sb = env.seabed
+    fleet = add_fleet(world, sb.base, 3, (0.5, 0.5, world.size_nm - 0.5, world.size_nm - 0.5),
+                      lambda x, y: 40 < sb.depth_at(x, y) < 250, spy=True)
+    world.ais[0].shadow = fleet[-1]
     return Scenario(world, crew, SECRET_ORDER, start_clock,
                     radio_windows=windows, radio_messages=list(RADIO_MESSAGES),
                     chart_seabed=chart)

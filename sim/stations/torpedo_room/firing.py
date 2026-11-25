@@ -409,7 +409,8 @@ class FiringMixin:
     def _neutral(tr) -> bool:
         """Klassad (minst god) som handelsfartyg eller fiskebåt: ett neutralt fartyg vi varnar för (clyde-in frö
         29: fiskebåtarna räknades inte, och den målsökande torpeden tog en)."""
-        return tr.civil or tr.class_quality >= Quality.GOD and "fiskebåt" in tr.classification
+        return tr.civil or tr.class_quality >= Quality.GOD and ("fiskebåt" in tr.classification
+                                                                 or "trålare" in tr.classification)
 
     def _seeker_rivals(self, target: str, course: float, type_key: str) -> list[dict]:
         """Andra kända fartyg som enligt plottet ligger nära målet när den målsökande torpeden är
@@ -425,7 +426,8 @@ class FiringMixin:
         out = []
         for tr in k.tracks.values():
             if not tr.held or tr.designation == tr_t.designation or not tr.observations \
-                    or tr.sunk_t is not None or tr.friendly and not tr.civil:
+                    or tr.sunk_t is not None or "bevakningsfartyg" in tr.classification and not tr.civil:
+                # (övningens bevakningsfartyg är målet; den sovjetiska trålaren ska vi varna för)
                 continue
             sol = tr.solution
             if sol is not None and sol.quality >= Quality.OSAKER:

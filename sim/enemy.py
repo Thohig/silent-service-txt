@@ -54,6 +54,9 @@ DT_PASSIVE = 6.0
 DT_ACTIVE = 10.0
 PING_INTERVAL = {"patrol": 30, "prosecute": 15, "attack": 8, "evade": 30}
 DATUM_TIMEOUT = 900
+SHADOW_PERIOD_S = 90 * 60   # i patrull: skugga spaningstrålaren så länge av varje sådan period
+SHADOW_ON_S = 30 * 60
+SHADOW_NM = 1.0
 # Pejlnätet mot vår kortvåg (radio.py): under DF_MIN_S hinner de inte, över DF_SURE_S alltid;
 # felet krymper med längden (1,5 nm för 30 s, som förut).
 DF_MIN_S = 10.0
@@ -180,6 +183,7 @@ class DestroyerAI:
         self.leash_nm = leash_nm
         self.deaf_until = -1
         self.partners: list[DestroyerAI] = []
+        self.shadow: Vessel | None = None        # spaningstrålaren den skuggar en stund i taget (fishing.py)
 
     def start_hunt(self, x: float, y: float, depth: float, sigma: float, t: int = 0,
                    contact: bool = False) -> None:
@@ -515,7 +519,17 @@ class DestroyerAI:
                 self.opening_until = now + 90
             return
 
-        # patrull
+        # patrull (en stund i taget: skugga den sovjetiska spaningstrålaren, fishing.py)
+        sh = self.shadow
+        if sh is not None and not sh.sunk and now % SHADOW_PERIOD_S >= SHADOW_PERIOD_S - SHADOW_ON_S:
+            r = distance(s.x, s.y, sh.state.x, sh.state.y)
+            if r > SHADOW_NM:
+                s.order_speed(self.patrol_speed)
+                s.order_course(bearing_to(s.x, s.y, sh.state.x, sh.state.y))
+            else:
+                s.order_speed(max(3.0, sh.state.speed))
+                s.order_course(sh.state.course)
+            return
         s.order_speed(self.patrol_speed)
         m = self.PATROL_MARGIN
         x0, y0, x1, y1 = self.box

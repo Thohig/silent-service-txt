@@ -41,7 +41,8 @@ HIT_RADIUS_NM = 0.03         # ~55 m: fiendens målsökande torped mot oss
 HULL_M = {
     "destroyer": (57.0, 6.0), "merchant": (70.0, 9.0), "transport": (85.0, 11.0),
     "tanker": (92.0, 12.0), "patrol": (30.0, 4.0), "guardship": (45.0, 5.0),
-    "submarine": (50.0, 5.0), "ssbn": (65.0, 5.0), "fishing": (20.0, 4.0), "moored": (70.0, 9.0),
+    "submarine": (50.0, 5.0), "ssbn": (65.0, 5.0), "fishing": (20.0, 4.0), "spytrawler": (25.0, 5.0),
+    "moored": (70.0, 9.0),
 }
 HULL_DEFAULT_M = (60.0, 8.0)
 FUZE_M = 10.0

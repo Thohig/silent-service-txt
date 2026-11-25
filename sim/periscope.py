@@ -34,6 +34,7 @@ HEIGHTS: dict[str, tuple[float, float, float]] = {
     "tanker": (5.0, 13.0, 26.0),
     "ssbn": (1.5, 7.5, 10.0),        # Polarisbåt i ytläge: lågt däck, tornet
     "fishing": (2.0, 5.0, 10.0),
+    "spytrawler": (2.5, 6.0, 18.0),  # antennerna
 }
 DEFAULT_HEIGHTS = (6.0, 14.0, 25.0)
 

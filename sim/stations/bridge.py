@@ -20,6 +20,7 @@ from ..arctic import STATION_LIGHT_NM
 from ..crew import Role
 from ..events import (BearingObserved, BridgeSighted, ClassificationChanged, ContactDetected,
                       EventSighted, PositionReported)
+from ..fishing import lit_at_night
 from ..fmt import fmt_course, kn, nm
 from ..geo import bearing_to, distance, norm360, velocity
 from ..ice import ice_view
@@ -239,7 +240,8 @@ class BridgeWatch(Station):
             r = world.true_range(v)
             if r <= vis and not world.in_sight(v.state.x, v.state.y):
                 continue                        # bakom land
-            if v.is_ship and v.depth < 10 and r <= vis:
+            lit = lit_at_night(v, r, day, world.env.fog_vis())         # fiskelamporna på natten
+            if v.is_ship and v.depth < 10 and (r <= vis or lit) and (r <= vis or world.in_sight(v.state.x, v.state.y)):
                 if not detectable(v.kind, r, EYE_BRIDGE_M, BINOC_POWER,
                                   wave_height_m(world.env.sea_state)):
                     continue                    # under horisonten eller för litet i kikaren

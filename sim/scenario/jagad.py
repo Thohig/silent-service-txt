@@ -4,6 +4,7 @@ from __future__ import annotations
 import math
 import random
 
+from ..fishing import add_fleet
 from ..weather import Showers
 from ..air import AirDef, AirPatrol
 from ..enemy import DestroyerAI
@@ -130,6 +131,8 @@ def hunted_scenario(rng: random.Random, short: bool = False) -> Scenario:
         order += ("\nVAKTJOURNALEN, 00.40: JAGAREN HAR FÄLLT SKARPA\n"
                   "SJUNKBOMBER I NÄRHETEN. DEN GÅR IN IGEN.\n"
                   "KAPTENEN TAR BEFÄLET.\n")
+    add_fleet(world, seabed.base + 1.0, 2, (0.5, 0.5, size - 0.5, size - 0.5),     # trålare på banken
+              lambda x, y: 40 < seabed.depth_at(x, y) < 250)
     sc = Scenario(world, _crew(), order, start_clock,
                   radio_windows=windows, radio_messages=list(HUNTED_RADIO),
                   chart_seabed=chart, escape_margin_nm=margin, tasks=("ut",),

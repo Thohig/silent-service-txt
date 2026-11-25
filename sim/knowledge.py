@@ -62,16 +62,17 @@ class ContactTrack:
 
     @property
     def benign(self) -> bool:
-        """Säkert klassad som isljud, drivstationen eller handelsfartyg: inget hot."""
+        """Säkert klassad som isljud, drivstationen, handelsfartyg eller fiskebåt: inget hot (en fiskebåt räknades
+        som hot, och vakthavande föreslog att vänta på mörkret för den)."""
         c = self.classification
         return self.class_quality >= Quality.GOD and \
-            ("isljud" in c or "isskruvning" in c or "drivstation" in c or self.civil)
+            ("isljud" in c or "isskruvning" in c or "drivstation" in c or "fiskebåt" in c or self.civil)
 
     @property
     def friendly(self) -> bool:
-        """Klassad som eget bevakningsfartyg (övningsmålet ordern nämner): inget hot,
-        men plottet räknar på det."""
-        return "bevakningsfartyg" in self.classification
+        """Klassad som eget bevakningsfartyg (övningsmålet ordern nämner) eller den sovjetiska spaningstrålaren:
+        inget hot, men plottet räknar på det."""
+        return "bevakningsfartyg" in self.classification or "sovjetisk" in self.classification
 
     @property
     def threat(self) -> bool:

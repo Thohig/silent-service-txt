@@ -103,7 +103,8 @@ SIGHTED = {"destroyer": ("jagare, amerikansk", "jagare"),
            "transport": ("trupptransport, amerikansk", "trupptransport"),
            "tanker": ("tankfartyg, amerikanskt", "tankfartyg"),
            "ssbn": ("Polarisubåt i ytläge, amerikansk", "ubåt i ytläge"),
-           "fishing": ("fiskebåt", "fiskebåt")}
+           "fishing": ("fiskebåt", "fiskebåt"),
+           "spytrawler": ("trålare med antenner, sovjetisk", "sovjetisk trålare med antenner")}
 
 
 def mast_refusal(station, what: str) -> str | None:

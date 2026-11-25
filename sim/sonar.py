@@ -57,6 +57,8 @@ _CLASS_STAGES = {
              "Polarisubåt i ytläge, atomdriven, en axel"],
     "fishing": ["okänd kontakt", "ytfartyg, litet", "ytfartyg, diesel, trolig fiskebåt",
                 "fiskebåt, diesel, en axel"],
+    "spytrawler": ["okänd kontakt", "ytfartyg, litet", "ytfartyg, diesel, trolig trålare",
+                   "trålare, diesel, en axel, dieselgeneratorer"],
     "station": ["okänd kontakt", "maskinbuller, stillaliggande", "dieselgenerator, trolig drivstation",
                 "dieselgenerator, drivstation på isen"],
     "ice": ["okänd kontakt", "bredbandigt brus, ingen tydlig maskin", "trolig isskruvning",
