@@ -301,12 +301,13 @@ def ice_contact(world: World, prev: tuple[float, float, float], dt: int = 1) -> 
         return
     if not sys.ice_contact:
         own.alert("ice.bump", thin=thickest <= BREAK_MAX_M, too_fast=st.speed > BREAK_MAX_SPEED,
-                  back_to=round(st.depth + BUMP_BACKOFF_M))
+                  back_to=round(st.depth + BUMP_BACKOFF_M), blow=sys.blowing)
     sys.ice_contact = True
     sys.ice_press = 0
-    if not sys.blowing:
-        # trimmen tar oss några meter ned från isen igen
-        st.ordered_depth = st.depth + BUMP_BACKOFF_M
+    # nödblåsningen tar slut mot isen som inte går att bryta: luften är ute, tankarna vädras och
+    # trimmen tar oss några meter ned från isen igen (blåste vi vidare låg vi fast under isen)
+    sys.blowing = False
+    st.ordered_depth = st.depth + BUMP_BACKOFF_M
 
 
 def masts_clear(world: World) -> bool:

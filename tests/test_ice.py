@@ -76,6 +76,20 @@ def test_thick_ice_stops_ascent_and_boat_backs_down():
     assert w.own.sys.hull == 1.0
 
 
+def test_emergency_blow_under_thick_ice_ends_against_the_ice_and_we_can_dive_again():
+    """Nödblåsning under tjock is: förut blåste den så länge båten inte nått ytan, och det beordrade
+    djupet hölls på 0, så båten låg fast mot isen (arktis, kaosboten)."""
+    w = _world(_flat(3.0), depth=40)
+    assert w.own.emergency_blow()
+    _run(w, 60)
+    bumps = [a for a in w.own.sys.alerts if a[0] == "ice.bump"]
+    assert bumps and bumps[0][1]["blow"]
+    assert not w.own.sys.blowing
+    w.own.state.order_depth(60)
+    _run(w, 200)
+    assert w.own.state.depth == pytest.approx(60, abs=0.5)
+
+
 def test_thin_ice_can_be_broken_through_at_low_speed():
     w = _world(_flat(0.5), depth=40)
     w.own.state.order_depth(0)

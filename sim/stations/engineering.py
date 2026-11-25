@@ -206,6 +206,7 @@ PHRASES = {
                               if d.get("thin") and d.get("too_fast")
                               else "Den är för tjock att bryta igenom. " if not d.get("thin")
                               else "")
+                           + ("Nödblåsningen är slut, vi vädrar tankarna. " if d.get("blow") else "")
                            + f"Går ned till {d['back_to']} meter."),
     "ice.pressing": lambda d: "Tornet ligger an mot tunn is. Vi trycker på, cirka fyrtio sekunder.",
     "ice.broke_through": lambda d: "Vi har brutit igenom isen!"
@@ -331,6 +332,8 @@ def _ru_bump(d: dict) -> str:
         txt += "Лёд тонкий, но ход слишком большой, чтобы проломить. "
     elif not d.get("thin"):
         txt += "Лёд слишком толстый, не проломить. "
+    if d.get("blow"):
+        txt += "Продувание закончено, вентилируем цистерны. "
     return txt + f"Погружаемся на {R.count(d['back_to'], R.METER)}."
 
 

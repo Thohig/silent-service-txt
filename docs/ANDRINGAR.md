@@ -3,6 +3,15 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-25 – Nödblåsning under tjock is: båten låg fast mot isen
+
+- Provspel (kaosboten, arktis frö 102): efter nödblåsning under is som inte går att bryta låg båten på ~13 m mot
+  isen resten av spelet. Navigatören sa "Jest, djup 60" men inget hände. Nödblåsningen höll det beordrade djupet
+  på 0 tills båten nått ytan, och under isen kom den aldrig dit. Nu tar blåsningen slut när båten stoppas av isen
+  (`sim/ice.py`, stötgrenen): `ice.bump` säger "Nödblåsningen är slut, vi vädrar tankarna. Går ned till … meter",
+  och nya djuporder lyds. Tunn is i låg fart bryts som förut.
+  `tests/test_ice.py::test_emergency_blow_under_thick_ice_ends_against_the_ice_and_we_can_dive_again`.
+
 ## 2026-11-25 – Webbljudet i Safari: väcks av sig själv, kön växer när den tar slut
 
 - I Safari försvann ljudet av och till. Safari stänger Web Audio själv (tillståndet `interrupted`, t.ex. när

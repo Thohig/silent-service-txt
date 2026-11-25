@@ -62,7 +62,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   bryta. Annars står tornet i kanten eller på tvären: `nav.vak.reposition` och tillbaka mot öppningens
   mitt, högst `VAK_TRIES` (2) gånger, sedan som en för smal öppning (`nav.vak.too_narrow` med `cramped`:
   "för- och akterskeppet har tjock is över sig", inte "för smal" om en råk som är lång nog). Periskopdjup
-  kräver bara tornet. `nav.suggest.ice_closing` (djup 60, larm) kommer när isen ovanför blir tjock nära
+  kräver bara tornet. Nödblåsning mot is vi inte kan bryta tar slut där (`ice.bump` med `blow`: "Nödblåsningen är
+  slut, vi vädrar tankarna"), och trimmen tar oss 5 m ned; förut blåste den tills ytan, som aldrig kom, och båten
+  låg fast mot isen med beordrat djup 0 (2026-11-25). `nav.suggest.ice_closing` (djup 60, larm) kommer när isen ovanför blir tjock nära
   ytan, och också medan vi stiger mot en öppning (beordrat ≤ antenndjup), eller på väg mot ytläge när för-
   eller akterskeppet fått is vi inte kan bryta (isen driver medan vi stiger). Den öppningen stryks då
   (`OpeningNotFound`, `_surfacing_through`) och föreslås inte igen (2026-11-23; arktis frö 13: samma nyis tre
