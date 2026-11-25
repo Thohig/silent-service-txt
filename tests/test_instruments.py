@@ -147,3 +147,16 @@ def test_dial_labels_never_overlap():
     for w, h in ((100, 22), (100, 26), (150, 29)):
         text = "\n".join(line.plain for line in render_central(BASE, width=w, height=h))
         assert "SAKTHALV" not in text and "SAKTAHALV" not in text
+
+
+def test_tall_wall_gives_the_speed_gauge_its_own_slot_and_the_clock_goes_below():
+    tall, low = Geometry(160, 38), Geometry(150, 26)
+    t, l = tall.slots(), low.slots()
+    assert t["klocka"][0] == t["batteri"][0]                     # klockan i raden under
+    assert t["fart"][3] > l["fart"][3]                           # fartmätaren bredare
+    assert l["klocka"][0] == l["fart"][0]                        # låg vägg: sida vid sida som förut
+    for g in (tall, low):                                        # inga rutor överlappar
+        boxes = list(g.slots().values())
+        for i, (r0, c0, h0, w0) in enumerate(boxes):
+            for r1, c1, h1, w1 in boxes[i + 1:]:
+                assert r0 + h0 <= r1 or r1 + h1 <= r0 or c0 + w0 <= c1 or c1 + w1 <= c0

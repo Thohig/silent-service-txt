@@ -119,18 +119,20 @@ class Geometry:
             else:
                 out[outer] = (top, b - big_w + 1, rows, big_w)
                 x = a
-            if inner[0] == "fart":                 # fart och klocka sida vid sida
+            if inner[0] == "fart" and not strip:   # fart och klocka sida vid sida
                 half = rest // 2
                 out["fart"] = (top, x, upper, half)
                 out["klocka"] = (top, x + half, upper, rest - half)
-            else:
+            else:                                  # på en hög vägg står klockan i raden under
                 out[inner[0]] = (top, x, upper, rest)
             out[inner[1]] = (top + upper, x, rows - upper, rest)
         if strip:
-            for (a, b), names in ((self.left, ("lutning", "trim")), (self.right, ("batteri", "lans"))):
-                half = (b - a + 1) // 2
-                out[names[0]] = (top + rows, a, strip, half)
-                out[names[1]] = (top + rows, a + half, strip, b - a + 1 - half)
+            for (a, b), names in ((self.left, ("lutning", "trim")),
+                                  (self.right, ("batteri", "lans", "klocka"))):
+                width = b - a + 1
+                for i, name in enumerate(names):
+                    x0, x1 = a + width * i // len(names), a + width * (i + 1) // len(names)
+                    out[name] = (top + rows, x0, strip, x1 - x0)
         return out
 
     @property
