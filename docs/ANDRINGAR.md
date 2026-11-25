@@ -3,6 +3,19 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-25 – Webbljudet i Safari: väcks av sig själv, kön växer när den tar slut
+
+- I Safari försvann ljudet av och till. Safari stänger Web Audio själv (tillståndet `interrupted`, t.ex. när
+  talsyntesen tar ljudet, och `suspended` när fliken göms), och sidan väckte det bara vid nästa tangent. Nu väcks
+  det så fort det står still och sidan syns: vid varje tillståndsbyte, när fliken syns, efter varje replik och en
+  gång i sekunden (`makeAudio` i `web/index.html`; första tangenten eller klicket krävs fortfarande).
+- Safari kör Pyodide långsammare, så ett tungt tick kan tömma kön (0,25 s). `WebOut` fyller nu 0,1 s längre fram
+  varje gång kön tagit slut, högst 1 s (`AHEAD_STEP_S`, `MAX_AHEAD_S`, `WebOut.ahead`, `underruns`).
+- Mätning i konsolen: `k114ljud` (tillståndsbyten, glappen och deras sammanlagda tid; AudioWorklet mäter hur länge
+  kön var tom) och `ljudet: …`-rader för byten och glapp ≥ 50 ms. Provat i webbläsarpanelen (Chromium): avstängt
+  ljud kom tillbaka direkt utan tangent, sidan låst 600 ms gav ett glapp på 401 ms och kön 0,35 s. Inte provat i
+  Safari. `tests/test_webb.py::test_kon_blir_langre_nar_den_tar_slut_men_har_ett_tak`.
+
 ## 2026-11-25 – Radio Moskva talar i webben
 
 - Menyns sändningar är inspelade med Milena i `ui/radio/` (sex filer, ~0,8 MB, 11 025 Hz, namnet är textens

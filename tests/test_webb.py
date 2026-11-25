@@ -141,7 +141,24 @@ def test_ljudet_borjar_om_efter_ett_avbrott():
     sink.chunks.clear()
     sink.now = 5.0                               # slingan stod still längre än kön räckte
     out.pump()
-    assert sink.frames() / RATE < web_audio.AHEAD_S + BLOCK / RATE
+    assert out.underruns == 1
+    assert out.ahead == pytest.approx(web_audio.AHEAD_S + web_audio.AHEAD_STEP_S)
+    assert out.ahead <= sink.frames() / RATE < out.ahead + BLOCK / RATE
+
+
+def test_kon_blir_langre_nar_den_tar_slut_men_har_ett_tak():
+    # Safari kör Pyodide långsammare än Chrome och tömde kön av och till: varje gång kön tar
+    # slut fylls den längre fram, men aldrig så långt att knappljud och ping blir sena.
+    sink = FakeSink()
+    out = web_audio.WebOut(_tone_mixer(), sink, timer=False)
+    out.pump()
+    sink.now = 0.1
+    out.pump()
+    assert out.underruns == 0 and out.ahead == web_audio.AHEAD_S
+    for i in range(30):
+        sink.now += 10.0
+        out.pump()
+    assert out.underruns == 30 and out.ahead == pytest.approx(web_audio.MAX_AHEAD_S)
 
 
 def test_utan_ljud_i_sidan_ar_det_tyst():

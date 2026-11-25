@@ -50,14 +50,17 @@ laddar …</div>
 const TEXTUAL = "textual==8.2.8";
 
 // Ljudet: Python (web_audio.WebOut) fyller på en kö i förväg, och den här processorn spelar
-// den i Web Audios ljudtråd. Stereo sammanflätat; tom kö ger tystnad.
+// den i Web Audios ljudtråd. Stereo sammanflätat; tom kö ger tystnad. Tar kön slut mitt i
+// (Python hann inte fylla på) mäts glappet och skickas till sidan (k114ljud i konsolen).
 const WORKLET = `
 class K114Out extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.q = []; this.pos = 0;
+    this.q = []; this.pos = 0; this.playing = false; this.starved = 0;
     this.port.onmessage = (e) => {
-      if (e.data === "clear") { this.q = []; this.pos = 0; return; }
+      if (e.data === "clear") { this.q = []; this.pos = 0; this.playing = false; this.starved = 0; return; }
+      if (this.starved) { this.port.postMessage({ gap: this.starved / sampleRate }); this.starved = 0; }
+      this.playing = true;
       this.q.push(e.data);
       if (this.q.length > 64) { this.q.shift(); this.pos = 0; }   // högst ~3 s i kö
     };
@@ -72,6 +75,7 @@ class K114Out extends AudioWorkletProcessor {
       }
       if (this.pos >= b.length) { this.q.shift(); this.pos = 0; }
     }
+    if (this.playing) this.starved += l.length - i;
     for (; i < l.length; i++) { l[i] = 0; r[i] = 0; }
     return true;
   }
@@ -104,7 +108,7 @@ async function makeSpeech() {
       u.rate = Math.max(0.5, Math.min(2, rate));
       // Chrome kan tappa repliker utan onend (skräpsamlad) och tystna i långa: håll kvar dem,
       // och räkna repliken som slut efter en generös gräns så att besättningen aldrig fastnar.
-      const end = () => { handle.done = true; live.delete(u); clearTimeout(guard); };
+      const end = () => { handle.done = true; live.delete(u); clearTimeout(guard); wakeAudio(); };
       const guard = setTimeout(end, (3 + text.length * 0.12 / u.rate) * 1000);
       u.onend = u.onerror = end;
       live.add(u);
@@ -115,14 +119,42 @@ async function makeSpeech() {
   };
 }
 
+// Ljudets mätning, för felsökning i konsolen: tillståndsbyten (sekunder, tillstånd) och
+// glappen när kön tog slut (antal, sammanlagd tid).
+const k114ljud = { states: [], gaps: 0, gapS: 0 };
+window.k114ljud = k114ljud;
+let wakeAudio = () => {};
+
 async function makeAudio() {
   // Webbläsaren tillåter ljud först efter en tangent eller ett klick: till dess står klockan still.
   if (!window.AudioWorkletNode) return null;
   const ctx = new AudioContext({ sampleRate: 22050 });
   const url = URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" }));
   await ctx.audioWorklet.addModule(url);
-  const wake = () => { if (ctx.state !== "running") ctx.resume(); };
-  for (const t of ["keydown", "pointerdown"]) addEventListener(t, wake, true);
+  // Safari avbryter ljudet av sig själv (tillståndet "interrupted", t.ex. när talsyntesen
+  // eller annat ljud tar ljudet, eller "suspended" när fliken göms) och väntade då på nästa
+  // tangent: ljudet försvann av och till. Efter första tangenten väcks det i stället så fort
+  // det står still och sidan syns: vid varje tillståndsbyte, när fliken syns, efter varje
+  // replik (`wakeAudio`) och en gång i sekunden.
+  let unlocked = false;
+  const wake = () => {
+    if (!unlocked || document.hidden || ctx.state === "running" || ctx.state === "closed") return;
+    ctx.resume().catch(() => {});
+  };
+  const unlock = () => { unlocked = true; wake(); };
+  for (const t of ["keydown", "pointerdown"]) addEventListener(t, unlock, true);
+  document.addEventListener("visibilitychange", wake);
+  ctx.addEventListener("statechange", () => {
+    k114ljud.states.push([Math.round(performance.now() / 100) / 10, ctx.state]);
+    if (ctx.state !== "running") console.info("ljudet:", ctx.state);
+    wake();
+  });
+  setInterval(wake, 1000);
+  wakeAudio = wake;
+  const gap = (s) => {
+    k114ljud.gaps++; k114ljud.gapS += s;
+    if (s >= 0.05) console.info(`ljudet: kön tom ${Math.round(s * 1000)} ms`);
+  };
   // En kanal (egen processor och kö) per ljudutgång i Python: menyns och spelets ljud
   // överlappar medan ordern skrivs ut, och Web Audio blandar dem. En delad kö varvade
   // deras block i stället (hackigt, och dubbelt så fort).
@@ -132,6 +164,7 @@ async function makeAudio() {
     channel: () => {
       const node = new AudioWorkletNode(ctx, "k114-out", { outputChannelCount: [2] });
       node.connect(ctx.destination);
+      node.port.onmessage = (e) => gap(e.data.gap);
       return {
         push: (buf) => node.port.postMessage(buf, [buf.buffer]),
         clear: () => node.port.postMessage("clear"),
