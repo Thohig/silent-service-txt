@@ -113,7 +113,8 @@ PHRASES: dict[str, Phrase] = {
     "plot.suggest": _suggest,
     "plot.solution": _solution,
     "plot.maneuver": lambda d: f"Kapten, plottet! {d['designation']} har troligen ändrat kurs eller "
-    f"fart, bäringarna stämmer inte längre. Vi börjar om lösningen.",
+    f"fart, bäringarna stämmer inte längre. "
+    + ("Lösningen vi nyss gav gäller inte, vi börjar om." if d.get("recall") else "Vi börjar om lösningen."),
     "plot.few_bearings": lambda d: f"För få bäringar på {d['designation']} ännu, kapten.",
     "plot.no_contacts": lambda d: "Vi har inga kontakter, kapten.",
     "plot.which": lambda d: "Vilken kontakt, kapten? " + ", ".join(d["options"]) + ".",
@@ -165,7 +166,8 @@ RU_PLOT: dict[str, Phrase] = {
     "plot.solution": lambda d: f"{_cap(russian.contact(d['designation']))}: "
     f"{ru_solution(d['solution'])} Решение {russian.QUALITY_RU[d['solution']['quality']]}.",
     "plot.maneuver": lambda d: f"{_ru_plot(d)}! {_cap(russian.contact(d['designation']))}, видимо, "
-    "изменила курс или скорость, пеленги больше не сходятся. Начинаем решение заново.",
+    "изменила курс или скорость, пеленги больше не сходятся. "
+    + ("Прежнее решение недействительно, начинаем заново." if d.get("recall") else "Начинаем решение заново."),
     "plot.few_bearings": lambda d: f"Мало пеленгов на {russian.contact(d['designation'])}, "
     "товарищ командир.",
     "plot.no_contacts": lambda d: "Контактов нет, товарищ командир.",

@@ -38,6 +38,7 @@ BEARING_LINE_NM = 12.0          # bäringslinjer på kortet
 VECTOR_S = 360                  # fartvektor på kortet: sex minuters gång
 FADE_S = 300                    # äldre bäringar ritas bleka
 MANEUVER_REPEAT_S = 300         # säg "har ändrat kurs" högst så här ofta per kontakt
+RECALL_IMPROVED_S = 120        # "nu god" så nyss före en manöver: plottet säger att den inte gäller
 IMPROVED_AGAIN_S = 600          # samma kvalitet sägs inte igen inom så här lång tid (den svänger)
 HUNTED_MANEUVER_REPEAT_S = 1800  # ... och så här sällan medan vi är jagade (jagaren girar hela
                                  # tiden; plot.hunter säger hur han jagar)
@@ -545,7 +546,13 @@ class PlotTeam(Station):
                         HUNTED_MANEUVER_REPEAT_S if self.game.knowledge.hunted(self.now)
                         else MANEUVER_REPEAT_S):
                     self._maneuver_said[tr.designation] = self.now
-                    self.say("plot.maneuver", {"designation": tr.designation},
+                    # "nu god" alldeles nyss och nu "börjar om": ett köat besked släpps, ett sagt tas
+                    # tillbaka (krig-kort och clyde-in, kaosboten: två besked som sa emot varandra)
+                    queued = self.game.queue.drop(lambda r: r.type == "plot.improved"
+                                                  and r.data.get("designation") == tr.designation)
+                    said = self._improved_said.get(tr.designation)
+                    recalled = not queued and said is not None and self.now - said[2] <= RECALL_IMPROVED_S
+                    self.say("plot.maneuver", {"designation": tr.designation, "recall": recalled},
                              kind="solution", quality=Quality.DALIG, alarm=True)
                 sol = self._resolve(tr)
                 if sol is None:

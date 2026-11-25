@@ -388,3 +388,38 @@ def test_a_pinging_warship_not_hunting_us_may_turn(monkeypatch):
     tr.observations.append(BearingObs(300, 45.0, 1.0, 0.0, 0.0, 0.0, source="ping"))
     k.resolve("S-1", 310, (0.0, 0.0))
     assert seen == [None, K.PINGER_MANEUVER_Q]
+
+
+@pytest.mark.parametrize("queued", [True, False])
+def test_maneuver_right_after_good_takes_the_good_back(queued):
+    """Kaosboten (krig-kort, clyde-in): "lösningen är nu god" och 1–30 s senare "har ändrat kurs, vi
+    börjar om". Ett köat "nu god" släpps; ett som redan sagts tas tillbaka i manöverbeskedet."""
+    from sim.game import Game
+    from sim.scenario import default_scenario
+    from sim.stations.plot import PlotTeam
+    from sim.knowledge import ContactTrack
+    g = Game(default_scenario(random.Random(1)), seed=1)
+    plot = g.station(PlotTeam)
+    rng = random.Random(4)
+    own = ShipState(x=0, y=0, course=0, speed=3)
+    tgt = ShipState(x=-1.5, y=3.0, course=120, speed=12)
+    obs = []
+    _looks(own, tgt, 400, rng, obs)
+    tgt.course = tgt.ordered_course = 60
+    more = []
+    _looks(own, tgt, 130, rng, more)
+    t0 = g.now - g.now % 30 + 600
+    tr = ContactTrack("S-9", 0, observations=[BearingObs(**{**o.__dict__, "t": o.t + t0 - 530})
+                                              for o in obs + [BearingObs(**{**m.__dict__, "t": m.t + 400})
+                                                              for m in more]])
+    g.knowledge.tracks["S-9"] = tr
+    g.world.time = t0
+    plot._improved_said["S-9"] = (Quality.GOD, tr.tma_from_t, t0 - 30)
+    if queued:
+        plot.say("plot.improved", {"designation": "S-9", "solution": {}}, kind="solution", quality=Quality.GOD)
+    plot.update()
+    types = [(r.type, r.data) for r in g.queue.queued()]
+    # det gamla (tomma) "nu god" är släppt; en ny lösning ur titten får sägas efter manövern
+    assert not any(t == "plot.improved" and not d.get("solution") for t, d in types)
+    man = [d for t, d in types if t == "plot.maneuver"]
+    assert man and man[0]["recall"] is (not queued)
