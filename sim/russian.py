@@ -117,6 +117,9 @@ CLASS_RU = {
     "ytfartyg, litet": "малая надводная цель",
     "ytfartyg, diesel, trolig fiskebåt": "надводная цель, дизель, вероятно рыболовное судно",
     "fiskebåt, diesel, en axel": "рыболовное судно, дизель, одновальное",
+    "trolig ubåt, diesel": "вероятно подводная лодка, дизель",
+    "ubåt, diesel-elektrisk, tre axlar, sovjetisk (Projekt 641)": "подводная лодка, дизель-электрическая, "
+    "трёхвальная, советская (проект 641)",
     "ytfartyg, diesel, trolig trålare": "надводная цель, дизель, вероятно траулер",
     "trålare, diesel, en axel, dieselgeneratorer": "траулер, дизель, одновальный, дизель-генераторы",
     "trålare med antenner, sovjetisk": "траулер с антеннами, советский",

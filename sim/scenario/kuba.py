@@ -16,6 +16,7 @@ from ..ship import ShipState
 from ..traffic import Lane, TrafficDef, TrafficGenerator
 from ..world import World
 from ..fishing import add_fleet
+from ..foxtrot import add_foxtrot
 from ..helo import HeloDef, HeloPatrol
 from ..weather import Showers, Weather
 from .common import KUBA_PLACE, RadioMessage, Scenario, Warmup, _crew, _place
@@ -93,8 +94,14 @@ def default_scenario(rng: random.Random) -> Scenario:
     fleet = add_fleet(world, sb.base, 3, (0.5, 0.5, world.size_nm - 0.5, world.size_nm - 0.5),
                       lambda x, y: 40 < sb.depth_at(x, y) < 250, spy=True)
     world.ais[0].shadow = fleet[-1]
+    # en sovjetisk ubåt (B-36) i östra delen; staben meddelar ungefär var i första radiogrammet
+    boat = add_foxtrot(world, "b36-kuba", (12.0, 4.0, world.size_nm - 1.0, world.size_nm - 4.0))
+    msgs = list(RADIO_MESSAGES)
+    bx, by = boat.state.x + random.Random("b36-staben").gauss(0, 1.5), boat.state.y
+    msgs[0] = RadioMessage(msgs[0].text + " B-36 PATRULLERAR ÖSTRA DELEN AV KVADRAT 7. SKJUT EJ PÅ "
+                           "OIDENTIFIERADE UBÅTAR.", msgs[0].flags, waypoint=("B-36", bx, by, 3.0, 0))
     return Scenario(world, crew, SECRET_ORDER, start_clock,
-                    radio_windows=windows, radio_messages=list(RADIO_MESSAGES),
+                    radio_windows=windows, radio_messages=msgs,
                     chart_seabed=chart)
 
 KUBA_SHORT_WARM_S = 15 * 60            # vakten före kaptenen: 04:30–04:45
@@ -130,6 +137,10 @@ def kuba_short_scenario(rng: random.Random) -> Scenario:
     w0 = KUBA_SHORT_WARM_S + KUBA_SHORT_WINDOW_IN_S
     air = AirDef(first_s=(KUBA_SHORT_WARM_S + 5 * 60, KUBA_SHORT_WARM_S + 10 * 60))
     w.spawners = [sp for sp in w.spawners if not isinstance(sp, (AirPatrol, HeloPatrol))]
+    # den korta varianten: ingen B-36 (staben nämner den inte heller)
+    w.contacts = [v for v in w.contacts if v.kind != "foxtrot"]
+    w.ais = [a for a in w.ais if getattr(a, "vessel", None) is None or a.vessel.kind != "foxtrot"]
+    sc.radio_messages = list(RADIO_MESSAGES)
     w.spawners.append(AirPatrol(air, random.Random(r2.random()), area=w.size_nm))
     sc.radio_windows = [w0]
     sc.radio_window_len = KUBA_SHORT_WINDOW_S

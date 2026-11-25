@@ -39,7 +39,7 @@ SUPERSTRUCTURE_M = -30.0    # ytfartygets överbyggnad: ovanför ytan, når allt
 DRAFT_M = {"destroyer": 5.5, "merchant": 8.0, "transport": 9.0, "tanker": 11.0, "patrol": 2.5,
            "guardship": 4.0, "fishing": 4.0, "spytrawler": 4.5, "moored": 8.0}
 DRAFT_DEFAULT_M = 6.0
-SUBMARINES = ("submarine", "ssbn")
+SUBMARINES = ("submarine", "ssbn", "foxtrot")
 APART_M = 60.0              # skilda åt: samma fartyg kan träffa igen
 COLLISION_LEVEL = 165.0     # dB: stålet mot stål hörs långt
 # skadorna efter den relativa farten (knop)

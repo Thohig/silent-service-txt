@@ -19,6 +19,13 @@ from sim.stations.torpedo_room import FireTube, FireSalvo
 
 def _game(seed=3, key=None, periscope=False):
     sc = build_scenario(key, random.Random(seed)) if key else default_scenario(random.Random(seed))
+    w = sc.world                # provet gäller jagaren och handeln: fiskeflottan och B-36 tänder lampan
+    life = [v for v in w.contacts if v.kind in ("fishing", "spytrawler", "foxtrot")]
+    w.contacts = [v for v in w.contacts if v not in life]
+    w.ais = [a for a in w.ais if getattr(a, "vessel", None) not in life]
+    for a in w.ais:
+        if getattr(a, "shadow", None) in life:
+            a.shadow = None
     g = Game(sc, seed=seed)
     if periscope:       # radions "sänd rapport" ges bara på periskopdjup (mastordern, Station.vetoes)
         st = g.world.own.state

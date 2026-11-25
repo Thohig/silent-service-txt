@@ -57,6 +57,8 @@ _CLASS_STAGES = {
              "Polarisubåt i ytläge, atomdriven, en axel"],
     "fishing": ["okänd kontakt", "ytfartyg, litet", "ytfartyg, diesel, trolig fiskebåt",
                 "fiskebåt, diesel, en axel"],
+    "foxtrot": ["okänd kontakt", "möjlig undervattenskontakt", "trolig ubåt, diesel",
+                "ubåt, diesel-elektrisk, tre axlar, sovjetisk (Projekt 641)"],
     "spytrawler": ["okänd kontakt", "ytfartyg, litet", "ytfartyg, diesel, trolig trålare",
                    "trålare, diesel, en axel, dieselgeneratorer"],
     "station": ["okänd kontakt", "maskinbuller, stillaliggande", "dieselgenerator, trolig drivstation",
