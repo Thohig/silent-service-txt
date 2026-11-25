@@ -376,8 +376,11 @@ class Game:
         # skäl (vakthavande: "flygradar nära", 11 s senare "radarn mycket stark", båda djup 60);
         # ett larm släpps ändå fram om det som står inte är ett
         sug = self.active_suggestion()
-        if sug is not None and self.now - sug[2] < SAME_SUGGESTION_S and \
-                (self.suggestion_alarm or not r.alarm) and self._deeper_pending(order, sug[0]):
+        if sug is not None and self.now - sug[2] < SAME_SUGGESTION_S and self._deeper_pending(order, sug[0]):
+            # det som står tar oss minst lika djupt: också ett larm släpps, och det som står blir ett larm
+            # (kuba-kort frö 7: maskins "djup 220, turbin, fart 13" skrevs över av sonars "djup 180!")
+            if r.alarm:
+                self.suggestion_alarm = True
             return True
         return sug is not None and sug[0] == order and self.now - sug[2] < SAME_SUGGESTION_S and \
             (r.speaker != self.suggestion_by or not r.alarm or self.suggestion_alarm)

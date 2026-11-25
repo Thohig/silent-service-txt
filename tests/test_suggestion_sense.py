@@ -241,6 +241,20 @@ def test_going_down_is_not_suggested_over_a_deeper_pending_suggestion():
     assert g.active_suggestion()[0] == "djup 220, turbin, fart 13"
 
 
+def test_an_alarm_to_go_down_does_not_replace_a_deeper_pending_suggestion():
+    """Kuba-kort frö 7: maskins sprint till 220 m skrevs över 6 s senare av sonars larm 'djup 180'.
+    Det som står tar oss djupare: larmet släpps, och sprinten står som ett larm."""
+    g, reports = _game()
+    _run(g, 2)
+    g.say(Role.ENGINEER, "order.declined", {"order": "djup 220, turbin, fart 13", "made_t": g.now}, kind="suggest")
+    _run(g, 8)
+    g.say(Role.SONAR, "order.declined", {"order": "djup 180", "made_t": g.now}, kind="suggest", alarm=True)
+    _run(g, 8)
+    assert g.active_suggestion()[0] == "djup 220, turbin, fart 13"
+    assert g.suggestion_alarm
+    assert "djup 180" not in [r.data.get("order") for r in reports if r.kind == "suggest"]
+
+
 def test_no_layer_suggestion_on_the_surface():
     """I ytläge föreslog sonar 'djup 120 under skiktet' (och trängde undan 'vänta på mörkret')."""
     from sim.stations import SonarRoom
