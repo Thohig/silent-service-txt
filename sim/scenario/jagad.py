@@ -5,6 +5,7 @@ import math
 import random
 
 from ..fishing import add_fleet
+from ..helo import HeloDef, HeloPatrol
 from ..weather import Showers
 from ..air import AirDef, AirPatrol
 from ..enemy import DestroyerAI
@@ -124,6 +125,8 @@ def hunted_scenario(rng: random.Random, short: bool = False) -> Scenario:
     traffic.populate(world)
     world.spawners.append(traffic)
     world.spawners.append(AirPatrol(HUNTED_AIR, random.Random(rng.random()), area=size))
+    if not short:       # helikoptrar med doppingsonar när jagaren har ett läge (egen slump)
+        world.spawners.append(HeloPatrol(HeloDef(), random.Random("helo-jagad"), area=size))
 
     windows = [] if short else [(c - start_clock) for c in (1 * 3600 + 30 * 60, 3 * 3600)]
     order = HUNTED_ORDER

@@ -753,7 +753,7 @@ class OfficerStation(Station):
         world, rng = self.world, self.rng
         strongest = None
         for v in world.contacts:
-            if v.kind != "aircraft" or v.gone:
+            if v.kind != "aircraft" or v.gone or getattr(v, "helo", False):   # helikoptern har ingen radar
                 continue
             r = world.true_range(v)
             if r > AIR_ESM_NM:

@@ -18,6 +18,7 @@ from ..seabed import kuba_seabed
 from ..ship import ShipState
 from ..theatre import Theatre, TheatreDef
 from ..traffic import Lane, TrafficDef, TrafficGenerator
+from ..helo import HeloDef, HeloPatrol
 from ..weather import Showers, Weather
 from ..world import World
 from .common import Scenario, Warmup, _crew, _place
@@ -113,6 +114,9 @@ def war_scenario(rng: random.Random, tdef: TheatreDef | None = None,
     traffic.populate(world)
     world.spawners.append(traffic)
     world.spawners.append(air)
+    if not short:       # helikoptrar med doppingsonar (och Mk 44) när en jagare har ett läge (egen slump)
+        world.spawners.append(HeloPatrol(HeloDef(first_s=(60 * 60, 120 * 60)), random.Random("helo-krig"),
+                                         area=size))
     world.goals.append(EscapeGoal(WAR_ESCAPE_NM, "patrol_done", requires_flag="recalled"))
     sb_rng = random.Random(rng.random())
     env.seabed = kuba_seabed(sb_rng, (ox, oy), size)

@@ -35,6 +35,7 @@ from .recording import RecordingMixin
 from .sweep import SweepCalls
 
 BEARING_REPORT_DELTA = 5.0
+DIP_REPORT_S = 300         # doppingsonaren: en rad per ny doppunkt (bäringen i 30°-steg), högst så ofta
 FOGHORN_REPORT_S = 900     # mistluren från samma fartyg (eller bäring) sägs högst så ofta
 CLASS_BATCH_S = 5          # klassningar samlas på en rad tills ingen ny kommit på så länge …
 CLASS_BATCH_MAX_S = 20     # … högst så länge
@@ -227,6 +228,9 @@ PHRASES = {
     "Skott som ger vika. Ett fartyg sjunker, kapten.",
     "sonar.buoy": lambda d: f"Kapten, sonar. Små plask i bäring {fmt_course(d['bearing'])}, "
     "inget motorljud. Troligen sonobojar från ett flygplan. De lyssnar efter oss.",
+    "sonar.dip": lambda d: f"{ru('Tovarisjtj komandir')}, sonar! Korta ljusa pingar i bäring "
+    f"{fmt_course(d['bearing'])}, från en fast punkt" + (", mycket starka" if d.get("near") else "")
+    + ". Inget motorljud: doppingsonar från en helikopter. Den flyttar sig mellan doppen.",
     "sonar.buoy_ping": lambda d: f"Kapten, sonar! Korta ljusa pingar i bäring "
     f"{fmt_course(d['bearing'])}, från en fast punkt. Aktiv sonoboj.",
     "sonar.suggest.quiet": lambda d: "Kapten, sonar. Föreslår smygmotor, så hör bojarna oss sämre.",
@@ -334,6 +338,8 @@ RU_PHRASES = {
     f"{_ru_src(d)}. Переборки не выдерживают. Судно тонет, товарищ командир.",
     "sonar.buoy": lambda d: f"{R.CAPTAIN}, акустик. Слабые всплески, пеленг "
     f"{R.course(d['bearing'])}, шума винтов нет. Видимо, самолёт ставит буи. Нас слушают.",
+    "sonar.dip": lambda d: f"{R.CAPTAIN}, акустик! Короткие высокие посылки, пеленг {R.course(d['bearing'])}, "
+    "из одной точки. Шума винтов нет: опускаемая станция вертолёта.",
     "sonar.buoy_ping": lambda d: f"{R.CAPTAIN}, акустик! Короткие высокие посылки, пеленг "
     f"{R.course(d['bearing'])}, из неподвижной точки. Активный буй.",
     "sonar.suggest.quiet": lambda d: f"{R.CAPTAIN}, акустик. Предлагаю перейти на электромотор, "
@@ -953,6 +959,14 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         elif ev.kind == "foghorn":
             if self._dedupe(f"foghorn{ev.designation or round(ev.bearing, -1)}", FOGHORN_REPORT_S):
                 self.say("sonar.foghorn", d, kind="contact")
+        elif ev.kind == "dip_ping":
+            # doppingsonaren: en fast punkt nära oss som flyttar sig mellan doppen (en rad per ny punkt)
+            if self._dedupe(f"dip{round(ev.bearing / 30)}", DIP_REPORT_S):
+                near, _ = self._ping_near(ev.rl)
+                self.say("sonar.dip", {**d, "near": near}, kind="contact", alarm=True)
+                self._evasive_depth(cause="ping")
+            if ev.rl >= PING_NEAR_RL:
+                bus.publish(HuntSigns(self.now, "ping"))
         elif ev.kind == "buoy":
             if self._dedupe("buoy", 300):
                 self.say("sonar.buoy", d, kind="contact", alarm=True)

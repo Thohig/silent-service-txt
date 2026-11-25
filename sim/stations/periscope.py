@@ -182,7 +182,7 @@ PHRASES = {
     "off.periscope.washed": lambda d: "Sjön sköljer över periskopet, kapten. Bilden kommer och går.",
     "off.periscope.aircraft": lambda d: f"Periskop: flygplan i bäring {fmt_course(d['bearing'])}, "
     f"cirka {nm(d['range'])} sjömil, " + ("lågt över vattnet" if d["low"] else "på höjd")
-    + ". Tvåmotorigt patrullplan.",
+    + (". Helikopter, hovrar." if d.get("helo") else ". Tvåmotorigt patrullplan."),
 }
 phrases.register(PHRASES)
 
@@ -218,7 +218,8 @@ RU_PHRASES = {
     "off.periscope.sea": lambda d: f"Перископ: волнение {'усилилось' if d['up'] else 'стихло'}, "
     f"{R.count(d['sea'], ('балл', 'балла', 'баллов'))}.",
     "off.periscope.washed": lambda d: f"{R.CAPTAIN}, перископ захлёстывает волной.",
-    "off.periscope.aircraft": lambda d: f"Перископ: самолёт, пеленг {R.course(d['bearing'])}"
+    "off.periscope.aircraft": lambda d: f"Перископ: {'вертолёт' if d.get('helo') else 'самолёт'}, "
+    f"пеленг {R.course(d['bearing'])}"
     + (", низко над водой!" if d["low"] else "."),
 }
 phrases.register_ru(RU_PHRASES)
@@ -706,13 +707,15 @@ class PeriscopeWatch(Station):
         low = v.altitude < 150
         if v.id not in self._called:
             self._called.add(v.id)
-            self.say("off.periscope.aircraft", {"bearing": bearing, "range": r_meas, "low": low},
+            self.say("off.periscope.aircraft", {"bearing": bearing, "range": r_meas, "low": low,
+                                                "helo": getattr(v, "helo", False)},
                      kind="contact", alarm=True)
         if (d := self.dive_depth(60)) is not None:
             self.suggest("down_air", "off.suggest.down", {"reason": "Flygplan i sikte.", "why": "aircraft",
                                                            "depth": d},
                          order=f"djup {d}", cooldown=300, alarm=True)
-        return SightedObject("aircraft", "flygplan", bearing, r_meas, Quality.OSAKER,
+        return SightedObject("aircraft", "helikopter" if getattr(v, "helo", False) else "flygplan",
+                             bearing, r_meas, Quality.OSAKER,
                              detail="lågt" if low else "", seen_t=self.now)
 
     def _station(self, v, r: float) -> SightedObject:

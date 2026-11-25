@@ -16,6 +16,7 @@ from ..ship import ShipState
 from ..traffic import Lane, TrafficDef, TrafficGenerator
 from ..world import World
 from ..fishing import add_fleet
+from ..helo import HeloDef, HeloPatrol
 from ..weather import Showers, Weather
 from .common import KUBA_PLACE, RadioMessage, Scenario, Warmup, _crew, _place
 
@@ -77,6 +78,8 @@ def default_scenario(rng: random.Random) -> Scenario:
     traffic.populate(world)
     world.spawners.append(traffic)
     world.spawners.append(AirPatrol(KUBA_AIR, random.Random(rng.random()), area=world.size_nm))
+    # helikoptrar med doppingsonar från hangarfartyget, när jagaren har ett färskt läge (egen slump)
+    world.spawners.append(HeloPatrol(HeloDef(), random.Random("helo-kuba"), area=world.size_nm))
 
     crew = _crew()
     # sambandstillfällen kl 05:00, 06:30 och 08:00
@@ -126,7 +129,7 @@ def kuba_short_scenario(rng: random.Random) -> Scenario:
     dd.state.course = dd.state.ordered_course = (b + 90 + r2.uniform(-40, 40)) % 360
     w0 = KUBA_SHORT_WARM_S + KUBA_SHORT_WINDOW_IN_S
     air = AirDef(first_s=(KUBA_SHORT_WARM_S + 5 * 60, KUBA_SHORT_WARM_S + 10 * 60))
-    w.spawners = [sp for sp in w.spawners if not isinstance(sp, AirPatrol)]
+    w.spawners = [sp for sp in w.spawners if not isinstance(sp, (AirPatrol, HeloPatrol))]
     w.spawners.append(AirPatrol(air, random.Random(r2.random()), area=w.size_nm))
     sc.radio_windows = [w0]
     sc.radio_window_len = KUBA_SHORT_WINDOW_S
