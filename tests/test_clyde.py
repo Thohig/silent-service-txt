@@ -190,3 +190,23 @@ def test_patrol_boats_listen_in_peace_and_ping_when_they_search():
     for _ in range(60):
         w.tick()
     assert boat.vessel.id in pings
+
+
+@pytest.mark.slow
+def test_sonar_does_not_steer_us_onto_the_chart_land_for_the_tape():
+    """clyde-in frö 102 (kaosboten): sonar föreslog kurs mot Polarisbåten in mot land, navigatören
+    föreslog genast en gir bort, och så fram och tillbaka var annan minut."""
+    g = Game(build_scenario("clyde-in", random.Random(102)), seed=102)
+    nav = g.station(NavigationStation)
+    bad = []
+
+    def on(e):
+        r = e.report
+        if r.type == "sonar.suggest.record_close" and not nav.course_safe(r.data["bearing"]):
+            bad.append((g.clock_str(), r.data["bearing"]))
+    g.bus.subscribe(ReportDelivered, on)
+    for _ in range(15 * 60):
+        g.tick()
+        if g.active_suggestion() and g.now % 20 == 0:
+            g.command("ja")
+    assert not bad

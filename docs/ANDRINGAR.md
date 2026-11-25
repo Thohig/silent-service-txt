@@ -3,6 +3,17 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-25 – Provspel: sonar mot land för bandet, djuporder under nödblåsning
+
+- Clyde-in (kaosboten, frö 102): sonar föreslog kurs mot Polarisbåten för bandet (`sonar.suggest.record_close`)
+  rakt in mot kortets land, och navigatören föreslog genast en gir bort (`nav.suggest.land`), om och om igen.
+  Inspelningen prövar nu kursen mot navigatörens `course_safe` som plottet och döda sektorn redan gör
+  (`sim/stations/recording.py`). `kontroll.py` för clyde, clyde-in, arktis och arktis-kort: som baslinjen.
+  `tests/test_clyde.py::test_sonar_does_not_steer_us_onto_the_chart_land_for_the_tape`.
+- En djuporder under nödblåsningen fick "Jest, djup 60 meter", men blåsningen skrev över den och båten låg kvar
+  i ytläge. Nu svarar navigatören `nav.depth.blowing` ("nödblåsningen pågår, … nytt djup när vi är uppe").
+  `tests/test_ice.py::test_depth_order_during_an_emergency_blow_is_not_acknowledged`.
+
 ## 2026-11-25 – Nödblåsning under tjock is: båten låg fast mot isen
 
 - Provspel (kaosboten, arktis frö 102): efter nödblåsning under is som inte går att bryta låg båten på ~13 m mot

@@ -545,6 +545,11 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                 if d > s.max_depth:
                     self.say("nav.limit", {"what": "depth", "limit": s.max_depth})
                     return
+                if self.own.sys.blowing and d > 0:
+                    # nödblåsningen håller det beordrade djupet på ytan tills vi är uppe: ett "Jest"
+                    # här vore fel (ordern skrevs över och båten låg kvar i ytläge)
+                    self.say("nav.depth.blowing")
+                    return
                 if d > s.ordered_depth and d > ANTENNA_DEPTH:
                     self.down_ordered_t = self.now
                 s.order_depth(d)

@@ -172,3 +172,16 @@ def test_arctic_scenario_is_dark_and_layerless():
     assert not any(env.is_day(t) for t in range(0, 6 * 3600, 600))
     s = g.world.own.state
     assert clearance(env.ice, s.x, s.y, s.course, s.depth) >= 10
+
+
+def test_depth_order_during_an_emergency_blow_is_not_acknowledged():
+    """Under nödblåsningen skrevs djupordern över (djupet hålls på ytan) men navigatören sa "Jest"."""
+    g = Game(build_scenario("kuba", random.Random(1)), seed=1)
+    reports = []
+    g.bus.subscribe(ReportDelivered, lambda e: reports.append(e.report))
+    assert g.world.own.emergency_blow()
+    g.command("djup 60")
+    for _ in range(10):
+        g.tick()
+    assert any(r.type == "nav.depth.blowing" for r in reports)
+    assert not any(r.type == "nav.depth.ack" for r in reports)

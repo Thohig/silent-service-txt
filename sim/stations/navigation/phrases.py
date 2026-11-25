@@ -247,6 +247,8 @@ PHRASES = {
     "nav.depth.done": lambda d: "Vi är i ytläge, kapten." if d["depth"] < 1
     else f"Djup {d['depth']:.0f} meter, kapten.",
     "nav.limit": _limit,
+    "nav.depth.blowing": lambda d: "Kapten, nödblåsningen pågår, vi går rakt upp till ytan. Nytt djup när vi "
+    "är uppe.",
     "nav.fairway": lambda d: f"{ru('Jest')}, följer farleden ut, kurs {fmt_course(d['course'])}. "
     f"{d['legs']} ben, {nm(d['dist'])} sjömil. Vi håller styrbords sida.",
     "nav.fairway.leg": lambda d: f"Girpunkt i farleden, ny kurs {fmt_course(d['course'])}."
@@ -576,6 +578,8 @@ RU_PHRASES = {
     "nav.depth.done": lambda d: "Мы в надводном положении, товарищ командир." if d["depth"] < 1
     else f"Глубина {R.count(d['depth'], R.METER)}, товарищ командир.",
     "nav.limit": _ru_limit,
+    "nav.depth.blowing": lambda d: f"{R.CAPTAIN}, идёт аварийное продувание, всплываем. Глубину примем "
+    "после всплытия.",
     "nav.settle.ack": lambda d: f"Есть, ложимся на грунт. Глубина около {R.count(d['depth'], R.METER)}. "
     "Ход один узел, погружаемся.",
     "nav.settle.already": lambda d: "Мы уже лежим на грунте, товарищ командир.",

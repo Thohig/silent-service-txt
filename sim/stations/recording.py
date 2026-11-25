@@ -118,6 +118,12 @@ class RecordingMixin:
                 self.say("sonar.record.weak", {**d, "minutes": tape.seconds // 60,
                                                "need": RECORD_S // 60}, kind="info")
 
+    def _course_safe(self, course: float) -> bool:
+        """Inte mot kortets land eller grund (clyde-in frö 102: sonar föreslog kurs mot Polarisbåten in
+        mot land och navigatören en gir bort, om och om igen)."""
+        nav = self._navigator()
+        return nav is None or nav.course_safe(course)
+
     def _suggest_closer(self, tr, obs) -> None:
         """För svagt för bandet: över skiktet om vi är under det, annars mot kontakten (mot sista bäringen
         när den ligger akterut i döda sektorn och vi inte har någon färsk)."""
@@ -133,6 +139,8 @@ class RecordingMixin:
                     self.own.baffle_deg + BAFFLE_MARGIN_DEG:
                 return
             b = round(b) % 360
+            if not self._course_safe(b):
+                return
             self.suggest("record_close", "sonar.suggest.record_close",
                          {"designation": tr.designation, "bearing": b, "speed": CLOSE_SPEED_KN,
                           "astern": True},
@@ -145,6 +153,8 @@ class RecordingMixin:
                          order=f"djup {LISTEN_DEPTH_M}", cooldown=600)
             return
         b = round(obs[-1].bearing) % 360
+        if not self._course_safe(b):
+            return
         self.suggest("record_close", "sonar.suggest.record_close",
                      {**d, "bearing": b, "speed": CLOSE_SPEED_KN},
                      order=f"kurs {b:03d}, fart {CLOSE_SPEED_KN}", cooldown=300)
