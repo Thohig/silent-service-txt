@@ -15,7 +15,7 @@ visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/READM
 Var: `sim/ownship.py` (`pitch`, `_pitch_step`, `steep`), `NavigationStation._steep`, `hull.clatter` i
 `stations/engineering.py`, `MAX_LAUNCH_PITCH`. Tester: `tests/test_pitch.py`.
 Kalibrering (`kontroll.py`): krig ja hemma 4 ⇒ 7 av 8, jagad ja undkom 6 ⇒ 7, duell ja undkom lika ofta men
-långsammare (median 54 ⇒ 93 min); övrigt som baslinjen.
+långsammare (median 54 ⇒ 93 min); övrigt som baslinjen. Ny baslinje sparad (`kontroll.py --spara`, 2026-11-25).
 
 ## 2026-11-24 – Översikten är huvudskärmen, centralen på hela skärmen med fler instrument
 

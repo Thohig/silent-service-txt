@@ -8,8 +8,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   avdelningar (`SECTIONS`, `ScenarioDef.section`): ÖVNING, KRISEN (fred, förbli oupptäckt), KRIGET (vapen fria),
   i den ordningen och inom avdelningen i registreringsordning; beskrivningen säger avdelningen. Rubriker och
   avdelningsrader är avstängda alternativ, beskrivningen (`brief`) bredvid, sist Inställningar, Order och
-  ordlista, Avsluta. Inställningar (`ui/settings.py`): ljud, talets språk, slumpfrö (`SubApp.sound_wanted`,
-  `language`, `fixed_seed`; `--seed`/`--tyst` sätter startvärdena, fröet gäller alla uppdrag tills det
+  ordlista, Avsluta. Inställningar (`ui/settings.py`): ljud, talets språk, uppläsning (talnivån, Enter växlar
+  viktigt → larm → av → allt; se Talnivån nedan), slumpfrö (`SubApp.sound_wanted`, `language`, `speech_level`, `fixed_seed`; `--seed`/`--tyst` sätter startvärdena, fröet gäller alla uppdrag tills det
   ändras). Order och ordlista (`ui/manual.py`) hämtar orderna ur stationernas `COMMANDS` per roll. Nytt scenario hamnar
   i menyn av sig självt om nyckel och titel följer mönstret (avdelningen `section`, standard krisen). Stämningen (`ui/menutext.py`): sidhuvud som
   hemlig handling på rött fält (ryska med svensk översättning), stämpel per uppdrag efter datumet
@@ -29,7 +29,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   Utan Milena bara brus. Bilden (`ui/menu_scene.py`, `render_scene(cols, rows, t)`): К-114 vid kaj i
   braille under beskrivningen (10 rader, bara när fönstret är ≥ 34 rader): stjärnor, fjällen, kajen med kran
   och lampa, ubåten med röd stjärna och lanterna, glitter på vattnet, snö i vinden; ingen slump (`_hash`). Flödet: menyn → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
-  huvudmenyn. `SubApp` håller spelet, ljudet och inställningarna (ljud, talets språk) över uppdragen;
+  huvudmenyn. `SubApp` håller spelet, ljudet och inställningarna (ljud, talets språk, uppläsning) över uppdragen;
   widgetarna nås med `app.gs().query_one(...)` (`app.query_one` ser bara standardskärmen). Efter
   slutrapporten går vyerna att titta på; Enter med tom orderrad (även i en vy) ⇒ `return_to_menu()`:
   timern stoppas, ljud och sanningslogg stängs, `game = None`, menyn markerar scenariot. Nytt uppdrag =
