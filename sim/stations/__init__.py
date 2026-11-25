@@ -2,6 +2,7 @@
 from .base import Station
 from .bridge import BridgeWatch
 from .council import NuclearCouncil
+from .damage_control import DamageControlStation
 from .daylight import LightWatch
 from .engineering import EngineeringStation
 from .navigation import NavigationStation, SetCourse, SetDepth, SetSpeed
@@ -20,7 +21,7 @@ from .trim import TrimStation
 DEFAULT_STATIONS: list[type[Station]] = [
     NavigationStation, EngineeringStation, SonarRoom, OfficerStation, PeriscopeWatch, BridgeWatch,
     RadioStation, PlotTeam, TorpedoRoom, TrainingOfficer, FirstOfficer, LightWatch, TrimStation,
-    NuclearCouncil,
+    NuclearCouncil, DamageControlStation,
 ]
 
 __all__ = [
@@ -28,5 +29,5 @@ __all__ = [
     "NavigationStation", "SetCourse", "SetSpeed", "SetDepth",
     "EngineeringStation", "SonarRoom", "OfficerStation", "PeriscopeWatch", "BridgeWatch", "RadioStation",
     "PlotTeam", "QuerySolution", "ShowPlot", "TorpedoRoom", "TrainingOfficer", "FirstOfficer",
-    "LightWatch", "TrimStation", "NuclearCouncil",
+    "LightWatch", "TrimStation", "NuclearCouncil", "DamageControlStation",
 ]

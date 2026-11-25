@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from .. import acoustics, phrases
 from ..crew import Role
+from ..damage import CAP_T, COMPONENT_COMPARTMENT
 from ..events import ChargeHeard, OwnSoundMade
 from ..reports import Quality
 from ..fmt import fmt_course, kn, nm
@@ -74,8 +75,6 @@ def _status(d: dict) -> str:
 # Avdelningarna i Projekt 627A, från fören. Komponenterna bor i en avdelning var.
 COMPARTMENTS = ((1, "torped"), (2, "batteri"), (3, "central"), (4, "diesel"), (5, "reaktor"),
                 (6, "turbin"), (7, "el"), (8, "bostad"), (9, "akter"))
-COMPONENT_COMPARTMENT = {"tubes": 1, "sonar": 1, "periscope": 3, "radio": 3,
-                         "propulsion": 6, "planes": 9}
 COMPONENT_NAME = {"sonar": "Sonar", "planes": "Roder", "propulsion": "Framdrivning",
                   "tubes": "Torpedtuber", "periscope": "Periskop", "radio": "Radio"}
 
@@ -91,7 +90,8 @@ def _smoke_word(v: float) -> str:
 
 ORDINAL = {1: "första", 2: "andra", 3: "tredje", 4: "fjärde", 5: "femte", 6: "sjätte",
            7: "sjunde", 8: "åttonde", 9: "nionde"}
-INSPECT_NOTE = {"BRAND": "brand", "skada": "skador", "lågt": "batteriet lågt"}
+INSPECT_NOTE = {"BRAND": "brand", "skada": "skador", "lågt": "batteriet lågt", "läcka": "läcka, den tätas",
+               "vatten": "vatten i kölsvinet", "utrymd": "halvfull, utrymd och stängd"}
 INSPECT_AFTER_S = 60         # avdelningarna rapporterar så här länge efter haverilarmet
 INSPECT_SAME_S = 900         # samma anmärkningar som förra inspektionen så nyss: "inget nytt" (jagad frö 3:
                              # samma långa rad sex gånger på 20 min under bomberna)
@@ -128,10 +128,13 @@ def _inspected(d: dict) -> str:
 def _damage(d: dict) -> str:
     comps = ", ".join(COMPONENT_LABEL[c] for c in d["components"])
     txt = f"{ru('Avarijnaja trevoga')}! {d['severity'].capitalize()} skador"
+    if d.get("compartment"):
+        txt += f" vid {ORDINAL[d['compartment']]} avdelningen"
     if comps:
         txt += f": {comps}"
     if d.get("leak"):
-        txt += ". Vatteninträngning, länsning pågår"
+        txt += ". Vatteninträngning" + (f" i {ORDINAL[d['compartment']]}" if d.get("compartment") else "") \
+            + ", skotten stängda"
     return txt + "."
 
 
@@ -156,7 +159,8 @@ PHRASES = {
     "air": lambda d: f"Koldioxidhalten är {nm(d['co2'])} procent och stiger.",
     "surfaced": lambda d: "Vi är i ytläge!",
     "broach": lambda d: "Kapten, centralen! Sjön drog upp oss, tornet bröt ytan!",
-    "leak_stopped": lambda d: "Läckan är tätad.",
+    "leak_stopped": lambda d: f"Läckan i {ORDINAL[d['compartment']]} avdelningen är tätad."
+    if d.get("compartment") else "Läckan är tätad.",
     "hull.creak": lambda d: f"Skrovet knakar, kapten. {d['depth']:.0f} meter, under provdjup.",
     "hull.clatter": lambda d: f"Lösa föremål far i durken, kapten, vi lutar {abs(d['pitch'])}° "
     + ("förut" if d["pitch"] > 0 else "akterut") + ". Det hörs i vattnet."
@@ -197,7 +201,8 @@ PHRASES = {
     "ice.pressing": lambda d: "Tornet ligger an mot tunn is. Vi trycker på, cirka fyrtio sekunder.",
     "ice.broke_through": lambda d: "Vi har brutit igenom isen!"
     + (" Periskopet fick en smäll." if d.get("damaged") else " Inga skador."),
-    "repaired": lambda d: f"Reparationen av {COMPONENT_LABEL[d['component']]} är klar.",
+    "repaired": lambda d: f"Reparationen av {COMPONENT_LABEL[d['component']]} är klar"
+    + (", så gott det går till sjöss." if d.get("partly") else "."),
     "shock": lambda d: ("Smällar nära, inga skador. Små laddningar." if d.get("practice")
                         else "Kraftig tryckvåg! Inga skador." if d["strength"] == "kraftig"
                         else "Detonation på avstånd. Inga skador."),
@@ -247,7 +252,8 @@ SMOKE_RU = {"lätt": "лёгкое", "besvärande": "заметное", "tät": 
             "mycket tät": "очень сильное", "livsfarlig": "смертельно опасное"}
 ORDINAL_RU = {1: "первый", 2: "второй", 3: "третий", 4: "четвёртый", 5: "пятый", 6: "шестой",
               7: "седьмой", 8: "восьмой", 9: "девятый"}
-NOTE_RU = {"snabbstopp": "аварийная защита реактора", "startar": "реактор вводится",
+NOTE_RU = {"läcka": "течь, заделываем", "vatten": "вода в трюме", "utrymd": "затоплен наполовину, личный состав вышел",
+           "snabbstopp": "аварийная защита реактора", "startar": "реактор вводится",
            "ångläcka": "течь парогенератора", "BRAND": "пожар", "skada": "повреждения",
            "lågt": "батарея разряжена", "rök": "задымление"}
 
@@ -552,8 +558,8 @@ class EngineeringStation(Station):
             g(COMPONENT_NAME[c], txt, health_state(h), h if h < 1.0 else None, panel="SKADOR")
 
         for n, name, state, note in self._compartments():
-            items.append(Compartment(n, name, state, note))
-        items.append(Flooding(s.flooding, FLOOD_LOSS_T, s.leak_rate > 0))
+            items.append(Compartment(n, name, state, note, s.dmg.water[n] / CAP_T[n]))
+        items.append(Flooding(s.flooding, FLOOD_LOSS_T, s.leak_rate > 0, s.dmg.closed))
         return items
 
     def _compartments(self) -> list[tuple[int, str, str, str]]:
@@ -563,6 +569,14 @@ class EngineeringStation(Station):
         for c in COMPONENTS:
             if s.health[c] < 1.0:
                 notes[COMPONENT_COMPARTMENT[c]].append((health_state(s.health[c]), "skada"))
+        dmg = s.dmg
+        for leak in dmg.leaks:
+            notes[leak.compartment].append((WARN, "läcka"))
+        for n, w in dmg.water.items():
+            if n in dmg.evacuated:
+                notes[n].append((DANGER, "utrymd"))
+            elif w >= 0.5:
+                notes[n].append((DANGER if w > 0.25 * CAP_T[n] else WARN, "vatten"))
         if s.reactor == "scram":
             notes[5].append((DANGER, "snabbstopp"))
         elif s.reactor == "off":
@@ -652,8 +666,8 @@ class EngineeringStation(Station):
             lim = self.game.station(NavigationStation).depth_limit()
         except KeyError:
             lim = None
-        if lim is not None:
-            depth = min(depth, lim)
+        lim = self.hull_depth() if lim is None else min(lim, self.hull_depth())    # skrovets skador
+        depth = min(depth, lim)
         if depth < SPRINT_MIN_DEPTH:
             return None
         deepest = min(SPRINT_DEEPEST, lim) if lim is not None else SPRINT_DEEPEST

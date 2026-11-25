@@ -255,6 +255,18 @@ def test_an_alarm_to_go_down_does_not_replace_a_deeper_pending_suggestion():
     assert "djup 180" not in [r.data.get("order") for r in reports if r.kind == "suggest"]
 
 
+def test_the_same_dive_as_an_alarm_still_comes_through():
+    """Jagad frö 3: sonars 'djup 120' (skiktet) stod, och samma djup som larm ('så att de tappar ekot!')
+    svaldes; larmet ska fram med sitt skäl."""
+    g, reports = _game()
+    _run(g, 2)
+    g.say(Role.SONAR, "order.declined", {"order": "djup 120", "made_t": g.now}, kind="suggest")
+    _run(g, 8)
+    g.say(Role.SONAR, "order.declined", {"order": "djup 120", "made_t": g.now}, kind="suggest", alarm=True)
+    _run(g, 8)
+    assert [r.alarm for r in reports if r.kind == "suggest"] == [False, True]
+
+
 def test_no_layer_suggestion_on_the_surface():
     """I ytläge föreslog sonar 'djup 120 under skiktet' (och trängde undan 'vänta på mörkret')."""
     from sim.stations import SonarRoom

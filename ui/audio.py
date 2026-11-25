@@ -122,7 +122,7 @@ ROUTINE_KINDS = frozenset({"done"})
 ROUTINE_TYPES = frozenset({
     "sonar.bearing", "sonar.regained", "sonar.regained.many", "sonar.ambient", "sonar.ping.slow",
     "sonar.convoy.count", "off.esm.same", "off.hush.end", "trim.done", "trim.auto", "nav.current",
-    "nav.fairway.leg", "light.dawn", "light.sunrise", "light.sunrise_soon"})
+    "nav.fairway.leg", "light.dawn", "light.sunrise", "light.sunrise_soon", "dc.remanned", "dc.bulkheads_open"})
 NOT_ROUTINE_TYPES = frozenset({"bridge.shut", "train.step.done"})     # "done" som ska höras
 REPEAT_S = 180                     # samma sak om samma kontakt sägs inte igen inom så här lång speltid
 COMPRESSED_SCALE = 2               # tidskomprimering: rutinen tystnar oavsett nivå

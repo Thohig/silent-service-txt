@@ -264,9 +264,10 @@ def ice_contact(world: World, prev: tuple[float, float, float], dt: int = 1) -> 
             for c in hit:
                 sys.health[c] = max(0.0, sys.health[c] - 0.06 * speed)
             leak = speed > 6
+            where_n = 9 if astern else 1
             if leak:
-                sys.leak_rate += 0.05 * speed
-            data = {"astern": True} if astern else {}
+                own.add_leak(where_n, "rör", speed / 6.0)
+            data = {"astern": True, "compartment": where_n} if astern else {"compartment": where_n}
             own.alert("ice.collision", severity="svåra" if speed > 6 else "lätta",
                       components=hit, leak=leak, **data)
         else:

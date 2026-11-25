@@ -180,7 +180,7 @@ def _step_charges(world: World, dt: int) -> None:
         horiz_m = distance(c.x, c.y, own.state.x, own.state.y) * NM_IN_M
         dist_m = math.hypot(horiz_m, c.depth - own.state.depth)
         world.mission.setdefault("charge_log", []).append((world.time, c.practice, round(dist_m)))
-        own.apply_explosion(dist_m, c.practice, world.rng)
+        own.apply_explosion(dist_m, c.practice, world.rng, src=(c.x, c.y))
     world.charges = remaining
 
 
@@ -375,10 +375,10 @@ def _detonate(world: World, t: Torpedo, target: Vessel | None) -> None:
                 _sink(world, v)
         r_own = distance(ts.x, ts.y, world.own.state.x, world.own.state.y)
         if r_own < 0.6:
-            world.own.apply_explosion(10.0, False, world.rng)
+            world.own.apply_explosion(10.0, False, world.rng, src=(ts.x, ts.y))
             world.own.sys.hull = 0.0
         elif r_own < 2.0:
-            world.own.apply_explosion(20.0, False, world.rng)
+            world.own.apply_explosion(20.0, False, world.rng, src=(ts.x, ts.y))
         else:
             world.own.apply_explosion(400.0, False, world.rng)
         return
@@ -457,7 +457,7 @@ def _step_torpedo(world: World, t: Torpedo, dt: int) -> None:
             world.emit(Transient("explosion", ts.x, ts.y, ts.depth, acoustics.EXPLOSION_TORPEDO,
                                  t.id, world.time))
             world.mission["hit_by_torpedo"] = world.time
-            own.apply_explosion(5.0, False, world.rng)
+            own.apply_explosion(5.0, False, world.rng, src=(ts.x, ts.y))
             own.sys.hull -= TORPEDO_HIT_HULL          # en träff är förlusten
             return
     elif t.premature_nm is not None and t.run_nm >= t.premature_nm:

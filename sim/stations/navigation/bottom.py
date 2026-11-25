@@ -11,7 +11,7 @@ from ...chart import LAYER_CONTOUR, Mark, Track
 from ...entities import Transient
 from ...fmt import fmt_course
 from ...geo import angle_diff, distance, norm360
-from ...ownship import PERISCOPE_DEPTH, TEST_DEPTH
+from ...ownship import PERISCOPE_DEPTH
 from ...profile import BottomSounding
 from ...reports import Quality
 from ...seabed import contours
@@ -145,7 +145,7 @@ class BottomMixin:
             self.say("nav.settle.refused", {"reason": "vi vet inte djupet här. Ekolodet först"})
             return
         depth, kind, sounded = here
-        if depth > TEST_DEPTH:
+        if depth > self.own.test_depth():
             self.say("nav.settle.refused",
                      {"reason": f"botten ligger på cirka {round(depth, -1):.0f} meter, under provdjup"})
             return

@@ -10,7 +10,8 @@ import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from . import acoustics, trim
+from . import acoustics, damage, trim
+from .damage import DamageState
 from .entities import Transient, Vessel
 from .periscope import wave_height_m, wave_period_s
 from .trim import TrimState
@@ -52,6 +53,10 @@ BRAKE_KN_PER_S = 0.15         # inbromsning när maskinen går mot farten (stopp
 ASTERN_TURN = 1 / 3           # rodret tar dåligt när båten går akterut
 ASTERN_PLANES = 0.3           # djuprodrens bärförmåga akterut, andel
 REPAIR_S = 1200               # tid att reparera en komponent helt
+SEVERE_CAP = 0.75             # svår skada: det närmaste går inte att laga bättre än så till sjöss
+BILGE_T_PER_MIN = 0.5         # länspumparna (med kraft)
+PROP_RATTLE_HEALTH = 0.7      # framdrivningen så skadad: axeln slår och båten hörs mer
+PROP_RATTLE_DB = 3.0
 BRIDGE_MAN_S = 20             # luckan öppen och utkikarna uppe så här länge efter att vi kommit upp
 BRIDGE_CLEAR_S = 20           # bryggan utryms och luckan stängs innan vi kan dyka
 # Sjön suger (V3): nära ytan drar vågornas tryck båten uppåt i takt med sjön. Utslaget växer
@@ -109,6 +114,7 @@ class OwnSystems:
     radar_until: int = -1
     transmit_until: int = -1
     trim: TrimState = field(default_factory=TrimState)
+    dmg: DamageState = field(default_factory=DamageState)   # läckorna, vattnet i avdelningarna (damage.py)
     alerts: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
     _battery_warned: set = field(default_factory=set)
     _last_creak: int = -10**9
@@ -292,6 +298,8 @@ class OwnShip(Vessel):
             lvl += 12.0
         if s.flooding > 0 or s.hull < 0.7:
             lvl += 2.0                        # skrammel från skador
+        if s.health["propulsion"] < PROP_RATTLE_HEALTH:
+            lvl += PROP_RATTLE_DB             # axeln eller propellern skadad: den slår
         if s.blowing:
             lvl = acoustics.power_sum(lvl, acoustics.BLOW_LEVEL)
         if s.trim.pumping and (self.power or s.battery > 0.02):
@@ -344,29 +352,42 @@ class OwnShip(Vessel):
         return True
 
     # ------------------------------------------------------------------ skador
-    def apply_explosion(self, dist_m: float, practice: bool, rng) -> None:
+    def apply_explosion(self, dist_m: float, practice: bool, rng,
+                        src: tuple[float, float] | None = None) -> None:
+        """En detonation dist_m bort. src: var den small (x, y), som avgör var skadan sitter (fören,
+        mitten, aktern; damage.py); utan läge mitt i båten."""
         s = self.sys
         if practice:
             if dist_m < 400:
                 self.alert("shock", strength="lätt" if dist_m > 100 else "kraftig", practice=True)
             return
+        frac = damage.frac_of(self, *src) if src is not None else 0.5
+        where = damage.compartment_at(frac)
         if dist_m < 25:
             s.hull -= 0.35
-            s.leak_rate += 2.0
-            hit = rng.sample(COMPONENTS, 2)
-            for c in hit:
+            hit = damage.nearest_components(frac, 2, rng, COMPONENTS)
+            for i, c in enumerate(hit):
                 s.health[c] = max(0.0, s.health[c] - 0.7)
-            self.alert("damage", severity="svåra", components=hit, leak=True, cause="charge")
+                if i == 0:
+                    damage.limit(self, c, SEVERE_CAP)   # det närmaste går inte att laga helt till sjöss
+            damage.add_leak(self, where, "spricka" if rng.random() < 0.5 else "svetsfog")
+            self.alert("damage", severity="svåra", components=hit, leak=True, cause="charge",
+                       compartment=where)
+            if "planes" in hit:
+                damage.maybe_jam(self, rng)
             if rng.random() < 0.8:
                 self.scram("tryckvåg")
         elif dist_m < 60:
             s.hull -= 0.08
-            hit = [rng.choice(COMPONENTS)]
+            hit = damage.nearest_components(frac, 1, rng, COMPONENTS)
             s.health[hit[0]] = max(0.0, s.health[hit[0]] - 0.4)
             leak = rng.random() < 0.5
             if leak:
-                s.leak_rate += 0.5
-            self.alert("damage", severity="lätta", components=hit, leak=leak, cause="charge")
+                damage.add_leak(self, where, "rör" if rng.random() < 0.5 else "packbox")
+            self.alert("damage", severity="lätta", components=hit, leak=leak, cause="charge",
+                       compartment=where)
+            if "planes" in hit:
+                damage.maybe_jam(self, rng)
             if rng.random() < 0.3:
                 self.scram("tryckvåg")
         elif dist_m < 150:
@@ -376,6 +397,14 @@ class OwnShip(Vessel):
         elif dist_m < 600:
             self.alert("shock", strength="lätt", practice=False)
 
+    def add_leak(self, compartment: int, kind: str, scale: float = 1.0) -> None:
+        """En läcka i avdelningen (grundstötning, is; damage.py)."""
+        damage.add_leak(self, compartment, kind, scale)
+
+    def test_depth(self) -> float:
+        """Provdjupet med skrovets skador: ett skadat skrov tål mindre (300 m helt, 250 vid 67 %)."""
+        return TEST_DEPTH * min(1.0, 0.5 + 0.5 * self.sys.hull)
+
     # ------------------------------------------------------------------ trim
     def _trim_step(self, world: World, dt: int, power: bool) -> None:
         """Vikten mot djuprodrens förmåga: det rodren inte bär driver båten (se trim.py)."""
@@ -384,7 +413,7 @@ class OwnShip(Vessel):
             t.start(st.depth, world.env)
         t.step_pumps(dt, power)
         t.follow_order(st.depth, st.ordered_depth)
-        t.weigh(st.depth, world.env, s.flooding)
+        t.weigh(st.depth, world.env, s.flooding, damage.fore_load(s.dmg))
         cap = trim.plane_capacity(st.speed, s.health["planes"]) * (ASTERN_PLANES if st.astern else 1.0)
         w = t.weight_t
         t.plane_load = max(-1.0, min(1.0, w / cap)) if cap > 0 else (0.0 if w == 0 else
@@ -511,35 +540,34 @@ class OwnShip(Vessel):
                 s.blowing = False
                 self.alert("surfaced")
 
-        # vatteninträngning
-        pumps = 0.5 if regen else 0.0
-        s.flooding = max(0.0, s.flooding + (s.leak_rate - pumps) * dt / 60.0)
-        if s.leak_rate > 0:
-            before = s.leak_rate
-            s.leak_rate = max(0.0, s.leak_rate - s.leak_rate * 0.002 * dt - 0.0005 * dt)
-            if before > 0 and s.leak_rate == 0:
-                self.alert("leak_stopped")
+        # vatteninträngning: läckorna, tätningen och länspumparna (damage.py)
+        damage.step(self, dt, BILGE_T_PER_MIN if regen and s.dmg.bilge_on else 0.0)
         self._trim_step(world, dt, regen)
+        damage.jam_step(self, dt)
         self._heave_step(world)
 
         # lutningen av djupbytet, sedan skrovet: snabb djupändring på djupet knakar (kompressionen)
         self._pitch_step(world, st, s, now, dt)
         self._groan_step(world, st, s, now, dt)
-        if st.depth > TEST_DEPTH:
-            s.hull -= (st.depth - TEST_DEPTH) / 100.0 * 0.0015 * dt
+        test = self.test_depth()
+        if st.depth > test:
+            s.hull -= (st.depth - test) / 100.0 * 0.0015 * dt
             if now - s._last_creak >= 60:
                 s._last_creak = now
                 self.alert("hull.creak", depth=st.depth)
             if s.hull < 0.6 and rng.random() < 0.01 * dt:
-                s.leak_rate += 0.3
-                self.alert("damage", severity="lätta", components=[], leak=True)
+                where = 9 if rng.random() < 0.5 else rng.choice(tuple(damage.CENTER))
+                damage.add_leak(self, where, "packbox")
+                self.alert("damage", severity="lätta", components=[], leak=True, compartment=where)
 
-        # reparationer: en komponent i taget
+        # reparationer: en komponent i taget, inte bättre än det som går till sjöss och inte i en
+        # avdelning folket lämnat
         for c in COMPONENTS:
-            if s.health[c] < 1.0:
-                s.health[c] = min(1.0, s.health[c] + dt / REPAIR_S)
-                if s.health[c] >= 1.0:
-                    self.alert("repaired", component=c)
+            cap = s.dmg.cap.get(c, 1.0)
+            if s.health[c] < cap and damage.COMPONENT_COMPARTMENT[c] not in s.dmg.evacuated:
+                s.health[c] = min(cap, s.health[c] + dt / REPAIR_S)
+                if s.health[c] >= cap:
+                    self.alert("repaired", component=c, **({"partly": True} if cap < 1.0 else {}))
                 break
 
         if st.depth >= CRUSH_DEPTH or s.hull <= 0 or s.flooding >= FLOOD_LOSS_T:

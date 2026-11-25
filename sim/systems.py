@@ -35,6 +35,7 @@ class Compartment:
     name: str
     state: str = OK
     note: str = ""
+    water: float = 0.0          # så full av vatten avdelningen är, 0–1
 
 
 @dataclass(frozen=True)
@@ -58,6 +59,7 @@ class Flooding:
     tons: float
     limit: float
     leaking: bool
+    closed: bool = False        # länsskotten stängda
 
 
 @dataclass

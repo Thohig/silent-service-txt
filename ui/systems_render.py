@@ -36,6 +36,7 @@ HULL_ROWS = 7               # torn, överkant, tre textrader, kölsvin, underkan
 BOW_COLS, STERN_COLS = 3, 6
 TANK_W_DOTS, TANK_H_DOTS = 10.0, 4.0
 TANK = "#6f8f9f"
+CLOSED = "bold #ffaf00"          # stängda länsskott
 
 
 def render_hull(comps: list[Compartment], flooding: Flooding | None, width: int,
@@ -76,17 +77,24 @@ def render_hull(comps: list[Compartment], flooding: Flooding | None, width: int,
         if i:
             seps.append(x - 1)
 
-    # vattnet i kölsvinet: prickar från botten, högre ju mer det är
+    # vattnet: i varje avdelning efter hur full den är (skadekontrollen), annars i hela kölsvinet
     water_label = None
+    per_room = any(cp.water > 0.01 for cp in comps)
     if flooding is not None and flooding.tons > 0.5:
         frac = min(1.0, flooding.tons / flooding.limit)
-        level = y_bot - 1 - max(1.5, frac * (y_bot - y_top - 2))
-        for yy in range(int(math.ceil(level)), int(y_bot)):
-            for xx in range(2 * ic0, 2 * (ic1 + 1)):
-                if yy <= level + 1 or (xx + yy) % 2 == 0:
-                    dots.dot(xx, yy, WATER, prio=1)
+        spans = [(2 * (ic0 + i * (cw + 1)), 2 * (ic0 + i * (cw + 1) + cw), cp.water) for i, cp in enumerate(comps)] \
+            if per_room else [(2 * ic0, 2 * (ic1 + 1), frac)]
+        for x0, x1, f in spans:
+            if f <= 0.01:
+                continue
+            level = y_bot - 1 - max(1.5, min(1.0, f) * (y_bot - y_top - 2))
+            for yy in range(int(math.ceil(level)), int(y_bot)):
+                for xx in range(x0, x1):
+                    if yy <= level + 1 or (xx + yy) % 2 == 0:
+                        dots.dot(xx, yy, WATER, prio=1)
         fill = "≈" if frac >= 0.2 else "~" if frac >= 0.05 else "·"
-        label = f" {fill} {flooding.tons:.0f} ton vatten" + (", läcker " if flooding.leaking else " ") + f"{fill} "
+        label = f" {fill} {flooding.tons:.0f} ton vatten" + (", läcker" if flooding.leaking else "") \
+            + (", skotten stängda " if flooding.closed else " ") + f"{fill} "
         if len(label) < inner:
             water_label = (ic0 + (inner - len(label)) // 2, label)
 
@@ -108,9 +116,10 @@ def render_hull(comps: list[Compartment], flooding: Flooding | None, width: int,
     line(x_aft, y_bot, tip, cy + 1.5)
     line(tip + 1, cy - ry * 0.8, tip + 1, cy + ry * 0.8)                      # rodret
     c.put(int(cy // 4), int(tip // 2) + 1, "╪", HULL)                          # propellern
-    # skotten mellan avdelningarna
+    # skotten mellan avdelningarna (stängda: gula)
+    closed = flooding is not None and flooding.closed
     for sc in seps:
-        line(2 * sc + 1, y_top + 1, 2 * sc + 1, y_bot - 1)
+        dots.line(2 * sc + 1, y_top + 1, 2 * sc + 1, y_bot - 1, CLOSED if closed else HULL, prio=2)
     # tornet över centralen (III)
     sail_at = next((i for i, cp in enumerate(comps) if cp.no == 3), n // 3)
     sx0 = 2.0 * (ic0 + sail_at * (cw + 1)) + cw * 0.4

@@ -153,10 +153,10 @@ class TrimState:
             if self.fore_ballast_t == self.fore_to_t:
                 self.fore_to_t = None
 
-    def weigh(self, depth: float, env, flooding_t: float) -> None:
-        """Räkna överskottsvikt och framåtlast just nu."""
+    def weigh(self, depth: float, env, flooding_t: float, flooding_fore_t: float = 0.0) -> None:
+        """Räkna överskottsvikt och framåtlast just nu (flooding_fore_t: läckvattnets framåtlast)."""
         self.weight_t = environment_weight(depth, env) + self.ballast_t + self.payload_t + flooding_t
-        self.fore_t = self.fore_ballast_t + self.payload_fore_t
+        self.fore_t = self.fore_ballast_t + self.payload_fore_t + flooding_fore_t
 
 
 def _approach(value: float, target: float, step: float) -> float:

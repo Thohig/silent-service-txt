@@ -17,7 +17,7 @@ from ...geo import angle_diff, bearing_to, distance, norm360, velocity
 from ...ice import SAIL_TOP_M
 from ...icemap import Opening
 from ...orders import NUM, CommandSpec, Order, Unknown, num
-from ...ownship import ANTENNA_DEPTH, CRUSH_DEPTH, PERISCOPE_DEPTH, TEST_DEPTH
+from ...ownship import ANTENNA_DEPTH, CRUSH_DEPTH, PERISCOPE_DEPTH
 from ...reports import Quality
 from ...profile import BottomSounding, ChartBottom, DepthTrace, IceSounding, Level
 from ...sonar_view import KEEP_S as SONAR_KEEP_S
@@ -289,8 +289,9 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         txt = f"{s.depth:.0f} m"
         if abs(s.ordered_depth - s.depth) >= 1:
             txt += f" ▸ {s.ordered_depth:.0f} m"
-        g("Djup", txt, DANGER if s.depth > TEST_DEPTH else
-          WARN if s.depth > TEST_DEPTH - 30 else OK, min(1.0, s.depth / CRUSH_DEPTH))
+        test = self.own.test_depth()
+        g("Djup", txt, DANGER if s.depth > test else
+          WARN if s.depth > test - 30 else OK, min(1.0, s.depth / CRUSH_DEPTH))
         txt = fmt_course(s.course)
         if abs(angle_diff(s.ordered_course, s.course)) >= 1:
             txt += f" ▸ {fmt_course(s.ordered_course)}"
@@ -383,7 +384,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         items: list = [
             Level(0.0, "yta", "surface", "≈"),
             Level(PERISCOPE_DEPTH, "periskopdjup", "periscope", "┄"),
-            Level(TEST_DEPTH, "provdjup", "test", "╌"),
+            Level(self.own.test_depth(), "provdjup", "test", "╌"),
             Level(CRUSH_DEPTH, "krossdjup", "crush", "━"),
             DepthTrace(tuple(self.depth_log) + ((self.now, self.ship.depth),)),
         ]
@@ -544,7 +545,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                 if d > s.ordered_depth and d > ANTENNA_DEPTH:
                     self.down_ordered_t = self.now
                 s.order_depth(d)
-                data = {"depth": d, "below_test": d > TEST_DEPTH}
+                data = {"depth": d, "below_test": d > self.own.test_depth()}
                 if self._steep() and d - s.depth > 10:
                     data["steep"] = True                # brant vinkel ned: det brådskar
                 latest = self.icemap.latest(self.now)
@@ -681,9 +682,10 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
     def idle_proposals(self) -> list[Proposal]:
         s = self.ship
         out = []
-        if s.depth > TEST_DEPTH + 5:
-            out.append(Proposal(1, "idle_test_depth", "nav.suggest.test_depth", "djup 280",
-                                {"depth": s.depth}, cooldown=300))
+        if s.depth > self.own.test_depth() + 5:
+            up = self.hull_depth()
+            out.append(Proposal(1, "idle_test_depth", "nav.suggest.test_depth", f"djup {up}",
+                                {"depth": s.depth, "to": up}, cooldown=300))
         size = self.area_nm
         if self.game.escape_nm is not None:
             if self.game.escape_ready() and (route := self.exit_route()) is not None:
@@ -873,6 +875,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
             c = bearing_to(self.est_x, self.est_y, size / 2, size / 2)
             self.suggest("area", "nav.suggest.area", {"course": c, "area": self.game.area_name},
                          order=f"kurs {fmt_course(c)}", cooldown=900)
-        if s.depth > TEST_DEPTH + 5:
-            self.suggest("test_depth", "nav.suggest.test_depth", {"depth": s.depth},
-                         order="djup 280", cooldown=300)
+        if s.depth > self.own.test_depth() + 5:
+            up = self.hull_depth()
+            self.suggest("test_depth", "nav.suggest.test_depth", {"depth": s.depth, "to": up},
+                         order=f"djup {up}", cooldown=300)

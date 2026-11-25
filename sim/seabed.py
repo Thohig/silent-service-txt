@@ -712,9 +712,10 @@ def bottom_contact(world: World, prev: tuple[float, float, float]) -> None:
     for c in hit:
         sys.health[c] = max(0.0, sys.health[c] - 0.05 * speed)
     leak = speed > LEAK_KN
+    where_n = 9 if astern or where == "akterskeppet" else 1
     if leak:
-        sys.leak_rate += 0.08 * speed
-    data = {"astern": True} if astern else {}
+        own.add_leak(where_n, "svetsfog" if speed > 8 else "rör", speed / 8.0)
+    data = {"astern": True, "compartment": where_n} if astern else {"compartment": where_n}
     own.alert("bottom.collision", severity="svåra" if speed > 8 else "lätta", where=where,
               components=hit, leak=leak, back_to=round(st.ordered_depth), **data)
 

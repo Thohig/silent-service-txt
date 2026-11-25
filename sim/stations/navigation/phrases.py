@@ -314,7 +314,7 @@ PHRASES = {
        if d.get("speed") else "."),
     "nav.exit.out": lambda d: f"Kapten, enligt besticket är vi ute ur {d['area']}.",
     "nav.suggest.test_depth": lambda d: f"Kapten, vi är på {d['depth']:.0f} meter, under "
-    f"provdjup. Föreslår djup 280.",
+    f"provdjup. Föreslår djup {d.get('to', 280)}.",
     "nav.ice.report": lambda d: _ice_report(d),
     "nav.ice.passed": lambda d: f"Isekolod: vi passerade {d['kind']}, cirka {d['length']} meter. "
     f"Loggat som öppning {d['no']}.",
@@ -666,7 +666,7 @@ RU_PHRASES = {
     f"{R.count(d['depth'], R.METER)}. Если ляжем на грунт, наше эхо утонет в донном. "
     "Предлагаю лечь на грунт.",
     "nav.suggest.test_depth": lambda d: f"{R.CAPTAIN}, мы на глубине {R.count(d['depth'], R.METER)}, "
-    "ниже рабочей глубины. Предлагаю глубину 280 метров.",
+    f"ниже рабочей глубины. Предлагаю глубину {R.count(d.get('to', 280), R.METER)}.",
     "nav.ice.passed": lambda d: f"Эхоледомер: прошли полынью, около {R.count(d['length'], R.METER)}. "
     f"Записана под номером {d['no']}.",
     "nav.suggest.ice_closing": lambda d: f"{R.CAPTAIN}! Эхоледомер показывает толстый лёд, лёд "

@@ -193,13 +193,14 @@ def test_hull_is_drawn_in_braille_with_compartments_as_text():
     for name in ("torped", "central", "reaktor", "akter", "IX"):
         assert name in text
     assert "╪" in text                                              # propellern
-    g.world.own.sys.flooding = 40.0
+    for n in (3, 5, 6):                                             # vattnet i tre avdelningar
+        g.world.own.sys.dmg.water[n] = 13.4
     _run(g, 2)
     v = g.systems()
     wet = "\n".join(r.plain for r in render_hull(v.compartments(), v.first(Flooding), 120))
     assert "40 ton vatten" in wet
     assert sum(0x2800 < ord(ch) <= 0x28FF for ch in wet) > \
-        sum(0x2800 < ord(ch) <= 0x28FF for ch in text) + 50        # vattnet i kölsvinet
+        sum(0x2800 < ord(ch) <= 0x28FF for ch in text) + 25        # vattnet i tre avdelningar
     assert render_hull(v.compartments(), None, 40) == []           # för smalt
 
 

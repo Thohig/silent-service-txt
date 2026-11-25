@@ -376,7 +376,8 @@ class Game:
         # skäl (vakthavande: "flygradar nära", 11 s senare "radarn mycket stark", båda djup 60);
         # ett larm släpps ändå fram om det som står inte är ett
         sug = self.active_suggestion()
-        if sug is not None and self.now - sug[2] < SAME_SUGGESTION_S and self._deeper_pending(order, sug[0]):
+        if sug is not None and self.now - sug[2] < SAME_SUGGESTION_S and self._deeper_pending(order, sug[0]) and \
+                (sug[0] != order or not r.alarm):   # samma order som larm: regeln nedan släpper fram larmet
             # det som står tar oss minst lika djupt: också ett larm släpps, och det som står blir ett larm
             # (kuba-kort frö 7: maskins "djup 220, turbin, fart 13" skrevs över av sonars "djup 180!")
             if r.alarm:

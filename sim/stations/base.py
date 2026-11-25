@@ -155,7 +155,12 @@ class Station:
         except KeyError:
             limit = None
         depth = int(want if limit is None else min(want, limit))
+        depth = min(depth, self.hull_depth())
         return depth if depth > PERISCOPE_DEPTH else None
+
+    def hull_depth(self) -> int:
+        """Djupaste besättningen föreslår med skrovet som det är: provdjupet (sänkt av skadorna) − 20 m."""
+        return int((self.own.test_depth() - 20) // 10 * 10)
 
     def chart_items(self) -> list:
         """Sjökortselement (sim.chart) ur stationens kunskap. Aldrig ur World."""
