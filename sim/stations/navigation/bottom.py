@@ -10,9 +10,10 @@ from ... import acoustics
 from ...chart import LAYER_CONTOUR, Mark, Track
 from ...entities import Transient
 from ...fmt import fmt_course
-from ...geo import angle_diff, distance, norm360
+from ...geo import angle_diff, bearing_to, distance, norm360
 from ...ownship import PERISCOPE_DEPTH
 from ...profile import BottomSounding
+from ...seabed import WRECK_ECHO_NM, wreck_near
 from ...reports import Quality
 from ...seabed import contours
 from ..base import Proposal
@@ -39,6 +40,11 @@ from .common import (
     UNSTICK_WINDOW_S,
     WATER_LOOK_NM,
 )
+
+WRECK_FIX_NM = 0.8          # ett vrak på kortet så nära besticket: det är det vi lodade
+WRECK_FIX_SIGMA_NM = 0.05
+WRECK_SUGGEST_NM = 2.0      # jagade: ett vrak på kortet så nära föreslås att gömma sig vid
+WRECK_AT_NM = 0.1           # framme vid vraket: botten
 
 
 class BottomMixin:
@@ -198,11 +204,35 @@ class BottomMixin:
             return None                 # de bombar redan där vi är: botten gömmer oss inte nu
         if k.hunted(self.now) and self.now - self._bombed_on_bottom_t < SETTLE_AFTER_BOMBED_S:
             return None                 # samma jagare hittade oss på botten nyss: inte en gång till
+        if (p := self._wreck_proposal()) is not None:
+            return p
         here = self.bottom_here()
         if here is None or here[1] is None or here[1] == "klippa" or here[0] > SETTLE_SUGGEST_MAX_M:
             return None
         return Proposal(2, "settle", "nav.suggest.settle", "botten",
                         {"depth": round(here[0], -1), "kind": here[1]},
+                        quality=self._shoal_quality(), cooldown=1200)
+
+    def _wreck_proposal(self) -> Proposal | None:
+        """Ett vrak på kortet nära, på ett djup vi kan ligga på: kurs dit, och vid det botten (vårt eko
+        smälter ihop med vrakets)."""
+        chart = self.game.knowledge.bathymetry
+        if chart is None or not chart.wrecks:
+            return None
+        w = min(chart.wrecks, key=lambda w: distance(self.est_x, self.est_y, w.x, w.y))
+        r = distance(self.est_x, self.est_y, w.x, w.y)
+        depth = chart.depth_at(w.x, w.y)
+        if r > WRECK_SUGGEST_NM or depth > min(SETTLE_SUGGEST_MAX_M, self.hull_depth()) or \
+                chart.bottom_type(w.x, w.y) == "klippa":
+            return None
+        if r <= WRECK_AT_NM:
+            return Proposal(2, "wreck_settle", "nav.suggest.wreck_settle", "botten", {}, cooldown=600)
+        name = next((n for n, wp in self.game.knowledge.waypoints.items()
+                     if wp.source == "kortet" and (wp.x, wp.y) == (w.x, w.y)), None)
+        if name is None:
+            return None
+        return Proposal(2, "wreck", "nav.suggest.wreck", f"kurs mot {name}",
+                        {"range": r, "course": bearing_to(self.est_x, self.est_y, w.x, w.y), "depth": depth},
                         quality=self._shoal_quality(), cooldown=1200)
 
     def _radio_window_pending(self) -> bool:
@@ -363,4 +393,21 @@ class BottomMixin:
         under = round(bottom - s.depth + self.rng.gauss(0, 2 + bottom * 0.005), -1)
         self.bottom_soundings.append(BottomSounding(self.now, s.depth + under,
                                                     self.est_x, self.est_y))
+        self._wreck_echo(world, s, s.depth + under)
         return s.depth + under
+
+    def _wreck_echo(self, world, s, bottom: float) -> None:
+        """Ekolodet rakt över ett vrak: ett föremål som reser sig ur botten. Står ett vrak på kortet nära
+        besticket är det det: en fix (kortets läge, kortets fel)."""
+        w = wreck_near(world.env.seabed, s.x, s.y, WRECK_ECHO_NM)
+        if w is None:
+            return
+        chart = self.game.knowledge.bathymetry
+        charted = wreck_near(chart, self.est_x, self.est_y, WRECK_FIX_NM)
+        data = {"height": round(w.height_m), "depth": round(bottom, -1)}
+        if charted is None:
+            self.say("nav.wreck", {**data, "charted": False})
+            return
+        sigma = max(WRECK_FIX_SIGMA_NM, chart.accuracy_nm * 0.3)
+        self._apply_fix(charted.x, charted.y, sigma)
+        self.say("nav.wreck", {**data, "charted": True, "what": charted.what, "sigma": sigma})

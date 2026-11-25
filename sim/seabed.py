@@ -369,6 +369,48 @@ def _polyline_south_open(x, y, path):
 Feature = Bank | Seamount | Ridge | Canyon | Coast | Fjord | Firth
 
 
+# Vrak (förslag 3, 2026-11-25): ett skrov på botten som reser sig några meter. Ekolodet ser det när vi går
+# rakt över (WRECK_ECHO_NM), och ett vrak som står på kortet ger då en fix. En ubåt som ligger på botten
+# bredvid ett vrak smälter ihop med dess eko (WRECK_CLUTTER_DB mer i jagarens aktiva sonar).
+WRECK_ECHO_NM = 0.04
+WRECK_UNCHARTED_P = 0.25    # så stor andel av vraken saknas på kortet
+WRECKS_KUBA = ("tankfartyg, sänkt 1942", "fraktfartyg, sänkt 1942", "okänt vrak")
+WRECKS_COAST = ("fiskebåt", "fraktfartyg", "okänt vrak")
+WRECKS_CLYDE = ("eskorthangarfartyg, sänkt 1943", "fraktfartyg", "okänt vrak")
+WRECK_CLUTTER_NM = 0.1
+WRECK_CLUTTER_DB = 8.0
+
+
+@dataclass(frozen=True)
+class Wreck:
+    x: float
+    y: float
+    height_m: float             # så högt reser det sig över botten
+    what: str                   # vad kortet (eller ekolodet) säger: "vrak", "tankfartyg, sänkt 1942" …
+
+
+def wreck_near(seabed: Seabed | None, x: float, y: float, r_nm: float) -> Wreck | None:
+    if seabed is None:
+        return None
+    best = min(seabed.wrecks, key=lambda w: math.dist((x, y), (w.x, w.y)), default=None)
+    return best if best is not None and math.dist((x, y), (best.x, best.y)) <= r_nm else None
+
+
+def place_wrecks(seabed: Seabed, seed: float, n: int, x_range: tuple[float, float],
+                 y_range: tuple[float, float], whats: tuple[str, ...], max_depth: float = 400.0) -> Seabed:
+    """Lägg n vrak på botten i rutan (inte djupare än max_depth). Egen slump ur seed: vraken flyttar
+    inte resten av scenariots dragningar."""
+    rng = random.Random(seed)
+    out = []
+    for _ in range(n * 20):
+        if len(out) >= n:
+            break
+        x, y = rng.uniform(*x_range), rng.uniform(*y_range)
+        if 30.0 < seabed.depth_at(x, y) <= max_depth:
+            out.append(Wreck(x, y, rng.uniform(6.0, 16.0), rng.choice(whats)))
+    return replace(seabed, wrecks=tuple(out))
+
+
 @dataclass(frozen=True)
 class Seabed:
     base: float                                     # djup i origo, m
@@ -379,6 +421,7 @@ class Seabed:
     accuracy_nm: float = 0.0                        # sjökort: angiven lägesnoggrannhet
     min_depth: float = 20.0                         # under noll: land (kust)
     contour_levels: tuple[int, ...] = CONTOUR_LEVELS
+    wrecks: tuple[Wreck, ...] = ()                  # vrak på botten (sjökortet: de kartlagda)
 
     def depths(self, x, y):
         """Djupet (m) för skalärer eller numpy-matriser i nm."""
@@ -424,9 +467,14 @@ class Seabed:
             if isinstance(f, Seamount) and rng.random() < miss_p:
                 continue
             feats.append(f.moved(rng, err_nm))
+        # vraken: de flesta står på kortet (lite fel i läget), något saknas; egen slump ur läget, så att
+        # kortets övriga dragningar inte flyttas
+        wr = random.Random(round(sum(w.x * 7 + w.y for w in self.wrecks) * 1000))
+        wrecks = tuple(replace(w, x=w.x + wr.gauss(0, err_nm * 0.3), y=w.y + wr.gauss(0, err_nm * 0.3))
+                       for w in self.wrecks if wr.random() >= WRECK_UNCHARTED_P)
         return Seabed(self.base + rng.gauss(0, 40), self.gradient, tuple(feats),
                       accuracy_nm=err_nm, min_depth=self.min_depth,
-                      contour_levels=self.contour_levels)
+                      contour_levels=self.contour_levels, wrecks=wrecks)
 
     @property
     def has_land(self) -> bool:
@@ -461,8 +509,11 @@ def kuba_seabed(rng: random.Random, start: tuple[float, float], size: float = 20
     canyon = Canyon(x=edge_in if west else size - edge_in, y=rng.uniform(6, size - 4),
                     bearing=(90.0 if west else 270.0) + rng.uniform(-35, 35),
                     deepen=rng.uniform(250, 450), half_width=rng.uniform(0.25, 0.4))
-    return Seabed(base=deep - 150, gradient=(0.0, 15.0), features=(bank, mount, canyon),
-                  rough=_rough(rng, 6, 0.06))
+    sb = Seabed(base=deep - 150, gradient=(0.0, 15.0), features=(bank, mount, canyon),
+                rough=_rough(rng, 6, 0.06))
+    # vrak från kriget på banken (tyska ubåtar sänkte tankfartyg i Karibien 1942)
+    bx = (0.5, edge_in - 0.5) if west else (size - edge_in + 0.5, size - 0.5)
+    return place_wrecks(sb, deep, 2, bx, (2.0, size - 2.0), WRECKS_KUBA)
 
 
 COAST_CONTOUR_LEVELS = (0, 20, 50, 200, 1000)
@@ -477,9 +528,11 @@ def strait_seabed(rng: random.Random, size: float = 14.0) -> Seabed:
                   channel_depth=rng.uniform(35, 45),
                   bay_x=cx + rng.uniform(-0.5, 0.5), bay_y=size * 0.87, bay_rx=rng.uniform(2.2, 2.8),
                   bay_ry=rng.uniform(1.1, 1.4), bay_depth=rng.uniform(24, 30))
-    return Seabed(base=rng.uniform(1600, 2000), gradient=(0.0, 0.0), features=(coast,),
-                  rough=_rough(rng, 4, 0.04), min_depth=-30.0,
-                  contour_levels=COAST_CONTOUR_LEVELS)
+    sb = Seabed(base=rng.uniform(1600, 2000), gradient=(0.0, 0.0), features=(coast,),
+                rough=_rough(rng, 4, 0.04), min_depth=-30.0,
+                contour_levels=COAST_CONTOUR_LEVELS)
+    return place_wrecks(sb, coast.shore_y, 2, (1.0, size - 1.0), (size * 0.3, coast.shore_y), WRECKS_COAST,
+                        max_depth=300.0)
 
 
 FJORD_CONTOUR_LEVELS = (0, 20, 50, 100, 200)
@@ -625,10 +678,11 @@ def bottom_clutter(world: World, vessel) -> float:
     if seabed is None or vessel is not world.own:
         return 0.0
     st = vessel.state
+    wreck = WRECK_CLUTTER_DB if wreck_near(seabed, st.x, st.y, WRECK_CLUTTER_NM) is not None else 0.0
     if vessel.sys.on_bottom:
-        return RESTING_CLUTTER_DB
+        return RESTING_CLUTTER_DB + wreck
     if seabed.depth_at(st.x, st.y) - st.depth < CLUTTER_M:
-        return BOTTOM_CLUTTER_DB
+        return BOTTOM_CLUTTER_DB + wreck
     return 0.0
 
 
@@ -836,8 +890,10 @@ def clyde_seabed(rng: random.Random) -> Seabed:
         (20.9, 20.3, 0.85, 1.5, 0.0),          # Great Cumbrae
     )
     firth = Firth(basins=(main, holy_loch), islands=islands)
-    return Seabed(base=400.0, features=(firth,), rough=_rough(rng, 4, 0.03), min_depth=-30.0,
-                  contour_levels=FJORD_CONTOUR_LEVELS)
+    sb = Seabed(base=400.0, features=(firth,), rough=_rough(rng, 4, 0.03), min_depth=-30.0,
+                contour_levels=FJORD_CONTOUR_LEVELS)
+    return place_wrecks(sb, 1943.0, 3, (2.0, CLYDE_SIZE_NM - 2.0), (2.0, CLYDE_SIZE_NM - 2.0), WRECKS_CLYDE,
+                        max_depth=200.0)
 
 
 def light_visible(seabed: Seabed, light: Lighthouse, x: float, y: float) -> bool:

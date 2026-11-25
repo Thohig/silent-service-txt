@@ -135,6 +135,8 @@ class Waypoint:
     motion: tuple[float, float] | None = None    # (kurs, fart) om målet rör sig
 
     def sigma(self, now: int) -> float:
+        if self.source == "kortet":
+            return self.sigma0                  # står still på botten
         drift = WAYPOINT_DRIFT_KN if self.motion is None else WAYPOINT_MOTION_KN
         return self.sigma0 + drift * max(0, now - self.t) / 3600.0
 
@@ -195,6 +197,14 @@ class Knowledge:
     nuclear_orders: list[tuple[int, str | None, bool | None, str]] = field(default_factory=list)
     charges: list[ChargeHeard] = field(default_factory=list)   # sjunkbomberna som besättningen bedömt dem
 
+
+    def __post_init__(self) -> None:
+        """Kortets vrak är kända platser ("kurs mot vraket"): läget som kortet anger, med kortets fel."""
+        wrecks = getattr(self.bathymetry, "wrecks", ()) if self.bathymetry is not None else ()
+        for i, w in enumerate(wrecks):
+            name = "vraket" if len(wrecks) == 1 else f"vrak {i + 1}"
+            self.waypoints.setdefault(name, Waypoint(name, w.x, w.y, max(0.1, self.bathymetry.accuracy_nm * 0.3), 0,
+                                                     source="kortet"))
     def attach(self, bus: EventBus) -> None:
         bus.subscribe(ContactDetected, self._on_detected)
         bus.subscribe(BearingObserved, lambda e: self.on_bearing(e.obs))

@@ -296,6 +296,14 @@ PHRASES = {
     f"{nm(d['y'])} norr i kvadraten, osäkerhet {nm(d['sigma'])} sjömil. "
     f"Senaste fix {d['last_fix']}.",
     "nav.echo": lambda d: f"Ekolod: {d['under_keel']:,.0f} meter under kölen.".replace(",", " "),
+    "nav.wreck": lambda d: f"Ekolodet: ett föremål på botten på {d['depth']:.0f} meter, det reser sig cirka "
+    f"{d['height']} meter. Ett vrak. " + (f"Kortet har ett vrak här ({d['what']}): fix, osäkerhet "
+                                          f"{nm(d['sigma'])} sjömil." if d["charted"] else "Det står inte på kortet."),
+    "nav.suggest.wreck": lambda d: f"Kapten, navigatören. Kortet har ett vrak {nm(d['range'])} sjömil i "
+    f"{fmt_course(d['course'])}, på cirka {d['depth']:.0f} meter. Ligger vi på botten bredvid det smälter "
+    "vårt eko ihop med vrakets.",
+    "nav.suggest.wreck_settle": lambda d: "Kapten, navigatören. Vi är vid vraket. Föreslår att vi lägger "
+    "oss på botten bredvid det.",
     "nav.suggest.fix": lambda d: f"Kapten, navigatören. Bestickets osäkerhet är "
     f"{nm(d['sigma'])} sjömil. Föreslår fix på periskopdjup.",
     "nav.suggest.fix_now": lambda d: f"Kapten, vi är på periskopdjup. Bestickets osäkerhet är "
@@ -489,6 +497,12 @@ RU_PHRASES = {
     f"{_ru_ns(d['y'], 'к северу', 'к югу')} в квадрате, ошибка {R.dec(d['sigma'], R.MILE)}. "
     f"Последнее определение в {d['last_fix']}.",
     "nav.echo": lambda d: f"Эхолот: под килём {R.count(d['under_keel'], R.METER)}.",
+    "nav.wreck": lambda d: "Эхолот: на грунте предмет, затонувшее судно. "
+    + ("Оно есть на карте: определились." if d["charted"] else "На карте его нет."),
+    "nav.suggest.wreck": lambda d: f"{R.CAPTAIN}, штурман. По карте затонувшее судно, дистанция "
+    f"{R.dec(d['range'], R.MILE)}. Ляжем рядом на грунт: наше эхо сольётся с его эхом.",
+    "nav.suggest.wreck_settle": lambda d: f"{R.CAPTAIN}, штурман. Мы у затонувшего судна. Предлагаю "
+    "лечь на грунт рядом.",
     "nav.follow.none": lambda d: f"{R.CAPTAIN}, пеленга на {R.contact(d['designation'])} нет.",
     "nav.steer.bank": lambda d: f"Курс {R.course(d['course'])} на банку, дистанция "
     f"{R.dec(d['range'], R.MILE)}, глубина по карте {R.count(d['depth'], R.METER)}.",

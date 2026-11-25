@@ -25,11 +25,12 @@ LEGEND = [
     ("⊕", "waypoint", "position från huvudstaben"), ("≈", "ice_open", "öppet vatten"),
     ("=", "ice_thin", "tunn is"), ("#", "ice_thick", "tjock is"), ("Ö", "opening", "öppning"),
     (".", "own", "osäkerhet"), ("╱", "contour", "djupkurva"), ("∙", "sounding", "ekolod"),
-    ("◦", "track", "var 10:e min"),
+    ("◦", "track", "var 10:e min"), ("Ш", "wreck", "vrak"),
     # plottets blyertsmärken och egna torpeder
     ("P", "pencil", "ping"), ("✕", "pencil", "plask"), ("✱", "pencil", "detonation"),
     ("↓", "pencil", "brytljud"), ("»", "pencil", "först hörd"), ("∅", "pencil", "tappad"),
     ("⊙", "pencil", "periskop"), ("R", "pencil", "rapport"), ("≋", "pencil", "skenmål"),
+    ("h", "pencil", "reparation"), ("X", "pencil", "kollision"),
     ("•", "torpedo", "egen torped"), ("╲", "fan", "bäringar (S-1)"),
 ]
 

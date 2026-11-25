@@ -38,6 +38,7 @@ STYLE = {
     "opening": "bold #5fd7ff",
     "waypoint": "bold #c6a0ff",
     "light": "bold #f0d060",        # fyrar ur fyrlistan
+    "wreck": "#a08c6c",             # vrak ur sjökortet
     "contact": "bold cyan",
     "contact_vector": "cyan",
     "bearing": "cyan",

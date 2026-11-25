@@ -365,6 +365,9 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
             q = o.quality(now)
             cx, cy = o.center
             items.append(Mark(cx, cy, "Ö", "opening", f"Ö{o.no} {q.label}", quality=q))
+        chart = self.game.knowledge.bathymetry
+        for w in (chart.wrecks if chart is not None else ()):    # kortets vrak
+            items.append(Mark(w.x, w.y, "Ш", "wreck", "vrak", layer=LAYER_CONTOUR + 0.1))
         for light in self.game.knowledge.lights:        # fyrlistan: fyrarna på kortet
             items.append(Mark(light.x, light.y, "✶", "light", light.name))
         for wp in self.game.knowledge.waypoints.values():
