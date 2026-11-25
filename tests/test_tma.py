@@ -284,11 +284,12 @@ def test_knowledge_treats_pinging_contact_as_hunter_when_we_are_hunted():
         k_hunt.on_bearing(dataclasses.replace(o, designation="S-1",
                                               source="ping" if o.t > t - 120 else "sonar"))
     calm = k_calm.resolve("S-1", t, (own.x, own.y))
-    # pingar i lugn patrull: inget extra brus
-    assert k_hunt.resolve("S-1", t, (own.x, own.y)).range_sigma < 1.5 * calm.range_sigma
+    # pingar i lugn patrull: lite mer brus (PINGER_MANEUVER_Q, den söker och girar), långt ifrån jägarens
+    patrol = k_hunt.resolve("S-1", t, (own.x, own.y))
+    assert calm.range_sigma < patrol.range_sigma
     k_hunt.hunt_t = t - 60                      # sonar har hört jakttecken
     hunt = k_hunt.resolve("S-1", t, (own.x, own.y))
-    assert hunt.range_sigma > 2 * calm.range_sigma
+    assert hunt.range_sigma > 2 * patrol.range_sigma
 
 
 def test_straight_target_error_matches_stated_uncertainty():
@@ -371,3 +372,19 @@ def test_convoy_escorts_count_as_zigzagging():
     k.convoy = ConvoyEstimate(0, ("S-1", "S-2"), ("S-3",), 0.0, 0.0, 90.0, 8.0, None, None, None)
     assert k.zigzags(ContactTrack("S-1", 0)) and k.zigzags(ContactTrack("S-3", 0))
     assert not k.zigzags(ContactTrack("S-4", 0))
+
+
+def test_a_pinging_warship_not_hunting_us_may_turn(monkeypatch):
+    """Krig frö 61: en jagare som pingade i patrull räknades gå rakt och kallades säker på 1,4 nm (sant 4,0).
+    Pingar den (utan att jaga oss) räknar plottet med PINGER_MANEUVER_Q; en tyst går rakt."""
+    import sim.knowledge as K
+    seen = []
+    monkeypatch.setattr(K, "solve", lambda obs, **kw: seen.append(kw["maneuver_q"]))
+    k = K.Knowledge()
+    tr = K.ContactTrack("S-1", first_t=0, classification="jagare")
+    tr.observations = [BearingObs(t, 45.0, 1.0, 0.0, 0.0, 0.0) for t in range(0, 300, 20)]
+    k.tracks["S-1"] = tr
+    k.resolve("S-1", 300, (0.0, 0.0))
+    tr.observations.append(BearingObs(300, 45.0, 1.0, 0.0, 0.0, 0.0, source="ping"))
+    k.resolve("S-1", 310, (0.0, 0.0))
+    assert seen == [None, K.PINGER_MANEUVER_Q]

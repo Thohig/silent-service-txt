@@ -233,7 +233,9 @@ för in varje färdigt steg där.
   Säker kräver bäringar över minst 20 min (`SURE_MIN_SPAN_S`) om inget avstånd mätts i fönstret (2026-11-24): konvojens
   fartyg kallades säkra på 0,7–1,2 nm efter 6–10 min (sant 2,8–3,7); säkra grovt fel 2,9 % ⇒ 0,4 %, > 3σ 3,6 % ⇒ 0,4 %,
   16 % färre säkra. Luckan som sänker ett steg är > 3 min (`GAP_S`, förut 10): goda grovt fel 5,2 % ⇒ 3,2 %.
-  Mätskripten: `kalibrering/tma_kvalitet.py` (`GAP_S`, `SURE_MIN_SPAN_S`, `TMA_Q` ur miljön), `kalibrering/skott_saker.py`.
+  En jagare som pingar utan att jaga oss (patrull, eskort) q = 10 (`PINGER_MANEUVER_Q`, 2026-11-25): goda grovt fel
+  4,7 % ⇒ 4,1 %, konvojens 10,3 % ⇒ 5,3 %; säkra 232 ⇒ 242, grovt fel 0,4 % som förut. Täckningskrav före säker gav inget.
+  Mätskripten: `kalibrering/tma_kvalitet.py` (`GAP_S`, `SURE_MIN_SPAN_S`, `TMA_Q`, `PINGER_Q` ur miljön), `kalibrering/skott_saker.py`.
 - Radion: rapporten 6 s + 4 s per femsiffergrupp (kort ~22 s); fiendens pejlnät pejlar aldrig under
   10 s, alltid över 25 s, σ = 1,5 nm · √(30 s / längd), 0,7–3 nm (`DF_*` i `enemy.py`).
 - Back i maskin: broms 0,15 kn/s mot farten, backfart 8 kn (turbin) / 3 kn (smygmotor), gir ⅓ och

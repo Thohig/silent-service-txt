@@ -2,7 +2,7 @@
 fel (avstånd > 50 % eller kurs > 90°) och hur ofta felet är större än 3σ.
 Användning: tma_kvalitet.py [scenarier] [frön] [minuter]
   t.ex. tma_kvalitet.py ovning,kuba,konvoj-kort,sundet 8 120   (~2 min)
-Miljövariabeln TMA_Q sätter tma.TARGET_MANEUVER_Q för provkörningar, GAP_S, SURE_MIN_SPAN_S, SURE_MIN_COVER_S och GROUP_MIN samma namn i knowledge,
+Miljövariabeln TMA_Q sätter tma.TARGET_MANEUVER_Q för provkörningar, GAP_S, SURE_MIN_SPAN_S och GROUP_MIN samma namn i knowledge,
 PINGER_Q knowledge.PINGER_MANEUVER_Q.
 
 Körs från repots rot: uv run python kalibrering/tma_kvalitet.py …
@@ -27,8 +27,6 @@ if os.environ.get("PATROL_Q"):
     sim.knowledge.PATROL_MANEUVER_Q = float(os.environ["PATROL_Q"])
 if os.environ.get("GROUP_MIN"):
     sim.knowledge.GROUP_MIN = int(os.environ["GROUP_MIN"])
-if os.environ.get("SURE_MIN_COVER_S"):
-    sim.knowledge.SURE_MIN_COVER_S = int(os.environ["SURE_MIN_COVER_S"])
 if os.environ.get("PINGER_Q"):
     sim.knowledge.PINGER_MANEUVER_Q = float(os.environ["PINGER_Q"])
 if os.environ.get("SURE_MIN_SPAN_S"):
