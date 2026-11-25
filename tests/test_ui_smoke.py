@@ -86,9 +86,8 @@ def test_tab_shows_the_chart_while_the_game_runs(tmp_path):
 
 @pytest.mark.slow
 def test_orders_can_be_given_in_every_view(tmp_path):
-    from ui.bridge import BridgeScreen
     from ui.chart import ChartScreen
-    from ui.periscope import PeriscopeScreen
+    from ui.lookout import LookoutScreen
     from ui.boat import BoatScreen
     from ui.sonar import SonarScreen
     from ui.viewbase import OrderLine
@@ -100,7 +99,7 @@ def test_orders_can_be_given_in_every_view(tmp_path):
             # under ytan: ingen brygga i Tab-ordningen
             from ui.central import CentralScreen
             for i, cls in enumerate((CentralScreen, ChartScreen, SonarScreen, BoatScreen,
-                                     PeriscopeScreen)):
+                                     LookoutScreen)):
                 await pilot.press("tab")
                 assert isinstance(app.screen, cls)
                 course = 100 + 10 * i
@@ -213,7 +212,7 @@ def test_the_log_never_takes_focus_and_ctrl_p_is_not_a_palette():
 
 @pytest.mark.slow
 def test_log_view_keeps_mirroring_after_the_end_and_cabin_enter_goes_to_menu(tmp_path):
-    from ui.bridge import BridgeScreen
+    from ui.lookout import LookoutScreen
     from ui.widgets import ReportLog
 
     async def run():
@@ -221,7 +220,7 @@ def test_log_view_keeps_mirroring_after_the_end_and_cabin_enter_goes_to_menu(tmp
         async with app.run_test(size=(130, 40)) as pilot:
             await pilot.press("enter", "enter")
             await pilot.pause()
-            app.push_screen(BridgeScreen())
+            app.push_screen(LookoutScreen())
             await pilot.pause(0.2)
             assert len(app.screen._timers) == 3            # inte dubbla (draw, förslag, …)
             await pilot.press("escape")

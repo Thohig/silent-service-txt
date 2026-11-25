@@ -344,8 +344,8 @@ class SubApp(App):
             log.add_system(self.game.clock_str(), "Besättningen talar ryska, loggen är på svenska. "
                            "tal svenska byter språk.")
         log.add_system(self.game.clock_str(), "Översikten visar allt vi vet. Tab växlar till centralen, sjökort, "
-                       "sonar (vattenfallet), ubåten (djupprofil och systemtavla) och periskopbild, i ytläge också "
-                       "bryggan; Esc tillbaka till översikten.")
+                       "sonar (vattenfallet), ubåten (djupprofil och systemtavla) och utsikten (periskopet, i ytläge "
+                       "bryggan); Esc tillbaka till översikten.")
         log.add_system(self.game.clock_str(), "PageUp fäller ned loggboken i vilken vy som helst och bläddrar "
                        "bakåt, PageDown framåt, Esc fäller upp den.")
         key = self.scenario_key or ""
@@ -391,22 +391,20 @@ class SubApp(App):
             open_drawer(self.screen, telegrams=True)
 
     def tab_views(self) -> tuple[type[Screen], ...]:
-        """Tab-ordningen efter läget (`ui/views.tab_order`): under ytan ingen brygga, hytten när
-        starpom har befälet."""
+        """Tab-ordningen efter läget (`ui/views.tab_order`): hytten när starpom har befälet."""
         st = self.game.status() if self.game is not None else None
         return tab_order(ViewContext(big=self._screen is not None and self._screen.big,
-                                     command=st.command if st else "captain",
-                                     bridge=st.bridge if st else "shut"))
+                                     command=st.command if st else "captain"))
 
     def action_cycle(self) -> None:
-        """Tab: översikten (huvudskärmen) → centralen → sjökort → sonar → ubåten → periskop (och
-        brygga) → översikten."""
+        """Tab: översikten (huvudskärmen) → centralen → sjökort → sonar → ubåten → utsikten →
+        översikten."""
         if not self.running or self.game is None:
             return
         views = self.tab_views()
         cur = next((i for i, cls in enumerate(views) if isinstance(self.screen, cls)), None)
         if cur is None and isinstance(self.screen, VIEWS):
-            cur = len(views) - 1            # en vy utanför ordningen (bryggan under ytan)
+            cur = len(views) - 1            # en vy utanför ordningen
         if cur is None:
             self._toggle_view(views[0])
         elif cur + 1 < len(views):

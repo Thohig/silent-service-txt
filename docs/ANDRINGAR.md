@@ -3,6 +3,15 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-25 – Utsikten: bryggan och periskopbilden i en vy
+
+- Bryggvyn och periskopbilden syntes aldrig samtidigt (bryggan bara med luckan öppen). Nu är de en vy, utsikten
+  (`ui/lookout.py`, `LookoutScreen`; `utsikt`, `brygga`, `periskopbild`): bryggans panorama när bryggan är bemannad
+  (eller luckan på väg) och periskopet nere, annars periskopbilden. Kikarens okular på bryggan (förut periskopvyn i
+  ytläge) nås med ↓ från panoramat och ↑ tillbaka. Panelerna är `BridgePane` och `PeriscopePane`; vyns tangenter
+  följer det som visas. Tab: central → sjökort → sonar → ubåten → utsikten, fem vyer i stället för åtta före
+  loggens och översiktens ändring.
+
 ## 2026-11-25 – Loggboken är ett lager (PageUp), översikten huvudskärm i alla fönster
 
 - Loggboken var en egen vy i Tab-ordningen (stort fönster) eller huvudskärmen (litet). Nu fälls den ned över den

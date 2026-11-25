@@ -16,10 +16,9 @@ from textual.screen import Screen
 
 from .boat import BoatScreen
 from .central import CentralScreen
-from .bridge import BridgeScreen
 from .cabin import CabinScreen
 from .chart import ChartScreen
-from .periscope import PeriscopeScreen
+from .lookout import LookoutScreen
 from .sonar import SonarScreen
 
 
@@ -28,7 +27,6 @@ class ViewContext:
     """Det Tab-ordningen beror på."""
     big: bool = False               # stort fönster (loggremsan är längre)
     command: str = "captain"        # starpom har befälet: hytten först
-    bridge: str = "shut"            # tornluckan: bryggan bara när den inte är stängd
 
 
 @dataclass(frozen=True)
@@ -44,8 +42,7 @@ def _words(*w: str) -> frozenset[str]:
     return frozenset(w)
 
 
-# Tab-ordningen: (hytten) → central → sjökort → sonar → ubåten → (bryggan) → periskopbilden.
-# Med folk på väg upp eller på bryggan kommer bryggan före periskopbilden (kikaren).
+# Tab-ordningen: (hytten) → central → sjökort → sonar → ubåten → utsikten (bryggan eller periskopet).
 REGISTRY: tuple[ViewDef, ...] = (
     ViewDef(CabinScreen, _words("hytt", "hytten", "kajuta", "kajutan"),
             tab=lambda c: c.command == "starpom"),
@@ -60,9 +57,9 @@ REGISTRY: tuple[ViewDef, ...] = (
                                 "lurarna"), "sonar"),
     ViewDef(BoatScreen, _words("ubåt", "ubåten", "båten", "profil", "djupprofil", "sidovy",
                                "system", "systemtavla", "systemtavlan", "tavla", "tavlan"), "ubåt"),
-    ViewDef(BridgeScreen, _words("brygga", "bryggan", "bryggvy", "utsikt"), "brygga",
-            tab=lambda c: c.bridge != "shut"),
-    ViewDef(PeriscopeScreen, _words("periskopbild", "periskopvy", "bild"), "periskopbild"),
+    # bryggan och periskopbilden: vyn visar det som går (ui/lookout.py)
+    ViewDef(LookoutScreen, _words("utsikt", "utsikten", "brygga", "bryggan", "bryggvy", "periskopbild",
+                                  "periskopvy", "bild"), "utsikt"),
     ViewDef(None, _words("telegram", "telegrammen", "telegrammet", "radiogram", "radiogrammen"),
             "telegram", tab=None, word_action="_telegrams"),
 )

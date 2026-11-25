@@ -318,8 +318,7 @@ def test_tab_reaches_the_bridge_view_and_arrows_turn_it(tmp_path):
     import asyncio
 
     from ui.app import SubApp
-    from ui.bridge import BridgeScreen
-    from ui.periscope import PeriscopeScreen
+    from ui.lookout import LookoutScreen
 
     async def run():
         app = SubApp(seed=3, log_dir=tmp_path, scenario="kuba")
@@ -331,20 +330,18 @@ def test_tab_reaches_the_bridge_view_and_arrows_turn_it(tmp_path):
             g.world.env.sunrise, g.world.env.sunset = 0, 24 * 3600
             g.world.env.lat = None            # utan plats: ljuset följer sunrise/sunset
             _surface(g)
-            await pilot.press(*["tab"] * 5)   # central, sjökort, sonar, ubåten; i ytläge före periskopet
-            assert isinstance(app.screen, BridgeScreen)
+            await pilot.press(*["tab"] * 5)   # central, sjökort, sonar, ubåten, utsikten
+            assert isinstance(app.screen, LookoutScreen) and app.screen.mode() == "bridge"
             await pilot.pause(0.6)
-            body = str(app.screen.query_one("#bridge-body").render())
+            body = str(app.screen.query_one("#lookout-body").render())
             assert "╤" in body and "förut" in body
             await pilot.press("right", "right")
-            assert app.screen.view_rel == pytest.approx(30.0)
+            assert app.screen.bridge.view_rel == pytest.approx(30.0)
             await pilot.press("space")
-            assert app.screen.view_rel == 0.0
+            assert app.screen.bridge.view_rel == 0.0
             app.save_screenshot(str(tmp_path / "brygga.svg"))
             await pilot.press("tab")
-            assert isinstance(app.screen, PeriscopeScreen)
-            await pilot.press("tab")
-            assert not isinstance(app.screen, (BridgeScreen, PeriscopeScreen))
+            assert not isinstance(app.screen, LookoutScreen)
 
     asyncio.run(run())
 
@@ -538,8 +535,7 @@ def test_periscope_view_shows_the_bridge_and_shares_the_look(tmp_path):
     import asyncio
 
     from ui.app import SubApp
-    from ui.bridge import BridgeScreen
-    from ui.periscope import PeriscopeScreen
+    from ui.lookout import LookoutScreen
 
     async def run():
         app = SubApp(seed=3, log_dir=tmp_path, scenario="kuba")
@@ -554,25 +550,25 @@ def test_periscope_view_shows_the_bridge_and_shares_the_look(tmp_path):
             for ai in g.world.ais:
                 ai.can_force = False
             _surface(g)
-            app._toggle_view(BridgeScreen)
+            app._toggle_view(LookoutScreen)
             await pilot.pause(0.1)
-            assert isinstance(app.screen, BridgeScreen)
+            assert isinstance(app.screen, LookoutScreen) and app.screen.mode() == "bridge"
             for _ in range(6):                                     # blicken 90° styrbord
                 await pilot.press("right")
-            app._toggle_view(PeriscopeScreen)
+            await pilot.press("down")                              # kikarens okular
             await pilot.pause(0.6)
-            assert isinstance(app.screen, PeriscopeScreen)
-            head = str(app.screen.query_one("#periscope-head").render())
+            assert app.screen.mode() == "glass"
+            head = str(app.screen.query_one("#lookout-head").render())
             assert "KIKARE" in head
-            body = str(app.screen.query_one("#periscope-body").render())
+            body = str(app.screen.query_one("#lookout-body").render())
             line = body.splitlines()[-1]
             assert "jagare" in line                                # det bryggan tittade på
             app.save_screenshot(str(tmp_path / "kikare.svg"))
             await pilot.press("space")                             # inget periskop: ingen effekt
-            app._toggle_view(BridgeScreen)
+            await pilot.press("up")                                # tillbaka till panoramat
             await pilot.pause(0.2)
-            assert isinstance(app.screen, BridgeScreen)
-            assert 60 <= app.screen.view_rel <= 120
+            assert app.screen.mode() == "bridge"
+            assert 60 <= app.screen.bridge.view_rel <= 120
 
     asyncio.run(run())
 

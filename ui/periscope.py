@@ -1,4 +1,4 @@
-"""Periskopbilden i helskärm (Tab eller "periskopbild"). Spelet går vidare medan den visas.
+"""Periskopbilden, en del av utsikten (`ui/lookout.py`, Tab eller "utsikt"/"periskopbild").
 
 Vyn visar utkikens bild (`Knowledge.periscope`), inte världen. Medan masten är uppe
 kommer en ny bild varannan sekund och okularet står där periskopet är vänt
@@ -6,50 +6,43 @@ kommer en ny bild varannan sekund och okularet står där periskopet är vänt
 mellanslag vänder det förut, ↓ fäller det. När masten är nere visas den senaste bilden
 (nedtonad när den är gammal), ← → byter föremål i okularet och ↑ hissar periskopet.
 
-I ytläge med bryggan bemannad är vyn kikaren på bryggan: den visar bryggans levande bild
-(`Knowledge.bridge`). Blickens bäring delas med bryggvyn (`SubApp.look_bearing`): vyn
-öppnas mot det bryggan tittade på, och det valda föremålet blir bryggans blick.
+I ytläge med bryggan bemannad är okularet kikaren på bryggan (↓ från panoramat, ↑ tillbaka): det
+visar bryggans levande bild (`Knowledge.bridge`). Blickens bäring delas med panoramat
+(`SubApp.look_bearing`): okularet öppnas mot det bryggan tittade på, och det valda föremålet blir
+bryggans blick.
 """
 from __future__ import annotations
 
 from rich.text import Text
-from textual.app import ComposeResult
-from textual.css.query import NoMatches
 from textual.widgets import Static
 
 from sim.geo import angle_diff
 
 from .periscope_render import (default_index, header, object_key, ordered_objects,
                                render_periscope)
-from .viewbase import ViewScreen
-
-REDRAW_S = 0.5
 TURN_STEP_DEG = 5
 
 
-class PeriscopeScreen(ViewScreen):
-    CSS = """
-    PeriscopeScreen { background: #0b0f0c; }
-    #periscope-head { height: 2; background: #1c2a20; color: #c8d0b0; }
-    #periscope-body { height: 1fr; }
-    #periscope-ticker { height: 2; background: #0f1611; }
-    """
-    PREFIX = "periscope"
-    REDRAW_S = REDRAW_S
-    EMPTY_KEYS = {"escape": "close", "left": "select(-1)", "right": "select(1)",
-                  "up": "raise", "down": "lower", "space": "ahead",
-                  "plus": "power('hög')", "equals_sign": "power('hög')", "minus": "power('låg')"}
+class PeriscopePane:
+    """Periskopets okular i utsikten (`ui/lookout.py`); med bryggan bemannad kikarens okular."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    KEYS = {"left": "p_select(-1)", "right": "p_select(1)", "up": "p_raise", "down": "p_lower",
+            "space": "p_ahead", "plus": "p_power('hög')", "equals_sign": "p_power('hög')",
+            "minus": "p_power('låg')"}
+    GLASS_KEYS = {"left": "p_select(-1)", "right": "p_select(1)", "up": "okular(False)",
+                  "space": "p_ahead"}          # (mellanslag: inget periskop, ingen effekt)
+
+    def __init__(self, screen) -> None:
+        self.screen = screen
         self.selected_key: str | None = None
         self._pic_t: int | None = None
 
-    def compose(self) -> ComposeResult:
-        yield Static(id="periscope-head")
-        yield Static(id="periscope-body")
-        yield Static(id="periscope-ticker")
-        yield self.order_line()
+    @property
+    def app(self):
+        return self.screen.app
+
+    def draw_now(self) -> None:
+        self.screen.draw()
 
     def _game(self):
         return getattr(self.app, "game", None)
@@ -59,31 +52,31 @@ class PeriscopeScreen(ViewScreen):
         game = self._game()
         if game is not None:
             game.command(text)
-            self.draw()
+            self.draw_now()
 
-    def action_raise(self) -> None:
+    def raise_(self) -> None:
         game = self._game()
         if game is not None and game.status().periscope != "hold":
             self._hand("periskop upp")
 
-    def action_lower(self) -> None:
+    def lower(self) -> None:
         game = self._game()
         if game is not None and game.status().periscope is not None:
             self._hand("periskop ned")
 
-    def action_ahead(self) -> None:
+    def ahead(self) -> None:
         game = self._game()
         if game is not None and game.status().periscope is not None:
             self._hand(f"vrid periskop {round(game.status().course) % 360:03d}")
 
-    def action_power(self, power: str) -> None:
+    def power(self, power: str) -> None:
         """+ hög och − låg förstoring när periskopet hålls uppe (kaptenens hand)."""
         game = self._game()
         if game is not None and game.status().periscope == "hold" and \
                 game.status().periscope_optic != "kikare":
             self._hand(f"förstoring {power}")
 
-    def action_select(self, step: int) -> None:
+    def select(self, step: int) -> None:
         game = self._game()
         if game is not None and (st := game.status()).periscope is not None:
             b = (round(st.periscope_train / TURN_STEP_DEG) + step) * TURN_STEP_DEG % 360
@@ -95,7 +88,7 @@ class PeriscopeScreen(ViewScreen):
         objs = ordered_objects(pic)
         i = (self._index(pic) + step) % len(objs)
         self.selected_key = object_key(objs[i])
-        self.draw()
+        self.draw_now()
 
     def _picture(self):
         game = getattr(self.app, "game", None)
@@ -136,14 +129,9 @@ class PeriscopeScreen(ViewScreen):
             self.selected_key = object_key(objs[i])
         return i
 
-    def draw(self) -> None:
+    def draw(self, body: Static, head: Static) -> None:
         game = getattr(self.app, "game", None)
-        if game is None or not self.is_mounted:
-            return
-        try:
-            body = self.query_one("#periscope-body", Static)
-            head = self.query_one("#periscope-head", Static)
-        except NoMatches:
+        if game is None:
             return
         w, h = body.size.width, body.size.height
         if w < 30 or h < 8:
@@ -173,9 +161,11 @@ class PeriscopeScreen(ViewScreen):
         t.append("\n")
         if aim is not None:
             t.append(" ←/→ vrid · mellanslag förut · +/− förstoring (hålls uppe) · ↓ periskop ned"
-                     " · Tab logg · Esc tillbaka", style="dim")
+                     " · Tab översikten · Esc tillbaka", style="dim")
+        elif bridge_live:
+            t.append(" ←/→ byt föremål · ↑ panoramat · Tab översikten · Esc tillbaka", style="dim")
         else:
             t.append(" ←/→ byt föremål · ↑ periskop upp · periskop ger ett svep, periskop 047 "
-                     "eller S-3 en kort titt · Tab logg · Esc tillbaka", style="dim")
+                     "eller S-3 en kort titt · Tab översikten · Esc tillbaka", style="dim")
         head.update(t)
 

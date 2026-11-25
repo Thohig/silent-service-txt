@@ -186,7 +186,7 @@ def test_tab_reaches_the_periscope_view(tmp_path):
     import asyncio
 
     from ui.app import SubApp
-    from ui.periscope import PeriscopeScreen
+    from ui.lookout import LookoutScreen as PeriscopeScreen
 
     async def run():
         app = SubApp(seed=3, log_dir=tmp_path, scenario="kuba")
@@ -204,10 +204,10 @@ def test_tab_reaches_the_periscope_view(tmp_path):
             await pilot.press(*["tab"] * 5)   # central, sjökort, sonar, ubåten, periskop
             assert isinstance(app.screen, PeriscopeScreen)
             await pilot.pause(0.6)
-            body = str(app.screen.query_one("#periscope-body").render())
+            body = str(app.screen.query_one("#lookout-body").render())
             assert "S-" in body and "┊" in body
             await pilot.press("right")
-            assert app.screen.selected_key is not None
+            assert app.screen.periscope.selected_key is not None
             app.save_screenshot(str(tmp_path / "periskop.svg"))
             await pilot.press("tab")
             assert not isinstance(app.screen, PeriscopeScreen)
@@ -461,7 +461,7 @@ def test_live_periscope_view_turns_with_the_arrows(tmp_path):
     import asyncio
 
     from ui.app import SubApp
-    from ui.periscope import PeriscopeScreen
+    from ui.lookout import LookoutScreen as PeriscopeScreen
 
     async def run():
         app = SubApp(seed=3, log_dir=tmp_path, scenario="kuba")
@@ -482,9 +482,9 @@ def test_live_periscope_view_turns_with_the_arrows(tmp_path):
             for _ in range(4):
                 g.tick()
             await pilot.pause(0.6)
-            head = str(app.screen.query_one("#periscope-head").render())
+            head = str(app.screen.query_one("#lookout-head").render())
             assert "UPPE" in head and "okular 000" in head
-            body = str(app.screen.query_one("#periscope-body").render())
+            body = str(app.screen.query_one("#lookout-body").render())
             assert "Inget i okularet" not in body
             app.save_screenshot(str(tmp_path / "periskop-uppe.svg"))
             await pilot.press("right", "right")
