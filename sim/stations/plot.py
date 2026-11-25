@@ -72,7 +72,8 @@ PENCIL_GAP_S = {"ping": 300, "buoy_ping": 300, "splash": 60, "buoy": 300,
 OWN_PENCIL = {"ping": ("!", "aktiv ping", 300), "decoy": ("≋", "skenmål", 60),
               "blow": ("▲", "nödblåsning", 300), "report": ("R", "rapport", 60),
               "periscope": ("⊙", "periskop", 300), "astern": ("◂", "omkastning", 300),
-              "reload": ("¤", "omladdning", 300), "clatter": ("≡", "slammer", 300)}
+              "reload": ("¤", "omladdning", 300), "clatter": ("≡", "slammer", 300),
+              "repair": ("h", "reparation", 300)}
 LAYER_PENCIL = LAYER_TRACK + 0.5                 # strecken under bäringar och lösningar
 LAYER_PENCIL_MARK = LAYER_MARK - 0.5             # märken på en lösning: under kontaktens märke
 LAYER_FAN = LAYER_TRACK + 0.75                   # solfjädern: över blyertsen, under lösningen

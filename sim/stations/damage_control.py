@@ -14,10 +14,11 @@ from dataclasses import dataclass
 from .. import phrases
 from .. import russian as R
 from ..crew import Role
-from ..damage import CAP_T, LEAK_KINDS, bilge_capacity, inflow_factor
+from ..damage import CAP_T, LEAK_KINDS, REPAIR_QUIET_F, bilge_capacity, inflow_factor, repairable
+from ..events import OwnSoundMade
 from ..fmt import nm
 from ..orders import CommandSpec, Order
-from ..ownship import PERISCOPE_DEPTH, TEST_DEPTH
+from ..ownship import COMPONENT_LABEL, COMPONENTS, PERISCOPE_DEPTH, REPAIR_S, TEST_DEPTH
 from ..russian import ru
 from .base import Station
 
@@ -53,6 +54,33 @@ class Pump(Order):
     STANDING = True
 
 
+@dataclass(frozen=True)
+class Repair(Order):
+    """reparera X: laga X först. Utan X: rapport om vad som lagas och i vilken ordning."""
+    component: str | None = None
+
+
+REPAIR_WORDS = {"planes": "roder|rodren|rodret|djuproder|djuprodren|djuprodret",
+                "propulsion": "framdrivning|framdrivningen|maskin|maskinen|axel|axeln|propeller|propellern",
+                "sonar": "sonar|sonaren|hydrofon|hydrofonerna",
+                "tubes": "tuber|tuberna|torpedtuber|torpedtuberna",
+                "periscope": "periskop|periskopet",
+                "radio": "radio|radion|antenn|antennen"}
+REPAIR_ORDER = ("planes", "propulsion", "sonar", "tubes", "periscope", "radio")   # maskins ordning
+REPAIR_ORDER_HUNTED = ("propulsion", "planes", "sonar", "tubes", "periscope", "radio")
+COMPONENT_RU = {"sonar": "гидроакустика", "planes": "горизонтальные рули", "propulsion": "главный двигатель",
+                "tubes": "торпедные аппараты", "periscope": "перископ", "radio": "радиостанция"}
+HEAVY_PLANES_T = 2.0        # så tung båt (som rodren inte bär): rodren först
+
+
+def _repair_component(m) -> Repair:
+    word = (m.group(1) or "").strip().lower()
+    for c, pat in REPAIR_WORDS.items():
+        if word and any(word == w for w in pat.split("|")):
+            return Repair(c)
+    return Repair(None)
+
+
 def where(n: int) -> str:
     return f"{ORDINAL[n]} avdelningen"
 
@@ -81,6 +109,17 @@ PHRASES = {
     "dc.bilge.done": lambda d: "Båten är länsad, kapten. Pumparna står.",
     "dc.suggest.bilge": lambda d: f"Kapten, maskin. {nm(d['water'])} ton vatten i kölsvinet och det stiger. "
     "Ber att få länsa, pumparna hörs.",
+    "dc.repair.start": lambda d: f"Kapten, maskin. Vi lagar {COMPONENT_LABEL[d['component']]}"
+    + (" tyst, för tystnaden: det tar dubbelt så lång tid" if d.get("quiet") else ", det hörs")
+    + f", cirka {d['minutes']} minuter." + (f" Sedan {d['next']}." if d.get("next") else ""),
+    "dc.repair.ack": lambda d: f"{ru('Jest')}, {COMPONENT_LABEL[d['component']]} först." if d.get("component")
+    else "Kapten, inget att laga." if not d.get("plan") else
+    "Kapten, vi lagar " + ", sedan ".join(d["plan"]) + ".",
+    "dc.repair.cannot": lambda d: f"Kapten, {COMPONENT_LABEL[d['component']]} "
+    + ("står under vatten, ingen kommer åt dem." if d.get("flooded")
+       else "är lagade så gott det går till sjöss." if d.get("as_good") else "är hela."),
+    "dc.suggest.repair_planes": lambda d: "Kapten, maskin. Vi sjunker och rodren bär inte: föreslår att vi "
+    "lagar rodren först.",
     "dc.suggest.leak_up": lambda d: f"Kapten, maskin. Läckan ger {nm(d['rate'])} ton i minuten på "
     f"{d['depth']} meter, mer än pumparna tar. Föreslår djup {d['target']}: "
     + ("där tar pumparna den." if d.get("enough") else "där läcker det mindre."),
@@ -111,6 +150,14 @@ RU_PHRASES = {
     "dc.bilge.done": lambda d: "Трюм осушен, насосы остановлены.",
     "dc.suggest.bilge": lambda d: f"{R.CAPTAIN}, механик. В трюме {R.dec(d['water'], R.TON)} воды, "
     "прибывает. Прошу разрешения откачивать.",
+    "dc.repair.start": lambda d: f"{R.CAPTAIN}, механик. Ремонтируем: {COMPONENT_RU[d['component']]}"
+    + (", тихо." if d.get("quiet") else "."),
+    "dc.repair.ack": lambda d: f"Есть, {COMPONENT_RU[d['component']]} в первую очередь." if d.get("component")
+    else "Ремонтировать нечего." if not d.get("plan") else "Есть.",
+    "dc.repair.cannot": lambda d: f"{R.CAPTAIN}, {COMPONENT_RU[d['component']]}: "
+    + ("отсек затоплен." if d.get("flooded") else "сделали что могли." if d.get("as_good") else "исправно."),
+    "dc.suggest.repair_planes": lambda d: f"{R.CAPTAIN}, механик. Проваливаемся, рули не держат. Предлагаю "
+    "ремонтировать рули в первую очередь.",
     "dc.suggest.leak_up": lambda d: f"{R.CAPTAIN}, механик. Течь больше, чем откачивают насосы. "
     f"Предлагаю глубину {R.count(d['target'], R.METER)}.",
 }
@@ -126,6 +173,8 @@ class DamageControlStation(Station):
                     lambda m: Pump(True), "länsa"),
         CommandSpec(r"läns stopp|lans stopp|stoppa länspumparna|stoppa lanspumparna|länsa inte|lansa inte",
                     lambda m: Pump(False), "läns stopp"),
+        CommandSpec(r"(?:reparera|laga)(?: (" + "|".join(REPAIR_WORDS.values()) + r"))?(?: först| forst)?",
+                    _repair_component, "reparera roder"),
     ]
 
     def __init__(self, game):
@@ -134,23 +183,83 @@ class DamageControlStation(Station):
         self._hushed_said = False
         self._danger_said = False
         self._last_water = 0.0
+        self.repair_first: str | None = None    # kaptenens order: det här först
+        self._repair_said: str | None = None
         self._test_said = TEST_DEPTH
         self._test_t = -10**9
 
     def on_order(self, order: Order) -> None:
+        if isinstance(order, Repair):
+            c = order.component
+            if c is None:
+                self.say("dc.repair.ack", {"plan": [COMPONENT_LABEL[x] for x in self._plan()]}, kind="ack")
+            elif not repairable(self.own, c):
+                s = self.own.sys
+                self.say("dc.repair.cannot", {"component": c,
+                                              "flooded": s.health[c] < s.dmg.cap.get(c, 1.0),
+                                              "as_good": s.health[c] < 1.0}, kind="ack")
+            else:
+                self.repair_first = c
+                self.say("dc.repair.ack", {"component": c}, kind="ack")
+                self._repair_said = None if self.own.sys.dmg.repair != c else c
+            return
         if isinstance(order, Pump):
             self.bilge_mode = "on" if order.on else "hold"
             self._danger_said = False
             self.say("dc.bilge.on" if order.on else "dc.bilge.off", {"water": self.own.sys.flooding}, kind="ack")
             self._bilge()
 
+    def _plan(self) -> list[str]:
+        """Det som går att laga, i den ordning vi lagar det: kaptenens först, sedan maskins (rodren först
+        om båten är tung och de inte bär, framdrivningen först under jakt)."""
+        hunted = self.game.knowledge.hunted(self.now)
+        order = list(REPAIR_ORDER_HUNTED if hunted else REPAIR_ORDER)
+        if self._planes_urgent():
+            order.remove("planes")
+            order.insert(0, "planes")
+        if self.repair_first in order:
+            order.remove(self.repair_first)
+            order.insert(0, self.repair_first)
+        return [c for c in order if repairable(self.own, c)]
+
+    def _planes_urgent(self) -> bool:
+        s = self.own.sys
+        return s.dmg.planes_jam != 0 or (repairable(self.own, "planes") and abs(s.trim.free_t) >= HEAVY_PLANES_T)
+
+    def _repair(self) -> None:
+        own, dmg = self.own, self.own.sys.dmg
+        plan = self._plan()
+        target = plan[0] if plan else None
+        if self.repair_first is not None and not repairable(own, self.repair_first):
+            self.repair_first = None
+        dmg.repair = target
+        dmg.repair_quiet = self._hushed()
+        if dmg._bang_t == self.now:
+            self.game.bus.publish(OwnSoundMade(self.now, "repair"))
+        if target is not None and target != self._repair_said:
+            self._repair_said = target
+            left = (own.sys.dmg.cap.get(target, 1.0) - own.sys.health[target]) * REPAIR_S
+            if dmg.repair_quiet:
+                left /= REPAIR_QUIET_F
+            self.say("dc.repair.start", {"component": target, "quiet": dmg.repair_quiet,
+                                         "minutes": max(1, round(left / 60)),
+                                         "next": COMPONENT_LABEL[plan[1]] if len(plan) > 1 else None})
+        elif target is None:
+            self._repair_said = None
+        if self.repair_first not in (None, "planes") and self._planes_urgent():
+            self.suggest("repair_planes", "dc.suggest.repair_planes", {}, order="reparera roder",
+                         cooldown=300, alarm=True)
+
     def order_in_force(self, order: Order) -> bool | None:
+        if isinstance(order, Repair) and order.component is not None:
+            return self.repair_first == order.component
         if isinstance(order, Pump):
             return self.bilge_mode == ("on" if order.on else "hold")
         return None
 
     def update(self) -> None:
         self._bilge()
+        self._repair()
         self._jam_advice()
         self._test_depth_watch()
         self._leak_advice()

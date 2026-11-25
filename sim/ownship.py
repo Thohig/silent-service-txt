@@ -578,15 +578,20 @@ class OwnShip(Vessel):
                 damage.add_leak(self, where, "packbox")
                 self.alert("damage", severity="lätta", components=[], leak=True, compartment=where)
 
-        # reparationer: en komponent i taget, inte bättre än det som går till sjöss och inte i en
-        # avdelning folket lämnat
-        for c in COMPONENTS:
+        # reparationer: en komponent i taget (den skadekontrollen valt), inte bättre än det som går
+        # till sjöss och inte i en avdelning folket lämnat; hörbar med slag, tyst i halva takten
+        c = s.dmg.repair if s.dmg.repair in COMPONENTS else next(
+            (c for c in COMPONENTS if damage.repairable(self, c)), None)
+        if c is not None and damage.repairable(self, c):
             cap = s.dmg.cap.get(c, 1.0)
-            if s.health[c] < cap and damage.COMPONENT_COMPARTMENT[c] not in s.dmg.evacuated:
-                s.health[c] = min(cap, s.health[c] + dt / REPAIR_S)
-                if s.health[c] >= cap:
-                    self.alert("repaired", component=c, **({"partly": True} if cap < 1.0 else {}))
-                break
+            quiet = s.dmg.repair_quiet
+            s.health[c] = min(cap, s.health[c] + dt / REPAIR_S * (damage.REPAIR_QUIET_F if quiet else 1.0))
+            if not quiet and now - s.dmg._bang_t >= damage.REPAIR_BANG_S:
+                s.dmg._bang_t = now
+                world.emit(Transient("repair", st.x, st.y, st.depth, damage.REPAIR_LEVEL, self.id, now))
+            if s.health[c] >= cap:
+                s.dmg.repair = None
+                self.alert("repaired", component=c, **({"partly": True} if cap < 1.0 else {}))
 
         if st.depth >= CRUSH_DEPTH or s.hull <= 0 or s.flooding >= FLOOD_LOSS_T:
             self.sunk = True

@@ -41,9 +41,11 @@ def test_fire_leak_and_damage_show_where_they_are():
     g = _game()
     _run(g, 30)
     s = g.world.own.sys
-    s.fire, s.smoke = True, 0.4
-    s.health["tubes"] = 0.2
+    s.health["tubes"] = 0.15
     s.flooding, s.leak_rate = 30.0, 0.3
+    _run(g, 1)                                  # skadekontrollen väljer vad som lagas
+    s.fire, s.smoke = True, 0.4
+    g.invalidate_views()
     v = g.systems()
     comps = {c.name: c for c in v.compartments()}
     assert comps["turbin"].state == DANGER and comps["turbin"].note == "BRAND"

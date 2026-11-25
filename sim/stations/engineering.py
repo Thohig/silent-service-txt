@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from .. import acoustics, phrases
 from ..crew import Role
-from ..damage import CAP_T, COMPONENT_COMPARTMENT
+from ..damage import CAP_T, COMPONENT_COMPARTMENT, bilge_capacity
 from ..events import ChargeHeard, OwnSoundMade
 from ..reports import Quality
 from ..fmt import fmt_course, kn, nm
@@ -469,7 +469,7 @@ class EngineeringStation(Station):
         if not isinstance(order, EmergencyBlow):
             return False
         s, st = self.own.sys, self.own.state
-        danger = s.flooding > 0.5 or s.leak_rate > 0 or s.hull < 0.7 or st.depth > TEST_DEPTH - 20
+        danger = s.flooding > 0.5 or s.leak_rate > 0 or s.hull < 0.7 or st.depth > self.own.test_depth() - 20
         if danger or st.depth <= 20:
             return False
         return self.confirm_once("blow", "eng.blow_confirm")
@@ -561,11 +561,27 @@ class EngineeringStation(Station):
               s.smoke)
         if s.blowing:
             g("Nödblåsning", "pågår", WARN)
+        dmg = s.dmg
+        if dmg.leaks:
+            g("Läckor", ", ".join(f"{ORDINAL[lk.compartment]} ({nm(lk.rate(own.state.depth))} t/min)"
+                                  for lk in dmg.leaks), DANGER if s.leak_rate > 1.0 else WARN)
+        g("Länspumpar", ("går" if dmg.bilge_on and s.flooding > 0.05 else "på" if dmg.bilge_on else "stoppade")
+          + f", {nm(bilge_capacity(own.state.depth))} t/min här", WARN if not dmg.bilge_on and s.flooding > 0.5
+          else INFO if dmg.bilge_on and s.flooding > 0.05 else OK)
+        if dmg.closed:
+            g("Skotten", "stängda" + (", utrymd: " + ", ".join(ORDINAL[n] for n in sorted(dmg.evacuated))
+                                      if dmg.evacuated else ""), DANGER if dmg.evacuated else WARN)
+        if own.test_depth() < TEST_DEPTH:
+            g("Provdjup", f"{own.test_depth():.0f} m (skrovet)", WARN)
 
-        repairing = next((c for c in COMPONENTS if s.health[c] < 1.0), None)
+        repairing = s.dmg.repair
         for c in COMPONENTS:
             h = s.health[c]
-            txt = health_word(h) + (", lagas" if c == repairing else "")
+            txt = health_word(h) + ((", lagas tyst" if s.dmg.repair_quiet else ", lagas") if c == repairing else "")
+            if s.dmg.cap.get(c, 1.0) < 1.0 and h >= s.dmg.cap[c] - 1e-9:
+                txt += ", mer går inte till sjöss"
+            elif COMPONENT_COMPARTMENT[c] in s.dmg.evacuated:
+                txt += ", under vatten"
             g(COMPONENT_NAME[c], txt, health_state(h), h if h < 1.0 else None, panel="SKADOR")
 
         for n, name, state, note in self._compartments():

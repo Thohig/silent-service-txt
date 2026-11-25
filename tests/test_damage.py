@@ -251,3 +251,97 @@ def test_bilge_stop_holds_the_pumps_until_the_water_is_dangerous():
     for _ in range(3):
         g.tick()
     assert any(r.type == "dc.bilge.on" for r in reports)
+
+
+def _damaged_game(*components, health=0.4):
+    g, reports = _game()
+    for c in components:
+        g.world.own.sys.health[c] = health
+    return g, reports
+
+
+def _tick(g, n):
+    for _ in range(n):
+        g.tick()
+
+
+def test_the_crew_repairs_in_its_order_and_says_so():
+    g, reports = _damaged_game("radio", "planes", "sonar")
+    _tick(g, 3)
+    r = next(r for r in reports if r.type == "dc.repair.start")
+    assert r.data["component"] == "planes" and "rodren" in r.text and "sedan" in r.text.lower()
+    assert g.world.own.sys.dmg.repair == "planes"
+
+
+def test_the_captain_sets_what_is_repaired_first():
+    g, reports = _damaged_game("radio", "planes")
+    g.command("reparera radion")
+    _tick(g, 3)
+    assert g.world.own.sys.dmg.repair == "radio"
+    assert any(r.type == "dc.repair.ack" and "radion" in r.text for r in reports)
+    g.command("reparera")
+    _tick(g, 3)
+    assert any(r.type == "dc.repair.ack" and "radion, sedan rodren" in r.text for r in reports)
+
+
+def test_repair_is_heard_unless_the_boat_is_hushed_then_slower():
+    from sim.stations.officer import OfficerStation
+    g, reports = _damaged_game("sonar")
+    heard = []
+    orig = g.world.emit
+    g.world.emit = lambda tr: (heard.append(tr.kind), orig(tr))[-1]
+    h0 = g.world.own.sys.health["sonar"]
+    _tick(g, 100)
+    loud = g.world.own.sys.health["sonar"] - h0
+    assert "repair" in heard
+    g2, _ = _damaged_game("sonar")
+    off = g2.station(OfficerStation)
+    off._hush_watch = lambda: None
+    off.hushed = True
+    _tick(g2, 1)                                     # skadekontrollen hör tystnaden från nästa sekund
+    heard.clear()
+    g2.world.emit = lambda tr: (heard.append(tr.kind), orig(tr))[-1]
+    _tick(g2, 99)
+    quiet = g2.world.own.sys.health["sonar"] - h0
+    assert "repair" not in heard
+    assert quiet == pytest.approx(loud * D.REPAIR_QUIET_F, rel=0.05)
+
+
+def test_a_flooded_compartment_cannot_be_repaired_and_a_severe_hit_leaves_a_mark():
+    g, reports = _damaged_game("planes")
+    own = g.world.own
+    own.sys.dmg.evacuated.add(9)
+    own.sys.dmg.closed = True
+    own.sys.dmg.water[9] = 20.0
+    own.sys.dmg.bilge_on = False
+    g.command("läns stopp")
+    _tick(g, 5)
+    assert own.sys.dmg.repair is None
+    g.command("reparera roder")
+    _tick(g, 3)
+    assert any(r.type == "dc.repair.cannot" and "under vatten" in r.text for r in reports)
+    own.sys.dmg.evacuated.clear()
+    own.sys.dmg.water[9] = 0.0
+    own.sys.dmg.cap["planes"] = 1.0
+    D.limit(own, "planes", 0.75)
+    own.sys.health["planes"] = 0.7
+    _tick(g, 120)
+    assert own.sys.health["planes"] == pytest.approx(0.75)
+    assert any(r.type == "repaired" and "så gott det går" in r.text for r in reports)
+
+
+def test_the_crew_asks_for_the_planes_first_when_we_sink():
+    g, reports = _damaged_game("radio", "planes")
+    g.command("reparera radion")
+    g.world.own.sys.dmg.planes_jam, g.world.own.sys.dmg.jam_left = 1, 60
+    _tick(g, 5)
+    sug = [r for r in reports if r.type == "dc.suggest.repair_planes"]
+    assert sug and sug[0].data["order"] == "reparera roder"
+
+
+def test_repair_order_parses():
+    from sim.stations.damage_control import Repair
+    g, _ = _game()
+    assert g.registry.parse("reparera rodren") == Repair("planes")
+    assert g.registry.parse("laga sonaren först") == Repair("sonar")
+    assert g.registry.parse("reparera") == Repair(None)

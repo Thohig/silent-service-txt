@@ -62,6 +62,9 @@ BILGE_ZERO_M = 500.0        # kapaciteten faller linjärt mot noll här …
 BILGE_MIN_F = 0.25          # … men inte under så stor andel
 BILGE_LEVEL = 124.0         # dB när de går
 BILGE_BATTERY_PER_H = 0.05  # på batteriet: så mycket laddning per timme
+REPAIR_QUIET_F = 0.5        # tyst reparation (tystnad i båten): så mycket av takten
+REPAIR_BANG_S = 40          # hörbar reparation: ett slag (hammare, mejsel) så ofta
+REPAIR_LEVEL = 130.0        # dB
 BATTERY_SHORT_T = 3.0       # så mycket vatten i andra avdelningen: saltvatten i batteriet, kortslutning, brand
 BATTERY_SHORT_KEEP = 0.7    # det som är kvar av laddningen (cellerna som brann)
 JAM_HEALTH = 0.35
@@ -72,6 +75,13 @@ JAM_MANUAL_S = 90
 def bilge_capacity(depth: float) -> float:
     """Ton per minut länspumparna tar på djupet."""
     return BILGE_T_PER_MIN * max(BILGE_MIN_F, 1.0 - max(depth, 0.0) / BILGE_ZERO_M)
+
+
+def repairable(own: OwnShip, component: str) -> bool:
+    """Går komponenten att laga mer nu (skadad under det som går till sjöss, folk i avdelningen)?"""
+    s = own.sys
+    return s.health[component] < s.dmg.cap.get(component, 1.0) - 1e-9 and \
+        COMPONENT_COMPARTMENT[component] not in s.dmg.evacuated
 
 
 def pumping(own: OwnShip) -> bool:
@@ -110,6 +120,9 @@ class DamageState:
     jam_left: float = 0.0
     bilge_on: bool = True                   # länspumparna (skadekontrollen styr dem)
     battery_shorted: bool = False           # saltvatten i batteriet har kortslutit (en gång)
+    repair: str | None = None               # komponenten som lagas (skadekontrollen väljer; None: den första)
+    repair_quiet: bool = False              # tyst: halva takten, inga slag
+    _bang_t: int = -10**9
     _flood_seen: float = 0.0
     _leak_seen: float = 0.0
 
