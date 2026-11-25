@@ -174,8 +174,9 @@ class HeloDef:
     gap_s: tuple[int, int] = (40 * 60, 70 * 60)
     entry: tuple[float, float] = (30.0, 10.0)
     only_cued: bool = True          # bara när jagaren har ett färskt datum (annars söker de inte här)
-    torpedo: bool = False           # fäller en Mk 44 med skarpa regler: bara i krig (i jagad, där jagarna fäller
-                                    # skarpt men det inte är krig, sänkte den oss: frö 102)
+    torpedo: bool = False           # fäller en Mk 44 med skarpa regler. Av överallt: i jagad sänkte den oss (frö
+                                    # 102), i krig förlorade ja-boten 6 av 8 (förut 1): 2,5 min från doppet till
+                                    # träffen, och Mk 44 går 30 kn mot våra 28
 
 
 class HeloPatrol:

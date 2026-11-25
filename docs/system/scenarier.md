@@ -147,8 +147,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (`only_cued`), egen slump. Flyger 85 kn till doppunkten (jagarens läge, eller nästa punkt i sökmönstret 3 nm bort),
   hovrar, firar ned sonaren (60 s), pingar var 15:e s i 3 min från 45 m (212 dB, `Transient("dip_ping")`) och hissar.
   Ett eko ger bäring och avstånd (σ 5 % av avståndet, minst 0,05 nm) till jagarna som en fix; nästa doppunkt då 1 nm
-  mot läget. I krig (`HeloDef.torpedo`, bara krig) och med skarpa regler fäller den en Mk 44 (30 kn, 3 nm) på ett skarpt
-  läge, en per flygning (i jagad, där jagarna fäller skarpt utan krig, sänkte den oss: frö 102). Sonar: `sonar.dip` (en rad per ny punkt), undanmanöver; periskopet: "Helikopter, hovrar";
+  mot läget. Den kan fälla en Mk 44 (30 kn, 3 nm) med skarpa regler (`HeloDef.torpedo`), men det är av överallt: i jagad
+  sänkte den oss (frö 102), i krig förlorade ja-boten 6 av 8 (förut 1), 2,5 min från doppet till träffen. Sonar: `sonar.dip` (en rad per ny punkt), undanmanöver; periskopet: "Helikopter, hovrar";
   radarvarnaren hör den inte.
 - **B-36** (`sim/foxtrot.py`, kuba lång; 2026-11-25): en sovjetisk Foxtrot (Projekt 641) i östra delen. Smyger på
   batteriet på 100 m i 3 kn (106 dB) och snorklar var 80–120:e min i 30–50 min på 10 m i 6 kn (140 dB). Första

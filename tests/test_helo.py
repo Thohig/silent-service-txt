@@ -85,7 +85,8 @@ def test_no_radar_warning_from_a_helicopter():
     assert not any(r.type == "off.esm.air" for r in reports)
 
 
-def test_outside_war_the_patrol_sends_helicopters_without_torpedoes():
+def test_the_patrol_sends_helicopters_without_torpedoes():
+    """Mk 44 från helikoptern var för mycket: jagad frö 102 sänkt, krig 6 av 8 förlorade."""
     assert not H.HeloDef().torpedo
     sc = build_scenario("krig", random.Random(1))
-    assert any(isinstance(sp, H.HeloPatrol) and sp.hdef.torpedo for sp in sc.world.spawners)
+    assert all(not sp.hdef.torpedo for sp in sc.world.spawners if isinstance(sp, H.HeloPatrol))
