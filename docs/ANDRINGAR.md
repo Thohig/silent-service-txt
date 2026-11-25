@@ -3,6 +3,20 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-25 – Provspel: översikten i 100 kolumner, kontakttabellen smal, mätarnas etiketter, skott i lutning
+
+- Huvudskärmen i ett 100 kolumner brett fönster gav översikten bara en spalt (panelen får 98 kolumner, gränsen var
+  100): sjökortet, vattenfallet och profilen syntes inte. Gränsen är nu 90 (`TWO_COL_W`).
+- Kontakttabellen i en smal spalt (under 60 tecken, `COMPACT_W`) kapade kvaliteten ("osäke", "dål"): nu kortas
+  klassningen först och lösningen skrivs kort (`2,3nm 218/10,7`); kvaliteten och tappad (∅ i smalt läge, som i
+  sonarvyn) får alltid plats, i linje.
+- Mätarnas etiketter krockade i små mätare (telegrafens "SAKTA HALV" blev "SAKTHALV"): en etikett som skulle krocka
+  med en tidigare ritas inte (`draw_dial`).
+- Skyttebotarna (`skytt.py skjut alla 24-31`, 176 spel, inga larm från oraklet) fick 8 skott nekade för lutningen:
+  skjutdjupet beordrat och skottet direkt efter. Nu väntar kaptenens skottorder tills båten är rak och skjuts då
+  ("Vi skjuter när den är rak", högst 2 min, `LEVEL_WAIT_S`).
+Tester: `tests/test_overview.py`, `tests/test_instruments.py`, `tests/test_pitch.py`.
+
 ## 2026-11-24 – Stampvinkeln: båten lutar när den byter djup
 
 - Båten lutar när rodren byter djup: cirka 13° i 12 kn, ingen lutning under 2 kn (barlasten), fören 20° upp vid

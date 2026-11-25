@@ -174,8 +174,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   periskopdjupet med fienden nära slamrade det (konvoj-mot frö 0: salvan kom aldrig iväg). Över 15° (`CLATTER_DEG`)
   far lösa föremål i durken: maskin säger det (`hull.clatter`), det hörs i vattnet (`Transient("clatter")`,
   135 dB, `CLATTER_LEVEL`; jagare pejlar det som knaket) och blyertsen och sonarvyn får märket ≡; igen först när
-  båten varit nästan rak (< 5°). Torpedrummet skjuter inte med mer än 7° lutning (`MAX_LAUNCH_PITCH`, "vänta
-  tills djupet är nått"). Lutningen syns på centralens lutningsmätare och libell, panelen TRIM (varning från
+  båten varit nästan rak (< 5°). Torpedrummet skjuter inte med mer än 7° lutning (`MAX_LAUNCH_PITCH`): en skottorder
+  (eld, salva, eld mot) medan båten lutar väntar (`torp.wait_level`, "Vi skjuter när den är rak") och verkställs när
+  lutningen är inom gränsen, högst 2 min (`LEVEL_WAIT_S`, sedan `torp.refused`); en ny skottorder ersätter den. Lutningen syns på centralens lutningsmätare och libell, panelen TRIM (varning från
   15°) och i statusraden (`StatusSnapshot.pitch` är `OwnShip.pitch`). Tester: `tests/test_pitch.py`.
 - **Back i maskin** (2026-11-19; sanning i `sim/ship.py` och `sim/ownship.py`, order hos navigatören):
   `back N`, `back`/`sakta back` (2 kn), `halv back` (halva backfarten), `full back`; `fart N` går framåt

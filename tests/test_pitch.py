@@ -93,3 +93,27 @@ def test_steep_angle_only_going_down():
     assert most < CLATTER_DEG
     assert not any(r.type == "hull.clatter" for r in reports)
     assert "Brant vinkel" not in next(r for r in reports if r.type == "nav.depth.ack").text
+
+
+def test_a_shot_ordered_while_tilted_goes_when_the_boat_is_level(perfect_torpedoes):
+    """Kaptenens skottorder under djupbytet: minören väntar tills båten är rak och skjuter då."""
+    g, reports = _game(speed=8.0)
+    st = g.world.own.state
+    st.depth = st.ordered_depth = 140.0
+    for _ in range(20):
+        g.tick()
+    g.command("djup 80")
+    for _ in range(8):
+        g.tick()
+    assert abs(g.world.own.pitch) > MAX_LAUNCH_PITCH
+    g.command("eld tub 1 kurs 090")
+    for _ in range(5):
+        g.tick()
+    assert any(r.type == "torp.wait_level" for r in reports)
+    torp = g.station(TorpedoRoom)
+    assert not torp.in_water
+    for _ in range(150):
+        g.tick()
+        if torp.in_water:
+            break
+    assert torp.in_water and abs(g.world.own.pitch) <= MAX_LAUNCH_PITCH

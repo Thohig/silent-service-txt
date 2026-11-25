@@ -16,7 +16,7 @@ from ...weapons import TORPEDO_TYPES, launch_decoy
 from ..base import Proposal, Station
 from .common import (
     DECOY_SUGGEST_S, EARLY_FRACTION, EARLY_MIN_S, END_GRACE_S, CutWire, FireAt, FireSalvo, FireTube, FiringSolution, LaunchDecoy, LoadTube, N_TUBES,
-    RELOAD_CLANK_S, RELOAD_COOLDOWN_S, RELOAD_QUIET_S, RELOAD_S, RELOAD_SUGGEST_S,
+    LEVEL_WAIT_S, MAX_LAUNCH_PITCH, RELOAD_CLANK_S, RELOAD_COOLDOWN_S, RELOAD_QUIET_S, RELOAD_S, RELOAD_SUGGEST_S,
     RELOAD_URGENT_COOLDOWN_S, RUN_REPORT_AFTER, Running, TRACK_FADE_S,
     TRACK_KEEP_S, TorpedoReport, TorpedoStatus, Tube, TubeStatus, load_order,
 )
@@ -60,6 +60,7 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
         self._tube_calls: dict[tuple[str, str | None], list[tuple[dict, dict]]] = {}   # salvans rader
         self._tube_calls_t = 0
         self._confirmed: dict[str, int] = {}     # kontakt -> när vi frågade om den
+        self._await_level: tuple[Order, int] | None = None   # skottorder som väntar på att båten blir rak
         self._nuclear_confirm_t = -10**9          # när vi frågade om kärnladdningen
         self._neutral_warned: dict[str, int] = {}   # mål (eller "kurs") -> när vi varnade
         self._emptied: dict[int, int] = {}       # tub -> när den sköts tom (omladdningsförslaget)
@@ -100,6 +101,12 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
 
     # --- order -------------------------------------------------------------------
     def on_order(self, order: Order) -> None:
+        if isinstance(order, (FireTube, FireSalvo, FireAt)) and not getattr(order, "in_salvo", False) \
+                and abs(self.own.pitch) > MAX_LAUNCH_PITCH:
+            # båten lutar (djupbytet): minören skjuter på kaptenens order när den är rak
+            self._await_level = (order, self.now + LEVEL_WAIT_S)
+            self.say("torp.wait_level", {"pitch": round(abs(self.own.pitch))}, kind="ack")
+            return
         match order:
             case FireTube():
                 self._fire(order)
@@ -185,7 +192,20 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
             self.say(type, data, **items[0][1])
 
     # --- löpande -----------------------------------------------------------------
+    def _level_watch(self) -> None:
+        """En skottorder som väntar på att båten blir rak: skjuts då, eller ges upp efter LEVEL_WAIT_S."""
+        if self._await_level is None:
+            return
+        order, deadline = self._await_level
+        if abs(self.own.pitch) <= MAX_LAUNCH_PITCH:
+            self._await_level = None
+            self.on_order(order)
+        elif self.now >= deadline:
+            self._await_level = None
+            self.say("torp.refused", {"reason": "båten blev inte rak, skottet är inte avlossat"})
+
     def update(self) -> None:
+        self._level_watch()
         self._flush_tubes()
         for t in self.tubes:
             if t.loading:

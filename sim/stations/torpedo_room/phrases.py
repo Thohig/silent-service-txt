@@ -91,6 +91,7 @@ def _and(items: list) -> str:
 
 PHRASES = {
     "torp.refused": lambda d: f"Kapten, {d['reason']}.",
+    "torp.wait_level": lambda d: f"{ru('Jest')}. Båten lutar {d['pitch']} grader, kapten. Vi skjuter när den är rak.",
     "torp.nuclear_confirm": lambda d: f"Kapten, torped. Tub {d['tube']} har kärnladdning, nycklarna "
     f"är vridna. Upprepa ordern om vi ska skjuta mot {d['designation']}.",
     "torp.confirm": lambda d: (
@@ -280,6 +281,7 @@ def _ru_tubes(d: dict) -> str:
 
 RU_PHRASES = {
     "torp.refused": lambda d: f"{R.CAPTAIN}, минёр. Выполнить не могу.",
+    "torp.wait_level": lambda d: f"Есть. Дифферент {R.dec(d['pitch'], R.DEGREE)}. Выстрел, когда выровняемся.",
     "torp.nuclear_confirm": lambda d: f"{R.CAPTAIN}, минёр. В аппарате {d['tube']} ядерная "
     "торпеда, ключи повёрнуты. Повторите приказ, если стреляем.",
     "torp.confirm": lambda d: f"{R.CAPTAIN}, минёр. "
