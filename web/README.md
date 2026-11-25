@@ -25,7 +25,8 @@ GitHub Pages: https://thohig.github.io/silent-service-txt/
   storlek från den på samma händelseslinga (inga trådar). Provas i CPython i `tests/test_webb.py`.
 - `web_audio.py`: ljudutgången (`WebOut`, samma gränssnitt som `ui.ambience.AmbientOut`). Fyller var
   50:e ms på en kö 0,25 s fram ur mixern; sidans AudioWorklet (`index.html`, `WORKLET`) spelar kön i
-  22 050 Hz. Ljudklockan står still tills sidan fått en tangent eller ett klick. Mixern kostar ~0,3 ms
+  22 050 Hz, en processor och kö per `WebOut` (`audio.channel()`), så att menyns och spelets ljud blandas
+  medan ordern skrivs ut. Ljudklockan står still tills sidan fått en tangent eller ett klick. Mixern kostar ~0,3 ms
   per block om 46 ms i Pyodide, syntesen av bakgrundsljuden 0,2 s och menyns 1 s.
 - Talet: `ui.voices.WebSpeech` (vald av `voices.backend()` under Pyodide) läser upp med webbläsarens
   `speechSynthesis` genom sidans `makeSpeech`: Alva och Milena om de finns (Safari och Chrome på Mac

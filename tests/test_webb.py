@@ -155,6 +155,40 @@ def test_utan_ljud_i_sidan_ar_det_tyst():
     assert sink.cleared and out.stream is None and out.pump() == 0
 
 
+class FakeAudio(FakeSink):
+    """Sidans ljud med kanaler (`index.html`, `channel`): en kö per utgång, samma klocka."""
+
+    def __init__(self):
+        super().__init__()
+        self.channels: list[FakeSink] = []
+
+    def channel(self) -> FakeSink:
+        ch = FakeSink()
+        ch.time = self.time
+        ch.closed = False
+        ch.close = lambda: setattr(ch, "closed", True)
+        self.channels.append(ch)
+        return ch
+
+
+def test_menyns_och_spelets_ljud_far_var_sin_kanal():
+    # Medan ordern skrivs ut går menyns och spelets ljud samtidigt. I en delad kö varvades
+    # deras block (hackigt och dubbelt så fort), och menyns clear tömde spelets kö.
+    audio = FakeAudio()
+    menu = web_audio.WebOut(_tone_mixer(), audio, timer=False)
+    game = web_audio.WebOut(_tone_mixer(), audio, timer=False)
+    menu.pump()
+    game.pump()
+    a, b = audio.channels
+    assert not audio.chunks
+    for ch in (a, b):
+        assert web_audio.AHEAD_S <= ch.frames() / RATE < web_audio.AHEAD_S + BLOCK / RATE
+    menu.close()
+    assert a.closed and not b.closed and not b.cleared
+    audio.now = 0.1
+    assert game.pump() > 0 and menu.pump() == 0
+
+
 def test_ljudet_fylls_pa_av_handelseslingan():
     sink = FakeSink()
 

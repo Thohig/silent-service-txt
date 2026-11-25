@@ -9,6 +9,8 @@ Hinner slingan inte med (ett tungt tick) blir det en kort tystnad, och kön bör
 `sink` är sidans ljudbrygga (`start.JsAudio`): `rate`, `time()` (ljudklockan i sekunder; står
 still tills sidan fått en tangent, då webbläsaren tillåter ljud) och `push(ljud)` (stereo
 float32, (n, 2)). Utan brygga är det tyst (`error`), som `AmbientOut` utan ljudkort.
+Har bryggan `channel()` öppnar varje `WebOut` sin egen kanal: menyns och spelets ljud går
+samtidigt medan ordern skrivs ut, och i en delad kö varvades deras block i stället för att blandas.
 """
 from __future__ import annotations
 
@@ -41,6 +43,8 @@ class WebOut:
             self.error = f"Ljudet går i {self.stream.rate} Hz, inte {RATE}."
             self.stream = None
             return
+        if hasattr(self.stream, "channel"):
+            self.stream = self.stream.channel()     # egen kanal: blandas med de andra
         if timer:
             self._schedule()
 
@@ -81,5 +85,5 @@ class WebOut:
             self._handle.cancel()
             self._handle = None
         if self.stream is not None:
-            self.stream.clear()
+            getattr(self.stream, "close", self.stream.clear)()
             self.stream = None

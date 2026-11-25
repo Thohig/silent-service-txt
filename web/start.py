@@ -25,14 +25,19 @@ LOG_DIR = "/home/pyodide/logs"      # sanningsloggen i minnet (försvinner när 
 
 
 class JsAudio:
-    """Sidans ljudbrygga som `WebOut` vill ha den: numpy in, Float32Array ut."""
+    """Sidans ljudbrygga som `WebOut` vill ha den: numpy in, Float32Array ut. Varje utgång
+    öppnar sin egen kanal (`channel`), så att Web Audio blandar menyns och spelets ljud."""
 
-    def __init__(self, audio):
-        self.js = audio
+    def __init__(self, audio, channel=None):
+        self.audio = audio
+        self.js = channel
         self.rate = int(audio.rate)
 
+    def channel(self) -> "JsAudio":
+        return JsAudio(self.audio, self.audio.channel())
+
     def time(self) -> float:
-        return float(self.js.time())
+        return float(self.audio.time())
 
     def push(self, x) -> None:
         import js
@@ -43,6 +48,9 @@ class JsAudio:
 
     def clear(self) -> None:
         self.js.clear()
+
+    def close(self) -> None:
+        self.js.close()
 
 
 async def main(bridge, cols: int, rows: int, seed: int | None = None,

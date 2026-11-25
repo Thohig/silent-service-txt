@@ -3,6 +3,15 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-25 – Webbljudet: en kanal per ljudutgång
+
+- Medan ordern skrevs ut gick menyns ljud (telegrafen, fjärrskrivaren) och spelets samtidigt, och i webben
+  delade de en kö i sidans AudioWorklet: blocken varvades (hackigt, dubbelt så fort) och när menyns ljud
+  stängdes tömde det spelets kö. Nu öppnar varje `WebOut` en egen kanal (`audio.channel()` i
+  `web/index.html`, `start.JsAudio.channel`) och Web Audio blandar dem. Provat i webbläsarpanelen: två
+  kanaler med 65 block på 3 s ljudklocka var, menyns stängd vid överlämnandet.
+  `tests/test_webb.py::test_menyns_och_spelets_ljud_far_var_sin_kanal`.
+
 ## 2026-11-25 – Liv i världen: regn och dimma, vrak, fiske, helikopter, B-36, ljudet ombord, kollision med fartyg
 
 - Kollision med fartyg (`sim/collision.py`): ett fartyg som går över oss på periskopdjup slår i tornet (periskop och
