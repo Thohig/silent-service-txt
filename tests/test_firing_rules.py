@@ -277,3 +277,22 @@ def test_the_torpedoman_offers_one_wire_guided_torpedo_first():
     torp.inventory["53-62T"] = 0
     torp.tubes[0].loading = None
     assert torp._reload_offer()[1] != "53-62T"
+
+
+def test_seeker_warns_for_a_contact_whose_bearing_drifts_into_the_lane():
+    """Clyde-in frö 28: en okänd kontakt 12° från banan som drog 5°/min mot den togs av den målsökande
+    torpeden. Torpedrummet räknar med operatörens bäringsdrift under gångtiden."""
+    g, _ = _game("kuba")
+    torp = g.station(TorpedoRoom)
+    now = g.now
+
+    def track(bearing_now, rate):
+        obs = [SimpleNamespace(t=now - s, bearing=(bearing_now - rate * s / 60) % 360, source="sonar")
+               for s in range(180, -1, -10)]
+        return SimpleNamespace(last_bearing=bearing_now, observations=obs)
+
+    assert torp._bearing_crosses(track(234.0, -5.0), 222.0, 9 * 60)        # drar mot kursen
+    assert not torp._bearing_crosses(track(234.0, +5.0), 222.0, 9 * 60)    # drar bort
+    assert not torp._bearing_crosses(track(234.0, -0.2), 222.0, 9 * 60)    # för långsamt
+    assert not torp._bearing_crosses(track(260.0, -5.0), 222.0, 3 * 60)    # hinner inte på gångtiden
+    assert torp._bearing_crosses(track(229.0, 0.0), 222.0, 60)             # redan nära kursen

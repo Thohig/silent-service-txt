@@ -7,6 +7,7 @@ from ...events import OwnSoundMade
 from ...geo import angle_diff
 from ...firecontrol import intercept
 from ...reports import Quality
+from ...sonar_view import bearing_drift
 from ...war import assess
 from ...weapons import ARM_DISTANCE_NM, TORPEDO_TYPES, launch_torpedo
 from .common import (
@@ -436,10 +437,22 @@ class FiringMixin:
                     out.append({"designation": tr.designation, "classification": tr.classification,
                                 "bearing": math.degrees(math.atan2(nx, ny)) % 360,
                                 "range": math.hypot(nx, ny), "from_target": d})
-            elif abs(angle_diff(tr.last_bearing, course)) <= NEUTRAL_CONE_DEG:
+            elif self._bearing_crosses(tr, course, aim[1]):
                 out.append({"designation": tr.designation, "classification": tr.classification,
                             "bearing": tr.last_bearing, "range": None, "from_target": None})
         return out
+
+    def _bearing_crosses(self, tr, course: float, run_s: float) -> bool:
+        """Utan lösning: ligger kontaktens bäring nära torpedens kurs nu, eller drar den in över kursen
+        under gångtiden (sonaroperatörens bäringsdrift)? Clyde-in frö 28: en okänd kontakt 12° från
+        banan som drog 5°/min mot den togs av den målsökande torpeden efter 8 min."""
+        off = angle_diff(course, tr.last_bearing)           # kursen sett från bäringen, + medurs
+        if abs(off) <= NEUTRAL_CONE_DEG:
+            return True
+        rate = bearing_drift([(o.t, o.bearing) for o in tr.observations if o.source == "sonar"], self.now)
+        if rate is None or rate * off <= 0:
+            return False                                     # drar bort från kursen (eller okänd drift)
+        return abs(rate) * run_s / 60.0 >= abs(off) - NEUTRAL_CONE_DEG
 
     def _neutrals_clear(self, target: str | None, courses: list[float], type_key: str) -> bool:
         """Varna en gång för kända handelsfartyg i banan; samma order inom en minut skjuter.
