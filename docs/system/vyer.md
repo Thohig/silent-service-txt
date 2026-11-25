@@ -82,7 +82,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
 - **Ubåten** (`ubåt`, även `profil`/`system`; `ui/boat.py`, `ui/boat_render.py`; genomskärningen med vattnet i
   varje avdelning efter hur full den är, `Compartment.water`, och gula skott när de är stängda, `Flooding.closed`,
   2026-11-25; panelen MASKIN visar läckorna per avdelning, länspumparna, skotten och provdjupet, SKADOR vad som
-  lagas, tyst, "mer går inte till sjöss" och "under vatten"): djupprofilen och
+  lagas, tyst, "mer går inte till sjöss" och "under vatten"; förklaringen bryts mellan posterna efter bredden,
+  `pack_legend`, 2026-11-25): djupprofilen och
   systemtavlan i en vy. Genomskärningen överst (från `HULL_MIN_H` rader, annars avdelningarna som lampor
   på andra rubrikraden), profilen till vänster (60 %) och panelerna till höger; under `SIDE_MIN_W` (110)
   profilen över panelerna (högst halva höjden). Panelerna kompakta (`render_compact_panels`): fara och

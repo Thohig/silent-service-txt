@@ -419,19 +419,48 @@ def _events_row(view: ProfileView, cols: int, col_of) -> Text:
                          _pad(Text(" sonar hörde", style=STYLE["dim"])))
 
 
-def legend() -> Text:
-    t = Text(" ", no_wrap=True, overflow="crop")
+def legend_items() -> list[Text | None]:
+    """Förklaringens poster (None: ny rad), att packa efter bredden med `pack_legend`."""
+    items: list[Text | None] = []
     for item in LEGEND:
         if item is None:
-            t.append("\n ")
+            items.append(None)
             continue
         sym, style, what = item
+        t = Text()
         if style == "near":                       # omvänt tecken: ljudet var nära
             t.append(sym, style=STYLE["heard_explosion"] + " reverse")
         else:
             t.append(sym, style=STYLE[style])
-        t.append(f" {what}  " if what else " ", style="dim")
+        t.append(f" {what}" if what else "", style="dim")
+        items.append(t)
+    return items
+
+
+def pack_legend(items: list[Text | None], width: int | None = None, gap: int = 2) -> Text:
+    """Posterna på rader som ryms i bredden, brutna mellan posterna (aldrig mitt i en: i 80 kolumner
+    hamnade "····" sist på en rad och "sjökortets djup" på nästa). None bryter raden."""
+    t = Text(" ", no_wrap=True, overflow="crop")
+    col = 1
+    for item in items:
+        if item is None:
+            t.append("\n ")
+            col = 1
+            continue
+        need = item.cell_len + (gap if col > 1 else 0)
+        if width is not None and col > 1 and col + need > width:
+            t.append("\n ")
+            col = 1
+            need = item.cell_len
+        if col > 1:
+            t.append(" " * gap)
+        t.append_text(item)
+        col += need
     return t
+
+
+def legend(width: int | None = None) -> Text:
+    return pack_legend(legend_items(), width)
 
 
 
@@ -495,7 +524,7 @@ def render_gauge(view: ProfileView) -> list[Text]:
         row(b.depth, 4, f"{fmt_m(b.depth)}", "▓▓", f"ekolod {clock(view.start_clock + b.t)[:5]}",
             STYLE["bottom" if fresh else "bottom_old"])
     else:
-        row(10**6, 4, "?", "▓▓", "ekolod ej lodat", STYLE["dim"])
+        row(10**6, 4, "?", "▓▓", "ingen lodning", STYLE["dim"])
 
     rows.sort(key=lambda x: (x[0], x[1]))
     head = Text(" DJUPMÄTARE", style="bold")

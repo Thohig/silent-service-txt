@@ -156,12 +156,12 @@ def lamps(sv: SystemsView, lay: Layout | None) -> Text:
     return t
 
 
-def legend() -> Text:
-    """Profilens teckenförklaring och tavlans tillstånd på andra raden."""
-    t = profile_render.legend()
-    t.append("  ")
+def legend(width: int | None = None) -> Text:
+    """Profilens teckenförklaring och tavlans tillstånd på andra raden, brutna efter bredden."""
+    items = profile_render.legend_items()
     for state, what in ((OK, "normalt"), ("varning", "varning"), ("fara", "fara")):
-        t.append(STATE_MARK[state], style=STATE_STYLE[state])
-        t.append(f" {what}  ", style="dim")
-    return t
+        t = Text(STATE_MARK[state], style=STATE_STYLE[state])
+        t.append(f" {what}", style="dim")
+        items.append(t)
+    return profile_render.pack_legend(items, width)
 

@@ -306,7 +306,7 @@ class DepthGauge(Static):
     """Liten djupmätare bredvid loggen: vårt djup mot ytan, skiktet, gränserna och botten."""
 
     def show(self, view: ProfileView) -> None:
-        self.update(Text("\n").join(render_gauge(view)))
+        self.update(Text("\n", no_wrap=True, overflow="crop").join(render_gauge(view)))
 
 
 class OverviewPanel(Static):

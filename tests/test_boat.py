@@ -71,3 +71,13 @@ def test_panels_in_two_columns_only_when_they_do_not_fit_and_it_is_wide():
     first = next(r for r in right if r.strip())
     assert first.startswith("─")                             # högra spalten börjar med en panel
     assert "MASKIN" in txt and all(len(r.plain) <= 210 for r in rows)
+
+
+def test_legend_breaks_between_items_and_fits_the_width():
+    """80 kolumner: "····" hamnade sist på en rad och "sjökortets djup" på nästa, och raden med
+    "Sonar hörde" och tavlans tillstånd syntes inte alls (höjden var 2)."""
+    for width in (78, 100, 140):
+        lines = legend(width).plain.split("\n")
+        assert all(len(line) <= width for line in lines)
+        assert any("⠒⠒ sjökortets djup" in line for line in lines)
+        assert any("fara" in line for line in lines) and any("Sonar hörde" in line for line in lines)

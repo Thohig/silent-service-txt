@@ -19,7 +19,7 @@ class BoatScreen(ViewScreen):
     BoatScreen { background: #0b0f0c; }
     #boat-head { height: 2; background: #1c2a20; color: #c8d0b0; }
     #boat-body { height: 1fr; padding: 0 1; }
-    #boat-legend { height: 2; color: #7f9a80; }
+    #boat-legend { height: auto; max-height: 5; color: #7f9a80; }
     #boat-ticker { height: 2; background: #0f1611; }
     """
     PREFIX = "boat"
@@ -83,6 +83,11 @@ class BoatScreen(ViewScreen):
         spc = lay.sec_per_col
         self.profile_w = lay.profile_w
         body.update(Text("\n").join(rows))
+        try:
+            leg = self.query_one("#boat-legend", Static)
+            leg.update(legend(leg.size.width or self.size.width))
+        except NoMatches:
+            pass
         t = header(pv, sv)
         t.append("\n")
         t.append(lamps(sv, lay))
