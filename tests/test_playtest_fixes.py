@@ -198,6 +198,22 @@ def test_a_near_pinger_sweeping_past_stays_one_pinger():
     assert len([r for r in reports if r.type == "sonar.ping.first"]) == 1
 
 
+def test_two_far_pingers_four_seconds_apart_are_two_pingers():
+    """konvoj frö 63: två eskorter i 027 och 036 pingade med 4 s mellanrum; de slogs ihop till en pingare
+    med falsk drift (1,2°/s), och nästa ping blev 'Någon söker' igen, tre gånger på 46 s."""
+    g, reports = _game("kuba", 2)
+    g.world.ais.clear()
+    sonar = g.station(SonarRoom)
+    for _ in range(4):
+        sonar._on_sound(TransientHeard("ping", 27.3, 55.0, None, 125.7))
+        for _ in range(4):
+            g.tick()
+        sonar._on_sound(TransientHeard("ping", 36.5, 56.0, None, 126.5))
+        for _ in range(18):
+            g.tick()
+    assert len([r for r in reports if r.type == "sonar.ping.first"]) == 2
+
+
 # --- steg 4: order som bryter mot uppdraget -------------------------------------------------
 def test_blowing_without_reason_is_asked_once():
     g, reports = _game("jagad", 3)

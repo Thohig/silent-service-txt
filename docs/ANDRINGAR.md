@@ -8,6 +8,10 @@ visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/READM
 - `ytläge` kraschade spelet när plottet hade ett örlogsfartyg utan lösning före ett hot med lösning inom 4 nm
   (navigatörens fråga om ytläge nära fienden jämförde avståndet med None). Kaosboten, krig-kort frö 71.
   Ett uppmätt avstånd går nu före ett okänt. `NavigationStation._threat_near`.
+- Sonar: två avlägsna pingare 9° isär som pingade med 4 s mellanrum slogs ihop till en pingare med falsk
+  bäringsdrift, och "Aktiv sonar … Någon söker" kom tre gånger på 46 s (konvoj frö 63, skyttebotens logg).
+  Pingar tätare än 6 s (jagaren pingar högst var 6:e s) som skiljer sig mer än 8° är nu två pingare
+  (`PING_MIN_GAP_S` 4 ⇒ 6).
 - Översikten: "Samband nästa 05:00, om 29 min" och "Tiden ut … 45 min kvar", inte "om 0 h 29 min" (`fmt.duration`).
 Tester: `tests/test_playtest_fixes.py`, `tests/test_overview.py`.
 

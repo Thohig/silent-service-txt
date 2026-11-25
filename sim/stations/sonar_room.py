@@ -62,7 +62,9 @@ PING_RATE_HORIZON_S = 30    # driften räknas fram högst så här långt; ett l
                             # (en gammal drift över 6 min gav 38° fel, en nära passages −1,7°/s över 91 s 55°)
 PING_LEVEL_DEG_PER_DB = 3.0 # två pingare i grinden: nivån skiljer dem (en dB väger som tre grader)
 PING_LEVEL_SMOOTH = 0.5     # ny ping väger så här mycket i pingarens nivå
-PING_MIN_GAP_S = 4          # en pingare pingar inte tätare (jagaren högst var 6:e s) utom dubbelpingen vid ett
+PING_MIN_GAP_S = 6          # en pingare pingar inte tätare (jagaren högst var 6:e s) utom dubbelpingen vid ett
+                            # (var 4: två eskorter 9° isär som pingade med 4 s mellanrum blev en pingare med
+                            # falsk drift, och "Någon söker" kom tre gånger på 46 s, konvoj frö 63)
 PING_DOUBLE_DB = 2.0        # nytt datum, på samma nivå och bäring: två pingar på en sekund som skiljer sig mer
                             # är två pingare (krig-kort frö 17: två jagare 5° och 4 dB isär, en sekund emellan,
                             # blev en pingare i snabb takt med 2°/s drift; "Någon söker" 15 gånger på 10 min)
