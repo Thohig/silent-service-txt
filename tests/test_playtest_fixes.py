@@ -223,6 +223,22 @@ def test_surfacing_near_a_plotted_enemy_is_asked_but_not_an_accepted_suggestion(
     assert g.world.own.state.ordered_depth == 0
 
 
+def test_surfacing_with_an_unranged_warship_before_a_ranged_one_does_not_crash():
+    """krig-kort frö 71 (kaosboten): ett örlogsfartyg utan lösning först i plottet, sedan ett hot med
+    lösning; ytläge jämförde avståndet med None."""
+    from types import SimpleNamespace as NS
+    from sim.reports import Quality
+    from sim.stations.navigation import NavigationStation
+    g = Game(build_scenario("kuba-kort", random.Random(1)), seed=1)
+    nav = g.station(NavigationStation)
+    unranged = NS(threat=True, solution=None, warship=True, designation="S-1", classification="jagare")
+    ranged = NS(threat=True, warship=True, designation="S-2", classification="jagare",
+                solution=NS(quality=Quality.GOD, range_nm=1.5))
+    g.knowledge.tracks = {"S-1": unranged, "S-2": ranged}
+    near = nav._threat_near()
+    assert near["designation"] == "S-2" and near["range"] == 1.5
+
+
 def test_surfaced_in_sight_of_the_enemy_gives_a_moment_to_dive():
     from sim.world import SURFACE_GRACE_S
     g, _ = _game("kuba-kort", 1)

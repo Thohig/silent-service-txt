@@ -3,6 +3,14 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-25 – Buggjakt med botarna (frön 61–72)
+
+- `ytläge` kraschade spelet när plottet hade ett örlogsfartyg utan lösning före ett hot med lösning inom 4 nm
+  (navigatörens fråga om ytläge nära fienden jämförde avståndet med None). Kaosboten, krig-kort frö 71.
+  Ett uppmätt avstånd går nu före ett okänt. `NavigationStation._threat_near`.
+- Översikten: "Samband nästa 05:00, om 29 min" och "Tiden ut … 45 min kvar", inte "om 0 h 29 min" (`fmt.duration`).
+Tester: `tests/test_playtest_fixes.py`, `tests/test_overview.py`.
+
 ## 2026-11-25 – Förbättringar efter provspelet
 
 - Torpedrummet varnar för en kontakt utan lösning vars bäring drar in över den målsökande torpedens kurs under

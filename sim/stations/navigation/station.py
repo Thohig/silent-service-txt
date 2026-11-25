@@ -466,7 +466,9 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
             sol = tr.solution
             if sol is not None and sol.quality >= Quality.OSAKER:
                 r = sol.range_nm
-                if r <= SURFACE_THREAT_NM and (best is None or r < best["range"]):
+                # ett uppmätt avstånd går före ett örlogsfartyg utan avstånd (krig-kort frö 71, kaos:
+                # jagaren utan lösning först, sedan en med lösning, och ytläge kraschade)
+                if r <= SURFACE_THREAT_NM and (best is None or best["range"] is None or r < best["range"]):
                     best = {"designation": tr.designation, "range": r,
                             "classification": tr.classification}
             elif tr.warship and best is None:
