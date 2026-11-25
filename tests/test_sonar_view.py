@@ -345,3 +345,12 @@ def test_hostile_torpedo_on_the_waterfall():
     lines = render_sonar(v, 100, 30, window_s=600)
     row = next(line for line in lines if "torped 1" in line.plain)
     assert any("dim" in str(span.style) for span in row.spans)
+
+
+def test_waterfall_labels_keep_a_gap():
+    """Två spår tätt intill varandra: etiketterna klistras inte ihop ("S-3S-5")."""
+    pts = lambda b: tuple((t, b, 10.0) for t in range(0, 601, 10))
+    items = [BearingTrace("S-7", pts(49.0), "threat"), BearingTrace("S-3", pts(65.9), "threat")]
+    text = "\n".join(_plain(render_sonar(_view(now=600, items=items), 52, 9, window_s=600)))
+    assert "S-7S-3" not in text and "S-3S-7" not in text
+    assert "S-7" in text                                    # den första får sin etikett

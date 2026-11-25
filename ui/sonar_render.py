@@ -298,8 +298,8 @@ def _label(over: dict, wf: Waterfall, at: tuple[float, float], text: str, style:
     start = c + 2 if c + 2 + len(text) <= wf.cols else c - 1 - len(text)
     if start < 0:
         return
-    for i, ch in enumerate(text):
-        cur = over.get((r, start + i))
+    for col in range(start - 1, start + len(text) + 1):     # en ledig ruta före och efter: "S-3S-5"
+        cur = over.get((r, col))
         if cur is not None and cur[0] not in BACKGROUND:
             return
     for i, ch in enumerate(text):
