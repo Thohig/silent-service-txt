@@ -186,16 +186,16 @@
    "frön": {
     "0": "escaped",
     "1": "escaped",
-    "2": "escaped",
-    "3": "lost",
+    "2": "lost",
+    "3": "escaped",
     "4": "escaped",
     "5": "escaped",
     "6": "escaped",
     "7": "escaped"
    },
    "minuter": {
-    "escaped": 42,
-    "lost": 64
+    "escaped": 34,
+    "lost": 50
    }
   }
  },
@@ -405,7 +405,7 @@
     "15": "convoy_missed"
    },
    "minuter": {
-    "convoy_missed": 109
+    "convoy_missed": 107
    }
   }
  },
@@ -620,7 +620,7 @@
     "7": "patrol_end"
    },
    "minuter": {
-    "escaped": 54,
+    "escaped": 93,
     "patrol_end": 240
    }
   }
@@ -648,13 +648,13 @@
   },
   "ja": {
    "utfall": {
-    "lost": 4,
-    "patrol_end": 4
+    "lost": 5,
+    "patrol_end": 3
    },
    "frön": {
     "0": "lost",
     "1": "lost",
-    "2": "patrol_end",
+    "2": "lost",
     "3": "patrol_end",
     "4": "lost",
     "5": "patrol_end",
@@ -662,7 +662,7 @@
     "7": "lost"
    },
    "minuter": {
-    "lost": 30,
+    "lost": 31,
     "patrol_end": 43
    }
   }
@@ -800,24 +800,22 @@
   },
   "ja": {
    "utfall": {
-    "lost": 2,
-    "patrol_done": 4,
-    "patrol_end": 2
+    "lost": 1,
+    "patrol_done": 7
    },
    "frön": {
-    "0": "patrol_end",
+    "0": "patrol_done",
     "1": "patrol_done",
     "2": "patrol_done",
     "3": "patrol_done",
-    "4": "lost",
-    "5": "patrol_end",
+    "4": "patrol_done",
+    "5": "patrol_done",
     "6": "lost",
     "7": "patrol_done"
    },
    "minuter": {
-    "lost": 513,
-    "patrol_done": 732,
-    "patrol_end": 840
+    "lost": 337,
+    "patrol_done": 696
    }
   }
  },
@@ -854,15 +852,14 @@
   },
   "ja": {
    "utfall": {
-    "patrol_done": 2,
-    "patrol_end": 14
+    "patrol_end": 16
    },
    "frön": {
     "0": "patrol_end",
     "1": "patrol_end",
-    "2": "patrol_done",
+    "2": "patrol_end",
     "3": "patrol_end",
-    "4": "patrol_done",
+    "4": "patrol_end",
     "5": "patrol_end",
     "6": "patrol_end",
     "7": "patrol_end",
@@ -876,7 +873,6 @@
     "15": "patrol_end"
    },
    "minuter": {
-    "patrol_done": 164,
     "patrol_end": 175
    }
   }
@@ -902,8 +898,8 @@
   },
   "ja": {
    "utfall": {
-    "escaped": 1,
-    "patrol_end": 7
+    "escaped": 2,
+    "patrol_end": 6
    },
    "frön": {
     "0": "patrol_end",
@@ -912,11 +908,11 @@
     "3": "patrol_end",
     "4": "patrol_end",
     "5": "patrol_end",
-    "6": "patrol_end",
+    "6": "escaped",
     "7": "patrol_end"
    },
    "minuter": {
-    "escaped": 17,
+    "escaped": 18,
     "patrol_end": 22
    }
   }
@@ -944,8 +940,7 @@
   },
   "ja": {
    "utfall": {
-    "lost": 1,
-    "patrol_end": 3,
+    "patrol_end": 4,
     "shaken": 4
    },
    "frön": {
@@ -953,17 +948,16 @@
     "1": "patrol_end",
     "2": "patrol_end",
     "3": "shaken",
-    "4": "lost",
+    "4": "patrol_end",
     "5": "shaken",
     "6": "patrol_end",
     "7": "shaken"
    },
    "minuter": {
-    "lost": 29,
     "patrol_end": 33,
     "shaken": 26
    }
   }
  },
- "_commit": "70832d5"
+ "_commit": "3b5637c"
 }
