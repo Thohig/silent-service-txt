@@ -51,6 +51,7 @@ from .truthlog import TruthLog
 S = TypeVar("S", bound=Station)
 V = TypeVar("V")
 SUGGESTION_TTL = 300
+SAME_ALARM_AHEAD_S = 10      # ett larm med samma order så nära i kön tar förslagets plats
 ALARM_HOLD_S = 30           # ett larmförslag står så länge mot vanliga förslag
 QUESTION_S = 60             # `ja` på en stations fråga om kaptenens order (som att upprepa den) så här länge
 HELD_MAX_S = 60             # ett förslag som väntat bakom ett larm släpps när det är så här gammalt
@@ -370,6 +371,12 @@ class Game:
         order = r.data["order"]
         if self.suggestion_redundant(order, r.data.get("made_t", r.t_due)):
             return True
+        # samma order från samma station väntar som larm strax efter: bara larmet (jagad-kort frö 4: sonars
+        # "djup 120, under skiktet" och "djupändring till 120 meter, så att de tappar ekot!" samma sekund)
+        if not r.alarm and any(q.kind == "suggest" and q.alarm and q.speaker == r.speaker and
+                               q.data.get("order") == order and q.t_due - self.now <= SAME_ALARM_AHEAD_S
+                               for q in [*self.queue.queued(), *getattr(self, "_due_now", ())] if q is not r):
+            return True
         if any(st.vetoes(order) for st in self.stations):
             return True
         # samma order står obesvarad sedan nyss: från en annan station, eller från samma med ett annat
@@ -572,7 +579,9 @@ class Game:
 
         released = self._release_held()
         delivered = [released] if released else []
-        for r in self.queue.due(self.now):
+        due = self.queue.due(self.now)
+        self._due_now = due
+        for r in due:
             if self._hold(r):                   # i tur och ordning: ett larm i samma tick räknas
                 continue
             self._deliver(r)

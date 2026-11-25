@@ -97,6 +97,10 @@ class ReportQueue:
                 heapq.heapify(self._heap)
         heapq.heappush(self._heap, (r.t_due, r.kind == "suggest", next(self._seq), r))
 
+    def queued(self) -> list[Report]:
+        """Rapporterna som väntar på leverans (bara till läsning)."""
+        return [q for *_, q in self._heap]
+
     def due(self, now: int) -> list[Report]:
         out: list[Report] = []
         while self._heap and self._heap[0][0] <= now:
