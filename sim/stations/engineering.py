@@ -104,7 +104,7 @@ INSPECT_NOTE = {"BRAND": "brand", "skada": "skador", "lågt": "batteriet lågt",
 INSPECT_AFTER_S = 60         # avdelningarna rapporterar så här länge efter haverilarmet
 INSPECT_SAME_S = 900         # samma anmärkningar som förra inspektionen så nyss: "inget nytt" (jagad frö 3:
                              # samma långa rad sex gånger på 20 min under bomberna)
-INSPECT_ALERTS = ("damage", "ice.collision", "bottom.collision", "fire")
+INSPECT_ALERTS = ("damage", "ice.collision", "bottom.collision", "fire", "collision")
 GROAN_SAY_S = 180       # skrovknaket under jakt sägs högst så här ofta
 
 
@@ -786,13 +786,15 @@ class EngineeringStation(Station):
                         self.now - self._last_groan < GROAN_SAY_S:
                     continue
                 self._last_groan = self.now
-            alarm = type in ("reactor.scram", "damage", "surfaced", "broach", "ice.collision", "ice.bump",
+            alarm = type in ("reactor.scram", "damage", "collision", "surfaced", "broach", "ice.collision", "ice.bump",
                              "bottom.collision", "bottom.touch", "bottom.pressed", "net.caught",
                              "fire") or (type == "smoke" and data["level"] >= 0.7) or \
                 (type == "battery" and data["level"] <= 0.1)
             self.say(type, data, kind="info", alarm=alarm)
             if type == "hull.clatter":              # plottets blyerts och sonarvyns marginal
                 self.game.bus.publish(OwnSoundMade(self.now, "clatter"))
+            if type == "collision":
+                self.game.bus.publish(OwnSoundMade(self.now, "collision"))
             self._charge_felt(type, data)
             hard = type == "shock" and data.get("strength") == "kraftig" and not data.get("practice")
             if (type in INSPECT_ALERTS or hard) and self._inspect_t is None:

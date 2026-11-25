@@ -136,6 +136,17 @@ PHRASES = {
     f"{where(d['compartment'])}. Skotten stängda.",
     "dc.suggest.bearings": lambda d: f"Kapten, maskin. Föreslår fart {d['speed']}, så svalnar lagren.",
     "dc.suggest.deep": lambda d: f"Kapten, maskin. Föreslår djup {d['depth']}, så håller packboxarna.",
+    "collision": lambda d: f"{ru('Avarijnaja trevoga')}! " + (
+        "Ett fartyg har gått över oss och slagit i tornet! Periskopet och antennerna skadade"
+        if d["where"] == "sail" and d.get("from_above") else
+        "Vi är rammade! Ett fartyg gick rakt in i oss" if d.get("rammed") else
+        "Kollision! Ett fartyg har gått in i oss" if d.get("surface") else
+        "Kollision under vattnet! Vi har gått i en annan ubåt")
+    + ("" if d["where"] == "sail" else f" vid {where(d['compartment'])}")
+    + (": " + ", ".join(COMPONENT_LABEL[c] for c in d["components"]) if d["where"] != "sail" and d["components"]
+       else "")
+    + (f". Vatteninträngning i {ORDINAL[d['compartment'] if d['where'] != 'sail' else 3]}, skotten stängda."
+       if d.get("leak") else "."),
     "dc.suggest.leak_up": lambda d: f"Kapten, maskin. Läckan ger {nm(d['rate'])} ton i minuten på "
     f"{d['depth']} meter, mer än pumparna tar. Föreslår djup {d['target']}: "
     + ("där tar pumparna den." if d.get("enough") else "där läcker det mindre."),
@@ -184,6 +195,10 @@ RU_PHRASES = {
     f"{ORDINAL_RU[d['compartment']]} отсеке.",
     "dc.suggest.bearings": lambda d: f"{R.CAPTAIN}, механик. Предлагаю ход {R.count(d['speed'], R.KNOT)}.",
     "dc.suggest.deep": lambda d: f"{R.CAPTAIN}, механик. Предлагаю глубину {R.count(d['depth'], R.METER)}.",
+    "collision": lambda d: "Аварийная тревога! " + (
+        "Над нами прошло судно, удар в рубку! Повреждены перископ и антенны." if d["where"] == "sail"
+        and d.get("from_above") else "Нас таранили!" if d.get("rammed") else "Столкновение!")
+    + (" Поступление воды." if d.get("leak") else ""),
     "dc.suggest.leak_up": lambda d: f"{R.CAPTAIN}, механик. Течь больше, чем откачивают насосы. "
     f"Предлагаю глубину {R.count(d['target'], R.METER)}.",
 }

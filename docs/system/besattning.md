@@ -264,6 +264,23 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
     (framdrivningen −0,35, högst 0,8 till sjöss). Kavitation 15 min sammanlagt: varning; 30 min: propellern gröpt
     (framdrivningen 0,1 sämre till sjöss, +1 dB, högst +3). Djupare än 90 % av provdjupet i 10 min: packboxarna
     gråter (förslag grundare), 20 min: akteraxelns packbox släpper (läcka i IX).
+  - *Kollision med fartyg* (`sim/collision.py`, `ship_contact` i `World.tick` efter bottenkontrollen;
+    `tests/test_collision.py`): på höjden når ett ytfartyg från ytan till sitt djupgående (`DRAFT_M`: jagare 5,5 m,
+    handel 8, transport 9, tanker 11), en ubåt från tornets topp (kölen − 13 m) till kölen; vårt skrov går från
+    kölen − 8 m till kölen (i ytläge kölen 7 m) och tornet står förut, 22–34 % av längden. I sidled: avståndet mellan
+    skrovens axlar (`weapons.HULL_M`) mot de halva bredderna. På periskopdjup når bara tornet upp: en köl som går över
+    mittskeppet missar det. Tornet uppifrån: periskopet och radion −0,3 − 0,05/kn, liten läcka i III, båten trycks
+    ned 2 m. Skrovet: −0,02 per knop relativ fart, 1–2 komponenter vid kontaktpunkten, läcka efter farten (rör från
+    3 kn, svetsfog från 6, spricka från 12, `REL_*`), snabbstopp från 8 kn; "Vi är rammade!" från 12 kn. Smällen hörs
+    (165 dB, `Transient("collision")`, X i blyertsen och vattenfallet), fartyget får ett exakt datum och backar ur
+    90 s. Samma fartyg igen först när skroven är långt isär. Förlust av skrovet inom 10 s: "rammad".
+  - *Ramning* (`DestroyerAI._ram`): med skarpa insatsregler och en färsk (≤ 20 s), skarp (σ ≤ 0,2 nm) fix på oss grundare
+    än 25 m inom 2,5 nm går jagaren rakt på i full fart med förhåll (datumets fart) i stället för att fälla. Fredstid
+    (signal) rammar ingen.
+  - *Stående bäring* (`SonarRoom._collision_watch`): medan kölen är grundare än 30 m ropar sonar när en kontakts
+    signal (≥ 28 dB) stigit 3 dB på en minut med bäringen inom 6° ("han kommer rakt över oss") och föreslår
+    `djup 40` (larmförslag, en gång per kontakt och 5 min); ett fartyg som passerar vid sidan drar i bäring och ger
+    ingen varning. Ubåtar i undervattensläge räknas inte (de hörs inte så).
 - **Besättningen under jakt** (rättelser efter provspelet 2026-11-21, `tests/test_playtest_fixes.py`):
   - *Djupt och fort:* maskins sprint (`EngineeringStation._sprint`) siktar på `SPRINT_DEPTH` 220 m men
     godtar ett beordrat djup från 180 m ned till `SPRINT_DEEPEST` 290 m (eller navigatörens djupgräns) och

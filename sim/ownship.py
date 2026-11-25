@@ -613,6 +613,7 @@ class OwnShip(Vessel):
         if st.depth >= self.crush_depth() or s.hull <= 0 or s.flooding >= FLOOD_LOSS_T:
             self.sunk = True
             cause = ("krossad på djupet" if st.depth >= self.crush_depth()
+                     else "rammad" if s.hull <= 0 and now - s.dmg.last_collision_t <= 10
                      else "skrovet brast" if s.hull <= 0 else "vattenfylld")
             world.end("lost", cause=cause)
         elif s.smoke >= 1.0:

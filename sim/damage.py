@@ -146,6 +146,8 @@ class DamageState:
     eroded_db: float = 0.0                  # propellern gröpt av kavitationen: så mycket mer hörs den
     deep_s: float = 0.0                     # tid nära provdjupet (sedan förra packboxläckan)
     _warned: set = field(default_factory=set)
+    touching: set = field(default_factory=set)          # fartyg vi ligger an mot (collision.py)
+    last_collision_t: int = -10**9
     _bang_t: int = -10**9
     _flood_seen: float = 0.0
     _leak_seen: float = 0.0

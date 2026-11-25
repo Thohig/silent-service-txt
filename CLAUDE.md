@@ -58,7 +58,7 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 
 ## Arkitektur i korthet
 - **Sanningslager:** `world.py` (tick-ordning dokumenterad där), `ownship.py`, `damage.py` (skadorna, läckorna, vattnet
-  i avdelningarna, belastningen; `OwnSystems.dmg`), `ice.py`,
+  i avdelningarna, belastningen; `OwnSystems.dmg`), `collision.py` (kollision med fartyg; jagaren rammar), `ice.py`,
   `enemy.py`, `weapons.py`, `environment.py`, `acoustics.py`, `entities.py`, `pilotage.py`
   (lotsen: andra fartyg girar undan land, efter AI:erna).
   Transienter/emissioner som skapas under ett tick blir hörbara nästa tick.

@@ -26,6 +26,7 @@ from ..sonar_view import (held_by_kind, KEEP_S as WATERFALL_KEEP_S, SONAR_SOURCE
 from ..systems import INFO, OK, WARN, Gauge
 from ..sonar import (ClassificationUpdate, Detection, IncomingTorpedo, Lost, OwnTorpedo,
                      SonarStation, TransientHeard)
+from ..knowledge import submerged_submarine
 from ..tma import BearingObs
 from .base import Proposal, Station
 from .baffles import BafflesMixin
@@ -86,9 +87,19 @@ HEARD_SYMBOL = {
 OWN_SYMBOL = {"ping": ("!", "own_sound"), "launch": ("»", "own_sound"),
               "decoy": ("o", "own_sound"), "blow": ("↑", "own_sound"),
               "astern": ("◂", "own_sound"), "reload": ("¤", "own_sound"),
-              "clatter": ("≡", "own_sound"), "repair": ("h", "own_sound")}
+              "clatter": ("≡", "own_sound"), "repair": ("h", "own_sound"),
+              "collision": ("X", "own_sound")}
 
 
+# Kollisionskurs (stående bäring, stigande styrka) medan vi är grunda nog att ett fartyg når oss: sonar ropar
+# och föreslår djupet ned. Ett fartyg som passerar vid sidan drar i bäring; det som kommer rakt på står still.
+COLLIDE_DEPTH_M = 30        # grundare köl än så (tornet når upp i ett ytfartygs djupgående)
+COLLIDE_SE = 28.0           # så stark signal …
+COLLIDE_RISE_DB = 3.0       # … som stigit så mycket …
+COLLIDE_WINDOW_S = 60       # … det senaste så här långa fönstret (minst halva) …
+COLLIDE_BEARING_DEG = 6.0   # … med bäringen inom så här många grader
+COLLIDE_DIVE_M = 40
+COLLIDE_EVERY_S = 300
 CONTACTS_NAMED = 2          # systemtavlan: så här många kontakter nämns vid namn
 LINE_AFTER_LOST_S = 300     # en tappad kontakt står kvar i sonarvyns lista så här länge
 
@@ -182,6 +193,9 @@ PHRASES = {
     "sonar.ping.fast_far": lambda d: f"Kapten, sonar. Pingtakten{_src(d)} har ökat, men pingarna är svaga. "
     f"De jagar något {_far(d)}, inte oss." + _only_pings(d),
     "sonar.ping.slow": lambda d: f"Pingtakten{_src(d)} har minskat igen." + _only_pings(d),
+    "sonar.collision_course": lambda d: f"{ru('Tovarisjtj komandir')}, sonar! Propellrarna från {d['designation']} "
+    f"i bäring {fmt_course(d['bearing'])} blir starkare och bäringen står still: han kommer rakt över oss!"
+    + (f" Föreslår djup {d['depth']}, under hans köl!" if d.get("depth") else ""),
     "sonar.ping.close": lambda d: f"Pingarna{_src(d)} är mycket starka nu, kapten. "
     "Jag hör dem genom skrovet." + _only_pings(d),
     "sonar.splash": lambda d: f"Kapten, sonar! Plask i vattnet, bäring {fmt_course(d['bearing'])}"
@@ -279,6 +293,9 @@ RU_PHRASES = {
     "sonar.ping.fast_far": lambda d: f"{R.CAPTAIN}, акустик. Темп посылок{_ru_src(d)} возрос, "
     f"но посылки слабые. Ищут кого-то {_ru_far(d)}, не нас." + _ru_only_pings(d),
     "sonar.ping.slow": lambda d: f"Темп посылок{_ru_src(d)} снова снизился." + _ru_only_pings(d),
+    "sonar.collision_course": lambda d: f"{R.CAPTAIN}, акустик! Шум винтов {R.contact(d['designation'], genitive=True)} "
+    "усиливается, пеленг не меняется: идёт прямо на нас!"
+    + (f" Предлагаю глубину {R.count(d['depth'], R.METER)}!" if d.get("depth") else ""),
     "sonar.ping.close": lambda d: f"Посылки{_ru_src(d)} очень сильные, товарищ командир. "
     "Слышно через корпус." + _ru_only_pings(d),
     "sonar.splash": lambda d: f"{R.CAPTAIN}, акустик! Всплески, пеленг {R.course(d['bearing'])}"
@@ -326,6 +343,7 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
 
     def __init__(self, game):
         super().__init__(game)
+        self._collide_hist: dict[str, list] = {}
         self.sensor = SonarStation(self.member, game.rng_for("sonar"))
         self._incoming_init()
         self._recording_init()
@@ -568,6 +586,7 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
                     bus.publish(BearingObserved(self.now, ev))
                     if ev.source == "sonar":
                         self._maybe_call_bearing(ev.designation)
+                        self._collision_watch(ev)
                 case TransientHeard():
                     self._on_sound(ev)
                 case IncomingTorpedo():
@@ -582,6 +601,30 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         if self._regained_batch and (self.now - self._regained_last >= LOST_BATCH_S
                                      or self.now - self._regained_t >= LOST_BATCH_MAX_S):
             self._say_regained()
+
+    def _collision_watch(self, ev: BearingObs) -> None:
+        """Stående bäring och stigande styrka medan vi ligger grunt: han kommer rakt på oss."""
+        hist = self._collide_hist.setdefault(ev.designation, [])
+        hist.append((self.now, ev.se, ev.bearing))
+        while hist and self.now - hist[0][0] > COLLIDE_WINDOW_S:
+            hist.pop(0)
+        st = self.own.state
+        if st.depth > COLLIDE_DEPTH_M or hist[-1][0] - hist[0][0] < COLLIDE_WINDOW_S / 2:
+            return
+        tr = self.game.knowledge.tracks.get(ev.designation)
+        if tr is not None and submerged_submarine(tr.classification):
+            return
+        lo = min(se for _, se, _ in hist)
+        drift = max(abs(angle_diff(b, hist[-1][2])) for _, _, b in hist)
+        if ev.se < COLLIDE_SE or ev.se - lo < COLLIDE_RISE_DB or drift > COLLIDE_BEARING_DEG:
+            return
+        depth = self.dive_depth(COLLIDE_DIVE_M)
+        data = {"designation": ev.designation, "bearing": ev.bearing}
+        if depth is not None and st.ordered_depth < depth:
+            self.suggest(f"collide:{ev.designation}", "sonar.collision_course", {**data, "depth": depth},
+                         order=f"djup {depth}", cooldown=COLLIDE_EVERY_S, alarm=True)
+        elif self._dedupe(f"collide:{ev.designation}", COLLIDE_EVERY_S):
+            self.say("sonar.collision_course", data, kind="contact", alarm=True)
 
     def _convoy_split(self, batch: list) -> tuple[list, list]:
         """Delar en samlad rad i konvojens fartyg (konvojen känd i plottet) och de andra."""

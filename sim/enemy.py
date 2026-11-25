@@ -140,6 +140,12 @@ class DestroyerAI:
     MAST_P = 0.03           # sannolikhet per sekund att de upptäcks inom det
 
     DRAW_TEMPERAMENT = True     # hamnens patrullbåtar är alla lika (sundets kalibrering)
+    # Ramning: med skarpa insatsregler och en färsk, skarp fix på en ubåt grunt nog att träffa (tornet på
+    # periskopdjup, eller i ytläge) går jagaren rakt på den i full fart med förhåll i stället för att fälla.
+    RAM_DEPTH_M = 25.0
+    RAM_RANGE_NM = 2.5
+    RAM_SIGMA_NM = 0.2
+    RAM_FRESH_S = 20
 
     def __init__(self, vessel: Vessel, rng: random.Random, area: float = 20.0,
                  patrol_speed: float = 15.0, escalate_after: int | None = None,
@@ -284,7 +290,8 @@ class DestroyerAI:
                 continue
             if hostile:
                 self.roe = "lethal"
-            if tr.kind in ("ping", "launch", "echosounder", "astern", "reload", "creak", "clatter", "repair"):
+            if tr.kind in ("ping", "launch", "echosounder", "astern", "reload", "creak", "clatter", "repair",
+                           "collision"):
                 self._datum_from_bearing(world, tr.x, tr.y, 0.25 if tr.kind == "ping" else 0.3,
                                          depth_guess=max(20.0, tr.depth + self.rng.gauss(0, 40)))
 
@@ -423,6 +430,26 @@ class DestroyerAI:
             self._ping(world, noise)
         self._decide(world)
 
+    def ramming(self, now: int) -> bool:
+        return now - getattr(self, "ram_t", -10**9) <= 1
+
+    def _ram(self, world: World) -> bool:
+        """Rakt på ubåten i full fart, med förhåll (datumets fart), när den ligger grunt och vi ser den."""
+        now, s, d = world.time, self.vessel.state, self.datum
+        if self.roe != "lethal" or d is None or now - self.last_contact_t > self.RAM_FRESH_S or \
+                d.sigma > self.RAM_SIGMA_NM or d.depth > self.RAM_DEPTH_M:
+            return False
+        px, py = d.predict(now)
+        r = distance(s.x, s.y, px, py)
+        if r > self.RAM_RANGE_NM:
+            return False
+        lead_s = r / max(self.SPEED_EVADE, 1.0) * 3600.0
+        ax, ay = d.predict(now + int(lead_s))
+        s.order_speed(self.SPEED_EVADE)
+        s.order_course(bearing_to(s.x, s.y, ax, ay))
+        self.ram_t = now
+        return True
+
     def _decide(self, world: World) -> None:
         now, s = world.time, self.vessel.state
         if now < self.evade_until:
@@ -460,6 +487,8 @@ class DestroyerAI:
         if self.state == "attack":
             if now < self.opening_until:
                 s.order_speed(self.SPEED_OPEN)
+                return
+            if self._ram(world):
                 return
             if now - self.last_contact_t > 90:
                 self.state = "prosecute"

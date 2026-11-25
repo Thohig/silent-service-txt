@@ -23,6 +23,7 @@ from .environment import Environment
 from .geo import angle_diff, bearing_to, distance
 from .goals import Goal
 from .ice import ice_contact, ice_sounds
+from .collision import ship_contact
 from .seabed import bottom_contact
 from .ownship import OwnShip
 from .pilotage import steer_clear
@@ -127,6 +128,7 @@ class World:
             ice_contact(self, prev, dt)
             ice_sounds(self)
         bottom_contact(self, prev)
+        ship_contact(self)
 
         self.own.update(self, dt)
         step_weapons(self, dt)
