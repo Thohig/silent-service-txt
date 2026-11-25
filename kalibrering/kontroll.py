@@ -135,6 +135,10 @@ def main() -> int:
     print(f"{time.time() - t0:.0f} s")
     if "--spara" in argv:
         old = json.loads(BASLINJE.read_text()) if BASLINJE.exists() else {}
+        if old:                              # vad som flyttat mot den gamla, innan den skrivs över
+            moved = [m.replace("<commit för baslinjen>", old.get("_commit", "<commit för baslinjen>"))
+                     for m in compare(old, new)]
+            print("\n".join(["flyttat mot förra baslinjen:", *moved]) if moved else "som förra baslinjen")
         old.update(new)
         old["_commit"] = _commit()          # vilken kod baslinjen kommer från (skillnad.py --mot)
         BASLINJE.write_text(json.dumps(old, indent=1, ensure_ascii=False) + "\n")
