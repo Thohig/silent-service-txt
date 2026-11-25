@@ -172,7 +172,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   `NavigationStation._steep`) när fienden har oss eller en torped är i vattnet: djupbytet går 1,4× fortare
   (`STEEP_RATE_F`, högst 2,8 m/s), ~19° i 12 kn, och kvittensen säger "Brant vinkel"; bara ned (undan): uppåt mot
   periskopdjupet med fienden nära slamrade det (konvoj-mot frö 0: salvan kom aldrig iväg). Över 15° (`CLATTER_DEG`)
-  far lösa föremål i durken: maskin säger det (`hull.clatter`), det hörs i vattnet (`Transient("clatter")`,
+  far lösa föremål i durken: maskin säger det och varför (`hull.clatter`: den branta vinkeln, eller trimmens lutning
+  från 2°), det hörs i vattnet (`Transient("clatter")`,
   135 dB, `CLATTER_LEVEL`; jagare pejlar det som knaket) och blyertsen och sonarvyn får märket ≡; igen först när
   båten varit nästan rak (< 5°). Torpedrummet skjuter inte med mer än 7° lutning (`MAX_LAUNCH_PITCH`): en skottorder
   (eld, salva, eld mot) medan båten lutar väntar (`torp.wait_level`, "Vi skjuter när den är rak") och verkställs när

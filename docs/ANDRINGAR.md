@@ -3,6 +3,22 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-25 – Förbättringar efter provspelet
+
+- Torpedrummet varnar för en kontakt utan lösning vars bäring drar in över den målsökande torpedens kurs under
+  gångtiden (operatörens bäringsdrift). Skyttebotarna (`skytt.py lyssna alla 24-31`): clyde-in frö 28 sänkte ett
+  handelsfartyg 12° från banan som drog 5°/min mot den, utan varning; nu varnas det och boten avstår.
+  `skytt.py ja`/`skjut` frön 24–31: inga larm. `FiringMixin._bearing_crosses`.
+- Översikten: bäringsdriften i kontakttabellen (▸/◂ och °/min), nästa sambandstillfälle under UPPDRAG (radion).
+- Vattenfallet: etiketterna får en ledig ruta före och efter ("S-7S-3" i en smal spalt).
+- Centralen: på en hög vägg står klockan i raden med de mindre instrumenten och fartmätaren får hela rutan.
+- Maskin säger varför det slamrar: den branta vinkeln, eller trimmens lutning från 2°.
+- GitHub: Pages bygger och publicerar i två jobb (paketet hittades ibland inte i samma jobb); kalibreringskontrollen
+  körs varje söndag och för hand (`.github/workflows/kalibrering.yml`) och är röd när något flyttat.
+- `kalibrering/talniva.py`: hur mycket varje talnivå läser upp, och vad (för finjustering efter provspel med ljud).
+Tester: `tests/test_firing_rules.py`, `tests/test_overview.py`, `tests/test_sonar_view.py`, `tests/test_instruments.py`,
+`tests/test_pitch.py`.
+
 ## 2026-11-25 – Provspel: översikten i 100 kolumner, kontakttabellen smal, mätarnas etiketter, skott i lutning
 
 - Huvudskärmen i ett 100 kolumner brett fönster gav översikten bara en spalt (panelen får 98 kolumner, gränsen var

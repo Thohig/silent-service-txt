@@ -10,7 +10,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   med rak torped och i `skjutlösning` när ett känt handelsfartyg ligger inom 0,5 nm från en bana hela
   vägen ut (plottets lösning ≥ osäker), eller utan lösning med bäringen inom 10°; upprepad order inom
   en minut skjuter (varning, inte vägran). Med målsökande torped gäller i stället andra kända fartyg inom
-  0,6 nm från målet när torpeden är framme (`_seeker_rivals`): målsökaren tar det den hör bäst. `skjutlösning` utan kontakt tar den enda hållna kontakten, annars hotkontakten
+  0,6 nm från målet när torpeden är framme (`_seeker_rivals`): målsökaren tar det den hör bäst. Utan lösning räknas
+  bäringen: inom 10° från torpedens kurs, eller en bäring som enligt operatörens drift drar in över kursen under
+  gångtiden (`_bearing_crosses`; clyde-in frö 28: en okänd kontakt 12° från banan som drog 5°/min togs efter 8 min). `skjutlösning` utan kontakt tar den enda hållna kontakten, annars hotkontakten
   med bäst lösning (närmast vid lika, `_best_target`). Torpedrummet säger ingen ny skjutlösning (`torp.ready`)
   på ett mål som våra torpeder är på väg mot.
 - **Konvoj:** `convoy.py` (sanning). `Convoy` är en spawner med en ledpunkt som sicksackar efter

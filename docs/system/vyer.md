@@ -26,11 +26,13 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (`render_compact_panels`, oroliga först). Smalare: höger spalt och sedan sjökortet.
   `Station.overview_items()` ⇒ `Game.overview()` (`OverviewView`, byggd en gång per läge som de andra):
   plottet ger en `ContactRow` per kontakt med bäring (tappade i 30 min, sjunkna inte): klassningens första led,
-  senaste bäringen och dess ålder, och där sjökortet visar lösningen (≥ osäker, hot, handel eller eget) den
+  senaste bäringen och dess ålder, operatörens bäringsdrift (▸ höger/medurs, ◂ vänster, °/min, från 0,3; `drift`), och där sjökortet visar lösningen (≥ osäker, hot, handel eller eget) den
   framräknad till nu (bäring, avstånd, kurs, fart) med kvaliteten; plottet räknar inte om lösningen för vyn
   (`test_reading_the_overview_does_not_change_the_game`). Lägesrader (`Line`): vakthavande UPPDRAG (ordern ur
   `Knowledge.order_tasks`, tiden ut och kvar, varning under 30 min; "fienden har oss" fara, "fiende i närheten"
-  varning), periskopet PERISKOP (gradring, svep/titt/håller, förstoring; förr på centralens golv). Nytt system
+  varning), radion "Samband" under UPPDRAG (öppet nu och till när, varning; annars nästa tillfälle och om hur länge),
+  periskopet PERISKOP (gradring, svep/titt/håller, förstoring; förr på centralens golv). Smal kontakttabell (under
+  60 tecken, `COMPACT_W`): klassningen kortas först, lösningen kort, kvaliteten och tappad (∅) alltid med, i linje. Nytt system
   syns här genom att ge `Line` ur sin kunskap.
 - **Sjökortet**: `Station.chart_items()` ger ritelement (`sim/chart.py`) ur
   kunskapen i beräknade koordinater; `Game.chart()` samlar, `ui/chart_render.py`
@@ -62,7 +64,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   bäring vågrätt (sann, eller relativt fören ur navigatörens kurslogg) och tid lodrätt, nyast överst, 10/30/60 min.
   `Station.sonar_items()` ⇒ `Game.sonar()` (`SonarView`), bara kunskap: sonarrummet ger bäringsspår ur
   `ContactTrack.observations` (källorna sonar/ping/aktiv; prickarna bredare efter `se`), hörda transienter med
-  bäring (`HeardMark`; pingar bara där inget annat står), tappade (`∅`), egna ljud i marginalen och en rad per
+  bäring (`HeardMark`; pingar bara där inget annat står; etiketterna med en ledig ruta före och efter), tappade (`∅`), egna ljud i marginalen och en rad per
   kontakt (bäring, operatörens bäringsdrift över 3 min, lösningens kvalitet, klassning); torpederna sonar hör
   (`TorpedoTrace`): fientliga ur sonarrummets bäringar (`torped 1`, starkast färg, över alla spår), våra egna ur
   torpedrummet med tubens nummer (`tub 2`, dämpade), etiketten dämpad när sonar tappat dem; plottet lösningens
@@ -104,7 +106,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   djup 0–500 m med prov- och krosszon, fart 0–30 kn med kavitationszonen (6 + djup/25), klocka, djuproder
   med libell; på en hög vägg (≥ `TALL_ROWS` 22 rader, `Geometry.strip_rows`, ~30 % av höjden) en rad mindre
   instrument under: LUTNING (дифферент ±10°, `pitch`), TRIM (rodrens last, lätt–tung, `plane_load`), BATTERI
-  (0–100 %, rött under 20, "urladdning" utan reaktor) och LÄNS (vatten i båten 0–60 t, `flooding`). Avläsningen är
+  (0–100 %, rött under 20, "urladdning" utan reaktor) och LÄNS (vatten i båten 0–60 t, `flooding`); där står också
+  klockan, så att fartmätaren får hela rutan (låg vägg: fart och klocka sida vid sida). Mätarnas etiketter som
+  skulle krocka med en tidigare ritas inte (`draw_dial`). Avläsningen är
   exakt; visarna följer med tröghet (`Needles`, τ 0,5 s, kursen den korta vägen) och ritas tio gånger i sekunden
   (`CENTRAL_EVERY_S`). Den lilla bilden (litet fönster) är bara rummet: rör med ventilrattar, tre lampor för
   snabbtelefonen, telegrafens och julgranens lampor. Ren funktion `render_central(status, speaking, t, width, height,
