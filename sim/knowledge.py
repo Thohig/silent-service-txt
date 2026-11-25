@@ -114,6 +114,13 @@ GAP_S = 180
 # 4, 5; ett nära långsamt mål och ett avlägset snabbt ger samma bäringar). Mätt 2026-11-24 (ja-boten, 7 scenarier,
 # 8 frön): säkra på 8–20 min grovt fel ~10 %, på över 20 min 0 %.
 SURE_MIN_SPAN_S = 1200
+# ... och bäringarna ska täcka minst SURE_MIN_COVER_S av den tiden (luckor över GAP_S räknas inte): en jagare
+# hörd 2 min, tappad 11 min och hörd igen 4 min spände 22 min och kallades säker på 1,4 nm (sant 4,0; krig frö
+# 61). 0 = av.
+SURE_MIN_COVER_S = 0
+# En jagare som pingar utan att jaga oss söker: den går sina ben men girar oftare än ett handelsfartyg.
+# None = som andra mål (rak kurs, tma.TARGET_MANEUVER_Q).
+PINGER_MANEUVER_Q: float | None = None
 GAP_HOLD_S = 300
 
 
@@ -390,7 +397,9 @@ class Knowledge:
         obs = [o for o in tr.observations if o.t >= tr.tma_from_t]
         q = HUNTER_MANEUVER_Q if self.hunting(tr, t_now) else \
             tma.ZIGZAG_MANEUVER_Q if self.zigzags(tr) or submerged_submarine(tr.classification) or \
-            self.grouped(tr, t_now) else PATROL_MANEUVER_Q if tr.friendly else None
+            self.grouped(tr, t_now) else PATROL_MANEUVER_Q if tr.friendly else \
+            PINGER_MANEUVER_Q if PINGER_MANEUVER_Q is not None and any(
+                o.source == "ping" and o.t >= tr.tma_from_t for o in tr.observations) else None
         sol = solve(obs, t_now=t_now, own_now=own_now, maneuver_q=q)
         if sol is not None:
             sol = self._settled(tr, sol, obs, t_now)
@@ -419,9 +428,10 @@ class Knowledge:
             (gap_end is not None and t_now - gap_end < GAP_HOLD_S)
         if unsettled and sol.quality >= Quality.GOD:
             sol = replace(sol, quality=Quality(int(sol.quality) - 1))
-        if sol.quality == Quality.SAKER and ts[-1] - ts[0] < SURE_MIN_SPAN_S and \
-                not any(o.range_nm is not None for o in obs if o.t >= ts[0]):
-            sol = replace(sol, quality=Quality.GOD)     # för kort för att vara säker utan ett avstånd
+        if sol.quality == Quality.SAKER and not any(o.range_nm is not None for o in obs if o.t >= ts[0]):
+            covered = sum(b - a for a, b in zip(ts, ts[1:]) if b - a <= GAP_S)
+            if ts[-1] - ts[0] < SURE_MIN_SPAN_S or covered < SURE_MIN_COVER_S:
+                sol = replace(sol, quality=Quality.GOD)     # för kort för att vara säker utan ett avstånd
         return sol
 
 
