@@ -247,7 +247,8 @@ class DamageControlStation(Station):
                 self._repair_said = None if self.own.sys.dmg.repair != c else c
             return
         if isinstance(order, Pump):
-            self.bilge_mode = "on" if order.on else "hold"
+            dry = order.on and self.own.sys.flooding <= 0.05
+            self.bilge_mode = "auto" if dry else "on" if order.on else "hold"     # torr: inget att länsa
             self._danger_said = False
             self.say("dc.bilge.on" if order.on else "dc.bilge.off", {"water": self.own.sys.flooding}, kind="ack")
             self._bilge()

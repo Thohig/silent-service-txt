@@ -704,12 +704,14 @@ class SonarRoom(IncomingMixin, RecordingMixin, BafflesMixin, Station):
         return out
 
     def _depth_limit(self) -> float | None:
-        """Navigatörens gräns mot botten (sjökortet och ekolodet), om den finns."""
+        """Navigatörens gräns mot botten (sjökortet och ekolodet) och skrovets (provdjupet − 20 m, sänkt av
+        skadorna: jagad frö 84 föreslog djup 170 när provdjupet var 160)."""
         from .navigation import NavigationStation
         try:
-            return self.game.station(NavigationStation).depth_limit()
+            lim = self.game.station(NavigationStation).depth_limit()
         except KeyError:
-            return None
+            lim = None
+        return self.hull_depth() if lim is None else min(lim, self.hull_depth())
 
     def _below_layer(self, layer: float) -> float | None:
         """Djup under skiktet som botten tillåter, eller None om det inte finns plats."""

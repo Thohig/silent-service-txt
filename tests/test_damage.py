@@ -422,3 +422,15 @@ def test_below_a_lowered_test_depth_the_hull_does_not_wear_away_by_itself():
     _run(w, 600)
     assert w.own.sys.hull == pytest.approx(0.3) and w.outcome is None
     assert w.own.crush_depth() == pytest.approx(450 * 0.65)
+
+
+def test_sonars_evasive_dive_stays_above_the_lowered_test_depth():
+    """Jagad frö 84: sonar föreslog djup 170 'så att laddningarna är inställda på fel djup' när skrovet bara
+    tålde 160."""
+    from sim.stations.sonar_room import SonarRoom
+    g, _ = _game()
+    own = g.world.own
+    own.sys.hull = 0.1                               # provdjupet 165 m
+    own.state.depth = own.state.ordered_depth = 100
+    d = g.station(SonarRoom)._evasive_target()
+    assert d is None or d <= own.test_depth() - 20
