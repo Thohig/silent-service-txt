@@ -61,7 +61,7 @@ def _status(d: dict) -> str:
     if d["flooding"] > 0.5:
         parts.append(f"{d['flooding']:.0f} ton vatten ombord")
     if d.get("fire"):
-        parts.append("brand i turbinrummet")
+        parts.append(f"brand i {FIRE_ROOM[d.get('fire_room', 6)]}")
     if d.get("smoke", 0) > 0.05:
         parts.append(f"rök {_smoke_word(d['smoke'])}")
     if d["co2"] > 0.8:
@@ -90,6 +90,14 @@ def _smoke_word(v: float) -> str:
 
 ORDINAL = {1: "första", 2: "andra", 3: "tredje", 4: "fjärde", 5: "femte", 6: "sjätte",
            7: "sjunde", 8: "åttonde", 9: "nionde"}
+FIRE_ROOM = {2: "batterirummet", 6: "turbinrummet"}
+FIRE_ROOM_RU = {2: "во втором отсеке", 6: "в турбинном отсеке"}
+
+
+def own_turbine_fire(s) -> bool:
+    return s.fire and s.fire_room == 6
+
+
 INSPECT_NOTE = {"BRAND": "brand", "skada": "skador", "lågt": "batteriet lågt", "läcka": "läcka, den tätas",
                "vatten": "vatten i kölsvinet", "utrymd": "halvfull, utrymd och stängd"}
 INSPECT_AFTER_S = 60         # avdelningarna rapporterar så här länge efter haverilarmet
@@ -207,8 +215,9 @@ PHRASES = {
                         else "Kraftig tryckvåg! Inga skador." if d["strength"] == "kraftig"
                         else "Detonation på avstånd. Inga skador."),
     "fire": lambda d: f"{ru('Avarijnaja trevoga')}! Brand i {d['compartment']}! Avdelningen utrymd och stängd. "
-    "Turbinen är stoppad, vi går på elmotor. Rökdykare på väg in.",
-    "fire.out": lambda d: "Branden i turbinrummet är släckt, kapten. Men det glöder i isoleringen "
+    + ("Saltvatten i batteriet, det har kortslutit. Vi har tappat en del av laddningen. Rökdykare på väg in."
+       if d.get("room") == 2 else "Turbinen är stoppad, vi går på elmotor. Rökdykare på väg in."),
+    "fire.out": lambda d: f"Branden i {FIRE_ROOM[d.get('room', 6)]} är släckt, kapten. Men det glöder i isoleringen "
     "och röken sprider sig. Vi måste ventilera, och det kräver öppen luft.",
     "smoke": lambda d: f"Kapten, maskin. Röken är {_smoke_word(d['level'])} nu."
     + (" Folk har svårt att andas." if d["level"] >= 0.7 else "")
@@ -304,7 +313,7 @@ def _ru_status(d: dict) -> str:
     if d["flooding"] > 0.5:
         parts.append(f"внутри {R.count(d['flooding'], R.TON)} воды")
     if d.get("fire"):
-        parts.append("пожар в турбинном отсеке")
+        parts.append(f"пожар {FIRE_ROOM_RU[d.get('fire_room', 6)]}")
     if d.get("smoke", 0) > 0.05:
         parts.append(f"задымление {SMOKE_RU[_smoke_word(d['smoke'])]}")
     if d["co2"] > 0.8:
@@ -381,9 +390,10 @@ RU_PHRASES = {
     "shock": lambda d: ("Взрывы рядом, повреждений нет. Малые заряды." if d.get("practice")
                         else "Сильный гидроудар! Повреждений нет." if d["strength"] == "kraftig"
                         else "Взрыв на удалении. Повреждений нет."),
-    "fire": lambda d: "Аварийная тревога! Пожар в турбинном отсеке! Отсек покинут и "
-    "загерметизирован. Турбина остановлена, идём на электромоторе.",
-    "fire.out": lambda d: f"{R.CAPTAIN}, пожар в турбинном отсеке потушен. Но изоляция тлеет, "
+    "fire": lambda d: f"Аварийная тревога! Пожар {FIRE_ROOM_RU[d.get('room', 6)]}! Отсек покинут и "
+    "загерметизирован. " + ("Замыкание аккумуляторной батареи." if d.get("room") == 2
+                           else "Турбина остановлена, идём на электромоторе."),
+    "fire.out": lambda d: f"{R.CAPTAIN}, пожар {FIRE_ROOM_RU[d.get('room', 6)]} потушен. Но изоляция тлеет, "
     "дым расходится. Нужно вентилироваться, а для этого нужен воздух.",
     "smoke": lambda d: f"{R.CAPTAIN}, пульт. Задымление теперь {SMOKE_RU[_smoke_word(d['level'])]}."
     + (" Людям трудно дышать." if d["level"] >= 0.7 else "")
@@ -467,7 +477,7 @@ class EngineeringStation(Station):
     def on_order(self, order: Order) -> None:
         own = self.own
         match order:
-            case SetPropulsion(mode="turbine") if own.sys.fire:
+            case SetPropulsion(mode="turbine") if own.turbine_fire:
                 self.say("eng.refused", {"reason": "det brinner i turbinrummet"})
             case Ventilate():
                 st = own.state
@@ -507,7 +517,8 @@ class EngineeringStation(Station):
                     "reactor": s.reactor, "propulsion": s.propulsion,
                     "max_speed": own.max_speed(), "battery": s.battery,
                     "steam_leak": s.steam_leak, "hull": s.hull, "flooding": s.flooding,
-                    "co2": s.co2, "health": dict(s.health), "fire": s.fire, "smoke": s.smoke})
+                    "co2": s.co2, "health": dict(s.health), "fire": s.fire, "fire_room": s.fire_room,
+                    "smoke": s.smoke})
 
     # --- systemtavlan ---------------------------------------------------------------
     def system_items(self) -> list:
@@ -543,7 +554,7 @@ class EngineeringStation(Station):
             g("Vatten", "torrt")
         g("Koldioxid", f"{nm(s.co2)} %", DANGER if s.co2 > 3 else WARN if s.co2 > 0.8 else OK)
         if s.fire:
-            g("Brand", "i turbinrummet", DANGER)
+            g("Brand", f"i {FIRE_ROOM[s.fire_room]}", DANGER)
         if s.smoke > 0.0:
             txt = _smoke_word(s.smoke) + (", ventilerar" if s.ventilating else "")
             g("Rök", txt, DANGER if s.smoke >= 0.7 else WARN if s.smoke >= 0.15 else INFO,
@@ -586,8 +597,8 @@ class EngineeringStation(Station):
         if s.steam_leak:
             notes[5].append((WARN, "ångläcka"))
         if s.fire:
-            notes[6].append((DANGER, "BRAND"))
-        elif s.propulsion == "electric" or s.reactor != "online":
+            notes[s.fire_room].append((DANGER, "BRAND"))
+        if not own_turbine_fire(s) and (s.propulsion == "electric" or s.reactor != "online"):
             notes[6].append((OFF, "stoppad"))
         if s.battery < 0.3:
             notes[2].append((WARN, "lågt"))

@@ -56,6 +56,8 @@ OPEN_BELOW_T = 1.0          # inga läckor och så lite vatten: skotten öppnas 
 
 # Fastnat djuproder: en skada som tar rodren under JAM_HEALTH medan de står ute låser dem. Båten går
 # då ned (eller upp) med farten tills rodren kopplats om till handstyrning (JAM_MANUAL_S).
+BATTERY_SHORT_T = 3.0       # så mycket vatten i andra avdelningen: saltvatten i batteriet, kortslutning, brand
+BATTERY_SHORT_KEEP = 0.7    # det som är kvar av laddningen (cellerna som brann)
 JAM_HEALTH = 0.35
 JAM_MPS_PER_KN = 0.05
 JAM_MANUAL_S = 90
@@ -90,6 +92,7 @@ class DamageState:
     planes_jam: int = 0                     # +1 rodren fast i dykläge, −1 i stigläge
     jam_left: float = 0.0
     bilge_on: bool = True                   # länspumparna (skadekontrollen styr dem)
+    battery_shorted: bool = False           # saltvatten i batteriet har kortslutit (en gång)
     _flood_seen: float = 0.0
     _leak_seen: float = 0.0
 

@@ -182,3 +182,23 @@ def test_leak_beyond_the_pumps_brings_a_suggestion_to_go_shallower():
     at = D.Leak(9, "spricka", 2.0, progress=1.0).rate(target)
     assert (at <= 0.5 + 1e-6) == r.data["enough"]
     assert target == 40 or r.data["enough"]
+
+
+def test_salt_water_in_the_battery_shorts_it_and_starts_a_fire_there():
+    w = _world(depth=60, speed=4)
+    own = w.own
+    own.sys.dmg.water[2] = D.BATTERY_SHORT_T + 1
+    own.sys.battery = 1.0
+    _run(w, 2)
+    assert own.sys.fire and own.sys.fire_room == 2
+    assert own.sys.battery <= D.BATTERY_SHORT_KEEP + 0.01
+    assert own.sys.propulsion == "turbine" and not own.turbine_fire     # turbinen går
+    _, data = next(a for a in own.sys.alerts if a[0] == "fire")
+    assert data["room"] == 2
+
+
+def test_battery_fire_is_reported_in_the_battery_room():
+    from sim.stations.engineering import PHRASES
+    txt = PHRASES["fire"]({"compartment": "batterirummet", "room": 2})
+    assert "batteriet" in txt and "Turbinen" not in txt
+    assert "batterirummet" in PHRASES["fire.out"]({"room": 2})

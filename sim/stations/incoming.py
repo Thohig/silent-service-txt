@@ -289,7 +289,7 @@ class IncomingMixin:
         course = round(norm360(bearing + 180)) % 360
         parts = ["skenmål"] if not again else []
         parts.append(f"kurs {course:03d}")
-        turbine = own.power and not own.sys.fire
+        turbine = own.power and not own.turbine_fire
         if turbine and own.sys.propulsion != "turbine":
             parts.append("turbin")
         if turbine:

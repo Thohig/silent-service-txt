@@ -99,6 +99,7 @@ class OwnSystems:
     settle: bool = False             # order: lägg oss på botten
     on_bottom: bool = False          # ligger stilla på botten
     fire: bool = False               # brand ombord
+    fire_room: int = 6               # var det brinner: 6 turbinrummet, 2 batterirummet (kortslutning)
     fire_out_t: int = 0
     fire_done: bool = False
     smoke: float = 0.0               # 0 = ren luft, 1 = besättningen kvävs
@@ -198,6 +199,11 @@ class OwnShip(Vessel):
 
     def alert(self, type: str, **data: Any) -> None:
         self.sys.alerts.append((type, data))
+
+    @property
+    def turbine_fire(self) -> bool:
+        """Det brinner i turbinrummet: turbinen kan inte köras."""
+        return self.sys.fire and self.sys.fire_room == 6
 
     @property
     def power(self) -> bool:
@@ -315,7 +321,7 @@ class OwnShip(Vessel):
 
     # ------------------------------------------------------------------ order
     def set_propulsion(self, mode: str) -> bool:
-        if mode == "turbine" and (not self.power or self.sys.fire):
+        if mode == "turbine" and (not self.power or self.turbine_fire):
             return False
         self.sys.propulsion = mode
         return True
@@ -473,16 +479,24 @@ class OwnShip(Vessel):
         # brand och rök
         fire_at = world.mission.get("fire_at")
         if fire_at is not None and now >= fire_at and not s.fire and not s.fire_done:
-            s.fire = True
+            s.fire, s.fire_room = True, 6
             s.fire_out_t = now + rng.randint(420, 780)
             s.propulsion = "electric"         # turbinrummet utrymt
-            self.alert("fire", compartment="turbinrummet")
+            self.alert("fire", compartment="turbinrummet", room=6)
+        if not s.fire and not s.dmg.battery_shorted and s.dmg.water[2] > damage.BATTERY_SHORT_T:
+            # saltvatten i batteriet: kortslutning och brand i andra avdelningen
+            s.dmg.battery_shorted = True
+            s.fire, s.fire_room = True, 2
+            s.fire_out_t = now + rng.randint(420, 780)
+            s.battery *= damage.BATTERY_SHORT_KEEP
+            self.alert("fire", compartment="batterirummet", room=2)
         if s.fire:
             s.smoke = min(1.0, s.smoke + FIRE_SMOKE_PER_S * dt)
-            s.propulsion = "electric"
+            if s.fire_room == 6:
+                s.propulsion = "electric"
             if now >= s.fire_out_t:
                 s.fire, s.fire_done = False, True
-                self.alert("fire.out")
+                self.alert("fire.out", room=s.fire_room)
         elif s.fire_done and s.smoke > 0 and not s.ventilating:
             s.smoke = min(1.0, s.smoke + SMOLDER_PER_H / 3600 * dt)
         if s.ventilating:
