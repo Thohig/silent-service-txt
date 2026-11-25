@@ -59,17 +59,17 @@
   "ja": {
    "utfall": {
     "patrol_end": 1,
-    "report_missed": 4,
-    "reported": 3
+    "report_missed": 3,
+    "reported": 4
    },
    "frön": {
-    "0": "reported",
-    "1": "report_missed",
+    "0": "report_missed",
+    "1": "patrol_end",
     "2": "reported",
     "3": "report_missed",
     "4": "reported",
-    "5": "report_missed",
-    "6": "patrol_end",
+    "5": "reported",
+    "6": "reported",
     "7": "report_missed"
    },
    "minuter": {
@@ -175,18 +175,17 @@
     "7": "lost"
    },
    "minuter": {
-    "lost": 50
+    "lost": 46
    }
   },
   "ja": {
    "utfall": {
-    "escaped": 7,
-    "lost": 1
+    "escaped": 8
    },
    "frön": {
     "0": "escaped",
     "1": "escaped",
-    "2": "lost",
+    "2": "escaped",
     "3": "escaped",
     "4": "escaped",
     "5": "escaped",
@@ -194,29 +193,28 @@
     "7": "escaped"
    },
    "minuter": {
-    "escaped": 34,
-    "lost": 50
+    "escaped": 46
    }
   }
  },
  "jagad-kort": {
   "passiv": {
    "utfall": {
-    "lost": 3,
-    "patrol_end": 5
+    "lost": 4,
+    "patrol_end": 4
    },
    "frön": {
-    "0": "patrol_end",
-    "1": "patrol_end",
-    "2": "patrol_end",
-    "3": "patrol_end",
-    "4": "lost",
-    "5": "lost",
+    "0": "lost",
+    "1": "lost",
+    "2": "lost",
+    "3": "lost",
+    "4": "patrol_end",
+    "5": "patrol_end",
     "6": "patrol_end",
-    "7": "lost"
+    "7": "patrol_end"
    },
    "minuter": {
-    "lost": 19,
+    "lost": 20,
     "patrol_end": 30
    }
   },
@@ -379,7 +377,7 @@
     "15": "convoy_missed"
    },
    "minuter": {
-    "convoy_missed": 101
+    "convoy_missed": 98
    }
   },
   "ja": {
@@ -405,19 +403,20 @@
     "15": "convoy_missed"
    },
    "minuter": {
-    "convoy_missed": 107
+    "convoy_missed": 102
    }
   }
  },
  "konvoj-kort": {
   "passiv": {
    "utfall": {
-    "patrol_end": 16
+    "convoy_missed": 1,
+    "patrol_end": 15
    },
    "frön": {
     "0": "patrol_end",
     "1": "patrol_end",
-    "2": "patrol_end",
+    "2": "convoy_missed",
     "3": "patrol_end",
     "4": "patrol_end",
     "5": "patrol_end",
@@ -433,24 +432,26 @@
     "15": "patrol_end"
    },
    "minuter": {
+    "convoy_missed": 78,
     "patrol_end": 80
    }
   },
   "ja": {
    "utfall": {
-    "patrol_end": 16
+    "convoy_missed": 2,
+    "patrol_end": 14
    },
    "frön": {
     "0": "patrol_end",
     "1": "patrol_end",
     "2": "patrol_end",
     "3": "patrol_end",
-    "4": "patrol_end",
+    "4": "convoy_missed",
     "5": "patrol_end",
     "6": "patrol_end",
     "7": "patrol_end",
     "8": "patrol_end",
-    "9": "patrol_end",
+    "9": "convoy_missed",
     "10": "patrol_end",
     "11": "patrol_end",
     "12": "patrol_end",
@@ -459,6 +460,7 @@
     "15": "patrol_end"
    },
    "minuter": {
+    "convoy_missed": 70,
     "patrol_end": 80
    }
   }
@@ -466,34 +468,35 @@
  "konvoj-mot": {
   "passiv": {
    "utfall": {
-    "convoy_attacked": 2,
-    "convoy_missed": 2,
+    "convoy_attacked": 3,
+    "convoy_missed": 1,
     "patrol_end": 4
    },
    "frön": {
-    "0": "patrol_end",
-    "1": "convoy_attacked",
+    "0": "convoy_attacked",
+    "1": "patrol_end",
     "2": "patrol_end",
     "3": "convoy_missed",
     "4": "convoy_attacked",
     "5": "patrol_end",
-    "6": "patrol_end",
-    "7": "convoy_missed"
+    "6": "convoy_attacked",
+    "7": "patrol_end"
    },
    "minuter": {
-    "convoy_attacked": 24,
-    "convoy_missed": 36,
+    "convoy_attacked": 19,
+    "convoy_missed": 38,
     "patrol_end": 34
    }
   },
   "ja": {
    "utfall": {
-    "convoy_attacked": 4,
-    "convoy_missed": 4
+    "convoy_attacked": 3,
+    "convoy_missed": 4,
+    "patrol_end": 1
    },
    "frön": {
     "0": "convoy_attacked",
-    "1": "convoy_attacked",
+    "1": "patrol_end",
     "2": "convoy_missed",
     "3": "convoy_missed",
     "4": "convoy_attacked",
@@ -502,8 +505,9 @@
     "7": "convoy_missed"
    },
    "minuter": {
-    "convoy_attacked": 26,
-    "convoy_missed": 30
+    "convoy_attacked": 23,
+    "convoy_missed": 31,
+    "patrol_end": 34
    }
   }
  },
@@ -696,16 +700,16 @@
   },
   "ja": {
    "utfall": {
-    "clyde_done": 6,
-    "record_missed": 10
+    "clyde_done": 4,
+    "record_missed": 12
    },
    "frön": {
     "0": "record_missed",
-    "1": "clyde_done",
+    "1": "record_missed",
     "2": "clyde_done",
-    "3": "clyde_done",
-    "4": "clyde_done",
-    "5": "record_missed",
+    "3": "record_missed",
+    "4": "record_missed",
+    "5": "clyde_done",
     "6": "record_missed",
     "7": "record_missed",
     "8": "record_missed",
@@ -718,8 +722,8 @@
     "15": "record_missed"
    },
    "minuter": {
-    "clyde_done": 466,
-    "record_missed": 416
+    "clyde_done": 500,
+    "record_missed": 414
    }
   }
  },
@@ -752,8 +756,8 @@
   },
   "ja": {
    "utfall": {
-    "patrol_end": 5,
-    "recorded": 11
+    "patrol_end": 6,
+    "recorded": 10
    },
    "frön": {
     "0": "recorded",
@@ -763,7 +767,7 @@
     "4": "patrol_end",
     "5": "patrol_end",
     "6": "patrol_end",
-    "7": "recorded",
+    "7": "patrol_end",
     "8": "recorded",
     "9": "recorded",
     "10": "recorded",
@@ -801,30 +805,31 @@
   "ja": {
    "utfall": {
     "lost": 1,
-    "patrol_done": 7
+    "patrol_done": 5,
+    "patrol_end": 2
    },
    "frön": {
     "0": "patrol_done",
     "1": "patrol_done",
     "2": "patrol_done",
     "3": "patrol_done",
-    "4": "patrol_done",
-    "5": "patrol_done",
+    "4": "patrol_end",
+    "5": "patrol_end",
     "6": "lost",
     "7": "patrol_done"
    },
    "minuter": {
-    "lost": 337,
-    "patrol_done": 696
+    "lost": 340,
+    "patrol_done": 738,
+    "patrol_end": 840
    }
   }
  },
  "krig-kort": {
   "passiv": {
    "utfall": {
-    "lost": 1,
     "patrol_done": 2,
-    "patrol_end": 13
+    "patrol_end": 14
    },
    "frön": {
     "0": "patrol_end",
@@ -840,13 +845,12 @@
     "10": "patrol_end",
     "11": "patrol_end",
     "12": "patrol_end",
-    "13": "lost",
+    "13": "patrol_end",
     "14": "patrol_end",
     "15": "patrol_done"
    },
    "minuter": {
-    "lost": 156,
-    "patrol_done": 170,
+    "patrol_done": 168,
     "patrol_end": 175
    }
   },
@@ -959,5 +963,5 @@
    }
   }
  },
- "_commit": "3b5637c"
+ "_commit": "3456881"
 }

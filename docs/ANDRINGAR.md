@@ -15,6 +15,10 @@ visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/READM
   filar tyst i tystnad), fläktarna står i tystnad (`ui/ambience.py`; statusraden `pumps`, `leak_rate`, `repairing`,
   `hushed`).
 - Konvojens klassningar på en rad (`sonar.classified.many`).
+- Kalibrering (`kontroll.py --spara`, ny baslinje): mot förra baslinjen (3b5637c) flyttade bara jagad ja (frö 2
+  förlorad ⇒ undkom) och krig ja (fullföljd 7 ⇒ 5; frö 4 och 5 slutar i tidsgränsen, en förlust som förut).
+  Kuba-kort ja (rapporten sänd 3 ⇒ 6 av 8, radions förvarning) ingår i den nya baslinjen. Med helikopterns Mk 44
+  förlorade ja-boten 6 av 8 i krig; den är av.
 - Buggar längs vägen: fiskebåtar räknades som hot (vakthavande föreslog att vänta på mörkret för en); torpedrummet
   varnade inte för vänliga fartyg nära målet (bara övningens bevakningsfartyg ska undantas); sonars undanmanöver
   föreslog ett djup under det sänkta provdjupet (jagad frö 84); ett förslag och dess eget larm samma sekund (jagad-kort
