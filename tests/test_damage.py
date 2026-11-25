@@ -345,3 +345,67 @@ def test_repair_order_parses():
     assert g.registry.parse("reparera rodren") == Repair("planes")
     assert g.registry.parse("laga sonaren först") == Repair("sonar")
     assert g.registry.parse("reparera") == Repair(None)
+
+
+def test_shocks_make_a_scram_more_likely_for_a_while():
+    w = _world()
+    assert D.stress_factor(w.own.sys.dmg, D.STRESS_SCRAM_F) == 1.0
+    w.own.apply_explosion(100, False, random.Random(5), src=(10, 10))
+    assert w.own.sys.dmg.stress == pytest.approx(0.5)
+    w.own.apply_explosion(40, False, random.Random(5), src=(10, 10))
+    assert D.stress_factor(w.own.sys.dmg, D.STRESS_SCRAM_F) > 6
+    _run(w, 3600)
+    assert w.own.sys.dmg.stress == pytest.approx(0.75, rel=0.05)
+
+
+def test_long_full_speed_warms_the_bearings_then_they_run():
+    w = _world(depth=150, speed=26)
+    own = w.own
+    own.state.ordered_speed = 26
+    _run(w, D.BEARING_WARN_S + 5)
+    assert "wear.bearings_warm" in _alerts(w) and own.sys.health["propulsion"] == 1.0
+    _run(w, D.BEARING_DAMAGE_S - D.BEARING_WARN_S)
+    assert "wear.bearings_ran" in _alerts(w)
+    assert own.sys.dmg.cap["propulsion"] <= D.BEARING_CAP        # (i 26 kn kaviterar den också)
+
+
+def test_the_bearings_cool_when_we_slow_down():
+    w = _world(depth=150, speed=26)
+    w.own.state.ordered_speed = 26
+    _run(w, D.BEARING_WARN_S - 60)
+    w.own.state.ordered_speed = 15
+    _run(w, 900)
+    assert w.own.sys.dmg.bearing_heat_s == 0.0 and "wear.bearings_warm" not in _alerts(w)
+
+
+def test_cavitating_long_pits_the_propeller():
+    w = _world(depth=20, speed=12)
+    w.own.state.ordered_speed = 12
+    quiet = w.own.radiated_level(w.env)
+    _run(w, D.CAVITATION_DAMAGE_S + 2)
+    alerts = _alerts(w)
+    assert "wear.cavitation" in alerts and "wear.eroded" in alerts
+    assert w.own.sys.dmg.cap["propulsion"] == pytest.approx(1 - D.EROSION_CAP)
+    assert w.own.radiated_level(w.env) == pytest.approx(quiet + D.EROSION_DB, abs=0.3)
+
+
+def test_running_near_test_depth_makes_the_packing_leak():
+    w = _world(depth=285, speed=4)
+    w.own.state.ordered_depth = 285
+    _run(w, D.DEEP_LEAK_S + 2)
+    alerts = _alerts(w)
+    assert alerts.index("wear.deep") < alerts.index("wear.packing")
+    assert any(lk.compartment == 9 and lk.kind == "packbox" for lk in w.own.sys.dmg.leaks) or \
+        "leak_stopped" in alerts
+
+
+def test_the_crew_suggests_slowing_for_the_bearings():
+    g, reports = _game()
+    st = g.world.own.state
+    st.speed = st.ordered_speed = 26
+    g.world.own.sys.dmg.bearing_heat_s = D.BEARING_WARN_S
+    for _ in range(5):
+        g.tick()
+    sug = [r for r in reports if r.type == "dc.suggest.bearings"]
+    assert sug and sug[0].data["order"] == "fart 20"
+    assert any(r.type == "wear.bearings_warm" for r in reports)

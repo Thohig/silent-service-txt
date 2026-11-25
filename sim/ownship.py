@@ -305,6 +305,7 @@ class OwnShip(Vessel):
             lvl += 2.0                        # skrammel från skador
         if s.health["propulsion"] < PROP_RATTLE_HEALTH:
             lvl += PROP_RATTLE_DB             # axeln eller propellern skadad: den slår
+        lvl += s.dmg.eroded_db                # propellern gröpt av kavitationen
         if s.blowing:
             lvl = acoustics.power_sum(lvl, acoustics.BLOW_LEVEL)
         if s.trim.pumping and (self.power or s.battery > 0.02):
@@ -370,6 +371,8 @@ class OwnShip(Vessel):
             return
         frac = damage.frac_of(self, *src) if src is not None else 0.5
         where = damage.compartment_at(frac)
+        if dist_m < 150:
+            damage.shock(self, 1.0 if dist_m < 60 else 0.5)
         if dist_m < 25:
             s.hull -= 0.35
             hit = damage.nearest_components(frac, 2, rng, COMPONENTS)
@@ -455,9 +458,12 @@ class OwnShip(Vessel):
         if s.reactor == "starting" and now >= s.reactor_ready_t:
             s.reactor = "online"
             self.alert("reactor.online")
-        if s.reactor == "online" and rng.random() < SCRAM_RATE_PER_H / 3600 * dt:
-            self.scram("spontant")
-        if s.reactor == "online" and not s.steam_leak and rng.random() < STEAM_LEAK_RATE_PER_H / 3600 * dt:
+        # snabbstopp och ångläcka: vanligare en tid efter tryckvågor och skador (damage.stress)
+        if s.reactor == "online" and rng.random() < SCRAM_RATE_PER_H / 3600 * dt * \
+                damage.stress_factor(s.dmg, damage.STRESS_SCRAM_F):
+            self.scram("tryckvågorna" if s.dmg.stress >= 0.5 else "spontant")
+        if s.reactor == "online" and not s.steam_leak and rng.random() < STEAM_LEAK_RATE_PER_H / 3600 * dt * \
+                damage.stress_factor(s.dmg, damage.STRESS_LEAK_F):
             s.steam_leak = True
             s.steam_leak_fixed_t = now + 1800
             self.alert("reactor.leak")
@@ -562,6 +568,8 @@ class OwnShip(Vessel):
             s.battery = max(0.0, s.battery - damage.BILGE_BATTERY_PER_H / 3600 * dt)
         self._trim_step(world, dt, regen)
         damage.jam_step(self, dt)
+        damage.wear_step(self, dt, not self.surfaced and
+                         st.speed > acoustics.cavitation_speed(st.depth, st.prop_astern))
         self._heave_step(world)
 
         # lutningen av djupbytet, sedan skrovet: snabb djupändring på djupet knakar (kompressionen)

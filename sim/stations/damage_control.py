@@ -14,7 +14,8 @@ from dataclasses import dataclass
 from .. import phrases
 from .. import russian as R
 from ..crew import Role
-from ..damage import CAP_T, LEAK_KINDS, REPAIR_QUIET_F, bilge_capacity, inflow_factor, repairable
+from ..damage import (BEARING_HOT_KN, BEARING_WARN_S, CAP_T, DEEP_FRAC, DEEP_WARN_S, LEAK_KINDS,
+                      REPAIR_QUIET_F, bilge_capacity, inflow_factor, repairable)
 from ..events import OwnSoundMade
 from ..fmt import nm
 from ..orders import CommandSpec, Order
@@ -120,6 +121,20 @@ PHRASES = {
        else "är lagade så gott det går till sjöss." if d.get("as_good") else "är hela."),
     "dc.suggest.repair_planes": lambda d: "Kapten, maskin. Vi sjunker och rodren bär inte: föreslår att vi "
     "lagar rodren först.",
+    "wear.bearings_warm": lambda d: f"Kapten, maskin. Vi har gått full fart i {d['minutes']} minuter, "
+    "axellagren är varma. Fortsätter vi skär de.",
+    "wear.bearings_ran": lambda d: f"{ru('Avarijnaja trevoga')}! Axellagret har skurit, kapten. Axeln slår "
+    "och hörs, och den blir inte som förut till sjöss.",
+    "wear.cavitation": lambda d: f"Kapten, maskin. Propellern har kaviterat i {d['minutes']} minuter "
+    "sammanlagt. Bubblorna äter metallen.",
+    "wear.eroded": lambda d: "Kapten, maskin. Propellern är gröpt av kavitationen. Den hörs mer nu, "
+    "och det går inte att laga till sjöss.",
+    "wear.deep": lambda d: f"Kapten, maskin. Packboxarna gråter på {d['depth']} meter. Ligger vi kvar "
+    "så här djupt släpper någon.",
+    "wear.packing": lambda d: f"{ru('Avarijnaja trevoga')}! Akteraxelns packbox har släppt, vatten i "
+    f"{where(d['compartment'])}. Skotten stängda.",
+    "dc.suggest.bearings": lambda d: f"Kapten, maskin. Föreslår fart {d['speed']}, så svalnar lagren.",
+    "dc.suggest.deep": lambda d: f"Kapten, maskin. Föreslår djup {d['depth']}, så håller packboxarna.",
     "dc.suggest.leak_up": lambda d: f"Kapten, maskin. Läckan ger {nm(d['rate'])} ton i minuten på "
     f"{d['depth']} meter, mer än pumparna tar. Föreslår djup {d['target']}: "
     + ("där tar pumparna den." if d.get("enough") else "där läcker det mindre."),
@@ -158,6 +173,16 @@ RU_PHRASES = {
     + ("отсек затоплен." if d.get("flooded") else "сделали что могли." if d.get("as_good") else "исправно."),
     "dc.suggest.repair_planes": lambda d: f"{R.CAPTAIN}, механик. Проваливаемся, рули не держат. Предлагаю "
     "ремонтировать рули в первую очередь.",
+    "wear.bearings_warm": lambda d: f"{R.CAPTAIN}, механик. Идём полным ходом {R.count(d['minutes'], R.MINUTE)}, "
+    "греются подшипники.",
+    "wear.bearings_ran": lambda d: "Аварийная тревога! Подшипник линии вала выплавился. Вал бьёт.",
+    "wear.cavitation": lambda d: f"{R.CAPTAIN}, механик. Винт кавитирует уже {R.count(d['minutes'], R.MINUTE)}.",
+    "wear.eroded": lambda d: f"{R.CAPTAIN}, механик. Винт изъеден кавитацией, шумит сильнее.",
+    "wear.deep": lambda d: f"{R.CAPTAIN}, механик. Сальники текут на глубине {R.count(d['depth'], R.METER)}.",
+    "wear.packing": lambda d: f"Аварийная тревога! Выбило сальник гребного вала, вода в "
+    f"{ORDINAL_RU[d['compartment']]} отсеке.",
+    "dc.suggest.bearings": lambda d: f"{R.CAPTAIN}, механик. Предлагаю ход {R.count(d['speed'], R.KNOT)}.",
+    "dc.suggest.deep": lambda d: f"{R.CAPTAIN}, механик. Предлагаю глубину {R.count(d['depth'], R.METER)}.",
     "dc.suggest.leak_up": lambda d: f"{R.CAPTAIN}, механик. Течь больше, чем откачивают насосы. "
     f"Предлагаю глубину {R.count(d['target'], R.METER)}.",
 }
@@ -260,6 +285,7 @@ class DamageControlStation(Station):
     def update(self) -> None:
         self._bilge()
         self._repair()
+        self._wear_advice()
         self._jam_advice()
         self._test_depth_watch()
         self._leak_advice()
@@ -303,6 +329,19 @@ class DamageControlStation(Station):
         elif not danger:
             self._danger_said = False
         dmg.bilge_on = on
+
+    def _wear_advice(self) -> None:
+        """Maskin har varnat för lagren eller packboxarna: föreslå det som hjälper (inte med en torped i
+        vattnet, då är farten och djupet viktigare)."""
+        own, st, dmg = self.own, self.own.state, self.own.sys.dmg
+        if self.game.knowledge.torpedo_alarm(self.now):
+            return
+        if dmg.bearing_heat_s >= BEARING_WARN_S and st.ordered_speed >= BEARING_HOT_KN:
+            speed = int(BEARING_HOT_KN) - 4
+            self.suggest("bearings", "dc.suggest.bearings", {"speed": speed}, order=f"fart {speed}", cooldown=600)
+        if dmg.deep_s >= DEEP_WARN_S and st.ordered_depth > DEEP_FRAC * own.test_depth():
+            depth = int(DEEP_FRAC * own.test_depth() - 20) // 10 * 10
+            self.suggest("deep", "dc.suggest.deep", {"depth": depth}, order=f"djup {depth}", cooldown=600)
 
     def _jam_advice(self) -> None:
         dmg, st = self.own.sys.dmg, self.own.state

@@ -62,6 +62,23 @@ BILGE_ZERO_M = 500.0        # kapaciteten faller linjärt mot noll här …
 BILGE_MIN_F = 0.25          # … men inte under så stor andel
 BILGE_LEVEL = 124.0         # dB när de går
 BILGE_BATTERY_PER_H = 0.05  # på batteriet: så mycket laddning per timme
+# Belastningen (steg 5): felen kommer av hur båten körs, aldrig ur det blå, och maskin varnar innan.
+STRESS_HALF_S = 3600.0      # tryckvågornas belastning halveras på så lång tid
+STRESS_SCRAM_F = 4.0        # snabbstopp: så många gånger fler per enhet belastning
+STRESS_LEAK_F = 3.0         # ångläcka: likaså
+BEARING_HOT_KN = 24.0       # så fort på turbinen: lagren blir varma
+BEARING_WARN_S = 1200       # maskin varnar efter så lång tid
+BEARING_DAMAGE_S = 1800     # lagren skär
+BEARING_DAMAGE = 0.35
+BEARING_CAP = 0.8
+CAVITATION_WARN_S = 900     # sammanlagt så länge kaviterat: maskin säger att propellern far illa
+CAVITATION_DAMAGE_S = 1800  # gröpt: framdrivningen kan inte lagas bättre än förut minus EROSION_CAP …
+EROSION_CAP = 0.1
+EROSION_DB = 1.0            # … och den hörs så mycket mer (högst EROSION_MAX_DB)
+EROSION_MAX_DB = 3.0
+DEEP_FRAC = 0.9             # nära provdjupet: djupare än så stor del av det
+DEEP_WARN_S = 600           # maskin säger att packboxarna gråter
+DEEP_LEAK_S = 1200          # en packbox släpper (akteraxeln)
 REPAIR_QUIET_F = 0.5        # tyst reparation (tystnad i båten): så mycket av takten
 REPAIR_BANG_S = 40          # hörbar reparation: ett slag (hammare, mejsel) så ofta
 REPAIR_LEVEL = 130.0        # dB
@@ -122,6 +139,13 @@ class DamageState:
     battery_shorted: bool = False           # saltvatten i batteriet har kortslutit (en gång)
     repair: str | None = None               # komponenten som lagas (skadekontrollen väljer; None: den första)
     repair_quiet: bool = False              # tyst: halva takten, inga slag
+    # belastningen (wear_step): fel som kommer av hur båten körs, varslade av maskin först
+    stress: float = 0.0                     # tryckvågor och skador nyss (halveras på en timme)
+    bearing_heat_s: float = 0.0             # tid i full fart på turbinen (svalnar dubbelt så fort)
+    cavitation_s: float = 0.0               # tid som propellern kaviterat (sedan förra gången den gröptes)
+    eroded_db: float = 0.0                  # propellern gröpt av kavitationen: så mycket mer hörs den
+    deep_s: float = 0.0                     # tid nära provdjupet (sedan förra packboxläckan)
+    _warned: set = field(default_factory=set)
     _bang_t: int = -10**9
     _flood_seen: float = 0.0
     _leak_seen: float = 0.0
@@ -266,3 +290,65 @@ def jam_step(own: OwnShip, dt: float) -> None:
     st.depth_rate = 0.0
     st.depth = max(0.0, st.depth + dmg.planes_jam * JAM_MPS_PER_KN * v * dt)
     st.ordered_depth = st.depth
+
+
+def shock(own: OwnShip, amount: float = 1.0) -> None:
+    """En tryckvåg eller skada: belastningen ökar (snabbstopp och ångläcka blir vanligare en tid)."""
+    own.sys.dmg.stress += amount
+
+
+def stress_factor(dmg: DamageState, f: float) -> float:
+    return 1.0 + f * dmg.stress
+
+
+def _warn_once(own: OwnShip, key: str, type: str, **data) -> None:
+    dmg = own.sys.dmg
+    if key not in dmg._warned:
+        dmg._warned.add(key)
+        own.alert(type, **data)
+
+
+def wear_step(own: OwnShip, dt: float, cavitating: bool) -> None:
+    """Belastningen en sekund: lagren i full fart, propellern som kaviterar, packboxarna på djupet."""
+    s, st, dmg = own.sys, own.state, own.sys.dmg
+    dmg.stress *= 0.5 ** (dt / STRESS_HALF_S)
+    # lagren
+    if s.propulsion == "turbine" and own.power and st.speed >= BEARING_HOT_KN:
+        dmg.bearing_heat_s += dt
+    else:
+        dmg.bearing_heat_s = max(0.0, dmg.bearing_heat_s - 2 * dt)
+        if dmg.bearing_heat_s < BEARING_WARN_S / 2:
+            dmg._warned.discard("bearings")
+    if dmg.bearing_heat_s >= BEARING_WARN_S:
+        _warn_once(own, "bearings", "wear.bearings_warm", minutes=round(dmg.bearing_heat_s / 60))
+    if dmg.bearing_heat_s >= BEARING_DAMAGE_S:
+        dmg.bearing_heat_s = 0.0
+        s.health["propulsion"] = max(0.0, s.health["propulsion"] - BEARING_DAMAGE)
+        limit(own, "propulsion", BEARING_CAP)
+        own.alert("wear.bearings_ran")
+    # propellern
+    if cavitating:
+        dmg.cavitation_s += dt
+        if dmg.cavitation_s >= CAVITATION_WARN_S:
+            _warn_once(own, "cavitation", "wear.cavitation", minutes=round(dmg.cavitation_s / 60))
+        if dmg.cavitation_s >= CAVITATION_DAMAGE_S:
+            dmg.cavitation_s = 0.0
+            dmg._warned.discard("cavitation")
+            limit(own, "propulsion", dmg.cap.get("propulsion", 1.0) - EROSION_CAP)
+            s.health["propulsion"] = min(s.health["propulsion"], dmg.cap["propulsion"])
+            dmg.eroded_db = min(EROSION_MAX_DB, dmg.eroded_db + EROSION_DB)
+            own.alert("wear.eroded")
+    # packboxarna nära provdjupet
+    if st.depth > DEEP_FRAC * own.test_depth() and not own.surfaced:
+        dmg.deep_s += dt
+        if dmg.deep_s >= DEEP_WARN_S:
+            _warn_once(own, "deep", "wear.deep", depth=round(st.depth))
+        if dmg.deep_s >= DEEP_LEAK_S:
+            dmg.deep_s = 0.0
+            dmg._warned.discard("deep")
+            add_leak(own, 9, "packbox")
+            own.alert("wear.packing", compartment=9)
+    else:
+        dmg.deep_s = max(0.0, dmg.deep_s - dt)
+        if dmg.deep_s < DEEP_WARN_S / 2:
+            dmg._warned.discard("deep")
