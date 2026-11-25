@@ -1,0 +1,32 @@
+# Kalibreringskontrollen (`kalibrering/kontroll.py`): passiva boten och ja-boten i alla scenarier mot
+# `kalibrering/baslinje.json`. Misslyckas när ett utfall flyttat sig sedan baslinjen sparades, så att en
+# oavsiktlig ändring av spelbalansen syns (GitHub mejlar då). ~35 min på 4 kärnor. En gång i veckan och för hand
+# (Actions › kalibrering › Run workflow). Efter en medveten ändring: `kontroll.py --spara` lokalt och committa.
+name: kalibrering
+
+on:
+  schedule:
+    - cron: "17 3 * * 0"       # söndagar 03:17 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: kalibrering
+  cancel-in-progress: true
+
+jobs:
+  kontroll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3   # setup-uv har inga flyttande huvudtaggar
+        with:
+          enable-cache: true
+      - name: Installera Python och beroenden
+        run: |
+          uv python install 3.12
+          uv sync --locked
+      - name: Kontrollen mot baslinjen
+        env:
+          PYTHONHASHSEED: "0"
+        run: uv run python kalibrering/kontroll.py

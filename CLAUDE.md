@@ -299,7 +299,8 @@ för in varje färdigt steg där.
   bara med `--slow` (`tests/conftest.py`). Kör `uv run pytest -q` lokalt före varje commit, och `--slow`
   före större steg (nya system, kalibrering). GitHub Actions (`.github/workflows/tester.yml`) kör alla
   testerna (`--slow`) vid push till main, pull request och manuellt (`workflow_dispatch`); ändringar som
-  bara rör `.md` och `docs/` kör inget. Repot är offentligt sedan 2026-11-21 (minuterna är
+  bara rör `.md` och `docs/` kör inget. `.github/workflows/kalibrering.yml` kör `kontroll.py` mot baslinjen varje
+  söndag och för hand och misslyckas när något flyttat (efter en medveten ändring: `--spara` lokalt och committa). Repot är offentligt sedan 2026-11-21 (minuterna är
   gratis). `setup-uv` har inga flyttande huvudtaggar: exakt version (`@v10.3.3`); övriga actions på huvudversion. Scenariotestet hoppar över de korta
   varianternas uppvärmning utan `--slow`.
 - Buggjakt efter en ändring (`kalibrering/README.md`, Buggjakt): `kontroll.py` säger vad som flyttat och vilka

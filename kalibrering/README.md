@@ -24,7 +24,7 @@ uv run python kalibrering/sok.py lyssna --larm
 
 | Skript | Scenario | Botar |
 |---|---|---|
-| `kontroll.py` | alla | passiv och ja-boten, 8 frön (16 där slumpen avgör, `FLER_FRÖN`), mot `baslinje.json` (`--spara` skriver den, med commit och utfall per frö); listar fröna som bytt utfall och kommandot för `skillnad.py` |
+| `kontroll.py` (också i Actions: `kalibrering.yml`, söndagar och för hand) | alla | passiv och ja-boten, 8 frön (16 där slumpen avgör, `FLER_FRÖN`), mot `baslinje.json` (`--spara` skriver den, med commit och utfall per frö); listar fröna som bytt utfall och kommandot för `skillnad.py` |
 | `skillnad.py` | ett scenario, ett frö, `--mot COMMIT`, `--bot`, `--minuter`, `--sammanhang` | samma frö med arbetskopian och en äldre commit (utpackad i `logs/skillnad/`); första rapport som skiljer, med sammanhang från båda. `spela.py` spelar och skriver flödet som JSON |
 | `skytt.py` | läge (`ja`, `skjut`, `lyssna`), scenarier eller `alla`, frön, minuter | ja-boten, skyttebot (eld/salva på säkra lösningar, går förbi frågorna) och lyssnande skyttebot (avstår vid långt skott, tar anfallet, skjuter på god i skjutläget); oraklet (`orakel.py`) larmar för grund utan varning, skjutläge för djupt, tjat, låg fart kvar, säker men fel, neutral utan varning, textfel, undantag; flödet som JSON till `logs/skytt/<läge>/` |
 | `sok.py` | läge, `--typ`, `--text`, `--roll`, `--scenario`, `--antal`, `--visa`, `--larm` | söker i skytt-loggarna |
