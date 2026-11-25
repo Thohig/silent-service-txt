@@ -159,7 +159,10 @@ PHRASES = {
     "leak_stopped": lambda d: "Läckan är tätad.",
     "hull.creak": lambda d: f"Skrovet knakar, kapten. {d['depth']:.0f} meter, under provdjup.",
     "hull.clatter": lambda d: f"Lösa föremål far i durken, kapten, vi lutar {abs(d['pitch'])}° "
-    + ("förut" if d["pitch"] > 0 else "akterut") + ". Det hörs i vattnet.",
+    + ("förut" if d["pitch"] > 0 else "akterut") + ". Det hörs i vattnet."
+    + (" Det är den branta vinkeln: vi kommer undan fort, men de kan höra det." if d.get("steep") else "")
+    + (f" Trimmen lutar oss {nm(abs(d['trim']))}° av det, trimmaren kan flytta vatten."
+       if abs(d.get("trim") or 0) >= 2 else ""),
     "hull.groan": lambda d: "Skrovet knakar när vi går " + ("ned" if d.get("down") else "upp")
     + ", kapten. Det hörs i vattnet. Långsammare djupändring, i låg fart, knakar inte.",
     "damage": _damage,
@@ -350,7 +353,9 @@ RU_PHRASES = {
     "leak_stopped": lambda d: "Течь заделана.",
     "hull.groan": lambda d: f"{R.CAPTAIN}, корпус трещит. Нас слышно. Глубину менять медленнее.",
     "hull.clatter": lambda d: f"{R.CAPTAIN}, дифферент {R.dec(abs(d['pitch']), R.DEGREE)} "
-    + ("на нос" if d["pitch"] > 0 else "на корму") + ". Незакреплённое падает, нас слышно.",
+    + ("на нос" if d["pitch"] > 0 else "на корму") + ". Незакреплённое падает, нас слышно."
+    + (" Это большой дифферент при погружении." if d.get("steep") else "")
+    + (" Часть дифферента от дифферентовки." if abs(d.get("trim") or 0) >= 2 else ""),
     "hull.creak": lambda d: f"Корпус трещит, товарищ командир. {R.count(d['depth'], R.METER)}, "
     "ниже рабочей глубины.",
     "damage": lambda d: f"Аварийная тревога! {_ru_damage_list(d)}{_ru_leak(d)}",

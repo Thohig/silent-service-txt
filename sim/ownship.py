@@ -169,7 +169,8 @@ class OwnShip(Vessel):
         if p > CLATTER_DEG and s._clatter_armed:
             s._clatter_armed = False
             world.emit(Transient("clatter", st.x, st.y, st.depth, acoustics.CLATTER_LEVEL, self.id, now))
-            self.alert("hull.clatter", pitch=round(self.pitch))
+            self.alert("hull.clatter", pitch=round(self.pitch),
+                       steep=s.steep and st.ordered_depth > st.depth, trim=round(s.trim.pitch, 1))
         elif p < CLATTER_REARM_DEG:
             s._clatter_armed = True
 

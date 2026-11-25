@@ -53,6 +53,7 @@ def test_steep_angle_is_faster_and_loose_gear_clatters_once():
     assert most > CLATTER_DEG and steep < normal
     clatter = [r for r in reports if r.type == "hull.clatter"]
     assert len(clatter) == 1 and "far i durken" in clatter[0].text
+    assert "branta vinkeln" in clatter[0].text                 # maskin säger varför
     ack = next(r for r in reports if r.type == "nav.depth.ack")
     assert "Brant vinkel" in ack.text
 
