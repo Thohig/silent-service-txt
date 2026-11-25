@@ -240,7 +240,9 @@ för in varje färdigt steg där.
 - Sjögången (Beaufort, `docs/system/hav.md`): havsbrus +2,5 dB per steg från 3, jagarens ping −3 dB per
   steg från 5, mastradar ×0,5 vid 4 och ×0,25 vid 6, sikt ×0,6 vid 6; sjön suger från 4 (2,4 m per meter
   våghöjd i ≤ 2 kn), tornet bryter ytan med kölen grundare än 13 m. Kuba 3, konvoj 5, övning/sundet 2.
-- Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m, torpedavfyring ≤ 100 m, ≤ 12 kn och ≤ 7° lutning.
+- Provdjup 300 m, krossdjup 450 m, periskopdjup ≤ 18 m, antenndjup ≤ 30 m, torpedavfyring ≤ 100 m, ≤ 12 kn och ≤ 7° lutning
+  (en skottorder i lutning väntar tills båten är rak, högst 2 min, `LEVEL_WAIT_S`). Målsökande torped: varning för
+  kontakter utan lösning inom 10° från kursen eller vars bäring drar in över den under gångtiden (`_bearing_crosses`).
 - Stampvinkeln (`docs/system/besattning.md`, Lutningen): rodrens del av djupändringen mot farten, ~13° i 12 kn;
   brant vinkel (jagade, torped i vattnet) 1,4× fortare djupbyte, ~19°; över 15° slammer 135 dB som jagare pejlar.
 - Egna torpeder (`weapons.py`): gyrofel σ 0,4°, 5 % blindgångare, 2 % förtidsdetonationer (inte övning eller
