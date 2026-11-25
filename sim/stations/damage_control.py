@@ -71,6 +71,7 @@ REPAIR_ORDER = ("planes", "propulsion", "sonar", "tubes", "periscope", "radio") 
 REPAIR_ORDER_HUNTED = ("propulsion", "planes", "sonar", "tubes", "periscope", "radio")
 COMPONENT_RU = {"sonar": "гидроакустика", "planes": "горизонтальные рули", "propulsion": "главный двигатель",
                 "tubes": "торпедные аппараты", "periscope": "перископ", "radio": "радиостанция"}
+REPAIR_SAY_S = 20           # maskin säger vad som lagas när arbetet pågått så länge
 HEAVY_PLANES_T = 2.0        # så tung båt (som rodren inte bär): rodren först
 
 
@@ -210,6 +211,8 @@ class DamageControlStation(Station):
         self._last_water = 0.0
         self.repair_first: str | None = None    # kaptenens order: det här först
         self._repair_said: str | None = None
+        self._repair_target: str | None = None
+        self._repair_since = 0
         self._test_said = TEST_DEPTH
         self._test_t = -10**9
 
@@ -261,7 +264,10 @@ class DamageControlStation(Station):
         dmg.repair_quiet = self._hushed()
         if dmg._bang_t == self.now:
             self.game.bus.publish(OwnSoundMade(self.now, "repair"))
-        if target is not None and target != self._repair_said:
+        if target != self._repair_target:
+            self._repair_target, self._repair_since = target, self.now
+        # sägs när arbetet pågått en stund: inte före haverilarmet om samma skada (jagad frö 61)
+        if target is not None and target != self._repair_said and self.now - self._repair_since >= REPAIR_SAY_S:
             self._repair_said = target
             left = (own.sys.dmg.cap.get(target, 1.0) - own.sys.health[target]) * REPAIR_S
             if dmg.repair_quiet:

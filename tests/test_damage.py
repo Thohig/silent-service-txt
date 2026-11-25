@@ -267,7 +267,7 @@ def _tick(g, n):
 
 def test_the_crew_repairs_in_its_order_and_says_so():
     g, reports = _damaged_game("radio", "planes", "sonar")
-    _tick(g, 3)
+    _tick(g, 30)
     r = next(r for r in reports if r.type == "dc.repair.start")
     assert r.data["component"] == "planes" and "rodren" in r.text and "sedan" in r.text.lower()
     assert g.world.own.sys.dmg.repair == "planes"
@@ -409,3 +409,16 @@ def test_the_crew_suggests_slowing_for_the_bearings():
     sug = [r for r in reports if r.type == "dc.suggest.bearings"]
     assert sug and sug[0].data["order"] == "fart 20"
     assert any(r.type == "wear.bearings_warm" for r in reports)
+
+
+def test_below_a_lowered_test_depth_the_hull_does_not_wear_away_by_itself():
+    """Jagad frö 63: en träff sänkte provdjupet till 180 m under oss på 237; skrovet nöttes mot det sänkta
+    provdjupet, provdjupet sjönk med och skrovet brast. Nu nöts det bara under det konstruerade (300 m),
+    och krossdjupet sjunker i samma proportion som provdjupet."""
+    w = _world(depth=237, speed=1)
+    w.own.state.ordered_depth = 237
+    w.own.sys.hull = 0.3
+    assert w.own.test_depth() < 237 < w.own.crush_depth()
+    _run(w, 600)
+    assert w.own.sys.hull == pytest.approx(0.3) and w.outcome is None
+    assert w.own.crush_depth() == pytest.approx(450 * 0.65)

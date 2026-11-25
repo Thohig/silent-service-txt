@@ -412,8 +412,16 @@ class OwnShip(Vessel):
         damage.add_leak(self, compartment, kind, scale)
 
     def test_depth(self) -> float:
-        """Provdjupet med skrovets skador: ett skadat skrov tål mindre (300 m helt, 250 vid 67 %)."""
-        return TEST_DEPTH * min(1.0, 0.5 + 0.5 * self.sys.hull)
+        """Provdjupet med skrovets skador: ett skadat skrov tål mindre (300 m helt, 250 vid 67 %).
+        Besättningens gräns (förslagen, packboxarna); skrovet nöts bara under det konstruerade (TEST_DEPTH)."""
+        return TEST_DEPTH * self._strength()
+
+    def crush_depth(self) -> float:
+        """Krossdjupet med skrovets skador, i samma proportion (450 m helt, 375 vid 67 %)."""
+        return CRUSH_DEPTH * self._strength()
+
+    def _strength(self) -> float:
+        return min(1.0, 0.5 + 0.5 * max(self.sys.hull, 0.0))
 
     # ------------------------------------------------------------------ trim
     def _trim_step(self, world: World, dt: int, power: bool) -> None:
@@ -575,9 +583,10 @@ class OwnShip(Vessel):
         # lutningen av djupbytet, sedan skrovet: snabb djupändring på djupet knakar (kompressionen)
         self._pitch_step(world, st, s, now, dt)
         self._groan_step(world, st, s, now, dt)
-        test = self.test_depth()
-        if st.depth > test:
-            s.hull -= (st.depth - test) / 100.0 * 0.0015 * dt
+        # skrovet nöts under det konstruerade provdjupet (inte det sänkta: det gav en ond cirkel, jagad frö 63:
+        # en träff sänkte provdjupet till 180 m under oss på 237, skrovet nöttes, provdjupet sjönk och skrovet brast)
+        if st.depth > TEST_DEPTH:
+            s.hull -= (st.depth - TEST_DEPTH) / 100.0 * 0.0015 * dt
             if now - s._last_creak >= 60:
                 s._last_creak = now
                 self.alert("hull.creak", depth=st.depth)
@@ -601,9 +610,9 @@ class OwnShip(Vessel):
                 s.dmg.repair = None
                 self.alert("repaired", component=c, **({"partly": True} if cap < 1.0 else {}))
 
-        if st.depth >= CRUSH_DEPTH or s.hull <= 0 or s.flooding >= FLOOD_LOSS_T:
+        if st.depth >= self.crush_depth() or s.hull <= 0 or s.flooding >= FLOOD_LOSS_T:
             self.sunk = True
-            cause = ("krossad på djupet" if st.depth >= CRUSH_DEPTH
+            cause = ("krossad på djupet" if st.depth >= self.crush_depth()
                      else "skrovet brast" if s.hull <= 0 else "vattenfylld")
             world.end("lost", cause=cause)
         elif s.smoke >= 1.0:

@@ -385,7 +385,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
             Level(0.0, "yta", "surface", "≈"),
             Level(PERISCOPE_DEPTH, "periskopdjup", "periscope", "┄"),
             Level(self.own.test_depth(), "provdjup", "test", "╌"),
-            Level(CRUSH_DEPTH, "krossdjup", "crush", "━"),
+            Level(self.own.crush_depth(), "krossdjup", "crush", "━"),
             DepthTrace(tuple(self.depth_log) + ((self.now, self.ship.depth),)),
         ]
         if self.chart_depth_log:

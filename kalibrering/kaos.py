@@ -37,6 +37,7 @@ ORDERS = [
     "jest", "hjälp", "", "   ", ",,,", "och och", "kurs 090 och fart 5; djup 100", "fart 5,5, kurs 120",
     "KURS 180", "Djup  60", "ö", "sänd", "titta 400", "vrid periskopet 270", "låg förstoring",
     "avbryt uppdraget", "nej", "kurs 270, djup 40, periskop, foto, sänd rapport",
+    "länsa", "läns stopp", "reparera", "reparera roder", "reparera banan", "laga sonaren först",
 ]
 TRUTH_ID = re.compile(r"\b(DD|T|SS|M|CV|P|AC|N)\d+\b")
 DOT_DEC = re.compile(r"\b\d+\.\d+\s*(nm|kn|m\b|knop|sjömil|meter|grader|°)")

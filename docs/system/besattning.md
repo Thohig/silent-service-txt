@@ -1,4 +1,4 @@
-# Radion, starpom och trimmaren
+# Radion, starpom, trimmaren och skadekontrollen
 
 Flyttat ur CLAUDE.md (2026-11-18). Arbetsreglerna står kvar där; här är hur systemen
 fungerar och deras siffror. Uppdatera här när systemet ändras.
@@ -221,6 +221,49 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   han minsta fart upp till 7 kn som räcker (`heave_speed_f`), annars `djup 25` (`trim.heave`, larmförslag, god,
   spärr 10 min). Panelen TRIM visar "Sjön suger: djupet slår N m" från 0,5 m, varning när tornet är nära
   ytan. Bryter tornet ändå ytan larmar centralen (`broach`, via maskins larmkö).
+- **Skadekontrollen** (2026-11-25; sanning i `sim/damage.py`, stationen `stations/damage_control.py`,
+  `DamageControlStation`, maskins folk, `Role.ENGINEER`; `tests/test_damage.py`):
+  - *Var skadan sitter:* `apply_explosion(..., src=(x, y))` projicerar detonationen på kölen (`frac_of`, 0 fören, 1
+    aktern, skrovet 107 m) ⇒ avdelningen (`compartment_at`) och de närmaste komponenterna (`nearest_components`;
+    tuber och sonar i I, periskop och radio i III, framdrivning i VI, rodren i IX). Svår skada (< 25 m): två
+    komponenter −0,7, den närmaste kan inte lagas bättre än 0,75 till sjöss (`SEVERE_CAP`), spricka eller svetsfog.
+    Lätt (< 60 m): en komponent −0,4, hälften läcker (rörgenomföring eller packbox). Grundstötning och is: läcka i I
+    (fören) eller IX (backat). Varje tryckvåg och skada ger belastning (`stress`, se nedan).
+  - *Läckor* (`Leak`, `LEAK_KINDS`): inflödet `k · √(1 + djup/10)` ton/min (packbox 0,08, rör 0,18, svetsfog 0,30,
+    spricka 0,50 vid ytan; på 150 m fyra gånger så mycket). Avdelningens folk tätar (120/200/360/600 s, gånger
+    1 + djup/400); inflödet faller med arbetet; sprickan blir kvar på 30 % (`dc.leak_held`). Läckan tätar sig aldrig
+    själv. `OwnSystems.flooding`/`leak_rate` är summorna; sätts de direkt (äldre tester) läggs skillnaden i V.
+  - *Avdelningarna:* vattnet ligger där läckan är, högst `CAP_T` (25–40 t). Vid en läcka stängs skotten; halvfull
+    (`EVAC_FRAC`) lämnas avdelningen (`dc.evacuated`): ingen tätar och inget lagas där, komponenterna står under vatten
+    (hälsa ≤ 0,25, lagas till högst 0,6); under 20 % går folket in igen. Inga läckor och < 1 t: skotten öppnas
+    (`dc.bulkheads_open`). Vattnet ger framåtlast `vatten · (1 − 2·läge) · 0,5` (`fore_load`, trimmen och lutningen).
+    Över 3 t i II: saltvatten i batteriet, kortslutning och brand i andra avdelningen (`fire_room` 2; turbinen går,
+    30 % av laddningen förlorad). Förlorad vid 120 t (`FLOOD_LOSS_T`) som förut.
+  - *Länspumparna* (`bilge_capacity`): 1 t/min vid ytan, linjärt mot 0 vid 500 m men minst 25 %; hörs (124 dB,
+    `BILGE_LEVEL`); på batteriet drar de 5 %/h. Standard: på; tystnad i båten stänger av dem tills 8 t (maskin säger
+    det, `dc.bilge.hushed`, och ber att få länsa när vattnet stiger från 3 t); `länsa` kör dem tills båten är torr,
+    `läns stopp` stänger av dem tills 15 t.
+  - *Reparationen:* en komponent i taget (`REPAIR_S` 1200 s från noll), i maskins ordning (rodren, framdrivning,
+    sonar, tuber, periskop, radio; jagade framdrivningen först; rodren först när de fastnat eller båten är tung och
+    de inte bär) eller kaptenens (`reparera X`; maskin föreslår `reparera roder` om vi sjunker). Hörbar: ett slag var
+    40:e s (130 dB, `Transient("repair")`, jagaren pejlar det, blyerts och vattenfall "h"); i tystnad tyst i halva
+    takten. `dc.repair.start` säger vad, hur länge och vad som kommer sedan.
+  - *Provdjupet* sjunker med skrovet: `TEST_DEPTH · min(1, 0,5 + 0,5·skrov)` (`OwnShip.test_depth`; 250 m vid 67 %).
+    Maskin säger det (`dc.test_depth`, när det sjunkit 10 m, högst var 90:e s om inte 30 m); navigatören och alla
+    gå-ned-förslag håller sig 20 m ovanför (`Station.hull_depth`, `dive_depth`, maskins sprint). Under provdjupet nöts
+    skrovet som förut, nu mot det sänkta provdjupet.
+  - *Fastnat djuproder* (`maybe_jam`, `jam_step`): en skada som tar rodren under 0,35 medan de står ute låser dem
+    (dykläge om vi var på väg ned); båten går 0,05 m/s per knop ned (upp), back vänder det, i 90 s tills de kopplats
+    om till handstyrning (`dc.planes_manual`). Maskin föreslår `back 5` (dykläge) eller `stopp` (larmförslag).
+  - *Läckan mot djupet:* läcker det kvar (kilad spricka, utrymd avdelning) mer än pumparna tar föreslår maskin det djup
+    där de tar det (inte grundare än 40 m, inte medan fienden har oss; `dc.suggest.leak_up`).
+  - *Skadad framdrivning* (< 0,7) hörs, +3 dB (`PROP_RATTLE_DB`).
+  - *Fel av belastning* (`wear_step`, aldrig ur det blå, maskin varnar först): snabbstopp och ångläcka är 1 + 4·stress
+    resp. 1 + 3·stress gånger vanligare (en tryckvåg < 60 m ger 1, < 150 m 0,5; halveras på en timme). Full fart
+    (≥ 24 kn på turbinen) i 20 min: lagren varma (`wear.bearings_warm`, förslag `fart 20`), 30 min: lagret skär
+    (framdrivningen −0,35, högst 0,8 till sjöss). Kavitation 15 min sammanlagt: varning; 30 min: propellern gröpt
+    (framdrivningen 0,1 sämre till sjöss, +1 dB, högst +3). Djupare än 90 % av provdjupet i 10 min: packboxarna
+    gråter (förslag grundare), 20 min: akteraxelns packbox släpper (läcka i IX).
 - **Besättningen under jakt** (rättelser efter provspelet 2026-11-21, `tests/test_playtest_fixes.py`):
   - *Djupt och fort:* maskins sprint (`EngineeringStation._sprint`) siktar på `SPRINT_DEPTH` 220 m men
     godtar ett beordrat djup från 180 m ned till `SPRINT_DEEPEST` 290 m (eller navigatörens djupgräns) och

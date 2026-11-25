@@ -57,7 +57,8 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
    station inte flyttar de andra (`tests/test_rng.py`).
 
 ## Arkitektur i korthet
-- **Sanningslager:** `world.py` (tick-ordning dokumenterad där), `ownship.py`, `ice.py`,
+- **Sanningslager:** `world.py` (tick-ordning dokumenterad där), `ownship.py`, `damage.py` (skadorna, läckorna, vattnet
+  i avdelningarna, belastningen; `OwnSystems.dmg`), `ice.py`,
   `enemy.py`, `weapons.py`, `environment.py`, `acoustics.py`, `entities.py`, `pilotage.py`
   (lotsen: andra fartyg girar undan land, efter AI:erna).
   Transienter/emissioner som skapas under ett tick blir hörbara nästa tick.
@@ -168,7 +169,7 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
 - `docs/system/hav.md`: Land skymmer, Ljuset, Molnen, Fyrarna, Firth of Clyde, Is, Havsbotten, Strömmen,
   Sjögången, Vädret
 - `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden
-- `docs/system/besattning.md`: Radion och telegrammen, Rapporten till staben, Huvudstaben,
+- `docs/system/besattning.md`: Skadekontrollen (läckor, avdelningar, länspumpar, reparation, belastning), Radion och telegrammen, Rapporten till staben, Huvudstaben,
   Slutrapportens samband, Radiospaning, Kärnvapenrådet, Starpom, Trim och flytkraft, Lutningen (stampvinkeln), Back i maskin,
   Trimmaren, Besättningen under jakt, Fråga en gång
 - `docs/system/vyer.md`: Huvudskärmen, Loggen, Översikten, Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
@@ -285,6 +286,11 @@ för in varje färdigt steg där.
 - Fiendens torped Mk 37: 26 kn, 5 nm, 145 dB, söker passivt i 40° och aktivt inom 0,4 nm och ±50 m i höjd;
   skenmålet 135 dB och bubbelekot starkare än skrovet; en träff är förlusten. Vi går 28 kn på turbinen.
   Tappad i döda sektorn gäller torpedlarmet 12 min från första bäringen (`TORPEDO_RUN_S`).
+- Skadekontrollen (`sim/damage.py`, `docs/system/besattning.md`): läcka k·√(1 + djup/10) t/min (packbox 0,08, rör 0,18,
+  svetsfog 0,30, spricka 0,50 och 30 % kvar), tätas på 120–600 s · (1 + djup/400); avdelning 25–40 t, utrymd halvfull;
+  länspumpar 1 t/min vid ytan, linjärt mot 0 vid 500 m (minst 25 %), 124 dB, står i tystnad till 8 t; reparation
+  1200 s, slag var 40:e s 130 dB, tyst halva takten; provdjup 300·min(1, 0,5 + 0,5·skrov); fastnat roder < 0,35, 90 s;
+  lager 20/30 min i ≥ 24 kn, kavitation 15/30 min, packbox 10/20 min under 90 % av provdjupet.
 - Trim (`sim/trim.py`): kompression 1 t/100 m, skiktet bär 3 t, smältvatten 1 t, torped netto 0,6 t förut,
   rodren 0,8·v² t (högst 10), drift 0,03 m/s per ton, styrningen borta vid 2 t, pumpar 1 t/min och 121 dB.
   Ny djuporder i ≤ 2 kn och uppstigning till ytan görs med barlasten (trimmen spelar ingen roll).
