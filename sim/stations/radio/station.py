@@ -249,10 +249,12 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
 
     def _up_order(self) -> tuple[str | None, dict]:
         """Ordern som tar oss dit radion kan ta emot (beordrat djup och fart), och vad den
-        innehåller: antenndjup när ordern kräver rapport, annars långvågen med flytkabeln."""
+        innehåller: periskopdjup när ordern kräver rapport (sändningen kräver det; antenndjup räckte bara
+        för att ta emot, och kaptenen fick "vi måste upp på periskopdjup för att sända" mitt i fönstret,
+        kuba-kort frö 7), annars långvågen med flytkabeln."""
         st = self.own.state
         if self.report_required:
-            return ("antenndjup" if st.ordered_depth > ANTENNA_DEPTH else None), {"up": True}
+            return ("periskopdjup" if st.ordered_depth > PERISCOPE_DEPTH else None), {"up": True, "send": True}
         if st.ordered_speed > VLF_SPEED:        # vi går fort (följer, anfaller): masten i stället
             return ("antenndjup" if st.ordered_depth > ANTENNA_DEPTH else None), {"up": True, "mast": True}
         up, slow = st.ordered_depth > VLF_DEPTH, st.ordered_speed > VLF_SPEED

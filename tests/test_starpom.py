@@ -380,7 +380,7 @@ def test_report_window_rings_the_captain():
     g.command("starpom har befälet")
     g.command("sov")
     _run(g, 30)                                  # radions förvarning kommer direkt
-    assert any(r.type == "xo.accept" and "antenndjup" in r.text for r in reports)
+    assert any(r.type == "xo.accept" and "periskopdjup" in r.text for r in reports)
     assert g.status().phone == "ring" or any(r.type == "xo.orderly" for r in reports)
     g.command("svara")
     _run(g, 8)

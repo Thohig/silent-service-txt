@@ -81,7 +81,7 @@ def test_radio_waits_when_the_plot_has_a_threat_close():
     radio._threat_near = lambda: None
     for _ in range(45):
         g.tick()
-    assert any(t == "radio.clear" and d.get("order") == "antenndjup" for t, d in types)
+    assert any(t == "radio.clear" and d.get("order") == "periskopdjup" for t, d in types)
 
 
 def test_sonar_does_not_send_us_under_the_layer_while_up_for_the_radio():

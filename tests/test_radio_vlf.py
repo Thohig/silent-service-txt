@@ -87,7 +87,7 @@ def test_report_order_still_wants_the_mast():
     radio._prewarned.clear()
     _run(g, 5)
     assert radio.up_depth() == 30
-    assert radio._up_order()[0] == "antenndjup"
+    assert radio._up_order()[0] == "periskopdjup"          # rapporten ska sändas: inte bara antenndjup
 
 
 def test_no_cable_under_the_ice(monkeypatch):

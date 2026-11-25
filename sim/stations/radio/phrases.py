@@ -5,7 +5,7 @@ from __future__ import annotations
 from ... import phrases
 from ... import russian as R
 from ...fmt import fmt_course, minutes, nm
-from ...ownship import ANTENNA_DEPTH
+from ...ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH
 from .common import VLF_DEPTH, VLF_RECEIVE_S, VLF_SLOW_KN, VLF_SPEED, VLF_UP_DEPTH
 
 
@@ -61,8 +61,9 @@ def _why_garbled(why: list[str]) -> str:
 
 
 PHRASES = {
-    "radio.prewarn": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}. "
-    f"Vi behöver antenndjup, {ANTENNA_DEPTH:.0f} meter eller grundare.",
+    "radio.prewarn": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}. " + (
+        f"Rapporten ska sändas, så vi behöver periskopdjup, {PERISCOPE_DEPTH:.0f} meter eller grundare."
+        if d.get("send") else f"Vi behöver antenndjup, {ANTENNA_DEPTH:.0f} meter eller grundare."),
     "radio.prewarn_vlf": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}. Vi kan ta emot "
     f"på långvåg med flytkabeln, högst {VLF_DEPTH:.0f} meter och högst {VLF_SPEED:.0f} knop; det tar "
     f"cirka {VLF_RECEIVE_S // 60} minuter." + (
@@ -160,8 +161,9 @@ RU_PHRASES = {
         else f"Следующий сеанс связи в {d['next']}. " if d.get("next")
         else "Сеансов связи больше не запланировано. ")
     + f"Принято радиограмм: {d['received']}.",
-    "radio.prewarn": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}. Нужна глубина "
-    f"под антенну, {R.count(ANTENNA_DEPTH, R.METER)} или меньше.",
+    "radio.prewarn": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}. " + (
+        f"Донесение передаём, нужна перископная глубина, {R.count(PERISCOPE_DEPTH, R.METER)} или меньше."
+        if d.get("send") else f"Нужна глубина под антенну, {R.count(ANTENNA_DEPTH, R.METER)} или меньше."),
     "radio.prewarn_vlf": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}. Примем на "
     "сверхдлинных волнах на плавающую антенну." + (
         " Предлагаю " + " и ".join(w for w, on in (("подвсплыть", d.get("up")), ("сбавить ход", d.get("slow")))
