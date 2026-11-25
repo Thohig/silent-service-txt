@@ -382,8 +382,9 @@ def test_captain_is_called_to_central_before_firing_position():
 
 
 def test_report_window_rings_the_captain():
-    # frö där plottet inte har jagaren inom 5 nm (annars väntar radion: radio.wait)
-    g, reports = _game(2, key="kuba-kort")
+    # frö där plottet inte har jagaren inom 5 nm och inte nyss tappat den (annars väntar radion:
+    # radio.wait, radio.wait_lost)
+    g, reports = _game(23, key="kuba-kort")
     g.command("starpom har befälet")
     g.command("sov")
     _run(g, 30)                                  # radions förvarning kommer direkt

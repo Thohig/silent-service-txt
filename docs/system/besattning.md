@@ -47,6 +47,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   loggen (`telegram_kind` "outgoing"). Pejlnätet (`enemy.py`, `DF_*`): kortvågen sänds ut med sin längd
   (`Emission.duration`) när sändningen slutar eller avbryts; under 10 s pejlas den aldrig, över 25 s
   alltid, däremellan linjärt; datumets σ = 1,5 nm · √(30 s / längd), 0,7–3 nm.
+  Före fönstret väntar radion på djupet (`radio.wait`, inget förslag att gå upp, inte heller vakthavandes påminnelse
+  vid tystnad) när plottet har ett hot inom 5 nm (`RADIO_SAFE_NM`; jagare och ubåtar också på dålig lösning, då
+  avståndet minus 1σ, högst 30 %, `POOR_NEAR_F`), eller har tappat en jagare eller ubåt de senaste 15 min som inte
+  säkert var längre bort (`radio.wait_lost`, `LOST_RECENT_S`); `radio.clear` när det gått över (2026-11-25).
   När ordern kräver en rapport och fönstret stänger om 5 min (högst halva fönstret, `CLOSING_WARN_S`) utan att
   den sänts säger radion det, en gång per fönster, med skälet (`radio.closing`: jagade, hot nära, flyget, djupet,
   eller "sänd rapport, så går den"; 2026-11-25).

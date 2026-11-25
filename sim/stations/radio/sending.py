@@ -9,7 +9,7 @@ from ...geo import angle_diff, distance
 from ...reports import Quality
 from ...ownship import ANTENNA_DEPTH, PERISCOPE_DEPTH
 from .common import (
-    AIR_LEFT_S, AIR_QUIET_S, RADIO_SAFE_NM, REPORT_SUGGEST_S, RISK_LONG_S, RISK_MID_NM,
+    AIR_LEFT_S, AIR_QUIET_S, LOST_RECENT_S, POOR_NEAR_F, RADIO_SAFE_NM, REPORT_SUGGEST_S, RISK_LONG_S, RISK_MID_NM,
     RISK_MID_S, RISK_NEAR_NM, VLF_DEPTH,
 )
 
@@ -88,11 +88,41 @@ class SendingMixin:
         best = None
         for tr in self.game.knowledge.tracks.values():
             sol = tr.solution
-            if not tr.threat or not tr.held or sol is None or sol.quality < Quality.OSAKER:
+            if not tr.threat or not tr.held or sol is None:
                 continue
-            if sol.range_nm < RADIO_SAFE_NM and (best is None or sol.range_nm < best[1]):
+            # ett örlogsfartyg räknas också på en dålig lösning (konvoj-kort frö 5: jagaren var säker på
+            # 4,1 nm, plottet började om efter en manöver och radion föreslog djup 40; två minuter senare
+            # hade jagaren oss)
+            warship = "jagare" in tr.classification or "ubåt" in tr.classification
+            if sol.quality < Quality.OSAKER and not warship:
+                continue
+            # en dålig lösning: kanske närmare (1σ, högst POOR_NEAR_F av avståndet: annars var varje
+            # örlogsfartyg med dålig lösning nära), avståndet är bara en gissning
+            near = sol.range_nm - (min(sol.range_sigma, POOR_NEAR_F * sol.range_nm)
+                                   if sol.quality < Quality.OSAKER else 0.0)
+            if near < RADIO_SAFE_NM and (best is None or sol.range_nm < best[1]):
                 best = (tr.designation, sol.range_nm)
         return best
+
+    def _threat_lost(self) -> tuple[str, int] | None:
+        """Ett örlogsfartyg (jagare, ubåt) som plottet tappat de senaste LOST_RECENT_S och som inte var
+        säkert långt bort: (beteckning, minuter sedan). Konvoj-kort frö 5: jagaren tappades nära, radion
+        föreslog djup 40 för långvågen elva minuter senare, och två minuter därefter hade jagaren oss."""
+        best = None
+        for tr in self.game.knowledge.tracks.values():
+            if tr.held or tr.sunk or tr.benign or tr.friendly or not tr.observations:
+                continue
+            c = tr.classification
+            if "jagare" not in c and "ubåt" not in c:
+                continue
+            age = self.now - tr.observations[-1].t
+            sol = tr.solution
+            if age > LOST_RECENT_S or sol is not None and sol.quality >= Quality.OSAKER \
+                    and sol.range_nm >= RADIO_SAFE_NM:
+                continue
+            if best is None or age < best[1]:
+                best = (tr.designation, age)
+        return (best[0], max(1, round(best[1] / 60))) if best else None
 
     def _far_threat(self) -> tuple[str, float] | None:
         """Närmaste hotkontakt med en lösning, för att säga hur långt bort den är."""
@@ -103,12 +133,18 @@ class SendingMixin:
 
     def _clear_advice(self, i: int, w0: int) -> None:
         """Vi väntar på djupet: föreslå antenndjup när hotet gått längre bort."""
-        if self._threat_near() is not None or self.game.knowledge.hunted(self.now):
+        if self._threat_near() is not None or self.game.knowledge.hunted(self.now) or \
+                self._threat_lost() is not None:
             return
         self._waiting.discard(i)
         far = self._far_threat()
+        lost = self._lost_wait.pop(i, None)
         d = {"designation": far[0] if far else "kontakten", "range": far[1] if far else RADIO_SAFE_NM,
              "close": self.game.clock_str(w0 + self.window_len)[:5]}
+        if far is None and lost is not None:
+            d = {"designation": lost, "quiet": LOST_RECENT_S // 60, "close": d["close"]}
+        elif far is None:
+            d = {"none": True, "close": d["close"]}    # förut "plottet har nu kontakten på 5,0 sjömil"
         up, _ = self._up_order()
         if up is None:
             return

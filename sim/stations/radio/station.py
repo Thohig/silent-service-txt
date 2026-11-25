@@ -72,7 +72,8 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
         self.hq = Headquarters(expects_report=self.report_required,
                                at_war=bool(getattr(sc, "at_war", False)))   # vet bara vad vi sänt
         self._closed: set[int] = set()
-        self._closing_said: set[int] = set()   # fönstren där radion sagt att det stänger utan rapport
+        self._closing_said: set[int] = set()
+        self._lost_wait: dict[int, str] = {}   # fönster där vi väntar på djupet efter en tappad jagare   # fönstren där radion sagt att det stänger utan rapport
         self.broadcasts = broadcasts_for(order_day(sc.secret_order) if sc else None)
         self._broadcast_n = 0
         self._listen_until: int | None = None   # radiomannen letar upp Moskva
@@ -294,8 +295,9 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
                     return [Proposal(3, f"idle_window{i}", "radio.prewarn_ice", "vak",
                                      {**d, **opening}, cooldown=900)]
                 up, how = self._up_order()
-                if up is None:
-                    return []
+                if up is None or i in self._waiting or self._threat_near() is not None or \
+                        self._threat_lost() is not None or self.game.knowledge.hunted(self.now):
+                    return []           # vi väntar på djupet för ett hot (radio.wait): ingen påminnelse
                 return [Proposal(3, f"idle_window{i}", self._prewarn_type(), up,
                                  {**d, **how, "what": up}, cooldown=900)]
         return []
@@ -378,8 +380,14 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
                     self.say("radio.prewarn_ice", d)
                 elif (up := self._up_order())[0] is not None and \
                         (near := self._threat_near()) is not None:
-                    self.say("radio.wait", {**d, "designation": near[0], "range": near[1]})
+                    tr = self.game.knowledge.tracks.get(near[0])
+                    poor = tr is not None and tr.solution is not None and tr.solution.quality < Quality.OSAKER
+                    self.say("radio.wait", {**d, "designation": near[0], "range": near[1], "poor": poor})
                     self._waiting.add(i)
+                elif up[0] is not None and (lost := self._threat_lost()) is not None:
+                    self.say("radio.wait_lost", {**d, "designation": lost[0], "minutes": lost[1]})
+                    self._waiting.add(i)
+                    self._lost_wait[i] = lost[0]
                 elif up[0] is not None:
                     self.suggest(f"window{i}", self._prewarn_type(), {**d, **up[1], "what": up[0]},
                                  order=up[0], cooldown=0)

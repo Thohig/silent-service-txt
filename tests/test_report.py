@@ -185,3 +185,41 @@ def test_no_closing_warning_once_the_report_is_sent():
     for _ in range(150):
         g.tick()
     assert ("radio.sent" in [t for t, _ in types]) and "radio.closing" not in [t for t, _ in types]
+
+
+def _warship(g, range_nm, sigma, quality, held=True, seen_ago=0):
+    from types import SimpleNamespace
+    from sim.knowledge import ContactTrack
+    from sim.reports import Quality as Q
+    from sim.tma import BearingObs
+    tr = ContactTrack("S-9", 0, classification="jagare, ångturbiner, två axlar", class_quality=Q.GOD,
+                      held=held, observations=[BearingObs(g.now - seen_ago, 90.0, 1.0, 0.0, 0.0, 0.0)])
+    tr.solution = SimpleNamespace(quality=quality, range_nm=range_nm, range_sigma=sigma, t=g.now)
+    g.knowledge.tracks["S-9"] = tr
+    return tr
+
+
+def test_a_warship_on_a_poor_solution_counts_as_near_only_when_it_may_be():
+    """Konvoj-kort frö 5: jagaren var säker på 4,1 nm, plottet började om efter en manöver (dålig, 5,8 nm)
+    och radion föreslog djup 40 för långvågen; två minuter senare hade jagaren oss."""
+    from sim.reports import Quality as Q
+    g, _ = _game()
+    _far(g)
+    radio = g.station(RadioStation)
+    _warship(g, 5.8, 3.0, Q.DALIG)
+    assert radio._threat_near() == ("S-9", 5.8)          # 5,8 − 1,74 < 5
+    _warship(g, 10.0, 6.0, Q.DALIG)
+    assert radio._threat_near() is None                  # 10 − 3 ≥ 5
+
+
+def test_radio_waits_after_losing_a_warship_close_by():
+    from sim.reports import Quality as Q
+    g, _ = _game()
+    _far(g)
+    radio = g.station(RadioStation)
+    _warship(g, 3.0, 1.0, Q.OSAKER, held=False, seen_ago=300)
+    assert radio._threat_lost() == ("S-9", 5)
+    _warship(g, 3.0, 1.0, Q.OSAKER, held=False, seen_ago=1200)
+    assert radio._threat_lost() is None                  # för länge sedan
+    _warship(g, 9.0, 1.0, Q.GOD, held=False, seen_ago=300)
+    assert radio._threat_lost() is None                  # säkert långt bort

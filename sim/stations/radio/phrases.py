@@ -147,10 +147,18 @@ PHRASES = {
     "radio.closing": lambda d: f"Kapten, radio. Sambandstillfället stänger kl {d['clock']}, om "
     f"{minutes(d['minutes'])}, och rapporten är inte sänd. " + _closing_why(d),
     "radio.wait": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}, men plottet har "
-    f"{d['designation']} på {nm(d['range'])} sjömil. Där uppe ligger vi över skiktet och hörs. "
+    f"{d['designation']} på " + (f"kanske {nm(d['range'])} sjömil, lösningen är dålig och den kan vara närmare"
+                                  if d.get("poor") else f"{nm(d['range'])} sjömil")
+    + ". Där uppe ligger vi över skiktet och hörs. "
     "Föreslår att vi väntar på djupet tills den gått längre bort.",
-    "radio.clear": lambda d: f"Kapten, radio. Plottet har nu {d['designation']} på {nm(d['range'])} "
-    "sjömil" + (f", och sambandstillfället stänger kl {d['close']}" if d.get("close") else "")
+    "radio.wait_lost": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}, men plottet tappade "
+    f"{d['designation']} för {minutes(d['minutes'])} sedan, och vi vet inte var den är. Där uppe ligger vi över "
+    "skiktet och hörs. Föreslår att vi väntar på djupet en stund.",
+    "radio.clear": lambda d: "Kapten, radio. " + (
+        f"Inget hört av {d['designation']} på {minutes(d['quiet'])}" if d.get("quiet") else
+        "Plottet har inga hot nära längre" if d.get("none") else
+        f"Plottet har nu {d['designation']} på {nm(d['range'])} sjömil")
+    + (f", och sambandstillfället stänger kl {d['close']}" if d.get("close") else "")
     + f". Föreslår {d.get('what', 'antenndjup')}.",
     "radio.listen": lambda d: "Lyssnar på kortvåg efter Moskva.",
     "radio.listen.lost": lambda d: "Tappade Moskva, antennen kom under ytan.",
@@ -224,8 +232,13 @@ RU_PHRASES = {
     f"{R.count(d['minutes'], R.MINUTE)}, донесение не передано. " + _closing_why_ru(d),
     "radio.wait": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}, но "
     f"{R.contact(d['designation'])} в {R.dec(d['range'], R.MILE)}. Предлагаю ждать на глубине.",
-    "radio.clear": lambda d: f"{R.CAPTAIN}, радист. {R.contact(d['designation']).capitalize()} теперь в "
-    f"{R.dec(d['range'], R.MILE)}. Предлагаю подвсплыть.",
+    "radio.wait_lost": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}, но "
+    f"{R.contact(d['designation'])} потеряли {R.count(d['minutes'], R.MINUTE)} назад. Предлагаю ждать на глубине.",
+    "radio.clear": lambda d: f"{R.CAPTAIN}, радист. " + (
+        f"{R.contact(d['designation']).capitalize()} не слышно {R.count(d['quiet'], R.MINUTE)}. "
+        if d.get("quiet") else "Угрозы рядом больше нет. " if d.get("none") else
+        f"{R.contact(d['designation']).capitalize()} теперь в {R.dec(d['range'], R.MILE)}. ")
+    + "Предлагаю подвсплыть.",
     "radio.suggest.task_report": lambda d: f"{R.CAPTAIN}, радист. Штаб ждёт курс и скорость "
     f"отряда. Есть решение: {R.contact(d['designation'])}. " + (
         f"Предлагаю передать сейчас, около {R.count(d['seconds'], R.SECOND)}. Риск пеленгации "
