@@ -76,7 +76,7 @@ CAVITATION_DAMAGE_S = 1800  # gröpt: framdrivningen kan inte lagas bättre än 
 EROSION_CAP = 0.1
 EROSION_DB = 1.0            # … och den hörs så mycket mer (högst EROSION_MAX_DB)
 EROSION_MAX_DB = 3.0
-DEEP_FRAC = 0.9             # nära provdjupet: djupare än så stor del av det
+DEEP_FRAC = 0.95            # nära provdjupet: djupare än så stor del av det (0,9 = 270 m tjatade, krig frö 2)
 DEEP_WARN_S = 600           # maskin säger att packboxarna gråter
 DEEP_LEAK_S = 1200          # en packbox släpper (akteraxeln)
 REPAIR_QUIET_F = 0.5        # tyst reparation (tystnad i båten): så mycket av takten

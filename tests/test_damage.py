@@ -390,8 +390,8 @@ def test_cavitating_long_pits_the_propeller():
 
 
 def test_running_near_test_depth_makes_the_packing_leak():
-    w = _world(depth=285, speed=4)
-    w.own.state.ordered_depth = 285
+    w = _world(depth=292, speed=4)
+    w.own.state.ordered_depth = 292
     _run(w, D.DEEP_LEAK_S + 2)
     alerts = _alerts(w)
     assert alerts.index("wear.deep") < alerts.index("wear.packing")

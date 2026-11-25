@@ -290,7 +290,7 @@ för in varje färdigt steg där.
   svetsfog 0,30, spricka 0,50 och 30 % kvar), tätas på 120–600 s · (1 + djup/400); avdelning 25–40 t, utrymd halvfull;
   länspumpar 1 t/min vid ytan, linjärt mot 0 vid 500 m (minst 25 %), 124 dB, står i tystnad till 8 t; reparation
   1200 s, slag var 40:e s 130 dB, tyst halva takten; provdjup 300·min(1, 0,5 + 0,5·skrov); fastnat roder < 0,35, 90 s;
-  lager 20/30 min i ≥ 24 kn, kavitation 15/30 min, packbox 10/20 min under 90 % av provdjupet.
+  lager 20/30 min i ≥ 24 kn, kavitation 15/30 min, packbox 10/20 min under 95 % av provdjupet.
 - Trim (`sim/trim.py`): kompression 1 t/100 m, skiktet bär 3 t, smältvatten 1 t, torped netto 0,6 t förut,
   rodren 0,8·v² t (högst 10), drift 0,03 m/s per ton, styrningen borta vid 2 t, pumpar 1 t/min och 121 dB.
   Ny djuporder i ≤ 2 kn och uppstigning till ytan görs med barlasten (trimmen spelar ingen roll).

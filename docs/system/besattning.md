@@ -262,7 +262,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
     resp. 1 + 3·stress gånger vanligare (en tryckvåg < 60 m ger 1, < 150 m 0,5; halveras på en timme). Full fart
     (≥ 24 kn på turbinen) i 20 min: lagren varma (`wear.bearings_warm`, förslag `fart 20`), 30 min: lagret skär
     (framdrivningen −0,35, högst 0,8 till sjöss). Kavitation 15 min sammanlagt: varning; 30 min: propellern gröpt
-    (framdrivningen 0,1 sämre till sjöss, +1 dB, högst +3). Djupare än 90 % av provdjupet i 10 min: packboxarna
+    (framdrivningen 0,1 sämre till sjöss, +1 dB, högst +3). Djupare än 95 % av provdjupet i 10 min: packboxarna
     gråter (förslag grundare), 20 min: akteraxelns packbox släpper (läcka i IX).
   - *Kollision med fartyg* (`sim/collision.py`, `ship_contact` i `World.tick` efter bottenkontrollen;
     `tests/test_collision.py`): på höjden når ett ytfartyg från ytan till sitt djupgående (`DRAFT_M`: jagare 5,5 m,
