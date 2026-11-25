@@ -102,3 +102,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   ritas nedtonade); i ett svep eller en titt räknas allt som setts som sett nu.
   Is: `ice.ice_view` (periskopet är en sensor) ger kant och vallar i 16 riktningar ut till 0,6 nm;
   kommer masten inte upp för isen publiceras `PeriscopeBlocked` och vyn säger det.
+- **Väder, fiske och flyg i utkiken** (2026-11-25): i dimma (`weather.Showers`) är sikten dimmans (0,2–0,8 nm);
+  periskopet säger det när det hissas ("Dimma, sikten cirka …"), bryggan när dimman kommer och lättar och när
+  luckan öppnas (dimma eller regn). Fiskebåtarnas lampor syns 6 nm på natten (`fishing.lit_at_night`, inte i
+  dimma). En helikopter (`helo.Helicopter`, kind aircraft, `helo`) ses som "Helikopter, hovrar" och ger ingen
+  radarvarning.

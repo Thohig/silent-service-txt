@@ -6,7 +6,7 @@ visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/READM
 ## 2026-11-25 – Liv i världen: regn och dimma, vrak, fiske, helikopter, B-36, ljudet ombord, kollision med fartyg
 
 - Kollision med fartyg (`sim/collision.py`): ett fartyg som går över oss på periskopdjup slår i tornet (periskop och
-  radio), skrov mot skrov efter den relativa farten; en jagare med skarpa order rammar en ubåt den ser grunt
+  radio), skrov mot skrov efter den relativa farten; en jagare med skarpa order rammar en ubåt den ser i ytläge (eller med tornet över ytan)
   (`DestroyerAI._ram`); sonar ropar vid stående bäring och stigande styrka. `tests/test_collision.py`.
 - Regn och dimma (`weather.Showers`), vrak (`seabed.Wreck`), fisket (`sim/fishing.py`), helikoptern (`sim/helo.py`),
   B-36 (`sim/foxtrot.py`): se `docs/system/hav.md` och `scenarier.md`. Tester: `test_showers.py`, `test_wrecks.py`,

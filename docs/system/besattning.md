@@ -275,7 +275,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
     (165 dB, `Transient("collision")`, X i blyertsen och vattenfallet), fartyget får ett exakt datum och backar ur
     90 s. Samma fartyg igen först när skroven är långt isär. Förlust av skrovet inom 10 s: "rammad".
   - *Ramning* (`DestroyerAI._ram`): med skarpa insatsregler och en färsk (≤ 20 s), skarp (σ ≤ 0,2 nm) fix på oss grundare
-    än 25 m inom 2,5 nm går jagaren rakt på i full fart med förhåll (datumets fart) i stället för att fälla. Fredstid
+    än 12 m (ytläge eller tornet över ytan; med 25 m rammade eskorten i konvoj-mot oss på periskopdjup) inom 2,5 nm går jagaren rakt på i full fart med förhåll (datumets fart) i stället för att fälla. Fredstid
     (signal) rammar ingen.
   - *Stående bäring* (`SonarRoom._collision_watch`): medan kölen är grundare än 30 m ropar sonar när en kontakts
     signal (≥ 28 dB) stigit 3 dB på en minut med bäringen inom 6° ("han kommer rakt över oss") och föreslår

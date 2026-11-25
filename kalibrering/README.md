@@ -24,7 +24,7 @@ uv run python kalibrering/sok.py lyssna --larm
 
 | Skript | Scenario | Botar |
 |---|---|---|
-| `kontroll.py` (också i Actions: `kalibrering.yml`, söndagar och för hand) | alla | passiv och ja-boten, 8 frön (16 där slumpen avgör, `FLER_FRÖN`), mot `baslinje.json` (`--spara` skriver den, med commit och utfall per frö); listar fröna som bytt utfall och kommandot för `skillnad.py` |
+| `kontroll.py` (också i Actions: `kalibrering.yml`, söndagar och för hand) | alla | passiv och ja-boten, 8 frön (16 där slumpen avgör, `FLER_FRÖN`), mot `baslinje.json` (`--spara` skriver den, med commit och utfall per frö, och visar först vad som flyttat mot den förra); listar fröna som bytt utfall och kommandot för `skillnad.py` |
 | `skillnad.py` | ett scenario, ett frö, `--mot COMMIT`, `--bot`, `--minuter`, `--sammanhang` | samma frö med arbetskopian och en äldre commit (utpackad i `logs/skillnad/`); första rapport som skiljer, med sammanhang från båda. `spela.py` spelar och skriver flödet som JSON |
 | `skytt.py` | läge (`ja`, `skjut`, `lyssna`), scenarier eller `alla`, frön, minuter | ja-boten, skyttebot (eld/salva på säkra lösningar, går förbi frågorna) och lyssnande skyttebot (avstår vid långt skott, tar anfallet, skjuter på god i skjutläget); oraklet (`orakel.py`) larmar för grund utan varning, skjutläge för djupt, tjat, låg fart kvar, säker men fel, neutral utan varning, textfel, undantag; flödet som JSON till `logs/skytt/<läge>/` |
 | `sok.py` | läge, `--typ`, `--text`, `--roll`, `--scenario`, `--antal`, `--visa`, `--larm` | söker i skytt-loggarna |
@@ -59,12 +59,20 @@ uv run python kalibrering/sok.py lyssna --larm
 | `ytskott.py` | (eget upplägg) typer, frön (24) | ytläge, stillaliggande jagare 1–6 nm, radar varje minut i 10 min, sedan ett skott (eller `salva`) per typ |
 | `skott_saker.py` | scenarier, frön (1-16 eller 1,4,7), minuter, typer (53-61, SET-53, salva), max skott per spel | ja-boten; vid varje säker lösning (högst var 5:e min per kontakt) spelas fröet om och kaptenen skjuter; lösningens fel, siktfelet och utfallet. `PYTHONHASHSEED=0` |
 | `provspel.py` | scenarier (kommaseparerade), timmar, frö | provspelskaptenen: ja, rutinorder, vyer, periskop, eld på god lösning ≤ 3 nm; hela rapportflödet till `logs/provspel/` att läsa |
-| `kaos.py` | scenarier, frön (kommaseparerade), minuter | kaosboten: slumpade, udda och felaktiga order, ja/nej/jest på förslagen, vyer varje minut; letar undantag, oifyllda fält, punktdecimaler, kurser utan tre siffror, NaN, sanningens id:n; flödet till `logs/kaos/` |
+| `kaos.py` | scenarier, frön (kommaseparerade), minuter | kaosboten: slumpade, udda och felaktiga order (också `länsa`, `läns stopp`, `reparera …`), ja/nej/jest på förslagen, vyer varje minut; letar undantag, oifyllda fält, punktdecimaler, kurser utan tre siffror, NaN, sanningens id:n; flödet till `logs/kaos/` |
 
 Provkörda 2026-11-15 med ett frö var. Alla gick utan fel. `konvoj.py` och `kuba_jakt.py`
 kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
 ## Siffrorna
+
+**Skadekontrollen, kollisionen och livet i världen (2026-11-25, ny baslinje):** `kontroll.py --spara` mot 3b5637c:
+jagad ja frö 2 förlorad ⇒ undkom; krig ja hemma 7 ⇒ 5 (frö 4 och 5 slutar i tidsgränsen, en förlust som förut);
+kuba-kort ja rapporten sänd 3 ⇒ 6 av 8 (radions förvarning säger periskopdjup). Med helikopterns Mk 44 förlorade
+ja-boten 6 av 8 i krig och sänktes i jagad frö 102: torpeden är av (`HeloDef.torpedo`). Med packboxvarningen på
+90 % av provdjupet tjatade maskin på besättningens egna 280 m (krig frö 2): 95 %. `skytt.py lyssna alla` frön
+61–63, 81–83, 101–103 och `skjut` 64–66, 84–85: inga nya orakellarm (`säker_men_fel` i konvoj 62 fanns förut);
+`kaos.py` frön 71–74, 91, 111: inga undantag efter rättelsen av `ytläge` (krig-kort frö 71).
 
 **Stampvinkeln (2026-11-24, baslinjens commit 70832d5):** `kontroll.py` (35 min): krig ja hemma 4 ⇒ 7 av 8 (frön 0, 4, 5;
 förlorad median 513 ⇒ 337 min, ett frö), jagad ja undkom 6 ⇒ 7, duell ja undkom 3 som förut men median 54 ⇒ 93 min,

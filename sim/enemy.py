@@ -144,9 +144,10 @@ class DestroyerAI:
     MAST_P = 0.03           # sannolikhet per sekund att de upptäcks inom det
 
     DRAW_TEMPERAMENT = True     # hamnens patrullbåtar är alla lika (sundets kalibrering)
-    # Ramning: med skarpa insatsregler och en färsk, skarp fix på en ubåt grunt nog att träffa (tornet på
-    # periskopdjup, eller i ytläge) går jagaren rakt på den i full fart med förhåll i stället för att fälla.
-    RAM_DEPTH_M = 25.0
+    # Ramning: med skarpa insatsregler och en färsk, skarp fix på en ubåt i ytläge eller med tornet över ytan
+    # går jagaren rakt på den i full fart med förhåll i stället för att fälla. (Med 25 m rammade eskorten i
+    # konvoj-mot ubåten på periskopdjup efter salvan i stället för att fälla: överlämnandet ändrades.)
+    RAM_DEPTH_M = 12.0
     RAM_RANGE_NM = 2.5
     RAM_SIGMA_NM = 0.2
     RAM_FRESH_S = 20

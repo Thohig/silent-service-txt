@@ -65,6 +65,11 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   inte vid tyst gång eller jakt (`SoundBoard._ship_bell`). Vid överlämnandet läser vakthavande ett utrop i
   högtalaren (`crew_announcement` i `ui/telegram.py`: övning, operation eller krig efter stämpeln;
   `SoundBoard.announce`, ryska med Milena annars svenska; översättningen i loggen).
+- **Ljudet ombord och skadekontrollen** (`ui/ambience.py`, `ambient_targets`, 2026-11-25): statusraden bär
+  `pumps` (bilge/trim), `leak_rate`, `repairing` (loud/quiet) och `hushed`. En läcka sprutar (`flooding`, efter
+  inflödet), vatten utan läcka droppar och skvalpar i kölsvinet (`drip`), pumparna dunkar (`pumps`, länspumpen
+  djupare än trimpumpen), reparationen slår mot stål (`repair`) eller filar tyst (`repair_quiet`), och i tystnad i
+  båten står fläktarna (inget `aircon`). Alla hörs dämpade i hytten.
 - **Talnivån** (`ui/audio.py`, `SoundBoard.level`, `wanted`, 2026-11-24): `tal viktigt` (standard), `tal allt`, `tal larm`,
   `tal av`; i inställningarna "Uppläsning" (`SubApp.speech_level`, gäller över uppdragen). Loggen har alltid allt, och
   larmljuden går oavsett nivå. `speech_rank`: 2 larm (`alarm`) och förslag, 0 rutin (`kind == "done"` utom

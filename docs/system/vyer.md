@@ -60,6 +60,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   med `S-1`, `plot S-1` eller `läge S-1`, `PlotTeam.marked`) plottets bäringar på nuvarande ben (sedan `tma_from_t`),
   högst `FAN_LINES` (10), dragna från `own_x`/`own_y` där vi trodde att vi var; med en lösning ≥ osäker så
   långa som 1,4 × avståndet då. Nästan parallella linjer visar varför avståndet är osäkert. Nytt system ritar sig självt.
+  Sedan 2026-11-25 också kortets vrak (Ш, "vrak") och blyertsmärkena h (reparation) och X (kollision).
 - **Sonarvyn** (`sonar`, `vattenfall`; `sim/sonar_view.py`, `ui/sonar_render.py`, `ui/sonar.py`): vattenfallet,
   bäring vågrätt (sann, eller relativt fören ur navigatörens kurslogg) och tid lodrätt, nyast överst, 10/30/60 min.
   `Station.sonar_items()` ⇒ `Game.sonar()` (`SonarView`), bara kunskap: sonarrummet ger bäringsspår ur
@@ -78,7 +79,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   gungar från 5) och när bryggan bemannas (`bridge.manned`); verkan på brus, sikt, radar och
   periskopdjupet står i `docs/system/hav.md` (Sjögången).
   Periskopet visar utkikens bedömda avstånd på remsan och under vattenlinjen (`range_tag`), ingen skala.
-- **Ubåten** (`ubåt`, även `profil`/`system`; `ui/boat.py`, `ui/boat_render.py`): djupprofilen och
+- **Ubåten** (`ubåt`, även `profil`/`system`; `ui/boat.py`, `ui/boat_render.py`; genomskärningen med vattnet i
+  varje avdelning efter hur full den är, `Compartment.water`, och gula skott när de är stängda, `Flooding.closed`,
+  2026-11-25; panelen MASKIN visar läckorna per avdelning, länspumparna, skotten och provdjupet, SKADOR vad som
+  lagas, tyst, "mer går inte till sjöss" och "under vatten"): djupprofilen och
   systemtavlan i en vy. Genomskärningen överst (från `HULL_MIN_H` rader, annars avdelningarna som lampor
   på andra rubrikraden), profilen till vänster (60 %) och panelerna till höger; under `SIDE_MIN_W` (110)
   profilen över panelerna (högst halva höjden). Panelerna kompakta (`render_compact_panels`): fara och
