@@ -35,6 +35,12 @@ def minutes(n: int) -> str:
     return "en minut" if n == 1 else f"{n} minuter"
 
 
+def duration(minutes: int) -> str:
+    """Översiktens kvarvarande tid: "29 min", "3 h 05 min" (inga noll timmar)."""
+    h, m = divmod(max(0, int(minutes)), 60)
+    return f"{h} h {m:02d} min" if h else f"{m} min"
+
+
 def clock(seconds: int) -> str:
     s = int(seconds) % 86400
     return f"{s // 3600:02d}:{s % 3600 // 60:02d}:{s % 60:02d}"

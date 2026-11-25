@@ -24,7 +24,7 @@ from ..entities import Emission
 from ..events import (AirRadarHeard, BearingObserved, Handover, ClassificationChanged,
                       ContactDetected, PhotoTaken)
 from ..knowledge import AIR_CLOSE
-from ..fmt import count, fmt_course, kn, nm
+from ..fmt import count, duration, fmt_course, kn, nm
 from ..geo import angle_diff, bearing_to, distance, norm360
 from ..orders import AskSuggestion, CommandSpec, Order
 from ..overview import Line
@@ -789,7 +789,7 @@ class OfficerStation(Station):
         if end is not None:
             left = max(0, end - self.now) // 60
             items.append(Line("UPPDRAG", "Tiden ut",
-                              f"{self.game.clock_str(end)[:5]}, {left // 60} h {left % 60:02d} min kvar",
+                              f"{self.game.clock_str(end)[:5]}, {duration(left)} kvar",
                               "varning" if left < 30 else "info"))
         if k.hunted(self.now):
             items.append(Line("UPPDRAG", "Läget", "fienden har oss", "fara"))

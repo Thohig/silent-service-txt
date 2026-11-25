@@ -162,6 +162,12 @@ def test_next_radio_window_under_the_mission():
     line = next((ln for ln in g.overview().lines if ln.label == "Samband"), None)
     assert line is not None and line.panel == "UPPDRAG"
     assert line.text.startswith("nästa ") and "min" in line.text
+    assert " 0 h " not in line.text                 # kuba: 29 min kvar, inte "om 0 h 29 min"
+
+
+def test_duration_without_zero_hours():
+    from sim.fmt import duration
+    assert duration(29) == "29 min" and duration(185) == "3 h 05 min" and duration(-3) == "0 min"
 
 
 def test_bearing_drift_in_the_contact_table():

@@ -8,6 +8,7 @@ from ...dispatch import SentReport, report_text
 from ...headquarters import Headquarters
 from ...events import (ContactSunk, Handover, InterceptHeard, NuclearOrderRead, OwnActionLogged, PhotoTaken, ReportTransmitted)
 from ...icemap import thickness_words
+from ...fmt import duration
 from ...orders import DESIG, CommandSpec, Order, desig
 from ...overview import Line
 from ...reports import Quality
@@ -193,7 +194,7 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
         if nxt is None:
             return []
         mins = (nxt - self.now) // 60
-        return [Line("UPPDRAG", "Samband", f"nästa {self.game.clock_str(nxt)[:5]}, om {mins // 60} h {mins % 60:02d} min",
+        return [Line("UPPDRAG", "Samband", f"nästa {self.game.clock_str(nxt)[:5]}, om {duration(mins)}",
                      "info")]
 
     def system_items(self) -> list:
