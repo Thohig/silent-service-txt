@@ -17,7 +17,8 @@ Webbversionen provad av kaptenen 2026-11-22: fungerar bra. Byggt 2026-11-24 och 
 - Centralen i helskärm (`central`, Tab): instrumenten och lutningsmätaren i fart, snabbtelefonens lampor när
   stationerna talar.
 - Talnivån med Milena: blir `tal viktigt` lagom, saknas något som borde höras (ändra `ROUTINE_TYPES` i
-  `ui/audio.py`), och låter "Есть" som kvittens rätt?
+  `ui/audio.py`), och låter "Есть" som kvittens rätt? Mät före och efter med `kalibrering/talniva.py --typer`
+  (i jagad-kort läses sonarens "pingarna mycket starka" och maskins slammer mest på nivån viktigt).
 - Stampvinkeln i spel: lutningen vid djupbyte, "Brant vinkel" och slammer under jakt.
 
 ## Utreda

@@ -28,6 +28,7 @@ uv run python kalibrering/sok.py lyssna --larm
 | `skillnad.py` | ett scenario, ett frö, `--mot COMMIT`, `--bot`, `--minuter`, `--sammanhang` | samma frö med arbetskopian och en äldre commit (utpackad i `logs/skillnad/`); första rapport som skiljer, med sammanhang från båda. `spela.py` spelar och skriver flödet som JSON |
 | `skytt.py` | läge (`ja`, `skjut`, `lyssna`), scenarier eller `alla`, frön, minuter | ja-boten, skyttebot (eld/salva på säkra lösningar, går förbi frågorna) och lyssnande skyttebot (avstår vid långt skott, tar anfallet, skjuter på god i skjutläget); oraklet (`orakel.py`) larmar för grund utan varning, skjutläge för djupt, tjat, låg fart kvar, säker men fel, neutral utan varning, textfel, undantag; flödet som JSON till `logs/skytt/<läge>/` |
 | `sok.py` | läge, `--typ`, `--text`, `--roll`, `--scenario`, `--antal`, `--visa`, `--larm` | söker i skytt-loggarna |
+| `talniva.py` | kommaseparerade, frön, `--typer` | ja-boten med ett `SoundBoard` per talnivå: tecken och repliker per timme som läses upp, larm och förslag för sig; `--typer` listar det som läses mest på nivån viktigt (finjustera `ROUTINE_TYPES` i `ui/audio.py`) |
 | `fingeravtryck.py` | alla | ja-boten, hash av rapporter, läge och vyer: samma frö ⇒ samma spel (omstruktureringar) |
 | `ja_bot.py` | alla (kommaseparerade) | ja-boten, parallellt |
 | `duell.py` | duell, duell-kort, duell-torped, svansen-kort | passiv, ja, verktyg (ja + målsökande torpeder) |
@@ -73,7 +74,7 @@ iväg; `skillnad.py konvoj-mot 0`); med brant bara nedåt 4 som förut. Baslinje
 
 **Talnivån (2026-11-24):** ja-boten 2 h per spel, frön 0–3, kuba, konvoj-kort, jagad-kort, ovning, sundet, krig-kort
 (2181 min, ett `SoundBoard` per nivå på samma spel, tecken i det som köas för uppläsning; loggen påverkas inte): allt 131 tecken/min och 115 repliker/h,
-viktigt 76 och 65 (42 % mindre uppläst), larm 44 och 26; alla 935 larm och förslag på de tre nivåerna. Störst kvar på viktigt:
+viktigt 76 och 65 (42 % mindre uppläst), larm 44 och 26 (`talniva.py`); alla 935 larm och förslag på de tre nivåerna. Störst kvar på viktigt:
 `plot.improved`, `plot.maneuver` (larm), `sonar.lost`, `sonar.classified`. Boten ger få order, så kvittenserna (som
 blir "Есть") väger mer i riktigt spel. Mätskriptet låg i scratchpad (en `SoundBoard` per nivå i `LEVELS`).
 
