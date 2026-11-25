@@ -12,6 +12,7 @@ RISK_MID_S = 25
 RISK_NEAR_NM = 8.0           # en hotkontakt så nära i plottet: hör sändningen
 RISK_MID_NM = 15.0
 PREWARN_S = 600
+CLOSING_WARN_S = 300        # fönstret stänger om så här länge utan rapport: radion säger det (högst halva fönstret)
 RADIO_SAFE_NM = 5.0          # en hotkontakt närmare än så enligt plottet: vänta med att gå upp
 REPORT_SUGGEST_S = 180       # förslaget att sända upprepas högst så här ofta
 AIR_QUIET_S = 120            # så länge efter flygradar nära innan radion föreslår att gå upp igen

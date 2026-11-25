@@ -19,7 +19,7 @@ from ..base import Proposal, Station
 from ..navigation import NavigationStation
 from .common import (
     INTERCEPT_AGAIN_S, INTERCEPT_AIR_NM, INTERCEPT_HUNT_S, INTERCEPT_S, INTERCEPT_SHIP_NM,
-    Intercept, LISTEN_S, ListenBroadcast, PREWARN_S, RADIO_VAK_MAX_M, RadioStatus, SendReport,
+    CLOSING_WARN_S, Intercept, LISTEN_S, ListenBroadcast, PREWARN_S, RADIO_VAK_MAX_M, RadioStatus, SendReport,
     VLF_DEPTH, VLF_RECEIVE_S, VLF_SLOW_KN, VLF_SPEED, VLF_UP_DEPTH,
 )
 from .reception import ReceptionMixin
@@ -72,6 +72,7 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
         self.hq = Headquarters(expects_report=self.report_required,
                                at_war=bool(getattr(sc, "at_war", False)))   # vet bara vad vi sänt
         self._closed: set[int] = set()
+        self._closing_said: set[int] = set()   # fönstren där radion sagt att det stänger utan rapport
         self.broadcasts = broadcasts_for(order_day(sc.secret_order) if sc else None)
         self._broadcast_n = 0
         self._listen_until: int | None = None   # radiomannen letar upp Moskva
@@ -360,6 +361,7 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
         for i, w0 in enumerate(self.windows):
             if w0 <= self.now < w0 + self.window_len:
                 self._report_advice(w0)
+                self._closing_warning(i, w0)
             if self.now >= w0 + self.window_len and i not in self._closed:
                 self._closed.add(i)
                 self.hq.window_closed(reported=self._reported_t >= w0)
@@ -397,6 +399,30 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
                 if self._next_msg <= i and self._next_msg < len(self.messages) or \
                         self.theatre is not None and self.theatre.pending(self.world):
                     self.say("radio.missed", {"next": self._next_window_clock()}, alarm=False)
+
+    def _closing_warning(self, i: int, w0: int) -> None:
+        """Ordern kräver en rapport och fönstret stänger snart utan den: säg det, och varför vi inte
+        sänt (kuba-kort: radion teg medan jagaren hade oss, och spelet tog slut på en missad rapport
+        utan att kaptenen hört ett ord om det)."""
+        left = w0 + self.window_len - self.now
+        if not self.report_required or i in self._closing_said or left > min(CLOSING_WARN_S, self.window_len // 2) \
+                or self._reported_t >= w0 or self.tx_done_t is not None:
+            return
+        self._closing_said.add(i)
+        k, st = self.game.knowledge, self.own.state
+        near = self._threat_near()
+        if k.hunted(self.now):
+            why = {"why": "hunted"}
+        elif near is not None:
+            why = {"why": "threat", "designation": near[0], "range": near[1]}
+        elif k.air_close_now():
+            why = {"why": "air"}
+        elif st.depth > PERISCOPE_DEPTH + 0.5:
+            why = {"why": "depth"}
+        else:
+            why = {"why": "ready"}
+        self.say("radio.closing", {"clock": self.game.clock_str(w0 + self.window_len)[:5],
+                                   "minutes": max(1, round(left / 60)), **why})
 
     def _intercept(self) -> None:
         """Radiospaning (sensor): amerikansk flygradio, fartygens radiotrafik och om jagarna

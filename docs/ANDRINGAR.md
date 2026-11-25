@@ -3,6 +3,13 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-25 – Radion säger när fönstret stänger utan rapport
+
+- Kuba-kort frö 7: jagaren hade oss genom hela sambandstillfället, radion teg (sändningen pejlas) och spelet tog
+  slut på `report_missed` utan ett ord. Nu säger radion 5 min före stängning (högst halva fönstret) att rapporten
+  inte är sänd och varför (`radio.closing`, `RadioStation._closing_warning`, `CLOSING_WARN_S`): de har oss, hot
+  nära, flyget, vi är för djupt, eller "sänd rapport, så går den". `tests/test_report.py`.
+
 ## 2026-11-25 – Provspel: sonar mot land för bandet, djuporder under nödblåsning
 
 - Clyde-in (kaosboten, frö 102): sonar föreslog kurs mot Polarisbåten för bandet (`sonar.suggest.record_close`)

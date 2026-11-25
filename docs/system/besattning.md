@@ -47,6 +47,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   loggen (`telegram_kind` "outgoing"). Pejlnätet (`enemy.py`, `DF_*`): kortvågen sänds ut med sin längd
   (`Emission.duration`) när sändningen slutar eller avbryts; under 10 s pejlas den aldrig, över 25 s
   alltid, däremellan linjärt; datumets σ = 1,5 nm · √(30 s / längd), 0,7–3 nm.
+  När ordern kräver en rapport och fönstret stänger om 5 min (högst halva fönstret, `CLOSING_WARN_S`) utan att
+  den sänts säger radion det, en gång per fönster, med skälet (`radio.closing`: jagade, hot nära, flyget, djupet,
+  eller "sänd rapport, så går den"; 2026-11-25).
 - **Huvudstaben** (`sim/headquarters.py`, R3; ägs av radion, läser aldrig världen): vet bara vad vi
   sänt (`ReportTransmitted`, avbrutna räknas inte). Svarar vid nästa sambandstillfälle, före
   scenariots och krigsskådeplatsens telegram (som staben läser först, `read_order`: krig, ny uppgift,

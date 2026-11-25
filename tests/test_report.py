@@ -162,3 +162,26 @@ def test_air_clear_needs_time_left_in_the_window():
     for _ in range(60):
         g.tick()
     assert not any(t == "radio.suggest.air_clear" for t, _ in types)
+
+
+def test_radio_says_when_the_window_closes_without_a_report_and_why():
+    """kuba-kort frö 7: radion teg medan jagaren hade oss, och spelet tog slut på en missad rapport
+    utan ett ord. Nu säger radion halvvägs (högst 5 min före) att fönstret stänger och varför."""
+    g, types = _game()
+    _far(g)
+    for _ in range(60 + 150 + 60):
+        g.tick()
+    closing = [d for t, d in types if t == "radio.closing"]
+    assert len(closing) == 1 and closing[0]["why"] == "depth"
+
+
+def test_no_closing_warning_once_the_report_is_sent():
+    g, types = _game()
+    _far(g)
+    g.world.own.state.depth = g.world.own.state.ordered_depth = 15.0
+    for _ in range(70):
+        g.tick()
+    g.command("sänd rapport")
+    for _ in range(150):
+        g.tick()
+    assert ("radio.sent" in [t for t, _ in types]) and "radio.closing" not in [t for t, _ in types]

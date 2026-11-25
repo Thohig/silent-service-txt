@@ -54,6 +54,33 @@ WHY_GARBLED = {"day": "dagsljus", "speed": f"farten över {VLF_SLOW_KN} knop",
                "depth": f"djupare än {VLF_UP_DEPTH} meter"}
 
 
+def _closing_why(d: dict) -> str:
+    why = d["why"]
+    if why == "hunted":
+        return "Jag föreslår ingen sändning medan de har oss, den pejlas och leder dem till oss."
+    if why == "threat":
+        return (f"Plottet har {d['designation']} på {nm(d['range'])} sjömil, för nära för att sända: "
+                "den pejlas.")
+    if why == "air":
+        return "Flyget är nära, de ser antennen."
+    if why == "depth":
+        return f"Vi behöver periskopdjup, {round(PERISCOPE_DEPTH)} meter eller grundare, och sedan sänd rapport."
+    return "Vi är på periskopdjup: sänd rapport, så går den."
+
+
+def _closing_why_ru(d: dict) -> str:
+    why = d["why"]
+    if why == "hunted":
+        return "Пока нас преследуют, передавать не предлагаю: запеленгуют."
+    if why == "threat":
+        return f"{R.contact(d['designation']).capitalize()} в {R.dec(d['range'], R.MILE)}, слишком близко."
+    if why == "air":
+        return "Самолёт рядом, увидят антенну."
+    if why == "depth":
+        return "Нужна перископная глубина."
+    return "Мы на перископной глубине, можно передавать."
+
+
 def _why_garbled(why: list[str]) -> str:
     words = [WHY_GARBLED[w] for w in why]
     return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " och " + words[-1]
@@ -117,6 +144,8 @@ PHRASES = {
         f"Föreslår att vi sänder rapporten nu. Det tar cirka {d['seconds']} sekunder, och risken "
         f"att de pejlar oss är {d['risk']}." if d["now"] else
         "Vi måste upp på periskopdjup för att sända. Föreslår periskopdjup."),
+    "radio.closing": lambda d: f"Kapten, radio. Sambandstillfället stänger kl {d['clock']}, om "
+    f"{minutes(d['minutes'])}, och rapporten är inte sänd. " + _closing_why(d),
     "radio.wait": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}, men plottet har "
     f"{d['designation']} på {nm(d['range'])} sjömil. Där uppe ligger vi över skiktet och hörs. "
     "Föreslår att vi väntar på djupet tills den gått längre bort.",
@@ -191,6 +220,8 @@ RU_PHRASES = {
     f"Риск пеленгации {RISK_RU[d['risk']]}.",
     "radio.sent": lambda d: "Донесение передано, квитанция получена.",
     "radio.aborted": lambda d: "Передача прервана, антенна ушла под воду.",
+    "radio.closing": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи закончится через "
+    f"{R.count(d['minutes'], R.MINUTE)}, донесение не передано. " + _closing_why_ru(d),
     "radio.wait": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}, но "
     f"{R.contact(d['designation'])} в {R.dec(d['range'], R.MILE)}. Предлагаю ждать на глубине.",
     "radio.clear": lambda d: f"{R.CAPTAIN}, радист. {R.contact(d['designation']).capitalize()} теперь в "
