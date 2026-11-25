@@ -25,8 +25,12 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   kaptenen tar befälet. `ctrl+t` och Inställningar slår av och på (`SubApp.menu_sound_sync`).
   Radio Moskva (`BULLETINS`, `radio_at(t)`): påhittade sändningar efter 25 s och sedan var 95:e s, allt
   mer olycksbådande (den sista upprepas); remsan visar översättningen. Ljud: ratten (`synth_tuning`),
-  kortvågsbrus, musiken sänks; rösten är Milena renderad (`voices.backend().render`) genom `radio_voice` (smalt band, fading).
-  Utan Milena bara brus. Bilden (`ui/menu_scene.py`, `render_scene(cols, rows, t)`): К-114 vid kaj i
+  kortvågsbrus, musiken sänks; rösten är Milena genom `radio_voice` (smalt band, fading). Sändningarna är
+  inspelade i `ui/radio/` (`web/spela_in_radio.py`, 11 025 Hz, filnamnet är textens kontrollsumma), så
+  rösten hörs också i webbläsaren och utan Milena; en text utan inspelning renderas med talsyntesen
+  (`voices.backend().render`), och utan Milena är det bara brus. Ändras `BULLETINS`: kör skriptet på en Mac
+  och committa (`test_every_bulletin_has_a_recording` säger till). Utan tråd (webben) väntar rösten in
+  ratten med tystnad först, och händelseslingan avslutar sändningen (`MenuSound._off_air`). Bilden (`ui/menu_scene.py`, `render_scene(cols, rows, t)`): К-114 vid kaj i
   braille under beskrivningen (10 rader, bara när fönstret är ≥ 34 rader): stjärnor, fjällen, kajen med kran
   och lampa, ubåten med röd stjärna och lanterna, glitter på vattnet, snö i vinden; ingen slump (`_hash`). Flödet: menyn → spelet (`GameScreen` i `ui/app.py`, vyerna ovanpå) →
   huvudmenyn. `SubApp` håller spelet, ljudet och inställningarna (ljud, talets språk, uppläsning) över uppdragen;

@@ -3,6 +3,16 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-25 – Radio Moskva talar i webben
+
+- Menyns sändningar är inspelade med Milena i `ui/radio/` (sex filer, ~0,8 MB, 11 025 Hz, namnet är textens
+  kontrollsumma) av `web/spela_in_radio.py`. `menu_audio.speak_to_samples` tar inspelningen först, så rösten går
+  genom mixern och `radio_voice` också i webbläsaren (där talsyntesen inte kan göra ljud) och i terminalen utan Milena.
+- Utan tråd (webben) körde sändningen färdigt på en gång: bruset och den sänkta musiken hördes aldrig. Nu
+  väntar rösten in ratten med tystnad först, och händelseslingan avslutar sändningen (`MenuSound._off_air`).
+  Provat i webbläsarpanelen: ratten 2,5 s, rösten 11 s, brus och sänkt musik tills rösten tystnat.
+- `tests/test_menu_audio.py`: varje sändning har en inspelning (och inga gamla ligger kvar), och sändningen utan tråd.
+
 ## 2026-11-25 – Webbljudet: en kanal per ljudutgång
 
 - Medan ordern skrevs ut gick menyns ljud (telegrafen, fjärrskrivaren) och spelets samtidigt, och i webben

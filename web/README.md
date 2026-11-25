@@ -31,7 +31,11 @@ GitHub Pages: https://thohig.github.io/silent-service-txt/
 - Talet: `ui.voices.WebSpeech` (vald av `voices.backend()` under Pyodide) läser upp med webbläsarens
   `speechSynthesis` genom sidans `makeSpeech`: Alva och Milena om de finns (Safari och Chrome på Mac
   har dem), annars en annan röst på språket. Utan rysk röst talar besättningen svenska. Talet går inte
-  genom mixern, så telefon- och skotteffekten finns inte i webben, och Radio Moskva i menyn är bara brus.
+  genom mixern, så telefon- och skotteffekten finns inte i webben. Radio Moskva i menyn är inspelad med Milena
+  (`ui/radio/`, `spela_in_radio.py`) och går genom mixern och radion som i terminalen.
+- `spela_in_radio.py`: spelar in Radio Moskvas sändningar med Milena till `ui/radio/` (på en Mac; kör om
+  när `BULLETINS` ändras och committa). Apples licens för systemrösterna gäller personligt, icke-kommersiellt
+  bruk; inspelningarna ligger på en offentlig sida.
 - `bygg.py`: packar `sim/`, `ui/` och startfilerna till `k114.zip` bredvid sidan och ikonerna.
 - Ikonerna: `k114.png` (1024 px), flikikonen `k114-32.png` och `apple-touch-icon` `k114-180.png`,
   länkade med storlek i `index.html`. Safari visade ingen ikon när bara den stora fanns. Filerna görs av
@@ -43,7 +47,7 @@ GitHub Pages: https://thohig.github.io/silent-service-txt/
   ritningarna i stället för i en tråd (`ui/app.py`, `THREADS`).
 - **Ljudet** startar på, som i terminalen (sedan 2026-11-24; hörs först efter en tangent eller ett klick); `ljud` eller
   Inställningar slår av och på (`ctrl+t` tar Chrome själv). Allt utom talet går genom mixern som vanligt (`ui.audio.WebPlayer`); talet är webbläsarens
-  (`voices.WebSpeech`), utan telefon- och skotteffekt, och Radio Moskva i menyn är bara brus. Menyns
+  (`voices.WebSpeech`), utan telefon- och skotteffekt; Radio Moskva är inspelad och låter som i terminalen. Menyns
   syntes görs utan tråd och låser sidan ~1 s när menyn visas med ljudet på.
 - **Tangenter:** webbläsaren tar vissa själv (`ctrl+t` och `ctrl+w` i Chrome); `ctrl+q` och menyns
   Avsluta stänger spelet. Sanningsloggen skrivs i minnet och försvinner när sidan laddas om.

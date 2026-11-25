@@ -346,8 +346,35 @@ def read_wav(path: Path) -> np.ndarray:
     return speech.read_wav(path, RATE)
 
 
+# Radio Moskvas sändningar inspelade med Milena (`web/spela_in_radio.py`), så att rösten finns
+# också där talsyntesen inte kan göra ljud av den: i webbläsaren (talet går förbi mixern) och
+# utan Milena. Filnamnet är textens kontrollsumma: en ändrad sändning spelar aldrig en gammal
+# inspelning. 11 025 Hz räcker, radion släpper bara igenom 350–2800 Hz.
+RECORDINGS = Path(__file__).resolve().parent / "radio"
+RECORDING_RATE = 11025
+
+
+def recording_path(text: str) -> Path:
+    import hashlib
+    return RECORDINGS / f"{hashlib.sha1(text.encode()).hexdigest()[:12]}.wav"
+
+
+def recorded(text: str) -> np.ndarray | None:
+    path = recording_path(text)
+    if not path.is_file():
+        return None
+    try:
+        return read_wav(path)
+    except (OSError, ValueError, EOFError):
+        return None
+
+
 def speak_to_samples(text: str) -> np.ndarray | None:
-    """Läs texten med den ryska rösten till ljud. None utan röst."""
+    """Läs texten med den ryska rösten till ljud: inspelningen om den finns, annars talsyntesen.
+    None utan någondera."""
+    x = recorded(text)
+    if x is not None:
+        return x
     voice = speech.backend().voice("ru")
     return None if voice is None else speech.backend().render(text, voice, RADIO_RATE_WPM, RATE)
 
@@ -450,9 +477,24 @@ class MenuSound:
                 self.on_air = False
                 return
             voice = radio_voice(speech, seed=self.radio_count)
+            if not self.threaded:
+                # utan tråd kan vi inte vänta: rösten börjar efter inställningen i ljudet självt
+                voice = np.concatenate([np.zeros(int(RATE * RADIO_TUNE_S)), voice])
             self.mixer.oneshot(voice, 0.9)
             length = len(voice) / RATE
-        sleep(length + 0.8)
+        if self.threaded:
+            sleep(length + 0.8)
+            self._off_air()
+            return
+        # Utan tråd (webbläsaren): händelseslingan avslutar sändningen när rösten tystnat, så
+        # att bruset hörs och musiken står sänkt under tiden. Utan slinga (tester) genast.
+        try:
+            import asyncio
+            asyncio.get_running_loop().call_later(length + 0.8, self._off_air)
+        except RuntimeError:
+            self._off_air()
+
+    def _off_air(self) -> None:
         self.on_air = False
         if self.out is not None:
             self._targets()

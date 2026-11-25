@@ -18,6 +18,7 @@ uv run main.py [--seed N] [--scenario kuba] [--tyst]   # spela (utan --scenario:
 uv run --extra fonster fonster.py [samma flaggor]       # i eget fönster (textual-serve + pywebview, Dockikon)
 sh ikon/bygg-app.sh [mål]                              # bygg K-114.app (standard ~/Applications; ej installerad sedan 2026-11-21)
 uv run python web/bygg.py                               # webbversionen (Pyodide) till web/dist, se web/README.md
+uv run python web/spela_in_radio.py                     # Radio Moskva med Milena till ui/radio (efter ändrade BULLETINS)
 uv run pytest -q              # snabba tester, parallellt (~18 s på 4 kärnor); före varje commit
 uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 4 kärnor); större steg
 ```

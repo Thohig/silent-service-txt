@@ -165,3 +165,33 @@ def test_one_shot_ending_while_another_plays_keeps_the_sound_going():
     mixer.render(1024)
     assert len(mixer._shots) == 2
     assert np.abs(mixer.render(1024)).max() > 0.1
+
+
+def test_every_bulletin_has_a_recording():
+    """Webbläsaren har bara inspelningarna (`web/spela_in_radio.py`): kör om skriptet när en
+    sändning ändrats."""
+    from ui.menutext import BULLETINS
+    for b in BULLETINS:
+        x = menu_audio.recorded(b.ru)
+        assert x is not None, f"ingen inspelning av {b.sv!r}: kör web/spela_in_radio.py"
+        assert 2 * RATE < len(x) < 15 * RATE and 0.05 < np.max(np.abs(x)) <= 1.0
+    names = {menu_audio.recording_path(b.ru).name for b in BULLETINS}
+    assert {p.name for p in menu_audio.RECORDINGS.glob("*.wav")} == names   # inga gamla kvar
+    assert menu_audio.recorded("Говорит Ленинград.") is None
+    assert menu_audio.speak_to_samples(BULLETINS[0].ru) is not None        # också utan Milena
+
+
+@pytest.mark.slow
+def test_broadcast_without_a_thread_stays_on_air_until_the_voice_ends(tiny_samples):
+    # Webbläsaren: ingen tråd som väntar. Rösten börjar efter inställningen (tystnad först) och
+    # händelseslingan avslutar sändningen, så att bruset hörs och musiken står sänkt under tiden.
+    async def run():
+        snd = MenuSound(out_factory=FakeOut, threaded=False, voice=lambda _t: np.full(RATE // 10, 0.3))
+        snd.radio("Говорит Москва.")
+        voice = snd.mixer._shots[-1][0]
+        assert np.all(voice[:int(RATE * menu_audio.RADIO_TUNE_S)] == 0)
+        assert snd.on_air and "static" in snd.mixer._targets
+        await asyncio.sleep(len(voice) / RATE + 1.0)
+        assert not snd.on_air and "static" not in snd.mixer._targets
+
+    asyncio.run(run())
