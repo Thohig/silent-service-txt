@@ -96,9 +96,8 @@ def telegraph_lamp(s: StatusSnapshot) -> tuple[int, str]:
     return steps, tele
 
 
-def draw_instruments(c: Canvas, slots: dict[str, tuple[int, int, int, int]], s: StatusSnapshot,
-                     shown: dict[str, float], p: dict, ring: str | None) -> None:
-    """De stora instrumenten i braille, var och en i sin ruta (top, left, rows, cols)."""
+def build_dials(s: StatusSnapshot, shown: dict[str, float], p: dict) -> dict[str, ins.Dial]:
+    """Instrumenten (visare, skalor och avläsning) ur egen ubåts läge."""
     turning = "course" in s.changing
     diving = "depth" in s.changing
     dials = {
@@ -119,7 +118,41 @@ def draw_instruments(c: Canvas, slots: dict[str, tuple[int, int, int, int]], s: 
     # avläsningarna visar instrumentens exakta värde, visarna det trögare
     dials["gyro"].readout[0] = (ins.fmt_course(s.course), "bold")
     dials["djup"].readout[0] = (f"{s.depth:.0f} m", dials["djup"].readout[0][1])
+    return dials
+
+
+def draw_instruments(c: Canvas, slots: dict[str, tuple[int, int, int, int]], s: StatusSnapshot,
+                     shown: dict[str, float], p: dict, ring: str | None) -> None:
+    """De stora instrumenten i braille, var och en i sin ruta (top, left, rows, cols)."""
+    dials = build_dials(s, shown, p)
     for key, d in dials.items():
         if key in slots:                            # de mindre bara på en hög vägg
             top, left, rows, cols = slots[key]
             ins.draw_dial(c, top, left, rows, cols, d, p, ring)
+
+
+READOUT_WALLS = (("gyro", "sidror", "telegraf", "lutning", "trim"),
+                 ("djup", "fart", "djupror", "batteri", "lans", "klocka"))
+
+
+def draw_readouts(c: Canvas, walls: tuple[tuple[int, int], tuple[int, int]], top: int, bottom: int,
+                  s: StatusSnapshot, shown: dict[str, float], p: dict) -> None:
+    """Mellanstor bild (helskärm i ett 80 × 24-fönster, för liten för braillemätarna): instrumentens
+    namn och avläsning som rader på väggarna, vänster gyro, roder och telegraf, höger djup och fart.
+    Raderna glesas ut när väggen är hög; får inte alla plats tas de sista bort."""
+    dials = build_dials(s, shown, p)
+    rows = bottom - top + 1
+    step = max(1, rows // max(len(k) for k in READOUT_WALLS))     # samma radavstånd på båda väggarna
+    for (a, b), keys in zip(walls, READOUT_WALLS):
+        n = min(len(keys), rows)
+        name_w = max(len(dials[k].title) for k in keys[:n]) + 1 if n else 0
+        for i, key in enumerate(keys[:n]):
+            d, r, col = dials[key], top + i * step, a
+            if r > bottom:
+                break
+            c.text(r, col, d.title.ljust(name_w)[: b - col + 1], p["label"])
+            col += name_w
+            for text, style in d.readout:
+                text = text[: max(0, b - col + 1)]
+                c.text(r, col, text, style or "bold")
+                col += len(text)

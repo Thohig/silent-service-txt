@@ -21,7 +21,7 @@ from sim.game import StatusSnapshot
 
 from .canvas import Canvas as _Canvas
 from .central_instruments import (AMBER, GREEN, JULGRAN, JULGRAN_CELL, PLANE_HOLD_DEG, RED,  # noqa: F401
-                                  Needles, draw_instruments, openings, plane_angle, rudder_angle,
+                                  Needles, draw_instruments, draw_readouts, openings, plane_angle, rudder_angle,
                                   shown_now, signed_diff, telegraph_lamp)
 from .placards import PLATE_STYLE, central_plate
 
@@ -29,6 +29,7 @@ W, H = 40, 13                   # minsta storlek (och den lilla bilden bredvid l
 SPEAK_S = 3.0                   # så länge en plats lyser efter en rapport
 DIAL_ROW = 1                    # instrumentens översta rad
 BIG = (100, 22)                 # minst så stor: braillesinstrumenten
+READOUT_MIN_H = 16              # så hög bild som inte är stor: avläsningarna som text (helskärm i 80 × 24)
 TALL_ROWS = 22                  # så hög vägg (rader mellan taket och lamporna): en rad mindre instrument
 
 PALETTES = {
@@ -240,9 +241,12 @@ def render_central(s: StatusSnapshot, speaking: dict[str, float] | None = None,
         c.put(r, g.ladder, "●", p["head"])
         c.put(r + 1, g.ladder, "█", p["crew"])
 
-    # stor: instrumenten på väggarna; liten: bara rören
+    # stor: instrumenten på väggarna; mellan (helskärm i 80 × 24): avläsningarna som rader;
+    # liten (bredvid loggen): bara rören
     if g.big:
         draw_instruments(c, g.slots(), s, shown, p, p["label"] if smoky else None)
+    elif g.h >= READOUT_MIN_H:
+        draw_readouts(c, (g.left, g.right), DIAL_ROW + 1, g.lamps - 2, s, shown, p)
     else:
         for a, b in (g.left, g.right):
             for k, r in enumerate(g.pipes()):

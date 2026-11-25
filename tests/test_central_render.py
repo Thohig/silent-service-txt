@@ -61,6 +61,15 @@ def test_small_room_has_pipes_and_no_dials():
     assert plain(replace(BASE, course=0)) == plain(replace(BASE, course=200, depth=250))
 
 
+def test_fullscreen_in_80_by_24_shows_the_readouts_as_text():
+    """Centralen i helskärm i ett 80 × 24-fönster (bilden 80 × 19) var tom: braillemätarna kräver 100 × 22."""
+    s = replace(BASE, course=47, depth=163, ordered_depth=163, speed=4, ordered_speed=4)
+    text = "\n".join(plain(s, width=80, height=19))
+    for want in ("GYRO", "047", "DJUP", "163 m", "FART", "4,0", "TELEGRAF", "LÄNS", "KLOCKA"):
+        assert want in text, want
+    assert "⊗" not in text                                  # rören (ventilerna) bara i den lilla bilden
+
+
 def test_rudder_and_planes_follow_the_orders():
     turning = replace(BASE, ordered_course=120, changing=frozenset({"course"}))
     assert rudder_angle(turning) > 0
