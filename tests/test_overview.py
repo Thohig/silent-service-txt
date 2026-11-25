@@ -138,3 +138,20 @@ def test_overview_screen_opens_with_its_word(tmp_path):
             assert not isinstance(app.screen, OverviewScreen)
 
     asyncio.run(run())
+
+
+def test_two_columns_on_the_main_screen_at_100_columns():
+    """Huvudskärmen i ett 100 kolumner brett fönster ger panelen 98: sjökortet ska ändå synas."""
+    from ui.overview_render import TWO_COL_W
+    assert TWO_COL_W <= 98
+
+
+def test_quality_and_lost_always_fit_in_a_narrow_table():
+    for w in (40, 44, 52, 60, 80):
+        for held in (True, False):
+            r = ContactRow("S-12", "civil", "handelsfartyg, diesel, en axel", Quality.SAKER, held, 237.0, 0,
+                           12.34, 172.0, 11.7, Quality.OSAKER)
+            t = contact_line(r, w).plain
+            lost = "∅" if w < 60 else "tappad"
+            assert len(t) == w and "osäker" in t and (lost in t) == (not held), (w, t)
+            assert "12,3" in t and "172" in t

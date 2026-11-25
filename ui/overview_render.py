@@ -30,7 +30,7 @@ from .styles import CONTACT_STYLE
 from .systems_render import STATE_MARK, STATE_STYLE, render_compact_panels
 
 TITLE = "ÖVERSIKT"
-TWO_COL_W = 100                 # så bred: två spalter
+TWO_COL_W = 90                  # så bred: två spalter (huvudskärmen får 98 av 100 kolumner)
 LEFT_SHARE = 0.55               # vänstra spaltens andel
 GAP = 2
 RULE = "#2f4a36"
@@ -72,25 +72,38 @@ def _short_class(c: str) -> str:
     return c.split(",")[0].strip()
 
 
+COMPACT_W = 60                  # smalare kontakttabell: kortare lösning, kvaliteten syns alltid
+
+
 def contact_line(r: ContactRow, w: int) -> Text:
-    """En kontakt: beteckning, klassning, bäring, och plottets lösning med kvalitet."""
+    """En kontakt: beteckning, klassning, bäring, och plottets lösning med kvalitet. Kvaliteten
+    (designprincip 2) och "tappad" får alltid plats: klassningen kortas först, sedan lösningen."""
     style = CONTACT_STYLE.get(r.kind, CONTACT_STYLE["contact"])
     if not r.held:
         style = f"{style} dim"
-    t = Text(no_wrap=True, overflow="crop")
-    t.append(f"{r.designation:<5}", style=style)
-    cw = max(6, min(14, w - 51))       # plats för lösningen, kvaliteten och "tappad"
-    t.append(f"{_short_class(r.classification)[:cw]:<{cw}} ", style=style if r.held else "dim")
-    t.append(fmt_course(r.bearing), style="bold" if r.held else "dim")
+    compact = w < COMPACT_W
     if r.range_nm is not None:
-        t.append(f"  {nm(r.range_nm):>5} nm  {fmt_course(r.course)} {kn(r.speed):>4} kn ")
+        sol = (f" {nm(r.range_nm)}nm {fmt_course(r.course)}/{kn(r.speed)} " if compact else
+               f"  {nm(r.range_nm):>5} nm  {fmt_course(r.course)} {kn(r.speed):>4} kn ")
+        sol_style = ""
     else:
         age = f"({r.bearing_age_s // 60} min)" if r.bearing_age_s >= 60 else ""
-        t.append(f"  {age:<24}", style="dim")
+        sol, sol_style = (f" {age} " if compact else f"  {age:<24}"), "dim"
+    width = 16 if compact else 24           # lösningens kolumn, så att kvaliteten står i linje
+    sol = sol.ljust(width + (1 if compact else 2))
+    lost = " ∅" if compact else " tappad"   # ∅ som i sonarvyn och på sjökortet
+    tail_w = len("osäker") + len(lost)      # fast bredd: kolumnerna står i linje i tabellen
+    desig = 5 if not compact else len(r.designation) + 1
+    cw = max(3, min(14, w - desig - 4 - len(sol) - tail_w))
+    t = Text(no_wrap=True, overflow="crop")
+    t.append(f"{r.designation:<{desig}}", style=style)
+    t.append(f"{_short_class(r.classification)[:cw]:<{cw}} ", style=style if r.held else "dim")
+    t.append(fmt_course(r.bearing), style="bold" if r.held else "dim")
+    t.append(sol, style=sol_style)
     if r.quality is not None:
         t.append(r.quality.label, style=QUALITY_STYLE[r.quality])
     if not r.held:
-        t.append(" tappad", style="dim")
+        t.append(lost, style="dim")
     return _fit(t, w)
 
 

@@ -76,8 +76,14 @@ def draw_dial(c: Canvas, top: int, left: int, rows: int, cols: int, d: Dial, p: 
         return top + int(y // 4), left + int(x // 2)
 
     if r >= 10:
+        taken: set[tuple[int, int]] = set()     # en etikett som krockar med en tidigare ritas inte
         for angle, text in d.labels:
             row, col = cell(r - major - 3.5, angle)
+            start = col - len(text) // 2
+            cells = {(row, x) for x in range(start - 1, start + len(text) + 1)}
+            if cells & taken:
+                continue
+            taken |= cells
             c.centered(row, col, text, p["label"])
     for angle, ch, style in d.markers:
         row, col = cell(r - 1.5, angle)

@@ -19,7 +19,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   samlas som de tappade (`sonar.regained.many`).
 - **Översikten** (`översikt`, `lägesbild`; `sim/overview.py`, `ui/overview_render.py`, `ui/overview.py`,
   2026-11-24): allt kaptenen vet på en skärm; huvudskärmen i stort fönster, annars en vy först i Tab-ordningen. Vänster spalt (55 %, från
-  `TWO_COL_W` 100 kolumner): sjökortet kring vårt beräknade läge i den minsta skala som rymmer plottets lösningar
+  `TWO_COL_W` 90 kolumner, så att huvudskärmen i 100 kolumner har två): sjökortet kring vårt beräknade läge i den minsta skala som rymmer plottets lösningar
   på de hållna kontakterna (minst 3 nm åt varje håll, `chart_scale`), vattenfallet 10 min och djupprofilen, ritade av
   vyernas egna renderare. Höger spalt: kontakttabellen, lägesraderna med bäringsrepeatern bredvid (gyrot med
   plottets hållna kontakter, numret i slagets färg, flyttad från centralen) och systemtavlans paneler

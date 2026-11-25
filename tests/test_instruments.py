@@ -140,3 +140,10 @@ def test_phone_panel_lights_the_speaker():
     rows = render_central(BASE, {"navigator": 0.5}, width=160, height=38)
     assert any(sp.style == ROLE_LIGHT["navigator"] for r in rows for sp in r.spans)
     assert "Navigatör" in "\n".join(r.plain for r in rows)
+
+
+def test_dial_labels_never_overlap():
+    """Små mätare: en etikett som skulle krocka med en annan ritas inte (SAKTA HALV blev SAKTHALV)."""
+    for w, h in ((100, 22), (100, 26), (150, 29)):
+        text = "\n".join(line.plain for line in render_central(BASE, width=w, height=h))
+        assert "SAKTHALV" not in text and "SAKTAHALV" not in text
