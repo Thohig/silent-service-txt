@@ -83,3 +83,9 @@ def test_no_radar_warning_from_a_helicopter():
     for _ in range(30):
         g.tick()
     assert not any(r.type == "off.esm.air" for r in reports)
+
+
+def test_outside_war_the_patrol_sends_helicopters_without_torpedoes():
+    assert not H.HeloDef().torpedo
+    sc = build_scenario("krig", random.Random(1))
+    assert any(isinstance(sp, H.HeloPatrol) and sp.hdef.torpedo for sp in sc.world.spawners)

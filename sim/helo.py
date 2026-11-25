@@ -5,7 +5,7 @@ Helikoptern flyger till en punkt (jagarens färska datum, annars en sökpunkt), 
 skrovsonar inte når) i `DIP_S`; ett eko ger både bäring och avstånd, så läget blir skarpt och går till jagarna
 över radio. Sedan hissas sonaren och helikoptern flyger till nästa doppunkt: nära läget om den hittat oss,
 annars vidare i sökmönstret. Med skarpa insatsregler (jagarna har gått över till `lethal`) fäller den en
-målsökande Mk 44 på ett skarpt läge, en per flygning.
+målsökande Mk 44 på ett skarpt läge, en per flygning, men bara i krig (`HeloDef.torpedo`).
 
 Ubåten märker den genom sonaren: korta, ljusa pingar från en fast punkt nära oss som sedan flyttar sig
 (`Transient("dip_ping")`, `SonarRoom`), och genom periskopet (en helikopter som hovrar lågt). Den har ingen
@@ -74,6 +74,7 @@ class HelicopterAI:
         self.next_ping = 0
         self.dropped = False
         self._heard = False
+        self.torpedo = True             # HeloPatrol sätter det ur HeloDef (bara krig)
 
     def aware(self) -> bool:
         return self.datum is not None
@@ -122,7 +123,7 @@ class HelicopterAI:
             if isinstance(ai, DestroyerAI) and not ai.vessel.sunk:
                 ai._set_datum(world, x, y, own.state.depth, sigma, fix=True)
                 ai.last_contact_t = world.time
-        if self._lethal(world) and not self.dropped and sigma <= DROP_SIGMA_NM:
+        if self.torpedo and self._lethal(world) and not self.dropped and sigma <= DROP_SIGMA_NM:
             self.dropped = True
             course = bearing_to(p.x, p.y, x, y)
             launch_enemy_torpedo(world, self.vessel, MK44, course, max(20.0, own.state.depth))
@@ -173,6 +174,8 @@ class HeloDef:
     gap_s: tuple[int, int] = (40 * 60, 70 * 60)
     entry: tuple[float, float] = (30.0, 10.0)
     only_cued: bool = True          # bara när jagaren har ett färskt datum (annars söker de inte här)
+    torpedo: bool = False           # fäller en Mk 44 med skarpa regler: bara i krig (i jagad, där jagarna fäller
+                                    # skarpt men det inte är krig, sänkte den oss: frö 102)
 
 
 class HeloPatrol:
@@ -206,6 +209,7 @@ class HeloPatrol:
             helo = Helicopter(f"HS{self.count}", ex, ey, bearing_to(ex, ey, self.area / 2, self.area / 2))
             leave = world.time + self.rng.randint(*self.hdef.on_station_s)
             ai = HelicopterAI(helo, random.Random(self.rng.random()), self.area, leave, (ex, ey))
+            ai.torpedo = self.hdef.torpedo
             world.contacts.append(helo)
             world.ais.append(ai)
             self.current = ai

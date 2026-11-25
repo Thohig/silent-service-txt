@@ -115,7 +115,7 @@ def war_scenario(rng: random.Random, tdef: TheatreDef | None = None,
     world.spawners.append(traffic)
     world.spawners.append(air)
     if not short:       # helikoptrar med doppingsonar (och Mk 44) när en jagare har ett läge (egen slump)
-        world.spawners.append(HeloPatrol(HeloDef(first_s=(60 * 60, 120 * 60)), random.Random("helo-krig"),
+        world.spawners.append(HeloPatrol(HeloDef(first_s=(60 * 60, 120 * 60), torpedo=True), random.Random("helo-krig"),
                                          area=size))
     world.goals.append(EscapeGoal(WAR_ESCAPE_NM, "patrol_done", requires_flag="recalled"))
     sb_rng = random.Random(rng.random())
