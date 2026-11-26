@@ -25,6 +25,8 @@ Provspel med alla botar (skytt i tre lägen, provspel, kaos) gav inga larm eller
 loggarna lästes som kapten.
 - Navigatören föreslog vägen ut ur området mitt i torpedlarmet (duell-kort frö 11, "håll farten" en minut
   innan). Nu inget `nav.suggest.exit` medan `Knowledge.torpedo_alarm` gäller (`navigation/exit_route.py`).
+  Kalibreringen: duell-kort ja-boten patrol_end 4 ⇒ 6 av 8 (frö 2 tog sig ut med kurs 180 mitt i larmet och
+  håller nu undanmanövern; förlorade 3 ⇒ 2, utom området 1 ⇒ 0). Baslinjen sparad.
 - Bandet i Clyde: sonar sa "för svag för bandet … vi hinner inte ikapp" och 18 s senare "Halva inspelningen"
   (clyde-in frö 11). Ett enda svagt prov (var 5:e s) räckte. Medan bandet gått de senaste 60 s (`WEAK_AFTER_S`)
   säger förslaget att gå närmare nu "ligger på gränsen för bandet, ljudet svajar", och "hinner inte ikapp" sägs
