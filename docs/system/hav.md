@@ -185,6 +185,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   (`nav.wreck`). En ubåt på botten inom 0,1 nm från ett vrak smälter ihop med dess eko (`WRECK_CLUTTER_DB` 8 dB
   mer i jagarens och bojarnas aktiva sonar). Jagade föreslår navigatören kurs mot ett vrak på kortet inom 2 nm på
   ett djup vi kan ligga på, och vid vraket botten (`nav.suggest.wreck`, `wreck_settle`).
+  Navigatörens förslag att gå till vraket kräver att raka vägen dit är fri på kortet (`path_clear`: inget grundare än
+  21 m, `LAND_CLEAR_M`, med bestickets osäkerhet åt sidorna; 2026-11-26, sundet-in frö 22 gick förslaget genom grundet).
 - **Fisket** (`sim/fishing.py`; 2026-11-25): trålare (`Trawler`, kind fishing) på bankerna i kuba (tre), jagad (två)
   och sundet (två), och i kuba en sovjetisk spaningstrålare (kind spytrawler), som jagaren skuggar en halvtimme av
   varje och en halv (`DestroyerAI.shadow`, sista 30 min av 90). Trålen går 0,25 nm akterut på 60 m (bottentrål

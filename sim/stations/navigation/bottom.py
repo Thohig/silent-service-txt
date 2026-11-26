@@ -109,6 +109,22 @@ class BottomMixin:
         i = np.unravel_index(np.argmin(z), z.shape)
         return float(z[i]), float(dd[i])
 
+    def path_clear(self, x: float, y: float) -> bool:
+        """Går raka vägen dit utan att kortet visar grundare än LAND_CLEAR_M, med bestickets osäkerhet
+        åt sidorna? (sundet-in frö 22: vrakförslaget gick genom grundet, och navigatören vände oss
+        bort en halv minut senare, två gånger)."""
+        chart = self.game.knowledge.bathymetry
+        if chart is None:
+            return True
+        r = distance(self.est_x, self.est_y, x, y)
+        if r < 1e-6:
+            return True
+        sigma = self.uncertainty()
+        ux, uy = (x - self.est_x) / r, (y - self.est_y) / r
+        dd, ss = np.meshgrid(np.arange(0.0, r + 0.05, 0.05), np.array([-sigma, 0.0, sigma]))
+        z = chart.depths(self.est_x + dd * ux + ss * uy, self.est_y + dd * uy - ss * ux)
+        return float(z.min()) >= LAND_CLEAR_M
+
     def known_bottom(self) -> tuple[float, float, bool] | None:
         """Grundaste botten vi känner till här och framåt: (djup, avstånd nm, lodat).
         Kortet framåt, och senaste lodning om den är färsk och grundare."""
@@ -229,7 +245,7 @@ class BottomMixin:
             return Proposal(2, "wreck_settle", "nav.suggest.wreck_settle", "botten", {}, cooldown=600)
         name = next((n for n, wp in self.game.knowledge.waypoints.items()
                      if wp.source == "kortet" and (wp.x, wp.y) == (w.x, w.y)), None)
-        if name is None:
+        if name is None or not self.path_clear(w.x, w.y):
             return None
         return Proposal(2, "wreck", "nav.suggest.wreck", f"kurs mot {name}",
                         {"range": r, "course": bearing_to(self.est_x, self.est_y, w.x, w.y), "depth": depth},

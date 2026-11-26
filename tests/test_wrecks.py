@@ -1,5 +1,7 @@
 """Vrak på botten (sim/seabed.py Wreck): kortet, ekolodets fix, gömstället och jagarens eko."""
 import random
+
+import pytest
 from dataclasses import replace
 
 from sim.events import ReportDelivered
@@ -89,3 +91,24 @@ def test_the_navigator_suggests_hiding_by_a_wreck_when_hunted():
         assert nav._wreck_proposal().order == "botten"
     else:
         assert p is None
+
+
+@pytest.mark.slow
+def test_the_wreck_is_not_suggested_through_the_shallows():
+    """sundet-in frö 22 (ja-boten): "kurs mot vrak 1" gick genom grundet, och navigatören vände oss bort
+    en halv minut senare (nav.suggest.land), två gånger. Vägen till vraket ska vara fri på kortet."""
+    from sim.stations.navigation import NavigationStation
+    g = Game(build_scenario("sundet-in", random.Random(22)), seed=22)
+    nav = g.station(NavigationStation)
+    start = g.now
+    seen = []
+    g.bus.subscribe(ReportDelivered, lambda e: seen.append((g.now, e.report.type)))
+    for _ in range(36 * 60):
+        g.tick()
+        if g.over:
+            break
+        if g.active_suggestion() and (g.now - start) % 15 == 0:
+            g.command("ja")
+    wrecks = [t for t, ty in seen if ty == "nav.suggest.wreck"]
+    lands = [t for t, ty in seen if ty == "nav.suggest.land"]
+    assert not any(0 <= lt - wt <= 120 for wt in wrecks for lt in lands)

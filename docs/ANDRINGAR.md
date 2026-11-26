@@ -3,6 +3,13 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-26 – Vrakförslaget går inte genom grundet
+
+- Provspel (ja-boten, sundet-in frö 22): navigatören föreslog "kurs mot vrak 1" och en halv minut senare en gir bort
+  från grundet framför oss (`nav.suggest.land`), två gånger. Förslaget prövade bara avståndet och djupet vid vraket.
+  Nu måste raka vägen dit vara fri på kortet (`NavigationStation.path_clear`, `sim/stations/navigation/bottom.py`).
+  `tests/test_wrecks.py::test_the_wreck_is_not_suggested_through_the_shallows`.
+
 ## 2026-11-25 – Utsikten: bryggan och periskopbilden i en vy
 
 - Bryggvyn och periskopbilden syntes aldrig samtidigt (bryggan bara med luckan öppen). Nu är de en vy, utsikten
