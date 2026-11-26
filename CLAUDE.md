@@ -271,7 +271,9 @@ för in varje färdigt steg där.
 - Vaken (`docs/system/hav.md`, Is): `vak` i fart (> 1,8 kn) saktar till 1,5 kn över råken (`VAK_MEASURE_KN`), back 2 kn
   till mitten när isekolodet ser slutet (`VAK_BACK_KN`, omkastningen under 2 kn); > 250 m stopp där vi är; nyis kortare
   än båten (120 m) inte värd att backa till; kaptenens back under mätningen behåller vaken.
-- Clyde: Polarisbåten 130 + 2·fart dB i ytläge; bandet 10 min med SE ≥ 8 dB (`stations/recording.py`);
+- Clyde: Polarisbåten 130 + 2·fart dB i ytläge; bandet 10 min med SE ≥ 8 dB (`stations/recording.py`; sonar skär
+  av målet med förhåll ur plottets lösning i 5 kn eller strax under kavitationsfarten, `_intercept`; plottet föreslår
+  inga ben på bandets mål; clyde-in ja-boten 9 ⇒ 12 av 16);
   fyrfix σ 0,1 (två) / 0,2 (en); moln ≥ 0,6 stänger stjärnfixen. Firth-bottnen i ett rutnät 0,05 nm.
 - Omladdning: två slammer à 145 dB (torpeden in, bakluckan stängs); på smygmotorn eller jagade laddar
   minören försiktigt, 8 min i stället för 5 och −12 dB. Jagaren hör slammret ~1,5 nm över skiktet i 5 kn.
@@ -296,7 +298,8 @@ för in varje färdigt steg där.
   eftersläpning, anfaller 12–16 min efter överlämnandet.
 - Fiendens torped Mk 37: 26 kn, 5 nm, 145 dB, söker passivt i 40° och aktivt inom 0,4 nm och ±50 m i höjd;
   skenmålet 135 dB och bubbelekot starkare än skrovet; en träff är förlusten. Vi går 28 kn på turbinen.
-  Tappad i döda sektorn gäller torpedlarmet 12 min från första bäringen (`TORPEDO_RUN_S`).
+  Tappad i döda sektorn gäller torpedlarmet 12 min från första bäringen (`TORPEDO_RUN_S`); tystnad där vi hör
+  också, om det var före 75 % av den tiden (`RUNNING_FRACTION`, duell-kort ja-boten förlorade 5 ⇒ 3).
 - Skadekontrollen (`sim/damage.py`, `docs/system/besattning.md`): läcka k·√(1 + djup/10) t/min (packbox 0,08, rör 0,18,
   svetsfog 0,30, spricka 0,50 och 30 % kvar), tätas på 120–600 s · (1 + djup/400); avdelning 25–40 t, utrymd halvfull;
   länspumpar 1 t/min vid ytan, linjärt mot 0 vid 500 m (minst 25 %), 124 dB, står i tystnad till 8 t; reparation

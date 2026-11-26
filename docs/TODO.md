@@ -15,6 +15,10 @@ Webbversionen provad av kaptenen 2026-11-22: fungerar bra. Byggt 2026-11-24 och 
 - Loggboken som lager (2026-11-25): PageUp/PageDown/Esc i Terminal på macOS och i webbläsaren (bläddrar sidan i
   stället, eller når tangenten spelet?). Räcker loggremsan med 7 rader under översikten i 80 × 24?
 - Utsikten (2026-11-25): bryggans panorama, ↓ kikarens okular och ↑ tillbaka i ytläge; periskopbilden under ytan.
+- Bandet i Clyde (2026-11-26): "kurs … för att skära av den" och "vi hinner inte ikapp"; känns det rätt, och borde
+  sonar då föreslå något (vänta vid farleden)?
+- Torpedlarmet (2026-11-26): en torped som tystnar tidigt håller larmet i upp till 12 min ("håll farten"); blir det
+  för länge i 28 knop när den faktiskt är borta?
 - Radion i kuba-kort och konvoj-kort (2026-11-25): "väntar på djupet" på en jagare med dålig lösning, och
   `radio.closing` 5 min före stängning; för försiktig, eller lagom?
 - Huvudskärmen: översikten med loggremsan (9 rader) i ett vanligt terminalfönster och i webbläsaren. Räcker
