@@ -3,6 +3,22 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-26 – Provspel: förbättringarna
+
+- Dimma: periskopet minns sikten vid senaste titten (`PeriscopeWatch.seen_visibility`). Inom 30 min föreslår
+  vakthavande inga konvojtittar eller periskopdjup för dem när konvojen enligt plottet ligger längre bort än
+  sikten (konvoj-kort frö 11: sikt 0,7 sjömil, konvojen 4 sjömil bort, två förslag och radarn "mycket stark").
+- Grundet: när en bank tvingar oss grundare än 30 m och navigatören inte styr föreslår han närmaste gir dit kortet
+  låter oss stanna djupare (`nav.suggest.shoal_turn`), i stället för periskopdjup (clyde-in frö 11). Bandets
+  kursförslag prövas mot samma sak (`keeps_depth`).
+- En stations fråga om kaptenens egen order står som FRÅGA i huvudraden ("ja upprepar") och "Fråga: ja = … igen"
+  i orderraden, inte som FÖRSLAG (`StatusSnapshot.question`).
+- Tråden: medan en 53-62T går på tråd säger torpedrummet nej till förslag om gir över 90° från skjutkursen,
+  fart över 12 knop och anfall (`WireMixin._wire_vetoes`); inte när de har oss eller en torped kommer.
+- "anfall S-7" utan någon S-7: "Kapten, vi har ingen S-7 i plottet." (förut "ingen lösning på S-7").
+- Radarvarnaren säger "De kan se våra master!" bara med masterna uppe eller tornet över ytan, annars
+  "Sticker vi upp masterna ser de dem."
+
 ## 2026-11-26 – Provspel: sex buggar ur loggarna
 
 Provspel med alla botar (skytt i tre lägen, provspel, kaos) gav inga larm eller undantag; felen syntes när
@@ -10,8 +26,10 @@ loggarna lästes som kapten.
 - Navigatören föreslog vägen ut ur området mitt i torpedlarmet (duell-kort frö 11, "håll farten" en minut
   innan). Nu inget `nav.suggest.exit` medan `Knowledge.torpedo_alarm` gäller (`navigation/exit_route.py`).
 - Bandet i Clyde: sonar sa "för svag för bandet … vi hinner inte ikapp" och 18 s senare "Halva inspelningen"
-  (clyde-in frö 11). Ett enda svagt prov (var 5:e s) räckte för förslag och utrop; nu först när bandet stått
-  `WEAK_AFTER_S` (60 s) utan gott ljud (`stations/recording.py`).
+  (clyde-in frö 11). Ett enda svagt prov (var 5:e s) räckte. Medan bandet gått de senaste 60 s (`WEAK_AFTER_S`)
+  säger förslaget att gå närmare nu "ligger på gränsen för bandet, ljudet svajar", och "hinner inte ikapp" sägs
+  inte (`stations/recording.py`, `marginal`). Prövat först: inget förslag alls då; clyde-in med ja-boten gav
+  inspelat 12 ⇒ 8 av 16 (förslaget att gå närmare när ljudet svajar är det som får bandet klart), nu 11.
 - "Kapten, sonaren är hela." Reparationsrepliken böjer adjektivet efter komponenten: sonaren är hel,
   periskopet är helt, rodren är hela (`damage_control.py`, `_agree`).
 - Huvudraden i ytläge sa PERISKOPDJUP och ett rött KAVITERAR (övningen, 10 knop i fjorden), och

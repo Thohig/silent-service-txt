@@ -9,6 +9,7 @@ eller trådlängden. Kaptenens enda nya order är `kapa tråden`.
 from __future__ import annotations
 
 import math
+import re
 
 from ...firecontrol import intercept
 from ...geo import angle_diff
@@ -82,6 +83,25 @@ class WireMixin:
                 self._steer(r, torp)
         if any(r.wired for r in self.in_water) and self.game.knowledge.torpedo_alarm(self.now):
             self.suggest("cutwire", "torp.suggest.cut_wire", order="kapa tråden", cooldown=180)
+
+    def _wire_vetoes(self, order: str) -> bool:
+        """Ett annat förslag som sliter av tråden: gir över WIRE_MAX_TURN från skjutkursen, fart över
+        WIRE_MAX_SPEED eller ett anfall (navigatören girar dit han vill). Inte när de har oss eller en
+        torped kommer: då gäller undanmanövern (och torpedrummet föreslår att kapa tråden).
+        (krig-kort frö 11: anfallet girade oss och tråden gick av.)"""
+        live = [r for r in self.in_water if r.wired and r.no in self._wire_truth]
+        k = self.game.knowledge
+        if not live or k.hunted(self.now) or k.torpedo_alarm(self.now):
+            return False
+        text = order.lower()
+        if re.search(r"\banfall\b", text):
+            return True
+        m = re.search(r"\bfart (\d+(?:[,.]\d+)?)", text)
+        if m and float(m.group(1).replace(",", ".")) > WIRE_MAX_SPEED:
+            return True
+        m = re.search(r"\bkurs (\d{1,3})\b", text)
+        return bool(m) and any(abs(angle_diff(float(m.group(1)), self._launch_course(r))) > WIRE_MAX_TURN
+                               for r in live)
 
     def _launch_course(self, r: Running) -> float:
         return self._wire_truth[r.no].wire_course

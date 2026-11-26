@@ -58,6 +58,9 @@ REPEAT_S = 1200            # samma order föreslås inte igen inom denna tid
 LOOK_INTERVAL_S = 900      # på periskopdjup utan kontakt: titta så här ofta
 CONVOY_LOOK_S = 240        # konvojen känd: en kort titt mot den så här ofta (utkiken ger kursen)
 FIRE_LOOK_NM = 3.5         # ett stort fartyg så nära enligt plottet: snart skjutläge
+FOG_MEMORY_S = 1800       # sikten periskopet såg gäller så länge för konvojtittarna
+FOG_MARGIN_NM = 0.3       # fartyget längre bort än sikten + detta: titten ser inget
+FOG_UNKNOWN_NM = 3.0      # ingen lösning: så långt bort antas konvojen
 FIRE_LOOK_S = 90           # ... då en titt före skottet om förra titten på det är så här gammal
 CONVOY_STEP_S = 30
 PHOTO_TASK_NM = 3.5         # så nära den meddelade ankarplatsen föreslår vakthavande en titt
@@ -215,7 +218,9 @@ PHRASES = {
     "off.esm.same": lambda d: "Radarvarnare: " + ("samma radar som förut." if d["n"] == 1 else
                                                   f"samma {d['n']} radarstationer som förut."),
     "off.esm": lambda d: f"Radarvarnare: radar i bäring {fmt_course(d['bearing'])}, "
-    f"signal {d['strength']}." + (" De kan se våra master!" if d['strength'] == "mycket stark" else ""),
+    f"signal {d['strength']}." + ((" De kan se våra master!" if d.get("masts", True) else
+                                   " Sticker vi upp masterna ser de dem.")
+                                  if d['strength'] == "mycket stark" else ""),
     "off.esm.air": lambda d: f"Radarvarnare: flygradar i bäring {fmt_course(d['bearing'])}, "
     f"signal {d['strength']}. Bäringen drar snabbt, det är ett flygplan."
     + (" Det är nära, kapten!" if d['strength'] == "mycket stark" else ""),
@@ -290,7 +295,8 @@ RU_PHRASES = {
     "off.esm.same": lambda d: "Станция предупреждения: те же радары, что и раньше.",
     "off.esm": lambda d: f"Станция предупреждения: радар, пеленг {R.course(d['bearing'])}, "
     f"сигнал {STRENGTH_RU[d['strength']]}."
-    + (" Они могут видеть наши выдвижные!" if d["strength"] == "mycket stark" else ""),
+    + ((" Они могут видеть наши выдвижные!" if d.get("masts", True) else " Поднимем выдвижные — увидят.")
+       if d["strength"] == "mycket stark" else ""),
     "off.esm.air": lambda d: f"Станция предупреждения: авиационный радар, пеленг "
     f"{R.course(d['bearing'])}, сигнал {STRENGTH_RU[d['strength']]}. Пеленг быстро меняется, "
     "это самолёт." + (f" Он близко, {R.CAPTAIN.lower()}!" if d["strength"] == "mycket stark" else ""),
@@ -583,6 +589,8 @@ class OfficerStation(Station):
             any(strength == "mycket stark" and self.now - t <= ESM_STRONG_S
                 for strength, t in self._esm_last.values())
         st = self.own.state
+        if self._fog_hides(big):
+            return
         if st.depth > PERISCOPE_DEPTH + 1:
             if not held_back:
                 self.suggest("convoy_up", "off.suggest.convoy_up", order="periskopdjup",
@@ -616,6 +624,17 @@ class OfficerStation(Station):
             self.suggest(f"fire_look{d}", "off.suggest.fire_look", data,
                          order=f"periskop {d}", cooldown=FIRE_LOOK_S)
         return True
+
+    def _fog_hides(self, big) -> bool:
+        """Såg periskopet nyss (FOG_MEMORY_S) att sikten är kortare än avståndet till närmaste stora
+        fartyg? Då ger en titt inget, och masten syns ändå på radar (konvoj-kort frö 11: dimma, sikt
+        0,7 sjömil, konvojen 4 sjömil bort; två titt- och periskopdjupsförslag i följd)."""
+        seen = self._periscope().seen_visibility
+        if seen is None or self.now - seen[0] > FOG_MEMORY_S:
+            return False
+        ranges = [r for tr in big if (r := self._predicted_range(tr, Quality.OSAKER)) is not None]
+        nearest = min(ranges) if ranges else FOG_UNKNOWN_NM
+        return nearest > seen[1] + FOG_MARGIN_NM
 
     def _predicted_range(self, tr, min_quality: Quality | None = None) -> float | None:
         """Avståndet till kontakten nu enligt plottets lösning, framräknad (kunskap)."""
@@ -852,7 +871,10 @@ class OfficerStation(Station):
                 else:
                     self._esm_said[v.id] = (strength, self.now, true_b)
                     b = norm360(true_b + rng.gauss(0, 3))
-                    self.say("off.esm", {"bearing": b, "strength": strength}, kind="contact",
+                    # masterna uppe, eller tornet över ytan (clyde-in frö 11: "De kan se våra master!"
+                    # på 18 meter med allt nere)
+                    masts = self.own.masts_up(self.now) or st.depth < PERISCOPE_DEPTH - 4
+                    self.say("off.esm", {"bearing": b, "strength": strength, "masts": masts}, kind="contact",
                              alarm=strength == "mycket stark")
                 if strength == "mycket stark" and (d := self.dive_depth(60)) is not None and \
                         self._suggested.get("down_air", -10**9) < self.now - 5:

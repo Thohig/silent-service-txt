@@ -44,6 +44,7 @@ SHOAL_MARGIN_M = 30         # håll så här långt över botten enligt kortet
 SHOAL_LOOK_MIN = 6          # navigatören tittar så många minuters gång framåt
 SHOAL_LOOK_MIN_NM = 0.6     # men minst så långt (stigning 100 m tar ~7 min)
 SHOAL_CHECK_S = 20
+SHOAL_TURN_DEPTH_M = 30     # grundet tvingar oss upp grundare än så: hellre en gir dit det är djupt nog
 SOUNDING_TRUST_S = 600      # en lodning räknas så här länge
 BFIX_N = 9                  # fix mot botten: så många lodningar
 BFIX_INTERVAL_S = 20        # med så här långt mellan

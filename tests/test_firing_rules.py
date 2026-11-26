@@ -46,6 +46,16 @@ def _mock_target(g, rng=2.0):
     return torp
 
 
+@pytest.mark.weapons_hold
+def test_a_question_shows_as_a_question_not_a_suggestion():
+    """Huvudraden sa "FÖRSLAG … (ja/nej)" också när en station frågade om kaptenens egen order."""
+    g, reports = _game("kuba")
+    g.command("eld tub 1 kurs 090")
+    _run(g)
+    st = g.status()
+    assert st.suggestion == "eld tub 1 kurs 090" and st.question
+
+
 # --- fredstid ---------------------------------------------------------------------------
 @pytest.mark.weapons_hold
 def test_torpedo_room_asks_once_before_a_live_shot_in_peacetime():

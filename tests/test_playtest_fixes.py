@@ -356,3 +356,13 @@ def test_attack_lost_says_why():
     assert "tappat S-2" in f({"designation": "S-2", "why": "lost"})
     assert "för osäker" in f({"designation": "S-2", "why": "poor"})
     assert "för gammal" in f({"designation": "S-2", "why": "old"})
+
+
+def test_radar_warner_says_they_see_the_masts_only_when_they_are_up():
+    """Clyde-in frö 11: "De kan se våra master!" på 18 meter med allt nere."""
+    from sim.stations.officer import PHRASES
+    say = PHRASES["off.esm"]
+    up = say({"bearing": 278, "strength": "mycket stark", "masts": True})
+    down = say({"bearing": 278, "strength": "mycket stark", "masts": False})
+    assert up.endswith("De kan se våra master!")
+    assert down.endswith("Sticker vi upp masterna ser de dem.")

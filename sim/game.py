@@ -86,6 +86,7 @@ class StatusSnapshot:
     blowing: bool = False           # nödblåsning pågår
     cavitating: bool = False
     suggestion: str | None = None
+    question: bool = False          # `suggestion` är en stations fråga om kaptenens egen order
     over: bool = False
     sea_noise: float = 0.0          # bakgrundsbrus sonaren hör, dB
     under_ice: bool = False
@@ -720,7 +721,8 @@ class Game:
             blowing=sy.blowing,
             # i ytläge hörs skruven ändå, och kavitationen är ingen varning (övningen: 10 kn i fjorden)
             cavitating=not own.surfaced and s.speed > cavitation_speed(s.depth, s.prop_astern),
-            suggestion=self.active_question() or (sug[0] if sug else None), over=self.over,
+            suggestion=(q := self.active_question()) or (sug[0] if sug else None), question=q is not None,
+            over=self.over,
             fire=sy.fire, smoke=sy.smoke, ventilating=sy.ventilating, on_bottom=sy.on_bottom,
             bridge=sy.bridge,
             night=not self.world.env.is_day(self.now), hunted=self.knowledge.hunted(self.now),

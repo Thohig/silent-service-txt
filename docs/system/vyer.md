@@ -85,6 +85,7 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   gungar från 5) och när bryggan bemannas (`bridge.manned`); verkan på brus, sikt, radar och
   periskopdjupet står i `docs/system/hav.md` (Sjögången).
   Periskopet visar utkikens bedömda avstånd på remsan och under vattenlinjen (`range_tag`), ingen skala.
+  I ytläge (`StatusSnapshot.surfaced`) står YTLÄGE i stället för PERISKOPDJUP och ingen KAVITERAR (2026-11-26).
 - **Ubåten** (`ubåt`, även `profil`/`system`; `ui/boat.py`, `ui/boat_render.py`; genomskärningen med vattnet i
   varje avdelning efter hur full den är, `Compartment.water`, och gula skott när de är stängda, `Flooding.closed`,
   2026-11-25; panelen MASKIN visar läckorna per avdelning, länspumparna, skotten och provdjupet, SKADOR vad som

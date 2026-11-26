@@ -98,8 +98,10 @@ class ViewScreen(Screen):
             return
         from .logdrawer import drawer_on
         esc = "(Esc loggen upp)" if drawer_on(self) is not None else "(Esc tillbaka)"
-        sug = game.status().suggestion
-        line.placeholder = f"Förslag: ja = {sug} · nej avslår   {esc}" if sug \
+        st = game.status()
+        sug = st.suggestion
+        line.placeholder = f"Fråga: ja = {sug} igen · nej avstår   {esc}" if sug and st.question else \
+            f"Förslag: ja = {sug} · nej avslår   {esc}" if sug \
             else PLACEHOLDER.replace("(Esc tillbaka)", esc)
 
     # --- de senaste rapporterna ---------------------------------------------------

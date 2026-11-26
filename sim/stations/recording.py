@@ -57,6 +57,7 @@ PHRASES = {
     f"för svagt för bandet. Föreslår djup {d['depth']}, över skiktet.",
     "sonar.suggest.record_close": lambda d: f"Kapten, sonar. {d['designation']} "
     + ("ligger akterut, där skymmer skrovet och skruven bandet. Sista bäringen" if d.get("astern")
+       else "ligger på gränsen för bandet, ljudet svajar, bäring" if d.get("marginal")
        else "är för svag för bandet, bäring") + f" {d['bearing']:03d}. Föreslår kurs "
     f"{d.get('course', d['bearing']):03d} och fart {d['speed']} "
     + (("för att möta den där den går fram" if d.get("meet") else "för att skära av den")
@@ -126,9 +127,9 @@ class RecordingMixin:
                     self.say("sonar.record.half",
                              {**d, "left": round((RECORD_S - tape.seconds) / 60)}, kind="info")
                 continue
-            if self.now - tape.last_good < WEAK_AFTER_S:
-                continue    # bandet går, ljudet svajar (clyde-in frö 11: "hinner inte ikapp", sedan halva)
-            self._suggest_closer(tr, obs)
+            # bandet går och ljudet svajar på gränsen: närmare hjälper, men inget "för svag" eller "hinner
+            # inte ikapp" (clyde-in frö 11: det sades 18 s före "Halva inspelningen")
+            self._suggest_closer(tr, obs, marginal=self.now - tape.last_good < WEAK_AFTER_S)
             if tape.seconds > 0 and self.now - tape.last_good >= WEAK_AFTER_S and \
                     self.now - tape.weak_said >= WEAK_REPEAT_S:
                 tape.weak_said = self.now
@@ -141,7 +142,7 @@ class RecordingMixin:
         nav = self._navigator()
         return nav is None or nav.course_safe(course)
 
-    def _suggest_closer(self, tr, obs) -> None:
+    def _suggest_closer(self, tr, obs, marginal: bool = False) -> None:
         """För svagt för bandet: över skiktet om vi är under det, annars mot kontakten (mot sista bäringen
         när den ligger akterut i döda sektorn och vi inte har någon färsk)."""
         k = self.game.knowledge
@@ -160,11 +161,11 @@ class RecordingMixin:
                 return
             self.suggest("record_close", "sonar.suggest.record_close",
                          {"designation": tr.designation, "bearing": b, "speed": CLOSE_SPEED_KN,
-                          "astern": True},
+                          "astern": True, "marginal": marginal},
                          order=f"kurs {b:03d}, fart {CLOSE_SPEED_KN}", cooldown=300)
             return
         layer = self.layer_depth()
-        d = {"designation": tr.designation}
+        d = {"designation": tr.designation, "marginal": marginal}
         if layer is not None and st.ordered_depth >= layer:
             self.suggest("record_up", "sonar.suggest.record_up", {**d, "depth": LISTEN_DEPTH_M},
                          order=f"djup {LISTEN_DEPTH_M}", cooldown=600)
@@ -177,6 +178,8 @@ class RecordingMixin:
             plan = self._intercept(b, sol.course, sol.speed)
             tgt = {"target_course": round(sol.course) % 360, "target_speed": round(sol.speed)}
             if plan is None:
+                if marginal:
+                    return      # bandet går ändå
                 # går ifrån oss fortare än vi tyst kan gå: inget att föreslå, säg det en gång
                 if self.now - self._outrun_said.get(tr.designation, -10**9) >= OUTRUN_REPEAT_S:
                     self._outrun_said[tr.designation] = self.now

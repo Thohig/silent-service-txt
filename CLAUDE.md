@@ -285,7 +285,8 @@ för in varje färdigt steg där.
 - Tystnad i båten: jagade och på smygmotorn eller ≤ 6 kn (`OfficerStation._hush_watch`, hävs efter 60 s).
   Skrovknak 132 dB var 25:e m vid djupändring > 1 m/s under 80 m (rodren i ≳ 6 kn); maskin säger det under jakt.
 - Trådstyrd 53-62T (försök): 35 kn, 7 nm, tråd 5,5 nm; styrs var 20:e s, målsökaren släpps 0,6 nm från
-  målet; tråden av efter 15 s över 12 kn, gir > 90° från kursen vid skottet, ~1 %/min av sig själv.
+  målet; tråden av efter 15 s över 12 kn, gir > 90° från kursen vid skottet, ~1 %/min av sig själv. Medan tråden
+  lever säger torpedrummet nej till förslag om gir > 90°, fart > 12 kn och anfall (inte jagade eller torpedlarm).
 - Torpedrummets frågor (`docs/system/besattning.md`, 2026-11-23): fredstid (ordern säger inte krig, inte angripna
   skarpt) ⇒ en fråga före skarpt skott, och första sänkta fienden avslutar (`PeaceBroken`); rak torped med gångtid
   > 5 min (`LONG_RUN_S`) ⇒ en fråga och förslag om `anfall S-x` (inte under jakt); träffpunkt innanför

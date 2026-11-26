@@ -208,7 +208,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   kurs med förhåll i lägsta fart som minskar avståndet ≥ 1 kn (5 kn, sedan strax under kavitationsfarten;
   `_intercept`); kommer målet mot oss men korsar för fort, kurs 60° mot dess väg (`MEET_LEAD_DEG`); går det
   ifrån oss fortare än vi tyst kan gå säger sonar det (`sonar.record.outrun`, högst var 15:e min) utan förslag
-  (2026-11-26; förut jagade "kurs mot den, fart 5" en Polarisbåt i 10 kn). Plottet föreslår inga nya ben på
+  (2026-11-26; förut jagade "kurs mot den, fart 5" en Polarisbåt i 10 kn). Har bandet gått de senaste 60 s
+  säger förslaget "ligger på gränsen för bandet", och outrun sägs inte (`marginal`). Plottet föreslår inga nya ben på
   målet medan bandet inte är klart (`PlotTeam._recording_target`). Navigatören föreslår inte att lägga sig på botten och sonar inte
   att gå under skiktet medan vi ska lyssna och inte är jagade. Klar inspelning ⇒ `RecordingMade` ⇒
   `Knowledge.recorded` (vägen ut är det som återstår) och `mission["recorded"]`. Sedan ut söder om y = 2

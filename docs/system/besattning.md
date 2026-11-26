@@ -51,9 +51,14 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   vid tystnad) när plottet har ett hot inom 5 nm (`RADIO_SAFE_NM`; jagare och ubåtar också på dålig lösning, då
   avståndet minus 1σ, högst 30 %, `POOR_NEAR_F`), eller har tappat en jagare eller ubåt de senaste 15 min som inte
   säkert var längre bort (`radio.wait_lost`, `LOST_RECENT_S`); `radio.clear` när det gått över (2026-11-25).
+  Medan navigatören anfaller, och 5 min efter att målet skulle vara tvärs (`NavigationStation.attack_pending`,
+  `ATTACK_SHOT_S`), väntar radion också (`radio.wait_attack`; inga påminnelser, sänd- eller spaningsförslag,
+  `radio.closing` säger "vi anfaller", `radio.clear` "Anfallet är över"; 2026-11-26).
   När ordern kräver en rapport och fönstret stänger om 5 min (högst halva fönstret, `CLOSING_WARN_S`) utan att
   den sänts säger radion det, en gång per fönster, med skälet (`radio.closing`: jagade, hot nära, flyget, djupet,
   eller "sänd rapport, så går den"; 2026-11-25).
+  En station som frågar om kaptenens egen order visas som FRÅGA i huvudraden ("ja upprepar") och "Fråga: ja =
+  … igen" i vyernas orderrad (`StatusSnapshot.question`), förslag som förut (2026-11-26).
 - **Huvudstaben** (`sim/headquarters.py`, R3; ägs av radion, läser aldrig världen): vet bara vad vi
   sänt (`ReportTransmitted`, avbrutna räknas inte). Svarar vid nästa sambandstillfälle, före
   scenariots och krigsskådeplatsens telegram (som staben läser först, `read_order`: krig, ny uppgift,

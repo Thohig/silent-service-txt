@@ -47,6 +47,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   bara när styrkan ändrats, den flyttat sig mer än `ESM_MOVED_DEG` (15°) eller efter `ESM_REPEAT_S`
   (30 min; `_esm_said`). Känner den bara igen dem när vi kommer upp säger den "samma N radarstationer som
   förut" (`off.esm.same`). När radarn senast hördes (`_esm_last`) läser konvojvakten för "mycket stark".
+  "De kan se våra master!" bara med masterna uppe eller tornet över ytan; annars "Sticker vi upp masterna ser
+  de dem" (2026-11-26). Periskopet minns sikten vid senaste titten (`PeriscopeWatch.seen_visibility`); inom
+  30 min (`FOG_MEMORY_S`) föreslår vakthavande inga konvojtittar eller periskopdjup för dem när närmaste stora
+  fartyg enligt plottet (3 nm utan lösning) ligger längre bort än sikten + 0,3 nm (`_fog_hides`).
   Två förstoringar (`periscope.Optic`, `LOW`/`HIGH`): låg 1,5×, ±16°, bäring σ 1°, avstånd 15 % + 0,05 nm, kurs
   σ × 1,5; hög 6×, ±4°, bäring σ 0,5°, avstånd 8 % + 0,03 nm (stadimetern). Svepet söker och mäter i låg;
   titten söker i låg (±16°) och mäter i hög; hålläget i den valda (`förstoring hög`/`låg`, `PeriscopePower`,

@@ -28,3 +28,19 @@ def test_convoy_look_when_the_aircraft_was_long_ago():
     off._air_close_t = g.now - AIR_HOLD_S - 1
     off._convoy_watch()
     assert "convoy_up" in off._suggested
+
+
+def test_no_convoy_look_in_fog_the_periscope_just_saw():
+    """Konvoj-kort frö 11: periskopet såg sikten 0,7 sjömil, konvojen var 4 sjömil bort, och vakthavande
+    föreslog ändå titt och periskopdjup."""
+    from sim.stations.officer import FOG_MEMORY_S
+    from sim.stations.periscope import PeriscopeWatch
+    g, off = _officer()
+    off._air_close_t = -10**9
+    peri = g.station(PeriscopeWatch)
+    peri.seen_visibility = (g.now, 0.7)
+    off._convoy_watch()
+    assert "convoy_up" not in off._suggested
+    peri.seen_visibility = (g.now - FOG_MEMORY_S - 1, 0.7)   # för gammalt: vädret kan ha ändrats
+    off._convoy_watch()
+    assert "convoy_up" in off._suggested

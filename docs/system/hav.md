@@ -98,7 +98,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   står den still (farten genom vattnet 0, besticket glider inte) och maskin säger `bottom.pressed`
   var 2:a min; `bottom.touch` högst en gång per minut. Navigatören (`_shoal_watch`, var 20:e s) ser på kortet 6 min
   framåt (minst 1 nm) ± bestickets σ åt sidorna, och en färsk lodning; föreslår djup
-  30 m över botten. `NavigationStation.depth_limit()` begränsar sonarens djupförslag.
+  30 m över botten. `NavigationStation.depth_limit()` begränsar sonarens djupförslag. Tvingar grundet oss
+  grundare än 30 m (`SHOAL_TURN_DEPTH_M`) och navigatören inte styr föreslår han hellre närmaste gir där kortet
+  låter oss stanna djupare (`_deep_turn`, `keeps_depth`, `nav.suggest.shoal_turn`); bandets kursförslag i Clyde
+  prövas mot samma sak (2026-11-26, clyde-in frö 11: "djup 18" för en bank på 40 m och fartygsradarn).
   Står besticket på kortets land (kortets strand ligger fel, upp till `accuracy_nm`) föreslår
   navigatören kursen med kortaste väg till kortets vatten (`water_dist`, `nav.suggest.chart_land`,
   larm). Plottets ben prövas mot kortet (`course_safe`: inget land närmare än `LAND_SAFE_NM` 0,5 nm,

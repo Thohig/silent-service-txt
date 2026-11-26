@@ -132,9 +132,9 @@ class StatusBar(Static):
                      style="bold red" if s.masts_up else "bold yellow")
         if s.suggestion:
             t.append("  │ ")
-            t.append("FÖRSLAG ", style="dim")
+            t.append("FRÅGA " if s.question else "FÖRSLAG ", style="dim")
             t.append(s.suggestion, style="bold #f0c674")
-            t.append(" (ja/nej)", style="dim")
+            t.append(" (ja upprepar)" if s.question else " (ja/nej)", style="dim")
         self.update(t)
 
 

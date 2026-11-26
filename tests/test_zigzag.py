@@ -358,3 +358,14 @@ def test_anchored_ships_are_not_a_convoy():
     c = TrackPoint("S-3", 0.0, 0.0, 110.0, 8.0, False)
     d = TrackPoint("S-4", 0.3, 0.0, 112.0, 8.5, False)
     assert len(groups([c, d])) == 1
+
+
+def test_attack_on_a_contact_we_do_not_have():
+    """Kaosboten: "anfall S-7" utan någon S-7 fick "plottet har ingen lösning på S-7"."""
+    o0 = default_scenario(random.Random(3)).world.own.state
+    g, reports = _game_with_convoy_estimate(o0.x + 0.5, o0.y - 2.0)
+    g.command("anfall S-7")
+    for _ in range(10):
+        g.tick()
+    r = next(r for r in reports if r.type == "nav.attack.none")
+    assert r.text == "Kapten, vi har ingen S-7 i plottet."

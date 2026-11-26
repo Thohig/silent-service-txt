@@ -24,6 +24,8 @@ from .common import (
     LAND_MARK_STEP_NM,
     LAND_SAFE_NM,
     LAND_TURNS,
+    SHOAL_MARGIN_M,
+    SHOAL_TURN_DEPTH_M,
     SETTLE_AFTER_BOMBED_S,
     SETTLE_DESCEND_KN,
     SETTLE_EXTRA_M,
@@ -328,6 +330,15 @@ class BottomMixin:
         limit = self.depth_limit()
         if s.ordered_depth <= limit:
             return                          # på väg upp, eller redan grunt nog
+        if not sounded and not s.astern and limit < SHOAL_TURN_DEPTH_M and self.steer is None and \
+                (turn := self._deep_turn()) is not None:
+            # hellre en gir än upp på periskopdjup för en bank (clyde-in frö 11: "djup 18" för 40 m
+            # framåt, fartygsradarn "mycket stark" och ned igen en minut senare)
+            self.suggest("shoal_turn", "nav.suggest.shoal_turn",
+                         {"shoal": round(shoal, -1), "dist": dist, "depth": limit, "course": turn},
+                         order=f"kurs {fmt_course(turn)}", cooldown=300, quality=self._shoal_quality(),
+                         alarm=dist * 60 / max(s.speed, 0.5) < 3)
+            return
         minutes = dist * 60 / max(s.speed, 0.5)
         self.suggest("shoal", "nav.suggest.shoal",
                      {"shoal": round(shoal, -1), "dist": dist, "depth": limit, "sounded": sounded,
@@ -335,6 +346,22 @@ class BottomMixin:
                      order=f"djup {limit:.0f}", cooldown=300,
                      quality=Quality.SAKER if sounded else self._shoal_quality(),
                      alarm=minutes < 3)
+
+    def keeps_depth(self, course: float) -> bool:
+        """Går kursen utan att kortet tvingar oss grundare än SHOAL_TURN_DEPTH_M? För andra stationers
+        kursförslag (bandet i Clyde) när navigatören hellre girar än går upp för en bank."""
+        ahead = self.chart_ahead(course)
+        return ahead is None or ahead[0] - SHOAL_MARGIN_M >= SHOAL_TURN_DEPTH_M
+
+    def _deep_turn(self) -> float | None:
+        """Närmaste gir (LAND_TURNS) där kortet framåt låter oss stanna på minst SHOAL_TURN_DEPTH_M."""
+        s = self.ship
+        for a in LAND_TURNS:
+            for sgn in (1, -1):
+                c = norm360(s.course + sgn * a)
+                if self.keeps_depth(c):
+                    return round(c) % 360
+        return None
 
     def water_dist(self, course: float) -> float:
         """Avstånd (nm) längs kursen tills kortet visar vatten nog för periskopdjup; inf om inte

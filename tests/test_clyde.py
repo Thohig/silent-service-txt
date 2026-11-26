@@ -243,24 +243,24 @@ def test_the_plot_does_not_suggest_a_leg_off_the_tape_target():
     assert not plot._recording_target(tr)
 
 
-def test_a_flicker_below_the_tape_level_says_nothing_while_the_tape_runs():
+def test_a_flicker_below_the_tape_level_is_not_called_too_weak_while_the_tape_runs():
     """clyde-in frö 11: "för svag för bandet … vi hinner inte ikapp" och 18 s senare "Halva inspelningen".
-    Ett enstaka svagt prov medan bandet går ger varken förslag eller utrop."""
+    Ett svagt prov medan bandet går: förslaget att gå närmare får komma (det hjälper bandet), men det säger
+    "på gränsen", och inget "hinner inte ikapp"."""
     from sim.stations import SonarRoom
-    from sim.stations.recording import RECORD_STEP_S, _Tape
+    from sim.stations.recording import PHRASES, RECORD_STEP_S, _Tape
+    from sim.knowledge import ContactTrack
     g = Game(build_scenario("clyde-in", random.Random(1)), seed=1, warm_up=False)
     son = g.station(SonarRoom)
     calls = []
-    son._suggest_closer = lambda tr, obs: calls.append(tr.designation)
-    from sim.knowledge import ContactTrack
+    son._suggest_closer = lambda tr, obs, marginal=False: calls.append(marginal)
     tr = ContactTrack("S-9", 0, classification="Polarisubåt i ytläge")
-    tr.held = True
     g.knowledge.tracks["S-9"] = tr
     son._tapes["S-9"] = _Tape(seconds=120, last_good=g.now - RECORD_STEP_S)
-    while g.now % RECORD_STEP_S:
-        g.tick()
     son._recording_watch()
-    assert not calls
     son._tapes["S-9"].last_good = g.now - 120
     son._recording_watch()
-    assert calls == ["S-9"]
+    assert calls == [True, False]
+    text = PHRASES["sonar.suggest.record_close"]({"designation": "S-1", "bearing": 68, "speed": 5,
+                                                  "marginal": True})
+    assert "på gränsen för bandet" in text and "för svag" not in text

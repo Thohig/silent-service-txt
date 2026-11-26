@@ -261,6 +261,7 @@ class PeriscopeWatch(Station):
         self.power = "låg"                  # förstoringen i hålläge (svep alltid låg, titt hög)
         self.t_end: int | None = None
         self.last_look_t = -10**9
+        self.seen_visibility: tuple[int, float] | None = None   # (t, sjömil) sikten vid senaste titten
         self._start_t = 0                   # när svepet, titten eller hållet började
         self._up_t = 0                      # när masten hissades (en hissning = en bedömning)
         self._sweep_from = 0.0
@@ -494,6 +495,7 @@ class PeriscopeWatch(Station):
 
     def _finish(self) -> None:
         world = self.world
+        self.seen_visibility = (self.now, world.env.visibility_nm(self.now))
         if not self._seen:
             self._say("off.periscope.none", {"day": world.env.daylight(self.now),
                                             "visibility": world.env.visibility_nm(self.now),

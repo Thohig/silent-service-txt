@@ -127,7 +127,7 @@ class SteeringMixin:
             self.steer = None
             tr = self.game.knowledge.track(task.designation)
             sol = tr.solution if tr is not None else None
-            why = "lost" if tr is not None and not tr.held else \
+            why = "unknown" if tr is None else "lost" if not tr.held else \
                 "poor" if sol is None or sol.quality < Quality.OSAKER else "old"
             self.say("nav.attack.none" if announce else "nav.attack.lost",
                      {"designation": task.designation, "why": why}, alarm=not announce)

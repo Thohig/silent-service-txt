@@ -189,7 +189,8 @@ PHRASES = {
     f"för att hinna till skjutläget.",
     "nav.attack.cannot": lambda d: f"Kapten, vi hinner inte till skjutläge framför {_att_what(d)}, "
     f"den går {d['target_speed']:.0f} knop bort från oss.",
-    "nav.attack.none": lambda d: f"Kapten, plottet har ingen lösning på {d['designation']} "
+    "nav.attack.none": lambda d: f"Kapten, vi har ingen {d['designation']} i plottet."
+    if d.get("why") == "unknown" else f"Kapten, plottet har ingen lösning på {d['designation']} "
     "att anfalla efter.",
     "nav.attack.lost": lambda d: {
         "lost": f"Kapten, vi har tappat {d['designation']} och lösningen är för gammal att styra efter. ",
@@ -229,6 +230,10 @@ PHRASES = {
     f"till {d['depth']:.0f} meter enligt kortet, ± {nm(d['sigma'])}.",
     "nav.steer.bank_here": lambda d: f"Kapten, vi är redan över banken. Kortet visar cirka "
     f"{d['depth']:.0f} meter här.",
+    "nav.suggest.shoal_turn": lambda d: f"Kapten, navigatören. Sjökortet visar {d['shoal']:.0f} meter "
+    + ("här" if d["dist"] < 0.15 else f"inom {nm(d['dist'])} sjömil framåt")
+    + f", där måste vi upp på {d['depth']:.0f} meter. Föreslår kurs {fmt_course(d['course'])}, "
+    "där är det djupt nog.",
     "nav.suggest.land": lambda d: "Kapten, navigatören! "
     + ("Land" if d["shoal"] <= 0 else f"Bara {d['shoal']:.0f} meter vatten")
     + (" här enligt kortet" if d["dist"] < 0.15 else f" inom {nm(d['dist'])} sjömil framåt")
@@ -635,6 +640,8 @@ RU_PHRASES = {
        else f"малый назад, {R.dec(d['speed'], R.KNOT)}") + ", отойдём.",
     "nav.suggest.unstuck": lambda d: f"{R.CAPTAIN}, штурман. Отошли, нос свободен. "
     f"Предлагаю курс {R.course(d['course'])}, ход {R.dec(d['speed'], R.KNOT)}, уходим от мели.",
+    "nav.suggest.shoal_turn": lambda d: f"{R.CAPTAIN}, штурман. По карте {R.count(d['shoal'], R.METER)} "
+    f"{_ru_ahead(d)}, придётся всплывать. Предлагаю курс {R.course(d['course'])}, там глубже.",
     "nav.suggest.land": lambda d: f"{R.CAPTAIN}, штурман! "
     + ("Земля" if d["shoal"] <= 0 else f"Всего {R.count(d['shoal'], R.METER)} воды")
     + f" {_ru_ahead(d)} по карте. Предлагаю курс {R.course(d['course'])}.",
@@ -647,7 +654,8 @@ RU_PHRASES = {
     "nav.suggest.attack_speed": lambda d: f"{R.CAPTAIN}, штурман. Предлагаю ход "
     f"{R.count(d['need'], R.KNOT)}.",
     "nav.attack.cannot": lambda d: f"{R.CAPTAIN}, в точку залпа не успеваем, цель уходит.",
-    "nav.attack.none": lambda d: f"{R.CAPTAIN}, по {R.contact(d['designation'], True)} решения нет.",
+    "nav.attack.none": lambda d: f"{R.CAPTAIN}, такой цели нет." if d.get("why") == "unknown"
+    else f"{R.CAPTAIN}, по {R.contact(d['designation'], True)} решения нет.",
     "nav.attack.lost": lambda d: f"{R.CAPTAIN}, решение по {R.contact(d['designation'], True)} "
     "устарело. Прекращаем выход в атаку.",
     "nav.attack.arrived": lambda d: f"{R.CAPTAIN}, мы в точке залпа. Цель пройдёт траверз примерно "

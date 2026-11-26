@@ -297,6 +297,9 @@ class TorpedoRoom(FiringMixin, WireMixin, Station):
                      cooldown=RELOAD_URGENT_COOLDOWN_S if urgent else RELOAD_COOLDOWN_S)
 
     # --- initiativ vid tystnad -------------------------------------------------------
+    def vetoes(self, order: str) -> bool:
+        return super().vetoes(order) or self._wire_vetoes(order)
+
     def idle_proposals(self) -> list[Proposal]:
         if self.game.knowledge.hunted(self.now):   # slammer under jakt: inte självmant
             return []

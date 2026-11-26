@@ -158,3 +158,20 @@ def test_loading_and_speech():
     assert g.station(TorpedoRoom).tubes[0].loading == "53-62T"
     assert not re.search(r"[A-Za-z]", russian.weapon("53-62T"))
     assert TORPEDO_TYPES["53-62T"].wire_nm < TORPEDO_TYPES["53-62T"].range_nm
+
+
+def test_torpedo_room_vetoes_suggestions_that_would_break_the_wire():
+    """Krig-kort frö 11: anfallet girade oss över 90° och tråden gick av. Medan tråden lever säger
+    torpedrummet nej till förslag om gir över 90°, fart över 12 knop och anfall; inte när en torped kommer."""
+    g, reports = _game(2)
+    _setup(g, range_nm=4.0)
+    _fire_wire(g)
+    g.tick()
+    room = g.station(TorpedoRoom)
+    shot = _wired(g).wire_course
+    assert room.vetoes(f"kurs {round((shot + 120) % 360):03d}")
+    assert not room.vetoes(f"kurs {round((shot + 40) % 360):03d}")
+    assert room.vetoes("fart 13") and not room.vetoes("fart 6")
+    assert room.vetoes("anfall S-2")
+    g.knowledge.torpedo_t = g.now                 # en torped kommer: undanmanövern gäller
+    assert not room.vetoes(f"kurs {round((shot + 120) % 360):03d}, fart 28")
