@@ -1,7 +1,7 @@
 # K-114 – att göra
 
 Konkreta öppna uppgifter: sådant som behöver köras om, provas, utredas eller beslutas. Idéer som
-inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-25 (kväll). Ta bort det som blir gjort
+inte är beställda står i `docs/IDEER.md`. Uppdaterat 2026-11-26. Ta bort det som blir gjort
 och för in det i rätt dokument (CLAUDE.md, `docs/system/`, `kalibrering/README.md`).
 
 ## Köra om
@@ -12,6 +12,11 @@ Inget just nu.
 
 Webbversionen provad av kaptenen 2026-11-22: fungerar bra. Byggt 2026-11-24 och bara provat huvudlöst
 (`run_test`, skärmbilder):
+- Loggboken som lager (2026-11-25): PageUp/PageDown/Esc i Terminal på macOS och i webbläsaren (bläddrar sidan i
+  stället, eller når tangenten spelet?). Räcker loggremsan med 7 rader under översikten i 80 × 24?
+- Utsikten (2026-11-25): bryggans panorama, ↓ kikarens okular och ↑ tillbaka i ytläge; periskopbilden under ytan.
+- Radion i kuba-kort och konvoj-kort (2026-11-25): "väntar på djupet" på en jagare med dålig lösning, och
+  `radio.closing` 5 min före stängning; för försiktig, eller lagom?
 - Huvudskärmen: översikten med loggremsan (9 rader) i ett vanligt terminalfönster och i webbläsaren. Räcker
   remsan för att följa rapporterna, eller behövs fler rader? Är sjökortet i översikten lagom inzoomat?
 - Centralen i helskärm (`central`, Tab): instrumenten och lutningsmätaren i fart, snabbtelefonens lampor när

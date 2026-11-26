@@ -129,9 +129,15 @@ uv run pytest -q --slow       # alla, även hela spel och statistik (~6 min på 
 - **Order i alla vyer** (`ui/viewbase.py`): vyerna ärver `ViewScreen` (rapportraden, `Esc`, orderrad
   `OrderLine` som visar väntande förslag). Vyns tangenter står i `EMPTY_KEYS` och gäller bara när
   orderraden är tom (Input tar annars alla utskrivbara tecken); bokstäver är aldrig vytangenter.
+  Översikten är huvudskärmen (`GameScreen`, loggremsan under) i alla fönster. Loggboken är ingen vy utan ett
+  lager över den vy som är öppen (`ui/logdrawer.py`: PageUp ned och bakåt, PageDown framåt och upp förbi
+  slutet, `Esc` upp; `logg`, `telegram`). Utsikten (`ui/lookout.py`) är bryggans panorama eller
+  periskopbilden efter läget (`BridgePane`, `PeriscopePane`; `EMPTY_KEYS` är där en egenskap).
 - **Vyregistret** (`ui/views.py`): varje helskärmsvy är en `ViewDef` (skärmen, orden, namnet i handboken,
-  när den står i Tab-ordningen). Registrets ordning är Tab-ordningen; `SubApp` och handboken läser därifrån.
-- **Tangenter:** `Tab` växlar vy, `Esc` tillbaka, `ctrl+t` ljud. Undvik F-tangenter
+  när den står i Tab-ordningen; `screen` None: bara ett ord med `word_action`, som `översikt` och `logg`).
+  Registrets ordning är Tab-ordningen (central → sjökort → sonar → ubåten → utsikten); `SubApp` och handboken
+  läser därifrån.
+- **Tangenter:** `Tab` växlar vy, `Esc` tillbaka, `PageUp`/`PageDown` loggboken, `ctrl+t` ljud. Undvik F-tangenter
   (medietangenter på Mac) och ctrl-tangenter som orderraden (`Input`) redan använder.
 - **Ryska** (`sim/russian.py`): fasta fraser i `WORDS` (translitterering, kyrilliska, svensk
   betydelse). Skriv dem med `ru("Jest")` i fraserna; betydelsen ska framgå av svensk text bredvid,
@@ -170,11 +176,11 @@ Systemen i detalj (läs filen för det system du ändrar, och uppdatera den där
   Flyg, Helikoptern, B-36, Fiendens torpeder (med nedräkningen), Clyde, Krigspatrullen, Svansen (döda sektorn är beskriven där)
 - `docs/system/hav.md`: Regn och dimma, Vrak, Fisket, Land skymmer, Ljuset, Molnen, Fyrarna, Firth of Clyde, Is, Havsbotten, Strömmen,
   Sjögången, Vädret
-- `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden
+- `docs/system/utkik.md`: Bryggan, Periskopet, Periskopbilden (båda i utsikten)
 - `docs/system/besattning.md`: Skadekontrollen (läckor, avdelningar, länspumpar, reparation, belastning), Radion och telegrammen, Rapporten till staben, Huvudstaben,
   Slutrapportens samband, Radiospaning, Kärnvapenrådet, Starpom, Trim och flytkraft, Lutningen (stampvinkeln), Back i maskin,
   Trimmaren, Besättningen under jakt, Fråga en gång
-- `docs/system/vyer.md`: Huvudskärmen, Loggen, Översikten, Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
+- `docs/system/vyer.md`: Huvudskärmen, Loggboken som lager, Loggen, Översikten, Sjökortet, Sonarvyn, Huvudraden och sjögången, Ubåten, Djupprofilen, Centralen, Systemtavlan
 - `docs/system/granssnitt.md`: Huvudmenyn, Ljud
 
 Avslagna förslag (föreslå inte igen): tal på Linux (piper/espeak-ng), animering på sjökortet, bilder i
@@ -240,7 +246,10 @@ för in varje färdigt steg där.
   4,7 % ⇒ 4,1 %, konvojens 10,3 % ⇒ 5,3 %; säkra 232 ⇒ 242, grovt fel 0,4 % som förut. Täckningskrav före säker gav inget.
   Mätskripten: `kalibrering/tma_kvalitet.py` (`GAP_S`, `SURE_MIN_SPAN_S`, `TMA_Q`, `PINGER_Q` ur miljön), `kalibrering/skott_saker.py`.
 - Radion: rapporten 6 s + 4 s per femsiffergrupp (kort ~22 s); fiendens pejlnät pejlar aldrig under
-  10 s, alltid över 25 s, σ = 1,5 nm · √(30 s / längd), 0,7–3 nm (`DF_*` i `enemy.py`).
+  10 s, alltid över 25 s, σ = 1,5 nm · √(30 s / längd), 0,7–3 nm (`DF_*` i `enemy.py`). Radion väntar på
+  djupet för ett hot inom 5 nm (`RADIO_SAFE_NM`; jagare och ubåtar också på dålig lösning, avståndet − 1σ, högst
+  30 %, `POOR_NEAR_F`) eller en jagare/ubåt tappad de senaste 15 min (`LOST_RECENT_S`), och säger 5 min före
+  stängning om rapporten ordern kräver inte är sänd (`CLOSING_WARN_S`, `radio.closing`).
 - Back i maskin: broms 0,15 kn/s mot farten, backfart 8 kn (turbin) / 3 kn (smygmotor), gir ⅓ och
   djuproder 30 % akterut, omkastning 120 + 2,5·fart dB från ≥ 2 kn, kavitation akterut vid halva farten.
 - Sjögången (Beaufort, `docs/system/hav.md`): havsbrus +2,5 dB per steg från 3, jagarens ping −3 dB per
@@ -341,6 +350,7 @@ för in varje färdigt steg där.
 - Ett tyst uppdrag (navigatörens egen pejling) avbryts tyst: `NavTask.abort` ger en tom typ.
 - Timer-callbacks i `ui/app.py` kan köras under nedstängning – skydda mot `NoMatches`.
 - Förslag spärras per nyckel med `cooldown`; glöm inte det, annars spammar
-  besättningen.
+  besättningen. Obesvarade förslag glesas ut av sig själva, larm bara med `alarm_backoff=True` (fördubblas från
+  sin cooldown, högst 10 min, `ALARM_BACKOFF_MAX_S`; vakthavandes "djup 60").
 - TMA antar rak kurs; om målet manövrerar ska plottlaget säga det och börja om
   (`ContactTrack.tma_from_t`), inte rapportera en orimlig lösning.

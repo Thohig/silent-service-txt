@@ -61,6 +61,9 @@ uv run python kalibrering/sok.py lyssna --larm
 | `provspel.py` | scenarier (kommaseparerade), timmar, frö | provspelskaptenen: ja, rutinorder, vyer, periskop, eld på god lösning ≤ 3 nm; hela rapportflödet till `logs/provspel/` att läsa |
 | `kaos.py` | scenarier, frön (kommaseparerade), minuter | kaosboten: slumpade, udda och felaktiga order (också `länsa`, `läns stopp`, `reparera …`), ja/nej/jest på förslagen, vyer varje minut; letar undantag, oifyllda fält, punktdecimaler, kurser utan tre siffror, NaN, sanningens id:n; flödet till `logs/kaos/` |
 
+Provspel 2026-11-25: `kaos.py` alla 22 scenarier, frön 101–102, 90 min (inga anmärkningar; loggarna lästa för
+hand gav nödblåsningen under is och sonar mot land i Clyde), `skytt.py lyssna alla 101-102 150` (inga larm).
+
 Provkörda 2026-11-15 med ett frö var. Alla gick utan fel. `konvoj.py` och `kuba_jakt.py`
 kördes bara 45 s utan fel, eftersom de har fasta frön och tar lång tid.
 
