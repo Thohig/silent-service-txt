@@ -112,3 +112,11 @@ def test_the_wreck_is_not_suggested_through_the_shallows():
     wrecks = [t for t, ty in seen if ty == "nav.suggest.wreck"]
     lands = [t for t, ty in seen if ty == "nav.suggest.land"]
     assert not any(0 <= lt - wt <= 120 for wt in wrecks for lt in lands)
+
+
+def test_shoal_in_the_depth_ack_says_ahead_when_it_is_ahead():
+    """"Kortet visar botten på cirka 20 meter här" gällde grundet framåt (sundet-in frö 22)."""
+    from sim import phrases
+    ack = phrases.PHRASES["nav.depth.ack"]
+    assert "20 meter här" in ack({"depth": 18, "below_test": False, "shoal": 20, "shoal_nm": 0.0})
+    assert "0,8 sjömil framåt" in ack({"depth": 18, "below_test": False, "shoal": 20, "shoal_nm": 0.8})

@@ -187,6 +187,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   ett djup vi kan ligga på, och vid vraket botten (`nav.suggest.wreck`, `wreck_settle`).
   Navigatörens förslag att gå till vraket kräver att raka vägen dit är fri på kortet (`path_clear`: inget grundare än
   21 m, `LAND_CLEAR_M`, med bestickets osäkerhet åt sidorna; 2026-11-26, sundet-in frö 22 gick förslaget genom grundet).
+  Grundaste botten framåt (`known_bottom`, som djupgränsen för förslagen) prövas mitt i en gir också längs den beordrade
+  kursen, och djupkvitteringen säger var grundet är ("cirka 20 meter här" eller "… 0,8 sjömil framåt"; 2026-11-26).
 - **Fisket** (`sim/fishing.py`; 2026-11-25): trålare (`Trawler`, kind fishing) på bankerna i kuba (tre), jagad (två)
   och sundet (två), och i kuba en sovjetisk spaningstrålare (kind spytrawler), som jagaren skuggar en halvtimme av
   varje och en halv (`DestroyerAI.shadow`, sista 30 min av 90). Trålen går 0,25 nm akterut på 60 m (bottentrål

@@ -575,7 +575,7 @@ class PlotTeam(Station):
                   and (tr.threat or self.game.knowledge.listening)
                   and not self._maneuvered_recently(tr) and not self._convoy_sibling(tr)
                   and not self.game.knowledge.hunted(self.now) and not self.game.recalled()
-                  and not self._navigator_steers()
+                  and not self._navigator_steers() and not self._recording_target(tr)
                   and self.now - self._last_suggest.get(tr.designation, -10**9) >= SUGGEST_COOLDOWN
                   and self.now - self._last_leg_t >= LEG_GAP_S):
                 self._last_suggest[tr.designation] = self.now
@@ -760,6 +760,14 @@ class PlotTeam(Station):
         recent = [o for o in tr.observations if o.t >= self.now - SUGGEST_MIN_LEG_S]
         return (own_maneuvered(recent, threshold_deg=15.0)
                 or "course" in self.own.state.changing())
+
+    def _recording_target(self, tr: ContactTrack) -> bool:
+        """Ska bandet spelas in på kontakten (Clyde) och är det inte klart? Då styr sonar mot den, och ett
+        nytt ben bort (clyde-in, ja-boten: plottet och sonar drog åt var sitt håll) föreslås inte."""
+        from .recording import RECORD_CLASS
+        k = self.game.knowledge
+        return "inspelning" in k.order_tasks and RECORD_CLASS in tr.classification \
+            and tr.designation not in k.recorded
 
     def _navigator_steers(self) -> bool:
         """Styr navigatören (anfall, följa, farleden, vaken)? Då föreslår plottet inget nytt ben: det

@@ -102,6 +102,12 @@ def _lights_fix(names: list[str]) -> str:
     return f"Tar fix på fyrarna {' och '.join([', '.join(names[:-1]), names[-1]])}, under en minut."
 
 
+def _where(d: dict) -> str:
+    """Var grundet är: här, eller så långt framåt (förut stod det "här" också för grundet en sjömil bort)."""
+    dist = d.get("shoal_nm") or 0.0
+    return "här" if dist < 0.2 else f"{nm(dist)} sjömil framåt"
+
+
 PHRASES = {
     "nav.course.ack": lambda d: f"{ru('Jest')}, kurs {fmt_course(d['course'])}."
     + (" Vi ligger på den." if d.get("already") else ""),
@@ -113,8 +119,9 @@ PHRASES = {
     + (f" Det är is ovanför, kapten, vi kommer inte högre än cirka {d['ice_ceiling']:.0f} meter."
        if d.get("ice_ceiling") else
        " Det är is ovanför, kapten, masterna kommer inte upp här." if d.get("ice_masts") else "")
-    + ("" if "shoal" not in d else " Kortet visar land här, kapten." if d["shoal"] <= 0
-       else f" Kortet visar botten på cirka {d['shoal']:.0f} meter här, kapten."),
+    + ("" if "shoal" not in d else
+       f" Kortet visar land {_where(d)}, kapten." if d["shoal"] <= 0
+       else f" Kortet visar botten på cirka {d['shoal']:.0f} meter {_where(d)}, kapten."),
     "nav.settle.ack": lambda d: f"{ru('Jest')}, lägger oss på botten. "
     + (f"Ekolodet gav {d['depth']:.0f} meter" if d.get("sounded") else
        f"Kortet visar cirka {d['depth']:.0f} meter")
@@ -434,8 +441,9 @@ def _ru_depth_ack(d: dict) -> str:
     elif d.get("ice_masts"):
         txt += " Над нами лёд, мачты здесь не поднять."
     if "shoal" in d:
-        txt += " По карте здесь земля." if d["shoal"] <= 0 else \
-            f" По карте глубина здесь около {R.count(d['shoal'], R.METER)}."
+        here = (d.get("shoal_nm") or 0.0) < 0.2
+        txt += (" По карте здесь земля." if here else " По карте впереди земля.") if d["shoal"] <= 0 else \
+            f" По карте глубина {'здесь' if here else 'впереди'} около {R.count(d['shoal'], R.METER)}."
     return txt
 
 

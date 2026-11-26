@@ -129,6 +129,13 @@ class BottomMixin:
         """Grundaste botten vi känner till här och framåt: (djup, avstånd nm, lodat).
         Kortet framåt, och senaste lodning om den är färsk och grundare."""
         ahead = self.chart_ahead()
+        s = self.ship
+        if ahead is not None and s.ordered_course is not None and abs(angle_diff(s.ordered_course, s.track)) > 10:
+            # mitt i en gir: också längs den beordrade kursen, det grundaste (sundet-in frö 22: "botten
+            # cirka 20 meter" under giren och vakthavandes "djup 50" en halv minut senare)
+            turned = self.chart_ahead(s.ordered_course)
+            if turned is not None and turned[0] < ahead[0]:
+                ahead = turned
         recent = [b for b in self.bottom_soundings if self.now - b.t <= SOUNDING_TRUST_S]
         best = (ahead[0], ahead[1], False) if ahead else None
         if recent and (best is None or recent[-1].depth < best[0]):

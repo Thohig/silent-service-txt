@@ -15,7 +15,11 @@ from ..fmt import minutes
 from .. import phrases
 from .. import russian as R
 from ..events import RecordingMade
+import math
+
+from .. import acoustics
 from ..geo import angle_diff, norm360
+from ..reports import Quality
 
 RECORD_SE = 8.0            # dB över tröskeln: gott nog för bandet
 RECORD_S = 600             # så länge med gott ljud för en användbar inspelning
@@ -26,6 +30,9 @@ WEAK_REPEAT_S = 300
 HELD_BEFORE_SUGGEST_S = 60  # kontakten hållen så länge innan sonar föreslår att gå mot den
 LISTEN_DEPTH_M = 40         # över skiktet
 CLOSE_SPEED_KN = 5          # smygmotorns bästa
+OUTRUN_REPEAT_S = 900       # "vi hinner inte ikapp" högst så ofta per kontakt
+MEET_LEAD_DEG = 60.0        # mot dess väg: så långt åt det håll målet korsar
+CLOSE_MIN_KN = 1.0          # så mycket måste avståndet minska (knop) för att det ska vara värt att gå mot den
 RECORD_CLASS = "Polaris"
 BAFFLE_MARGIN_DEG = 10.0    # ... och så här långt utanför döda sektorn räknas som akterut
 
@@ -51,7 +58,13 @@ PHRASES = {
     "sonar.suggest.record_close": lambda d: f"Kapten, sonar. {d['designation']} "
     + ("ligger akterut, där skymmer skrovet och skruven bandet. Sista bäringen" if d.get("astern")
        else "är för svag för bandet, bäring") + f" {d['bearing']:03d}. Föreslår kurs "
-    f"{d['bearing']:03d} och fart {d['speed']} mot den.",
+    f"{d.get('course', d['bearing']):03d} och fart {d['speed']} "
+    + (("för att möta den där den går fram" if d.get("meet") else "för att skära av den")
+       + f", plottet har den på kurs {d['target_course']:03d} i {d['target_speed']} knop."
+       if d.get("lead") else "mot den."),
+    "sonar.record.outrun": lambda d: f"Kapten, sonar. {d['designation']} är för svag för bandet, och "
+    f"plottet har den på kurs {d['target_course']:03d} i {d['target_speed']} knop, bort från oss: under "
+    "kavitationsfarten hinner vi inte ikapp. Bandet får vänta tills den vänder eller kommer tillbaka.",
     "sonar.record.done": lambda d: f"Kapten, sonar! Inspelningen av {d['designation']} är klar: "
     f"{minutes(d['minutes'])} med gott ljud, skruven och maskinen hörs tydligt.",
 }
@@ -65,7 +78,8 @@ RU_PHRASES = {
     "sonar.suggest.record_up": lambda d: f"{R.CAPTAIN}, акустик. Под слоем слышно слабо. "
     f"Предлагаю глубину {R.count(d['depth'], R.METER)}.",
     "sonar.suggest.record_close": lambda d: f"{R.CAPTAIN}, акустик. Сигнал слабый. Предлагаю курс "
-    f"{R.course(d['bearing'])}, ход {R.count(d['speed'], R.KNOT)}.",
+    f"{R.course(d.get('course', d['bearing']))}, ход {R.count(d['speed'], R.KNOT)}.",
+    "sonar.record.outrun": lambda d: f"{R.CAPTAIN}, акустик. Сигнал слабый, цель уходит, догнать не успеем.",
     "sonar.record.done": lambda d: f"{R.CAPTAIN}, акустик! Запись готова, "
     f"{R.count(d['minutes'], R.MINUTE)}.",
 }
@@ -77,6 +91,7 @@ class RecordingMixin:
 
     def _recording_init(self) -> None:
         self._tapes: dict[str, _Tape] = {}
+        self._outrun_said: dict[str, int] = {}
 
     def recorded_s(self, designation: str) -> int:
         t = self._tapes.get(designation)
@@ -153,8 +168,49 @@ class RecordingMixin:
                          order=f"djup {LISTEN_DEPTH_M}", cooldown=600)
             return
         b = round(obs[-1].bearing) % 360
+        sol = tr.solution
+        if sol is not None and sol.quality >= Quality.OSAKER and sol.speed >= 1.0:
+            # målet går: skär av det med förhåll i stället för att jaga bäringen (clyde-in, ja-boten:
+            # "kurs mot den, fart 5" var femte minut efter en Polarisbåt i 10 knop, som drog ifrån)
+            plan = self._intercept(b, sol.course, sol.speed)
+            tgt = {"target_course": round(sol.course) % 360, "target_speed": round(sol.speed)}
+            if plan is None:
+                # går ifrån oss fortare än vi tyst kan gå: inget att föreslå, säg det en gång
+                if self.now - self._outrun_said.get(tr.designation, -10**9) >= OUTRUN_REPEAT_S:
+                    self._outrun_said[tr.designation] = self.now
+                    self.say("sonar.record.outrun", {**d, **tgt}, kind="info")
+                return
+            course, speed, meet = plan
+            if not self._course_safe(course):
+                return
+            self.suggest("record_close", "sonar.suggest.record_close",
+                         {**d, "bearing": b, "course": course, "speed": speed, "lead": True,
+                          "meet": meet, **tgt},
+                         order=f"kurs {course:03d}, fart {speed}", cooldown=300)
+            return
         if not self._course_safe(b):
             return
         self.suggest("record_close", "sonar.suggest.record_close",
                      {**d, "bearing": b, "speed": CLOSE_SPEED_KN},
                      order=f"kurs {b:03d}, fart {CLOSE_SPEED_KN}", cooldown=300)
+
+    def _intercept(self, bearing: float, tgt_course: float,
+                   tgt_speed: float) -> tuple[int, int, bool] | None:
+        """Kurs med förhåll och lägsta fart (smygmotorns, sedan strax under kavitationsfarten) som minskar
+        avståndet med minst CLOSE_MIN_KN: (kurs, fart, False). Kommer målet mot oss men korsar för fort för
+        en avskärning: kurs mot dess väg (MEET_LEAD_DEG åt det håll det går) i den högsta tysta farten,
+        (kurs, fart, True). None om det går ifrån oss fortare än vi tyst kan gå."""
+        rel = math.radians(tgt_course - bearing)
+        across = tgt_speed * math.sin(rel)          # målets fart tvärs siktlinjen
+        away = tgt_speed * math.cos(rel)            # och bort från oss längs den
+        cav = int(acoustics.cavitation_speed(max(self.own.state.ordered_depth, self.own.state.depth)))
+        for v in sorted({CLOSE_SPEED_KN, max(CLOSE_SPEED_KN, cav - 1)}):
+            if abs(across) >= v:
+                continue
+            lead = math.asin(across / v)
+            if v * math.cos(lead) - away >= CLOSE_MIN_KN:
+                return round(norm360(bearing + math.degrees(lead))) % 360, v, False
+        if away < 0:
+            side = 1.0 if across >= 0 else -1.0
+            return round(norm360(bearing + side * MEET_LEAD_DEG)) % 360, max(CLOSE_SPEED_KN, cav - 1), True
+        return None

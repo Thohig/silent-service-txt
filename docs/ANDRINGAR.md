@@ -3,6 +3,19 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-26 – Bandet skär av målet; plottet låter det vara; grundet "här" eller "framåt"
+
+- Clyde-in (ja-boten): sonar föreslog "kurs mot den, fart 5" var femte minut efter en Polarisbåt i 10 knop, som
+  drog ifrån, och plottet föreslog samtidigt nya ben bort från den. Nu föreslår sonar kurs med förhåll ur plottets
+  lösning i lägsta fart som minskar avståndet (5 kn, sedan strax under kavitationsfarten), kurs mot dess väg när den
+  kommer mot oss men korsar för fort, och säger när den går ifrån oss fortare än vi tyst kan gå
+  (`sonar.record.outrun`, inget förslag). Plottet föreslår inga ben på målet medan bandet inte är klart.
+  Clyde-in frö 202 med ja-boten: bandet klart (förut slut på tiden). `stations/recording.py`, `stations/plot.py`.
+- Navigatörens grund framåt prövas mitt i en gir också längs den beordrade kursen, och djupkvitteringen säger
+  "här" eller "0,8 sjömil framåt" (förut "här" också för grundet framåt; sundet-in frö 22 sa navigatören "botten
+  cirka 20 meter här" och vakthavande föreslog djup 50 en halv minut senare).
+- Kalibreringen (`kontroll.py`, alla scenarier) för dessa och föregående ändring pågår vid commit.
+
 ## 2026-11-26 – Plottets ben inte i döda sektorn; torped tystnad tidigt går troligen kvar
 
 - Svansen-kort frö 201 (ja-boten): plottet föreslog "kurs 203" med skuggaren i bäring 015, rakt i döda sektorn

@@ -210,3 +210,34 @@ def test_sonar_does_not_steer_us_onto_the_chart_land_for_the_tape():
         if g.active_suggestion() and g.now % 20 == 0:
             g.command("ja")
     assert not bad
+
+
+def test_the_tape_intercepts_a_moving_target_instead_of_chasing_its_bearing():
+    """clyde-in (ja-boten): "kurs mot den, fart 5" var femte minut efter en Polarisbåt i 10 knop, som drog
+    ifrån. Nu: kurs med förhåll; kommer den mot oss men korsar för fort, mot dess väg; går den ifrån oss
+    fortare än vi tyst kan gå, inget förslag (sonar säger det en gång)."""
+    from sim.stations import SonarRoom
+    g = Game(build_scenario("clyde-in", random.Random(1)), seed=1, warm_up=False)
+    son = g.station(SonarRoom)
+    st = g.world.own.state
+    st.depth = st.ordered_depth = 40.0
+    # långsamt mål tvärs, på väg österut: förhåll åt öster, lägsta fart
+    course, speed, meet = son._intercept(0.0, 90.0, 3.0)
+    assert 0 < course < 90 and speed == 5 and not meet
+    # på väg bort i 10 knop: går inte
+    assert son._intercept(0.0, 0.0, 10.0) is None
+    # mot oss men tvärs för fort: mot dess väg, åt det håll den går
+    course, speed, meet = son._intercept(0.0, 150.0, 14.0)
+    assert meet and course == 60 and speed >= 5
+
+
+def test_the_plot_does_not_suggest_a_leg_off_the_tape_target():
+    from sim.knowledge import ContactTrack
+    from sim.stations.plot import PlotTeam
+    g = Game(build_scenario("clyde-in", random.Random(1)), seed=1, warm_up=False)
+    plot = g.station(PlotTeam)
+    tr = ContactTrack("S-9", 0, classification="Polarisubåt i ytläge")
+    assert "inspelning" in g.knowledge.order_tasks
+    assert plot._recording_target(tr)
+    g.knowledge.recorded.add("S-9")
+    assert not plot._recording_target(tr)

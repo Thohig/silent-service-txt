@@ -564,6 +564,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
                 shoal = self.known_bottom()
                 if shoal is not None and d > shoal[0] - SHOAL_MARGIN_M:
                     data["shoal"] = round(shoal[0], -1)
+                    data["shoal_nm"] = round(shoal[1], 1)    # 0: här, annars framåt
                 self._ack("depth", data, s.depth == s.ordered_depth)
             case TakeFix():
                 self._start_any_fix()
