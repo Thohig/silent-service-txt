@@ -274,9 +274,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   farten tillbaka (`sonar.baffles.clear`). Går kaptenen annanstans glöms giren. **Tappad akterut**
   (`_astern_lost_watch`): en kontakt sonar tappat de senaste 30 min som enligt plottet (annars sista bäringen) ligger
   i sektorn + 10° ger en gir som lägger den tvärs (`sonar.suggest.astern_lost`), en gång per tappning, med samma skydd.
-  Plottets nästa ben (`plot.suggest`, `PlotTeam._suggest_course`) lägger aldrig kontakten inom sektorn + 15°
-  (`LEG_BAFFLE_MARGIN_DEG`; prövar speglade giren, andra hållet och sedan ±60/90/120°; 2026-11-26, svansen-kort
-  frö 201: "kurs 203" med skuggaren i 015, tappad, sedan torpedrören).
+  Plottets nästa ben får lägga kontakten akterut: att hålla skuggaren utanför döda sektorn (prövat 2026-11-26) gav
+  svansen-kort med ja-boten skakad av 4 ⇒ 0 av 8, för giren bort är det som skakar av den.
   Utan den gick övningens lyssning med bevakningsfartyget akterut i 25 min (ovning-kort 8 ⇒ 3 klara). **Skuggningen**
   (`SubmarineAI.state = "shadow"`): styr mot sin medlade pejling (förföljaren hamnar akterut) med vår fart ur
   varvtalet, som den märker med 90 s tidskonstant (`SHADOW_REACT_S`), så när vi saktar in och girar kommer den

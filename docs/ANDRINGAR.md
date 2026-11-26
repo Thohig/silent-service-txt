@@ -19,8 +19,9 @@ visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/READM
 ## 2026-11-26 – Plottets ben inte i döda sektorn; torped tystnad tidigt går troligen kvar
 
 - Svansen-kort frö 201 (ja-boten): plottet föreslog "kurs 203" med skuggaren i bäring 015, rakt i döda sektorn
-  akterut. Sonar tappade den, och nästa ljud var torpedrören. Nästa ben lägger nu aldrig kontakten inom sektorn
-  + 15° (`PlotTeam._suggest_course`, `LEG_BAFFLE_MARGIN_DEG`). `tests/test_tma.py`.
+  akterut; sonar tappade den, och nästa ljud var torpedrören. Prövat: nästa ben utanför sektorn + 15°. Tillbakatagit
+  samma dag: kalibreringen gav svansen-kort skakad av 4 ⇒ 0 av 8 med ja-boten (giren bort är det som skakar av
+  skuggaren; frö 201 var undantaget).
 - Duell-kort frö 202 (ja-boten): torpeden tystnade tvärs 80 s efter skottet, och sonar antog att den var borta
   ("tystnar den där vi hör"). Maskin föreslog genast 13 knop, ja-boten sa ja och torpeden hann ikapp. Nu går en
   torped som tystnar före 75 % av gångtiden troligen kvar (`RUNNING_FRACTION`, `sim/stations/incoming.py`): larmet
