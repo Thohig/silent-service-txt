@@ -109,7 +109,7 @@ def test_kuba_short_hands_over_with_the_destroyer_plotted_and_the_window_ahead()
         g.bus.subscribe(ReportDelivered, lambda e: types.append(e.report.type))
         for _ in range(20):
             g.tick()
-        assert "radio.prewarn" in types or "radio.wait" in types
+        assert {"radio.prewarn", "radio.wait", "radio.wait_lost"} & set(types)   # wait_lost: jagaren nyss tappad
     assert plotted >= 3
 
 
