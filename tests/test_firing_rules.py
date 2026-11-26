@@ -244,6 +244,20 @@ def test_no_attack_suggested_while_they_have_us():
     assert not any(r.type == "torp.suggest.close" for r in reports)
 
 
+def test_no_attack_suggested_with_our_torpedo_already_running_at_the_target():
+    """Krig-kort frö 11: ett andra skott mot S-2 gav frågan och "anfall S-2" medan den första torpeden
+    gick på tråd; anfallet girade oss över 90° och tråden gick av."""
+    from sim.stations.torpedo_room.common import Running
+    g, reports = _game("konvoj")
+    torp = _far_target(g)
+    torp.in_water.append(Running(no=1, tube=5, type="53-62T", designation="S-1", course=90.0,
+                                 launch_t=g.now, t_hit=g.now + 400, t_end=g.now + 800))
+    g.command("eld tub 1 mot S-1")
+    _run(g, 30)
+    assert any(r.type == "torp.long_shot" for r in reports)
+    assert not any(r.type == "torp.suggest.close" for r in reports)
+
+
 def test_a_short_shot_is_not_asked():
     g, reports = _game("konvoj")
     torp = _far_target(g, rng=2.0)

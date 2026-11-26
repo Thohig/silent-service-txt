@@ -29,6 +29,15 @@ ORDINAL_RU = {1: "первом", 2: "втором", 3: "третьем", 4: "ч�
               7: "седьмом", 8: "восьмом", 9: "девятом"}
 ORDINAL_RU_NOM = {1: "первый", 2: "второй", 3: "третий", 4: "четвёртый", 5: "пятый", 6: "шестой",
                   7: "седьмой", 8: "восьмой", 9: "девятый"}
+COMPONENT_GENDER = {"planes": "pl", "tubes": "pl", "periscope": "t"}   # övriga: n-ord i singular
+
+
+def _agree(component: str, common: str, neuter: str, plural: str) -> str:
+    """Adjektivet efter komponenten: sonaren är hel, periskopet är helt, rodren är hela."""
+    g = COMPONENT_GENDER.get(component)
+    return plural if g == "pl" else neuter if g == "t" else common
+
+
 KIND_SV = {"packbox": "packboxen", "rör": "rörgenomföringen", "svetsfog": "svetsfogen", "spricka": "sprickan"}
 KIND_RU = {"packbox": "сальник", "rör": "забортный трубопровод", "svetsfog": "сварной шов",
            "spricka": "трещина"}
@@ -118,8 +127,10 @@ PHRASES = {
     else "Kapten, inget att laga." if not d.get("plan") else
     "Kapten, vi lagar " + ", sedan ".join(d["plan"]) + ".",
     "dc.repair.cannot": lambda d: f"Kapten, {COMPONENT_LABEL[d['component']]} "
-    + ("står under vatten, ingen kommer åt dem." if d.get("flooded")
-       else "är lagade så gott det går till sjöss." if d.get("as_good") else "är hela."),
+    + (f"står under vatten, ingen kommer åt {_agree(d['component'], 'den', 'det', 'dem')}."
+       if d.get("flooded") else
+       f"är {_agree(d['component'], 'lagad', 'lagat', 'lagade')} så gott det går till sjöss."
+       if d.get("as_good") else f"är {_agree(d['component'], 'hel', 'helt', 'hela')}."),
     "dc.suggest.repair_planes": lambda d: "Kapten, maskin. Vi sjunker och rodren bär inte: föreslår att vi "
     "lagar rodren först.",
     "wear.bearings_warm": lambda d: f"Kapten, maskin. Vi har gått full fart i {d['minutes']} minuter, "

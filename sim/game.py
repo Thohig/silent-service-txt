@@ -79,6 +79,7 @@ class StatusSnapshot:
     hull: float = 1.0
     flooding: float = 0.0
     periscope_depth: bool = False
+    surfaced: bool = False          # ytläge (`OwnShip.surfaced`)
     masts_up: bool = False
     radar_up: bool = False          # radarmasten uppe (julgranen)
     transmitting: bool = False      # antennen uppe och sänder
@@ -713,10 +714,12 @@ class Game:
             changing=frozenset(s.changing()), time_scale=self.time_scale,
             reactor=sy.reactor, propulsion=sy.propulsion, battery=sy.battery,
             hull=sy.hull, flooding=sy.flooding,
-            periscope_depth=s.depth <= PERISCOPE_DEPTH, masts_up=own.masts_up(self.now),
+            periscope_depth=s.depth <= PERISCOPE_DEPTH, surfaced=own.surfaced,
+            masts_up=own.masts_up(self.now),
             radar_up=sy.radar_until > self.now, transmitting=sy.transmit_until > self.now,
             blowing=sy.blowing,
-            cavitating=s.speed > cavitation_speed(s.depth, s.prop_astern),
+            # i ytläge hörs skruven ändå, och kavitationen är ingen varning (övningen: 10 kn i fjorden)
+            cavitating=not own.surfaced and s.speed > cavitation_speed(s.depth, s.prop_astern),
             suggestion=self.active_question() or (sug[0] if sug else None), over=self.over,
             fire=sy.fire, smoke=sy.smoke, ventilating=sy.ventilating, on_bottom=sy.on_bottom,
             bridge=sy.bridge,

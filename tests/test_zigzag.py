@@ -156,7 +156,10 @@ def test_navigator_says_when_the_convoy_has_passed():
     g.command("anfall S-2")
     for _ in range(120):
         g.tick()
-    assert "nav.attack.passed" in [r.type for r in reports]
+    types = [r.type for r in reports]
+    assert "nav.attack.passed" in types
+    # genast vid ordern, utan "I 24 knop … 87 minuter" först (krig-kort frö 11)
+    assert not {"nav.attack", "nav.attack.speed", "nav.suggest.attack_speed"} & set(types)
     assert g.station(NavigationStation).goal is None
 
 

@@ -500,3 +500,26 @@ def test_vak_while_still_under_a_scrap_of_new_ice_goes_to_the_opening_that_will_
     g.world.own.state.speed = 0.0
     nav._go_to_opening()
     assert nav.vak is good
+
+
+def test_no_exit_suggestion_during_a_torpedo_alarm():
+    """Duell-kort frö 11: 'kurs 180 ut ur området' medan torpeden troligen gick kvar akterut."""
+    g, reports = _arctic(1)
+    nav = g.station(NavigationStation)
+    g.escape_ready = lambda: True
+    nav.outside_area = lambda: False
+    nav.exit_route = lambda: (180.0, 5.0, False)
+    for _ in range(200):                        # förbi EXIT_FIRST_SUGGEST_S
+        g.tick()
+    g.knowledge.torpedo_astern_until = g.now + 300
+    nav._exit_cache = None
+    for _ in range(30):
+        nav._escape_watch()
+        g.tick()
+    assert not any(r.type == "nav.suggest.exit" for r in reports)
+    g.knowledge.torpedo_astern_until = -10**9
+    g.knowledge.torpedo_t = -10**9
+    nav._escape_watch()
+    for _ in range(10):
+        g.tick()
+    assert any(r.type == "nav.suggest.exit" for r in reports)

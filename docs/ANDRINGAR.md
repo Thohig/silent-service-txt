@@ -3,6 +3,29 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-26 – Provspel: sex buggar ur loggarna
+
+Provspel med alla botar (skytt i tre lägen, provspel, kaos) gav inga larm eller undantag; felen syntes när
+loggarna lästes som kapten.
+- Navigatören föreslog vägen ut ur området mitt i torpedlarmet (duell-kort frö 11, "håll farten" en minut
+  innan). Nu inget `nav.suggest.exit` medan `Knowledge.torpedo_alarm` gäller (`navigation/exit_route.py`).
+- Bandet i Clyde: sonar sa "för svag för bandet … vi hinner inte ikapp" och 18 s senare "Halva inspelningen"
+  (clyde-in frö 11). Ett enda svagt prov (var 5:e s) räckte för förslag och utrop; nu först när bandet stått
+  `WEAK_AFTER_S` (60 s) utan gott ljud (`stations/recording.py`).
+- "Kapten, sonaren är hela." Reparationsrepliken böjer adjektivet efter komponenten: sonaren är hel,
+  periskopet är helt, rodren är hela (`damage_control.py`, `_agree`).
+- Huvudraden i ytläge sa PERISKOPDJUP och ett rött KAVITERAR (övningen, 10 knop i fjorden), och
+  navigatörens panel varnade "kaviterar". Nu YTLÄGE, och ingen kavitationsvarning på ytan (`StatusSnapshot.surfaced`;
+  ljudet i världen är som förut, maskin föreslog redan inget).
+- Krig-kort frö 11: ett andra `eld S-2` medan den trådstyrda gick mot S-2 gav frågan om långt skott och
+  "anfall S-2"; anfallet girade oss över 90° och tråden gick av. Torpedrummet föreslår inget anfall mot ett mål
+  som vår torped redan går mot. Navigatören sa "I 24 knop är vi i skjutläge om 87 minuter" och fyra sekunder
+  senare "S-2 har redan passerat oss": bakom målet vid ordern räcker nu en gång (`steering.py`).
+- Krig-kort frö 11: i skjutläget, konvojen tvärs om 7 minuter, föreslog radion djup 40 och boten gick upp.
+  Radion väntar nu på djupet medan navigatören anfaller och 5 min efter att målet skulle vara tvärs
+  (`NavigationStation.attack_pending`, `ATTACK_SHOT_S`): `radio.wait_attack`, inga påminnelser eller
+  sändförslag, `radio.closing` säger "vi anfaller", och `radio.clear` "Anfallet är över".
+
 ## 2026-11-26 – Bandet skär av målet; plottet låter det vara; grundet "här" eller "framåt"
 
 - Clyde-in (ja-boten): sonar föreslog "kurs mot den, fart 5" var femte minut efter en Polarisbåt i 10 knop, som

@@ -169,6 +169,8 @@ class ExitMixin:
             return
         if self.vak is not None:
             return      # på väg till eller stilla under en öppning (duell frö 51: exit avbröt vaken före sambandet)
+        if self.game.knowledge.torpedo_alarm(self.now):
+            return      # undanmanövern gäller (duell-kort frö 11: kurs ut mitt i "håll farten")
         self.suggest("exit", "nav.suggest.exit",
                      {"course": c, "dist": dist, "clear": clear, "area": self.game.area_name,
                       "via": self.exit_via, **({"speed": speed} if speed else {})},

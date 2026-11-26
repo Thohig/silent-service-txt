@@ -84,6 +84,29 @@ def test_radio_waits_when_the_plot_has_a_threat_close():
     assert any(t == "radio.clear" and d.get("order") == "periskopdjup" for t, d in types)
 
 
+def test_radio_waits_while_we_attack_and_says_when_it_is_over():
+    """Krig-kort frö 11: i skjutläget, konvojen tvärs om 7 minuter, föreslog radion djup 40."""
+    from sim.stations.navigation import NavigationStation
+    g, types = _game(window_at=700)
+    _far(g)
+    nav = g.station(NavigationStation)
+    nav._attack_pass_t = 700
+    g.world.time = 700 - 600
+    for _ in range(15):
+        g.tick()
+    assert any(t == "radio.wait_attack" for t, _ in types)
+    assert not any(t in ("radio.prewarn", "radio.clear") for t, _ in types)
+    g.world.time = 700 + 300 - 170            # stänger snart: varför ingen rapport
+    for _ in range(40):
+        g.tick()
+    assert any(t == "radio.closing" and d.get("why") == "attack" for t, d in types)
+    nav._attack_pass_t = -10**9
+    for _ in range(40):
+        g.tick()
+    clear = [d for t, d in types if t == "radio.clear"]
+    assert clear and clear[0].get("attack_over")
+
+
 def test_sonar_does_not_send_us_under_the_layer_while_up_for_the_radio():
     g, _ = _game(window_at=60)
     g.command("antenndjup")

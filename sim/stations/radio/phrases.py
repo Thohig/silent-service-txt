@@ -61,6 +61,8 @@ def _closing_why(d: dict) -> str:
     if why == "threat":
         return (f"Plottet har {d['designation']} på {nm(d['range'])} sjömil, för nära för att sända: "
                 "den pejlas.")
+    if why == "attack":
+        return "Vi anfaller: jag föreslår ingen sändning förrän skottet gått, den pejlas."
     if why == "air":
         return "Flyget är nära, de ser antennen."
     if why == "depth":
@@ -74,6 +76,8 @@ def _closing_why_ru(d: dict) -> str:
         return "Пока нас преследуют, передавать не предлагаю: запеленгуют."
     if why == "threat":
         return f"{R.contact(d['designation']).capitalize()} в {R.dec(d['range'], R.MILE)}, слишком близко."
+    if why == "attack":
+        return "Идём в атаку: до залпа передавать не предлагаю, запеленгуют."
     if why == "air":
         return "Самолёт рядом, увидят антенну."
     if why == "depth":
@@ -151,10 +155,13 @@ PHRASES = {
                                   if d.get("poor") else f"{nm(d['range'])} sjömil")
     + ". Där uppe ligger vi över skiktet och hörs. "
     "Föreslår att vi väntar på djupet tills den gått längre bort.",
+    "radio.wait_attack": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}, men vi anfaller. "
+    "Där uppe hörs vi, och sändningen pejlas. Jag väntar på djupet tills skottet gått.",
     "radio.wait_lost": lambda d: f"Kapten, radio. Sambandstillfälle kl {d['clock']}, men plottet tappade "
     f"{d['designation']} för {minutes(d['minutes'])} sedan, och vi vet inte var den är. Där uppe ligger vi över "
     "skiktet och hörs. Föreslår att vi väntar på djupet en stund.",
     "radio.clear": lambda d: "Kapten, radio. " + (
+        "Anfallet är över" if d.get("attack_over") else
         f"Inget hört av {d['designation']} på {minutes(d['quiet'])}" if d.get("quiet") else
         "Plottet har inga hot nära längre" if d.get("none") else
         f"Plottet har nu {d['designation']} på {nm(d['range'])} sjömil")
@@ -232,9 +239,12 @@ RU_PHRASES = {
     f"{R.count(d['minutes'], R.MINUTE)}, донесение не передано. " + _closing_why_ru(d),
     "radio.wait": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}, но "
     f"{R.contact(d['designation'])} в {R.dec(d['range'], R.MILE)}. Предлагаю ждать на глубине.",
+    "radio.wait_attack": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}, но мы в атаке. "
+    "Ждём на глубине до залпа.",
     "radio.wait_lost": lambda d: f"{R.CAPTAIN}, радист. Сеанс связи в {d['clock']}, но "
     f"{R.contact(d['designation'])} потеряли {R.count(d['minutes'], R.MINUTE)} назад. Предлагаю ждать на глубине.",
     "radio.clear": lambda d: f"{R.CAPTAIN}, радист. " + (
+        "Атака окончена. " if d.get("attack_over") else
         f"{R.contact(d['designation']).capitalize()} не слышно {R.count(d['quiet'], R.MINUTE)}. "
         if d.get("quiet") else "Угрозы рядом больше нет. " if d.get("none") else
         f"{R.contact(d['designation']).capitalize()} теперь в {R.dec(d['range'], R.MILE)}. ")

@@ -300,7 +300,7 @@ class NavigationStation(CurrentMixin, BottomMixin, FixMixin, IceMixin, SteeringM
         txt = back(s.astern, s.speed)
         if abs(s.ordered_speed - s.speed) >= 0.1 or s.reversing:
             txt += f" ▸ {back(s.ordered_astern, s.ordered_speed)}"
-        cav = s.speed > acoustics.cavitation_speed(s.depth, s.prop_astern) + 0.2
+        cav = not self.own.surfaced and s.speed > acoustics.cavitation_speed(s.depth, s.prop_astern) + 0.2
         g("Fart", txt + (", kaviterar" if cav else ""), WARN if cav else INFO)
         sigma = self.uncertainty()
         g("Bestick", f"± {nm(sigma)} nm, fix {clock(self.game.start_clock + self.last_fix_t)[:5]}",

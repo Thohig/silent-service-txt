@@ -126,6 +126,8 @@ class RecordingMixin:
                     self.say("sonar.record.half",
                              {**d, "left": round((RECORD_S - tape.seconds) / 60)}, kind="info")
                 continue
+            if self.now - tape.last_good < WEAK_AFTER_S:
+                continue    # bandet går, ljudet svajar (clyde-in frö 11: "hinner inte ikapp", sedan halva)
             self._suggest_closer(tr, obs)
             if tape.seconds > 0 and self.now - tape.last_good >= WEAK_AFTER_S and \
                     self.now - tape.weak_said >= WEAK_REPEAT_S:

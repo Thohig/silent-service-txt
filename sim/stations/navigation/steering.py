@@ -84,6 +84,13 @@ class SteeringMixin:
         self.suggest("attack_depth", "nav.suggest.attack_depth", data,
                      order=f"djup {data['fire_depth']}", cooldown=600)
 
+    def attack_pending(self) -> bool:
+        """Styr vi mot skjutläget, eller ligger vi där och väntar på målet (och skottet strax efter)?
+        Radion går inte upp då (krig-kort frö 11: "djup 40" i skjutläget, konvojen tvärs om 7 minuter)."""
+        from .common import ATTACK_SHOT_S
+        from .tasks import Attack
+        return isinstance(self.steer, Attack) or self.now < self._attack_pass_t + ATTACK_SHOT_S
+
     def _start_attack(self, designation: str) -> None:
         self.vak = None
         d = (designation or "").upper().replace(" ", "")
@@ -142,7 +149,8 @@ class SteeringMixin:
             # bakom målet: säkert bara med baskursen eller nära; två gånger i rad
             behind = along < -ATTACK_PASSED_NM and (basis != "leg" or math.hypot(ex - x, ey - y) < 3.0)
             task.behind = task.behind + 1 if behind else 0
-            if task.behind >= 2:
+            # vid ordern räcker en gång: annars "I 24 knop … 87 minuter" och strax efter "redan passerat" (krig-kort frö 11)
+            if task.behind >= 2 or (behind and announce):
                 self.steer = None
                 self.say("nav.attack.passed", data, quality=q, alarm=not announce)
                 return

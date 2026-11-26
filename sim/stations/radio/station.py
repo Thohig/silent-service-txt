@@ -73,6 +73,7 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
                                at_war=bool(getattr(sc, "at_war", False)))   # vet bara vad vi sänt
         self._closed: set[int] = set()
         self._closing_said: set[int] = set()
+        self._attack_wait: set[int] = set()    # fönster där vi väntar på djupet för anfallet
         self._lost_wait: dict[int, str] = {}   # fönster där vi väntar på djupet efter en tappad jagare   # fönstren där radion sagt att det stänger utan rapport
         self.broadcasts = broadcasts_for(order_day(sc.secret_order) if sc else None)
         self._broadcast_n = 0
@@ -168,6 +169,10 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
         if nxt is not None:
             d["next"] = clock(nxt)
         return d
+
+    def _attacking(self) -> bool:
+        nav = self._nav()
+        return nav is not None and nav.attack_pending()
 
     def _nav(self) -> NavigationStation | None:
         try:
@@ -295,7 +300,7 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
                     return [Proposal(3, f"idle_window{i}", "radio.prewarn_ice", "vak",
                                      {**d, **opening}, cooldown=900)]
                 up, how = self._up_order()
-                if up is None or i in self._waiting or self._threat_near() is not None or \
+                if up is None or i in self._waiting or self._threat_near() is not None or self._attacking() or \
                         self._threat_lost() is not None or self.game.knowledge.hunted(self.now):
                     return []           # vi väntar på djupet för ett hot (radio.wait): ingen påminnelse
                 return [Proposal(3, f"idle_window{i}", self._prewarn_type(), up,
@@ -378,6 +383,10 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
                                  cooldown=0)
                 elif ice:
                     self.say("radio.prewarn_ice", d)
+                elif self._up_order()[0] is not None and self._attacking():
+                    self.say("radio.wait_attack", d)
+                    self._waiting.add(i)
+                    self._attack_wait.add(i)
                 elif (up := self._up_order())[0] is not None and \
                         (near := self._threat_near()) is not None:
                     tr = self.game.knowledge.tracks.get(near[0])
@@ -421,6 +430,8 @@ class RadioStation(ReceptionMixin, SendingMixin, Station):
         near = self._threat_near()
         if k.hunted(self.now):
             why = {"why": "hunted"}
+        elif self._attacking():
+            why = {"why": "attack"}
         elif near is not None:
             why = {"why": "threat", "designation": near[0], "range": near[1]}
         elif k.air_close_now():

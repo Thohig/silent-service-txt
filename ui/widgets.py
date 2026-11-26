@@ -123,7 +123,10 @@ class StatusBar(Static):
         if s.flooding > 0.5:
             t.append("  │ ")
             t.append(f"VATTEN {s.flooding:.0f} t", style="bold red")
-        if s.periscope_depth:
+        if s.surfaced:
+            t.append("  │ ")
+            t.append("YTLÄGE", style="bold #9fb8c8")
+        elif s.periscope_depth:
             t.append("  │ ")
             t.append("MASTER UPPE" if s.masts_up else "PERISKOPDJUP",
                      style="bold red" if s.masts_up else "bold yellow")

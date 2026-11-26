@@ -309,6 +309,8 @@ class FiringMixin:
         k = self.game.knowledge
         if k.hunted(self.now) or k.hunting(tr, self.now):
             return False
+        if any(r.designation == tr.designation and self.now < r.t_end for r in self.in_water):
+            return False                # vår torped går redan mot den (krig-kort frö 11: anfall, giren tog tråden)
         try:
             steer = self.game.station(NavigationStation).steer
         except KeyError:

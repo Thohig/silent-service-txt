@@ -447,3 +447,15 @@ def test_after_manual_control_the_boat_returns_to_the_ordered_depth():
     own.sys.dmg.planes_jam = -1                     # stigläge
     _run(w, D.JAM_MANUAL_S + 1)
     assert own.sys.dmg.planes_jam == 0 and own.state.ordered_depth == 17
+
+
+def test_repair_cannot_agrees_with_the_component():
+    """Kaosboten: "Kapten, sonaren är hela." Adjektivet följer komponenten."""
+    from sim.stations.damage_control import PHRASES
+    def text(comp, **kw):
+        return PHRASES["dc.repair.cannot"]({"component": comp, **kw})
+    assert text("sonar").endswith("sonaren är hel.")
+    assert text("periscope").endswith("periskopet är helt.")
+    assert text("planes").endswith("rodren är hela.")
+    assert "ingen kommer åt den." in text("radio", flooded=True)
+    assert "torpedtuberna är lagade" in text("tubes", as_good=True)

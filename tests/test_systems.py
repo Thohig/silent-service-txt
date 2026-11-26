@@ -211,3 +211,18 @@ def test_sonar_panel_counts_contacts_instead_of_clipping():
     assert contacts_text(["S-1"], 0) == "S-1"
     assert contacts_text(["S-1", "S-4"], 1) == "S-1, S-4 (1 hot)"
     assert contacts_text(["S-1", "S-2", "S-3", "S-12"], 2) == "4 (2 hot)"
+
+
+def test_status_in_surface_trim_says_surfaced_and_does_not_warn_of_cavitation():
+    """Övningen börjar i ytläge i 10 knop: huvudraden sa PERISKOPDJUP och ett rött KAVITERAR."""
+    import random
+    from sim.game import Game
+    from sim.scenario import build_scenario
+    g = Game(build_scenario("ovning", random.Random(3)), seed=3)
+    st = g.world.own.state
+    st.speed = st.ordered_speed = 10.0
+    s = g.status()
+    assert s.surfaced and not s.cavitating
+    st.depth = st.ordered_depth = 17.0
+    s = g.status()
+    assert not s.surfaced and s.periscope_depth and s.cavitating

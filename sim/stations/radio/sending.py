@@ -134,14 +134,17 @@ class SendingMixin:
     def _clear_advice(self, i: int, w0: int) -> None:
         """Vi väntar på djupet: föreslå antenndjup när hotet gått längre bort."""
         if self._threat_near() is not None or self.game.knowledge.hunted(self.now) or \
-                self._threat_lost() is not None:
+                self._threat_lost() is not None or self._attacking():
             return
         self._waiting.discard(i)
         far = self._far_threat()
         lost = self._lost_wait.pop(i, None)
         d = {"designation": far[0] if far else "kontakten", "range": far[1] if far else RADIO_SAFE_NM,
              "close": self.game.clock_str(w0 + self.window_len)[:5]}
-        if far is None and lost is not None:
+        if i in self._attack_wait:
+            self._attack_wait.discard(i)
+            d = {**d, "attack_over": True}
+        elif far is None and lost is not None:
             d = {"designation": lost, "quiet": LOST_RECENT_S // 60, "close": d["close"]}
         elif far is None:
             d = {"none": True, "close": d["close"]}    # förut "plottet har nu kontakten på 5,0 sjömil"
@@ -158,7 +161,7 @@ class SendingMixin:
         if self.report_required or "rapport" not in k.order_tasks or self.tx_done_t is not None \
                 or self._reported_t >= k.order_tasks_t:
             return
-        if k.hunted(self.now) or self._threat_near() is not None or k.air_close_now():
+        if k.hunted(self.now) or self._threat_near() is not None or k.air_close_now() or self._attacking():
             return
         best = None
         for tr in k.tracks.values():
@@ -187,7 +190,7 @@ class SendingMixin:
         medan fienden har oss (sändningen pejlas)."""
         if not self.report_required or self._reported_t >= w0 or self.tx_done_t is not None:
             return
-        if self.game.knowledge.hunted(self.now) or self._threat_near() is not None:
+        if self.game.knowledge.hunted(self.now) or self._threat_near() is not None or self._attacking():
             return
         st, k = self.own.state, self.game.knowledge
         air_recent = k.air_close_t is not None and self.now - k.air_close_t < AIR_QUIET_S
