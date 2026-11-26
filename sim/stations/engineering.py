@@ -247,7 +247,8 @@ PHRASES = {
        f"Föreslår att vi lättar: turbin och fart {d['speed']} på {d['depth']:.0f} meter, bort härifrån."),
     "eng.blow_confirm": lambda d: "Kapten, maskin. Ingen vatteninträngning och djupet är i ordning. "
     "Nödblåsningen tömmer högtrycksluften och tar oss rakt upp till ytan. Svara ja om vi ska blåsa.",
-    "eng.suggest.sprint": lambda d: "Kapten, maskin. De har oss redan på aktiv sonar, smygandet "
+    "eng.suggest.sprint": lambda d: "Kapten, maskin. De har oss redan"
+    + (" på aktiv sonar" if d.get("pinged", True) else "") + ", smygandet "
     f"hjälper inte nu. Föreslår turbin och fart {kn(d['speed'])} på {d['depth']:.0f} meter, "
     "där kaviterar vi inte. Djupt och fort bort.",
     "eng.suggest.creep": lambda d: "Kapten, maskin. Med kontakt i närheten föreslår jag "
@@ -427,7 +428,8 @@ RU_PHRASES = {
     f"{R.count(d['speed'], R.KNOT)}, глубина {R.count(d['depth'], R.METER)}.",
     "eng.blow_confirm": lambda d: f"{R.CAPTAIN}, пульт. Поступления воды нет, глубина в норме. "
     "Аварийное продувание выбросит нас на поверхность. Повторите приказ, если продуваем.",
-    "eng.suggest.sprint": lambda d: f"{R.CAPTAIN}, пульт. Нас уже держат гидролокатором, тишина "
+    "eng.suggest.sprint": lambda d: f"{R.CAPTAIN}, пульт. Нас уже держат"
+    + (" гидролокатором" if d.get("pinged", True) else "") + ", тишина "
     f"не поможет. Предлагаю турбину и ход {R.count(d['speed'], R.KNOT)} на глубине "
     f"{R.count(d['depth'], R.METER)}, там не кавитируем. Уходим глубоко и быстро.",
     "eng.suggest.creep": lambda d: f"{R.CAPTAIN}, пульт. Рядом контакт, предлагаю электромотор, "
@@ -726,7 +728,10 @@ class EngineeringStation(Station):
         # beordrats under tiden
         parts.append("turbin")
         parts.append(f"fart {speed}")
-        return ", ".join(parts), {"speed": speed, "depth": depth}
+        # "på aktiv sonar" bara när det var deras pingar (duell-kort: ubåten pingade aldrig, den sköt)
+        k = self.game.knowledge
+        pinged = k.hunt_t - k.pinged_t <= 0 or self.now - k.pinged_t <= 300
+        return ", ".join(parts), {"speed": speed, "depth": depth, "pinged": pinged}
 
     def _smoke_advice(self) -> None:
         own, s = self.own, self.own.sys

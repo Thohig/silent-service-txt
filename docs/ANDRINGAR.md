@@ -3,6 +3,18 @@
 Vad som ändrats, nyast först: vad det betyder i spel, var det bor i koden och vad kalibreringen
 visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/README.md`.
 
+## 2026-11-26 – Plottets ben inte i döda sektorn; torped tystnad tidigt går troligen kvar
+
+- Svansen-kort frö 201 (ja-boten): plottet föreslog "kurs 203" med skuggaren i bäring 015, rakt i döda sektorn
+  akterut. Sonar tappade den, och nästa ljud var torpedrören. Nästa ben lägger nu aldrig kontakten inom sektorn
+  + 15° (`PlotTeam._suggest_course`, `LEG_BAFFLE_MARGIN_DEG`). `tests/test_tma.py`.
+- Duell-kort frö 202 (ja-boten): torpeden tystnade tvärs 80 s efter skottet, och sonar antog att den var borta
+  ("tystnar den där vi hör"). Maskin föreslog genast 13 knop, ja-boten sa ja och torpeden hann ikapp. Nu går en
+  torped som tystnar före 75 % av gångtiden troligen kvar (`RUNNING_FRACTION`, `sim/stations/incoming.py`): larmet
+  står, och sonar säger "håll farten". Maskins sprintförslag säger "på aktiv sonar" bara när det var pingar
+  (`Knowledge.pinged_t`). `tests/test_enemy_torpedo.py`.
+- Kalibreringen (`kontroll.py`, alla scenarier) pågår vid commit; resultatet förs in här.
+
 ## 2026-11-26 – Vrakförslaget går inte genom grundet
 
 - Provspel (ja-boten, sundet-in frö 22): navigatören föreslog "kurs mot vrak 1" och en halv minut senare en gir bort

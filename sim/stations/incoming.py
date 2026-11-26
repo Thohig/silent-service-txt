@@ -47,6 +47,7 @@ HOLDING_WINDOW_S = 90          # närmare (en torped rakt mot oss på 5 nm stige
 # kommer. Besättningens tumregel för en amerikansk målsökande torped (inte torpedens sanna gångtid):
 # den går omkring 12 minuter från det vi först hörde den. Så länge gäller undanmanövern.
 TORPEDO_RUN_S = 12 * 60
+RUNNING_FRACTION = 0.75        # tystnar den före så stor del av gångtiden går den troligen kvar
 ASTERN_MARGIN_DEG = 10.0       # så långt utanför döda sektorn räknas den tappade torpeden ändå dit
 
 
@@ -135,7 +136,9 @@ PHRASES = {
     "sonar.torpedo.lost": lambda d: "Torpeden hörs inte längre"
     + (f", sista bäring {fmt_course(d['bearing'])}." if d.get("bearing") is not None else ".")
     + (f" Den ligger i döda sektorn akterut och går troligen kvar, kanske {d['minutes']} "
-       f"minut{'er' if d['minutes'] > 1 else ''} till. Håll farten." if d.get("astern") else ""),
+       f"minut{'er' if d['minutes'] > 1 else ''} till. Håll farten." if d.get("astern") else
+       f" Den har inte gått färdigt, den går troligen kvar, kanske {d['minutes']} "
+       f"minut{'er' if d['minutes'] > 1 else ''} till. Håll farten." if d.get("running") else ""),
     "sonar.doors": lambda d: f"Kapten, sonar! Mekaniskt ljud i bäring {fmt_course(d['bearing'])}, "
     "luckor och vatten som fylls. De öppnar torpedrören!",
     "sonar.suggest.spoil": lambda d: f"Kapten! Föreslår kurs {fmt_course(d['course'])} och djup "
@@ -166,7 +169,9 @@ RU_PHRASES = {
     + (f" Подход через {R.mmss(d['eta'])}." if d.get("eta") is not None else ""),
     "sonar.torpedo.lost": lambda d: "Торпеду больше не слышно."
     + (f" Она в мёртвой зоне за кормой, вероятно ещё идёт, может быть "
-       f"{R.count(d['minutes'], ('минуту', 'минуты', 'минут'))}. Держать ход." if d.get("astern") else ""),
+       f"{R.count(d['minutes'], ('минуту', 'минуты', 'минут'))}. Держать ход." if d.get("astern") else
+       f" Она, вероятно, ещё идёт, может быть {R.count(d['minutes'], ('минуту', 'минуты', 'минут'))}. "
+       "Держать ход." if d.get("running") else ""),
     "sonar.doors": lambda d: f"{R.CAPTAIN}, акустик! Механический шум, пеленг {R.course(d['bearing'])}. "
     "Открывают торпедные аппараты!",
     "sonar.suggest.spoil": lambda d: f"{R.CAPTAIN}! Предлагаю курс {R.course(d['course'])}, глубина "
@@ -207,6 +212,14 @@ class IncomingMixin:
             if until is not None:
                 minutes = max(1, math.ceil((until - self.now) / 60))
                 self.say("sonar.torpedo.lost", {"bearing": ev.bearing, "astern": True, "minutes": minutes},
+                         kind="contact", alarm=True)
+                bus.publish(TorpedoInWater(self.now, ev.no, "astern", ev.bearing, until=until))
+            elif (until := self._may_run_until(h)) is not None:
+                # tystnade där vi hör, men långt före gångtidens slut: den går troligen kvar (duell-kort
+                # frö 202: tappad abeam 80 s efter skottet, larmet släpptes, maskin föreslog 13 knop och
+                # torpeden hann ikapp). Larmet står (TorpedoInWater "astern": kvar till `until`).
+                minutes = max(1, math.ceil((until - self.now) / 60))
+                self.say("sonar.torpedo.lost", {"bearing": ev.bearing, "running": True, "minutes": minutes},
                          kind="contact", alarm=True)
                 bus.publish(TorpedoInWater(self.now, ev.no, "astern", ev.bearing, until=until))
             else:
@@ -315,6 +328,16 @@ class IncomingMixin:
         if off_stern > half + ASTERN_MARGIN_DEG or until <= self.now:
             return None
         return until
+
+    def _may_run_until(self, h: _Heard) -> int | None:
+        """En torped som tystnar utanför döda sektorn innan den gått RUNNING_FRACTION av gångtiden går
+        troligen kvar (vårt eget brus, skenmålet, djupet): till när den senast kan ha gått ut."""
+        if not h.bearings:
+            return None
+        first = h.bearings[0][0]
+        if self.now - first >= RUNNING_FRACTION * TORPEDO_RUN_S:
+            return None
+        return first + TORPEDO_RUN_S
 
     def _loudest(self, ev: IncomingTorpedo) -> bool:
         """Hörs ingen annan torped starkare just nu? Den närmaste styr förslagen."""

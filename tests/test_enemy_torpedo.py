@@ -176,17 +176,39 @@ def test_tappad_akterut_inga_forslag_om_fart_eller_gir():
     assert "sonar.suggest.clear_baffles" not in types
 
 
-def test_tappad_tvars_ar_borta():
-    """Tystnar torpeden där vi hör (tvärs), är den borta: larmet släpper som förut."""
+def test_tappad_tvars_tidigt_gar_troligen_kvar():
+    """Duell-kort frö 202: torpeden tystnade tvärs 80 s efter skottet, larmet släpptes ("tystnar den där vi
+    hör är den borta"), maskin föreslog 13 knop och torpeden hann ikapp. Långt före gångtidens slut går
+    den troligen kvar: larmet står till 12 min efter första bäringen, och sonar säger håll farten."""
+    from sim.stations.incoming import TORPEDO_RUN_S
     g, reports = _game(depth=50, speed=28)
     _fleeing(g)
-    _heard_then_lost(g, 0.0, 0.0)
+    first = _heard_then_lost(g, 0.0, 0.0)
     lost = [r for r in reports if r.type == "sonar.torpedo.lost"]
-    assert lost and not lost[-1].data.get("astern")
+    assert lost and lost[-1].data.get("running") and not lost[-1].data.get("astern")
+    assert "Håll farten" in lost[-1].text
+    assert g.knowledge.torpedo_alarm(first + TORPEDO_RUN_S - 5)
+    assert not g.knowledge.torpedo_alarm(first + TORPEDO_RUN_S + 61)
+
+
+def test_tappad_tvars_sent_ar_borta():
+    """Tystnar den där vi hör när den gått större delen av gångtiden är den borta: larmet släpper."""
+    from sim.stations.incoming import RUNNING_FRACTION, TORPEDO_RUN_S
+    g, reports = _game(depth=50, speed=28)
+    _fleeing(g)
+    sonar = g.station(SonarRoom)
+    g.tick()
+    sonar._on_incoming(IncomingTorpedo(1, "new", 0.0, 12.0, 120.0))
+    _run(g, int(RUNNING_FRACTION * TORPEDO_RUN_S) + 5)
+    sonar._on_incoming(IncomingTorpedo(1, "lost", 0.0))
+    _run(g, 30)
+    lost = [r for r in reports if r.type == "sonar.torpedo.lost"]
+    assert lost and not lost[-1].data.get("running") and not lost[-1].data.get("astern")
     assert not g.knowledge.torpedo_alarm(g.now + 61)
 
 
-def test_hord_och_tappad_igen_tvars_slapper_akterlarmet():
+def test_hord_och_tappad_igen_tvars_behaller_larmet_medan_den_kan_ga():
+    """Tappad akterut, hörd igen och tappad tvärs tidigt: larmet står kvar (förut släppte det)."""
     g, _ = _game(depth=50, speed=28)
     _fleeing(g)
     _heard_then_lost(g, 90.0, 90.0)
@@ -196,7 +218,7 @@ def test_hord_och_tappad_igen_tvars_slapper_akterlarmet():
     sonar._on_incoming(IncomingTorpedo(1, "bearing", 10.0, 12.0, 120.0))
     g.tick()
     sonar._on_incoming(IncomingTorpedo(1, "lost", 10.0))
-    assert not g.knowledge.torpedo_alarm(g.now + 61)
+    assert g.knowledge.torpedo_alarm(g.now + 300)
 
 
 def _steady_torpedo(g, level_at, seconds):
@@ -226,3 +248,19 @@ def test_a_far_torpedo_coming_at_us_is_not_called_holding():
         _steady_torpedo(g, lambda k: 100.0 + 0.013 * k, 240)
         _run(g, 10)
         assert not any(r.data.get("holding") for r in reports if r.type == "sonar.torpedo.bearing"), seed
+
+
+def test_sprint_says_active_sonar_only_when_they_pinged():
+    """Duell-kort frö 202: "De har oss redan på aktiv sonar" fast ubåten aldrig pingade (den öppnade rören)."""
+    from sim import phrases
+    from sim.events import HuntSigns
+    from sim.stations import EngineeringStation
+    g, _ = _game(depth=100, speed=4)
+    eng = g.station(EngineeringStation)
+    g.bus.publish(HuntSigns(g.now, "doors"))
+    _, data = eng._sprint()
+    assert data["pinged"] is False
+    assert "aktiv sonar" not in phrases.PHRASES["eng.suggest.sprint"](data)
+    assert "гидролокатором" not in phrases.RU_PHRASES["eng.suggest.sprint"](data)
+    g.bus.publish(HuntSigns(g.now, "ping"))
+    assert eng._sprint()[1]["pinged"] is True

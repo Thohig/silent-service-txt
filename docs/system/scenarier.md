@@ -177,7 +177,10 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   Tystnar den inom sektorn + 10° (`ASTERN_MARGIN_DEG`) säger sonar att den ligger i döda sektorn och troligen går
   kvar, "håll farten" (larm), och torpedlarmet gäller till 12 min efter första bäringen (`TORPEDO_RUN_S`,
   besättningens tumregel, inte torpedens sanna gångtid; `TorpedoInWater` kind "astern" med `until`,
-  `Knowledge.torpedo_astern_until`). Tystnar den där vi hör den är den borta, som förut. Under tiden inget
+  `Knowledge.torpedo_astern_until`). Tystnar den där vi hör innan den gått 75 % av den tiden (`RUNNING_FRACTION`,
+  2026-11-26) går den också troligen kvar: samma larm och "håll farten" (`data["running"]`); duell-kort frö 202
+  tystnade den tvärs 80 s efter skottet, larmet släpptes, maskin föreslog 13 knop och torpeden hann ikapp. Först
+  senare är den borta. Under tiden inget
   kavitationsförslag och ingen lyssningsgir. Förut släppte larmet efter 5 min och maskin föreslog lägre fart med
   torpeden bakom oss (Svansen-kort frö 31: 0,2 nm). Duell-kort, ja-boten, 16 frön: förlorade 13 ⇒ 6.
 - **US-ubåten i krig** (`arctic.py`, `SubmarineAI.roe = "attack"`, D2): håller 2,5 nm (`ATTACK_NM`) i 8 kn,
@@ -266,6 +269,9 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
   farten tillbaka (`sonar.baffles.clear`). Går kaptenen annanstans glöms giren. **Tappad akterut**
   (`_astern_lost_watch`): en kontakt sonar tappat de senaste 30 min som enligt plottet (annars sista bäringen) ligger
   i sektorn + 10° ger en gir som lägger den tvärs (`sonar.suggest.astern_lost`), en gång per tappning, med samma skydd.
+  Plottets nästa ben (`plot.suggest`, `PlotTeam._suggest_course`) lägger aldrig kontakten inom sektorn + 15°
+  (`LEG_BAFFLE_MARGIN_DEG`; prövar speglade giren, andra hållet och sedan ±60/90/120°; 2026-11-26, svansen-kort
+  frö 201: "kurs 203" med skuggaren i 015, tappad, sedan torpedrören).
   Utan den gick övningens lyssning med bevakningsfartyget akterut i 25 min (ovning-kort 8 ⇒ 3 klara). **Skuggningen**
   (`SubmarineAI.state = "shadow"`): styr mot sin medlade pejling (förföljaren hamnar akterut) med vår fart ur
   varvtalet, som den märker med 90 s tidskonstant (`SHADOW_REACT_S`), så när vi saktar in och girar kommer den

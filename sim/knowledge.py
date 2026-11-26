@@ -177,6 +177,7 @@ class Knowledge:
     best_photo: Quality | None = None    # bästa spaningsfotot hittills
     recorded: set = field(default_factory=set)   # kontakter sonar har en färdig inspelning av
     hunt_t: int = -10**9                 # senast sonar hörde att fienden har oss
+    pinged_t: int = -10**9               # senast det tecknet var deras aktiva sonar (snabb pingtakt)
     torpedo_t: int = -10**9              # senaste bäringen på en fientlig torped
     torpedo_astern_until: int = -10**9   # en torped tappad i döda sektorn: troligen kvar till dess
     doors_t: int = -10**9                # senast sonar hörde fienden öppna torpedrören
@@ -280,6 +281,8 @@ class Knowledge:
 
     def _on_hunt(self, e: HuntSigns) -> None:
         self.hunt_t = e.t
+        if e.reason == "ping":
+            self.pinged_t = e.t
         if e.reason == "doors":
             self.doors_t = e.t
 

@@ -38,6 +38,7 @@ BEARING_LINE_NM = 12.0          # bäringslinjer på kortet
 VECTOR_S = 360                  # fartvektor på kortet: sex minuters gång
 FADE_S = 300                    # äldre bäringar ritas bleka
 MANEUVER_REPEAT_S = 300         # säg "har ändrat kurs" högst så här ofta per kontakt
+LEG_BAFFLE_MARGIN_DEG = 15      # nästa ben lägger inte kontakten närmare döda sektorn än så
 RECALL_IMPROVED_S = 120        # "nu god" så nyss före en manöver: plottet säger att den inte gäller
 IMPROVED_AGAIN_S = 600          # samma kvalitet sägs inte igen inom så här lång tid (den svänger)
 HUNTED_MANEUVER_REPEAT_S = 1800  # ... och så här sällan medan vi är jagade (jagaren girar hela
@@ -786,7 +787,16 @@ class PlotTeam(Station):
             turn = -60 if angle_diff(sol.bearing, own_course) > 0 else 60
         from .navigation import NavigationStation
         nav = next((st for st in self.game.stations if isinstance(st, NavigationStation)), None)
-        for c in (norm360(own_course + turn), norm360(own_course - turn)):
+        # inte en kurs som lägger kontakten i döda sektorn akterut: då tappar sonar den och benet ger
+        # inga bäringar (svansen-kort frö 201: "kurs 203" med skuggaren i 015, tappad två minuter senare,
+        # sedan öppnade han torpedrören)
+        b = tr.last_bearing if tr.last_bearing is not None else sol.bearing
+        blind = self.own.baffle_deg + LEG_BAFFLE_MARGIN_DEG
+        options = [turn, -turn] + [s * a for a in (60, 90, 120) for s in (1, -1) if s * a not in (turn, -turn)]
+        for t in options:
+            c = norm360(own_course + t)
+            if abs(angle_diff(b, norm360(c + 180.0))) <= blind:
+                continue
             if nav is None or nav.course_safe(c):
                 return c
         return None

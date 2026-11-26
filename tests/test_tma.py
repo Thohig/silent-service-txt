@@ -423,3 +423,26 @@ def test_maneuver_right_after_good_takes_the_good_back(queued):
     assert not any(t == "plot.improved" and not d.get("solution") for t, d in types)
     man = [d for t, d in types if t == "plot.maneuver"]
     assert man and man[0]["recall"] is (not queued)
+
+
+def test_the_next_leg_does_not_put_the_contact_in_the_baffles():
+    """Svansen-kort frö 201 (ja-boten): plottet föreslog "kurs 203" med skuggaren i bäring 015, rakt i
+    döda sektorn; sonar tappade den och nästa ljud var torpedrören."""
+    from types import SimpleNamespace
+    from sim.game import Game
+    from sim.geo import angle_diff
+    from sim.knowledge import ContactTrack
+    from sim.scenario import default_scenario
+    from sim.stations.plot import PlotTeam
+    g = Game(default_scenario(random.Random(1)), seed=1)
+    plot = g.station(PlotTeam)
+    st = g.world.own.state
+    st.course = st.ordered_course = 143.0
+    own = g.world.own
+    for bearing in (15.0, 200.0, 323.0, 90.0):
+        tr = ContactTrack("S-9", 0, observations=[BearingObs(g.now - 60, bearing, 1.0, 0, 0, 203.0),
+                                                   BearingObs(g.now, bearing, 1.0, 0, 0, 143.0)])
+        sol = SimpleNamespace(own_maneuvered=True, bearing=bearing)
+        c = plot._suggest_course(sol, tr)
+        assert c is not None
+        assert abs(angle_diff(bearing, (c + 180.0) % 360)) > own.baffle_deg, (bearing, c)
