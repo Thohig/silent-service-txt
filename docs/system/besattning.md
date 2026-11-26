@@ -259,7 +259,8 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
     sonar, tuber, periskop, radio; jagade framdrivningen först; rodren först när de fastnat eller båten är tung och
     de inte bär) eller kaptenens (`reparera X`; maskin föreslår `reparera roder` om vi sjunker). Hörbar: ett slag var
     40:e s (130 dB, `Transient("repair")`, jagaren pejlar det, blyerts och vattenfall "h"); i tystnad tyst i halva
-    takten. `dc.repair.start` säger vad, hur länge och vad som kommer sedan.
+    takten. `dc.repair.start` säger vad, hur länge och vad som kommer sedan. "Hel" böjs efter komponenten
+    (`damage_control._agree`): sonaren är hel, periskopet är helt, rodren är hela.
   - *Provdjupet* sjunker med skrovet: `TEST_DEPTH · min(1, 0,5 + 0,5·skrov)` (`OwnShip.test_depth`; 250 m vid 67 %).
     Maskin säger det (`dc.test_depth`, när det sjunkit 10 m, högst var 90:e s om inte 30 m); navigatören och alla
     gå-ned-förslag håller sig 20 m ovanför (`Station.hull_depth`, `dive_depth`, maskins sprint). Under provdjupet nöts
@@ -343,6 +344,12 @@ fungerar och deras siffror. Uppdatera här när systemet ändras.
     föreslås omladdningen genast, också under jakt (högst var 2:e min). Tystnadens förslag som förut. Vad
     minören föreslår (`_reload_offer`): en 53-62T om ingen tub har eller laddar en (en i taget står redo),
     annars det vi har mest av av SET-53 och 53-61, och 53-61 när en salva nekats.
+  - *Tråden* (2026-11-26): medan en 53-62T går på tråd säger torpedrummet nej (`vetoes`, `WireMixin._wire_vetoes`)
+    till förslag om gir över 90° från skjutkursen, fart över 12 knop och anfall, så att ingen station sliter tråden;
+    inte när de har oss eller en torped kommer. Inget `torp.suggest.close` mot ett mål som vår torped redan går mot.
+  - *Okänt mål:* `anfall S-7` utan någon S-7 i plottet: navigatören säger "Kapten, vi har ingen S-7 i plottet."
+    (`nav.attack.none`; förut "ingen lösning på S-7", som lät som att kontakten fanns). `eld S-7`: torpedrummet
+    "vi har ingen kontakt S-7".
 - **Förslag som krockade** (provspelet 2026-11-23, alla scenarier; `tests/test_suggestion_sense.py`,
   `test_playtest_fixes.py`):
   - *Samma order:* `Game._suggestion_stale` släpper samma order som står obesvarad sedan < 30 s, också från samma
