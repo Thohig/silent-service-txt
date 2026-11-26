@@ -14,7 +14,9 @@ visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/READM
 - Navigatörens grund framåt prövas mitt i en gir också längs den beordrade kursen, och djupkvitteringen säger
   "här" eller "0,8 sjömil framåt" (förut "här" också för grundet framåt; sundet-in frö 22 sa navigatören "botten
   cirka 20 meter här" och vakthavande föreslog djup 50 en halv minut senare).
-- Kalibreringen (`kontroll.py`, alla scenarier) för dessa och föregående ändring pågår vid commit.
+- Kalibreringen (`kontroll.py`, alla scenarier, 2026-11-26): duell-kort ja-boten förlorade 5 ⇒ 3 (torpedlarmet),
+  clyde-in bandet klart 9 ⇒ 12 av 16, clyde klart 4 ⇒ 5 av 16; övriga som baslinjen. Baslinjen sparad för duell-kort,
+  clyde, clyde-in och krig.
 
 ## 2026-11-26 – Plottets ben inte i döda sektorn; torped tystnad tidigt går troligen kvar
 
@@ -27,7 +29,7 @@ visade. Systemen i detalj står i `docs/system/`, siffrorna i `kalibrering/READM
   torped som tystnar före 75 % av gångtiden troligen kvar (`RUNNING_FRACTION`, `sim/stations/incoming.py`): larmet
   står, och sonar säger "håll farten". Maskins sprintförslag säger "på aktiv sonar" bara när det var pingar
   (`Knowledge.pinged_t`). `tests/test_enemy_torpedo.py`.
-- Kalibreringen (`kontroll.py`, alla scenarier) pågår vid commit; resultatet förs in här.
+- Kalibreringen: se ovan (bandet skär av målet).
 
 ## 2026-11-26 – Vrakförslaget går inte genom grundet
 

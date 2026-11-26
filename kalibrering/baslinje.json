@@ -650,13 +650,14 @@
   },
   "ja": {
    "utfall": {
-    "lost": 5,
-    "patrol_end": 3
+    "escaped": 1,
+    "lost": 3,
+    "patrol_end": 4
    },
    "frön": {
     "0": "lost",
-    "1": "lost",
-    "2": "lost",
+    "1": "patrol_end",
+    "2": "escaped",
     "3": "patrol_end",
     "4": "lost",
     "5": "patrol_end",
@@ -664,7 +665,8 @@
     "7": "lost"
    },
    "minuter": {
-    "lost": 31,
+    "escaped": 41,
+    "lost": 30,
     "patrol_end": 43
    }
   }
@@ -698,30 +700,30 @@
   },
   "ja": {
    "utfall": {
-    "clyde_done": 4,
-    "record_missed": 12
+    "clyde_done": 5,
+    "record_missed": 11
    },
    "frön": {
     "0": "record_missed",
     "1": "record_missed",
     "2": "clyde_done",
-    "3": "record_missed",
+    "3": "clyde_done",
     "4": "record_missed",
     "5": "clyde_done",
     "6": "record_missed",
-    "7": "record_missed",
+    "7": "clyde_done",
     "8": "record_missed",
     "9": "record_missed",
     "10": "record_missed",
     "11": "record_missed",
     "12": "clyde_done",
     "13": "record_missed",
-    "14": "clyde_done",
+    "14": "record_missed",
     "15": "record_missed"
    },
    "minuter": {
-    "clyde_done": 500,
-    "record_missed": 414
+    "clyde_done": 484,
+    "record_missed": 417
    }
   }
  },
@@ -754,30 +756,30 @@
   },
   "ja": {
    "utfall": {
-    "patrol_end": 6,
-    "recorded": 10
+    "patrol_end": 4,
+    "recorded": 12
    },
    "frön": {
     "0": "recorded",
     "1": "recorded",
     "2": "recorded",
-    "3": "recorded",
-    "4": "patrol_end",
-    "5": "patrol_end",
-    "6": "patrol_end",
+    "3": "patrol_end",
+    "4": "recorded",
+    "5": "recorded",
+    "6": "recorded",
     "7": "patrol_end",
     "8": "recorded",
     "9": "recorded",
     "10": "recorded",
-    "11": "patrol_end",
-    "12": "recorded",
-    "13": "patrol_end",
+    "11": "recorded",
+    "12": "patrol_end",
+    "13": "recorded",
     "14": "recorded",
-    "15": "recorded"
+    "15": "patrol_end"
    },
    "minuter": {
     "patrol_end": 48,
-    "recorded": 31
+    "recorded": 30
    }
   }
  },
@@ -809,16 +811,16 @@
    "frön": {
     "0": "patrol_done",
     "1": "patrol_done",
-    "2": "patrol_done",
+    "2": "patrol_end",
     "3": "patrol_done",
-    "4": "patrol_end",
+    "4": "patrol_done",
     "5": "patrol_end",
     "6": "lost",
     "7": "patrol_done"
    },
    "minuter": {
     "lost": 340,
-    "patrol_done": 681,
+    "patrol_done": 762,
     "patrol_end": 840
    }
   }
@@ -965,5 +967,5 @@
    }
   }
  },
- "_commit": "03912fe"
+ "_commit": "c13ec3b"
 }

@@ -52,16 +52,22 @@ def test_order_is_shown_as_telegram_and_ending_as_report(tmp_path):
             await pilot.pause()
             tt = app.gs().query_one(Teletype)
             await pilot.press("enter")                       # hela ordern
-            await pilot.pause()
-            shown = str(tt.render())
+            for _ in range(20):                              # under full last (hela sviten) tar ritningen tid
+                await pilot.pause(0.1)
+                shown = str(tt.render())
+                if "SLUT" in shown:
+                    break
             assert "ШИФРОГРАММА" in shown and "РАСШИФРОВАЛ" in shown and "SLUT" in shown
             await pilot.press("enter")                       # ta befälet
             await pilot.pause()
             app.game.world.outcome = {"outcome": "patrol_end"}
             app.game.tick()
-            await pilot.pause()
-            text = "\n".join(t.plain if hasattr(t, "plain") else str(t)
-                             for t in app.gs().query_one(ReportLog).entries)
+            for _ in range(20):
+                await pilot.pause(0.1)
+                text = "\n".join(t.plain if hasattr(t, "plain") else str(t)
+                                 for t in app.gs().query_one(ReportLog).entries)
+                if "ДОНЕСЕНИЕ" in text:
+                    break
             assert "ДОНЕСЕНИЕ" in text and "ГЛАВНЫЙ ШТАБ ВМФ" in text
 
     asyncio.run(run())
